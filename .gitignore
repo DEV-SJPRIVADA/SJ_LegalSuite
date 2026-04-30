@@ -1,4 +1,5 @@
 *.log
+.commit-msg.tmp
 .DS_Store
 .env
 .env.backup
