@@ -1,9 +1,9 @@
 <h1 align="center">SJ LegalSuite</h1>
 
 <p align="center">
-  <strong>Sistema de gestión jurídica disciplinaria</strong><br>
-  Plataforma centralizada para administrar procesos disciplinarios con control de etapas,
-  trazabilidad legal completa y reportes en tiempo real.
+  <strong>Plataforma jurídica integral para SJ Seguridad</strong><br>
+  Sistema centralizado para administrar todos los procesos del área jurídica con
+  control de etapas, trazabilidad legal completa y reportes en tiempo real.
 </p>
 
 <p align="center">
@@ -16,16 +16,72 @@
 
 ---
 
-## ✨ Características principales
+## 📦 Módulos del sistema
 
-- **Módulo Disciplinario** como núcleo del sistema, con workflow estricto y validado.
-- **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
-- **Workflow centralizado**: 13 estados, transiciones controladas, plazos legales automáticos
+SJ LegalSuite está diseñado como una suite de **12 módulos jurídicos**. La construcción
+es incremental: el módulo Disciplinario es el núcleo y ya está operativo. Los demás
+aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
+
+| # | Módulo | Estado |
+|---|---|---|
+| 1 | 🏠 **Inicio** (Dashboard global con alertas) | ✅ Disponible |
+| 2 | ⚖️ **Disciplinarios** | ✅ Disponible |
+| 3 | 💼 Licitaciones | 🚧 Próximamente |
+| 4 | 🛡️ Acciones de tutela | 🚧 Próximamente |
+| 5 | 📄 Demandas | 🚧 Próximamente |
+| 6 | 👥 Negociación colectiva | 🚧 Próximamente |
+| 7 | 🔍 Investigaciones | 🚧 Próximamente |
+| 8 | 💰 Cartera | 🚧 Próximamente |
+| 9 | 📋 Requisitos legales | 🚧 Próximamente |
+| 10 | 📑 Contratos | 🚧 Próximamente |
+| 11 | 🛡️ Pólizas | 🚧 Próximamente |
+| 12 | 📊 Auditoría | 🚧 Próximamente |
+
+## ✨ Características principales (módulo Disciplinario)
+
+- **Workflow estricto y validado**: 13 estados, transiciones controladas, plazos legales automáticos
   (ej: 2 días hábiles para justificar inasistencia a citación).
+- **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
 - **Roles y permisos granulares** (Spatie Permission v6): admin, jurídico, gerencia, auditor, operaciones.
 - **Dashboard analítico** con KPIs, distribución por falta, por ciudad y carga por abogado en una sola query.
 - **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
+
+## 🖥️ Interfaz de usuario
+
+### Layout global
+
+- **Sidebar lateral fijo** con los 12 módulos del sistema. Los disponibles tienen acceso directo;
+  los demás aparecen deshabilitados con badge "Próx." para que el cliente vea el alcance completo
+  desde el primer día.
+- **Topbar** con acceso a perfil y botón de salir.
+- **Sub-nav contextual** por módulo (sticky bajo el topbar).
+- **Responsive**: en móvil el sidebar se oculta y se accede con un botón hamburguesa.
+
+### Vista de Inicio (Dashboard global)
+
+Al iniciar sesión, el usuario ve un resumen de toda la operación:
+
+- **4 tarjetas de alertas** (cada una con sus 5 items críticos linkeados):
+  - 🔴 Plazos vencidos (etapas con deadline pasado)
+  - 🟡 Próximos a vencer (plazo en 3 días o menos)
+  - 🟦 Sin abogado asignado
+  - 🩵 Pendientes de decisión
+- **Gráfica de tendencia** mensual de casos abiertos (últimos 6 meses)
+- **Acceso rápido** a los módulos disponibles
+
+`AlertsService` es el agregador global y está preparado para sumar alertas de los demás módulos
+cuando se vayan creando.
+
+### Módulo Disciplinario
+
+Sub-nav superior: **Inicio | Dashboard | Disciplinarios | Formatos | Historial**
+
+| Vista | Contenido |
+|---|---|
+| **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
+| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada |
+| **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
 
 ## 🏛️ Workflow del proceso disciplinario
 
@@ -66,30 +122,48 @@ Toda transición pasa por `DisciplinaryWorkflowService::transition()` que garant
 - **Auth**: Laravel Breeze (stack Livewire)
 - **Servidor**: Apache (Laragon en desarrollo)
 
-## 📁 Estructura del módulo
+## 📁 Estructura del proyecto
 
 ```
 app/
-  Enums/Disciplinary/        Enums del dominio (CaseStatus, StageType, etc.)
-  Exceptions/Disciplinary/   InvalidStateTransitionException
-  Workflow/Disciplinary/     TransitionMap (única fuente de verdad de transiciones)
-  Models/Disciplinary/       Models del agregado disciplinario
-  Services/Disciplinary/     CaseService / WorkflowService / DashboardService / DocumentService
-  Policies/                  DisciplinaryCasePolicy (autorización)
-  Livewire/Disciplinary/     Componentes Livewire (Dashboard, CasesIndex, CaseDetail)
-  Http/Controllers/          Controllers (web + API JSON)
-  Http/Requests/             FormRequests con autorización delegada al Policy
+  Enums/
+    UserArea.php
+    Disciplinary/              Enums del dominio disciplinario
+  Exceptions/Disciplinary/     InvalidStateTransitionException
+  Workflow/Disciplinary/       TransitionMap (única fuente de verdad)
+  Models/
+    User.php / Personnel.php
+    Disciplinary/              Models del agregado disciplinario
+  Services/
+    AlertsService.php          Agregador global de alertas para Inicio
+    Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService
+  Policies/                    DisciplinaryCasePolicy (autorización)
+  Livewire/
+    Home.php                   Componente del dashboard global
+    Auth/LogoutButton.php
+    Disciplinary/              Componentes del módulo (Dashboard, CasesIndex, CaseDetail)
+  Http/
+    Controllers/Disciplinary/  Controllers (web + API JSON)
+    Requests/Disciplinary/     FormRequests con autorización delegada al Policy
 
 database/
-  migrations/                8 migraciones del módulo + Spatie tables
-  seeders/                   RolesAndPermissions, FaultsCatalog, DemoUsers, WorkflowSmokeTest
+  migrations/                  8 migraciones del módulo + Spatie tables
+  seeders/                     RolesAndPermissions, FaultsCatalog, DemoUsers, WorkflowSmokeTest
 
 resources/views/
-  livewire/disciplinary/     Vistas de los componentes Livewire
-  components/disciplinary/   kpi-card, status-badge
+  layouts/app.blade.php        Layout principal con sidebar + topbar + sub-nav
+  livewire/
+    home.blade.php             Vista del dashboard global
+    disciplinary/              Vistas del módulo
+    auth/
+  components/
+    app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
+    app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
+    disciplinary/              kpi-card, status-badge, nav (sub-nav del módulo)
+    home/                      alert-card
 
 docs/
-  ARCHITECTURE.md            Documentación detallada de arquitectura
+  ARCHITECTURE.md              Documentación detallada de arquitectura
 ```
 
 ## 🚀 Instalación
@@ -173,7 +247,7 @@ La autorización se evalúa en 3 capas:
 
 1. **Policies** (`DisciplinaryCasePolicy`) — reglas finas por rol, permiso y *ownership*.
 2. **FormRequests** — `authorize()` delega al Policy.
-3. **Vistas** — `@can()` controla qué se renderiza.
+3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar).
 
 ## 📊 Endpoints
 
@@ -181,9 +255,11 @@ La autorización se evalúa en 3 capas:
 
 | Ruta | Descripción |
 |---|---|
-| `GET /disciplinary/dashboard` | Dashboard con KPIs y gráficas |
-| `GET /disciplinary/cases` | Listado con filtros |
-| `GET /disciplinary/cases/{case}` | Detalle del caso |
+| `GET /dashboard` | **Inicio** (dashboard global con alertas) |
+| `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario |
+| `GET /disciplinary/cases` | Listado de casos con filtros |
+| `GET /disciplinary/cases/{case}` | Detalle del caso (4 tabs + modal de transición) |
+| `GET /profile` | Configuración de cuenta |
 
 ### API JSON (programática)
 
@@ -195,6 +271,15 @@ La autorización se evalúa en 3 capas:
 | `GET` | `/api/disciplinary/cases/{case}` | Detalle |
 | `GET` | `/api/disciplinary/cases/{case}/transitions` | Transiciones permitidas |
 | `POST` | `/api/disciplinary/cases/{case}/transition` | Aplicar transición |
+
+## 📐 Diseño responsive
+
+| Breakpoint Tailwind | Ancho | Comportamiento |
+|---|---|---|
+| Móvil | < 1024px | Sidebar oculto (botón hamburguesa) — todo en 1 columna |
+| `lg` | ≥ 1024px | Sidebar fijo + contenido en grid 2-3 columnas |
+| `xl` | ≥ 1280px | Filtros en una sola fila (8 col), detalle en 3 col |
+| `2xl` | ≥ 1536px | Aprovecha hasta `max-w-[1600px]` con margen estético |
 
 ## 📝 Convenciones del repositorio
 
@@ -214,15 +299,24 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - Estrategia de auditoría legal
 - Próximos pasos sugeridos
 
-## 🧭 Roadmap (siguientes fases)
+## 🧭 Roadmap
+
+### Módulo Disciplinario — siguientes fases
 
 - [ ] Wizard de creación de caso (formulario con autocompletado de personal)
-- [ ] Subida de documentos desde la UI (el `DocumentService` ya está listo en backend)
+- [ ] Subida de documentos desde la UI (`DocumentService` ya listo en backend)
 - [ ] Notificaciones por email cuando un plazo está próximo a vencer
 - [ ] Exportación PDF de actuaciones con plantillas FO-GJ
-- [ ] Integración con SJ_Armory vía `personnel.external_id`
 - [ ] Vista Kanban "Mi pipeline" por abogado
 - [ ] Tests Pest reemplazando el `WorkflowSmokeTest`
+
+### Otros módulos del sistema
+
+- [ ] Licitaciones, Acciones de tutela, Demandas
+- [ ] Negociación colectiva, Investigaciones
+- [ ] Cartera, Requisitos legales
+- [ ] Contratos, Pólizas, Auditoría
+- [ ] Integración con SJ_Armory vía `personnel.external_id`
 
 ## 📄 Licencia
 
