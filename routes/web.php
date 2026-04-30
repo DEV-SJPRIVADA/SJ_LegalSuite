@@ -5,11 +5,12 @@ use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
 use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
 use App\Livewire\Disciplinary\Dashboard;
+use App\Livewire\Home;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
 
-Route::view('dashboard', 'dashboard')
+Route::get('dashboard', Home::class)
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 

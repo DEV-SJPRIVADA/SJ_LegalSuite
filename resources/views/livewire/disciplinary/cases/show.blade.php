@@ -1,14 +1,19 @@
 <div>
-    <header class="bg-white shadow">
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    @push('module-nav')
+        <x-disciplinary.nav />
+    @endpush
+
+    <div class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
-                        class="text-xs text-gray-500 hover:text-gray-700">← Volver al listado</a>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight mt-1">
+                        class="text-xs text-slate-500 hover:text-slate-700">← Volver al listado</a>
+                    <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold mt-2">Disciplinarios · Detalle</p>
+                    <h1 class="font-bold text-2xl text-slate-900 leading-tight mt-1">
                         Caso <span class="font-mono">{{ $case->case_number }}</span>
-                    </h2>
-                    <p class="text-sm text-gray-600 mt-1">
+                    </h1>
+                    <p class="text-sm text-slate-600 mt-1">
                         {{ $case->personnel?->first_name }} {{ $case->personnel?->last_name }}
                         @if ($case->personnel?->document_number)
                             · CC {{ $case->personnel->document_number }}
@@ -28,7 +33,7 @@
                 </div>
             </div>
         </div>
-    </header>
+    </div>
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">

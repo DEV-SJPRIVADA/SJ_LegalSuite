@@ -1,16 +1,25 @@
 <div>
-    <header class="bg-white shadow">
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Dashboard disciplinario</h2>
+    {{-- Sub-nav del módulo --}}
+    @push('module-nav')
+        <x-disciplinary.nav />
+    @endpush
+
+    {{-- Encabezado de la página --}}
+    <div class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">Disciplinarios · Dashboard</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-900">Indicadores del módulo</h1>
+            </div>
             <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
-                class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none">
-                Ver disciplinarios →
+               class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Ver listado de casos →
             </a>
         </div>
-    </header>
+    </div>
 
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="py-6 sm:py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- KPIs --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -22,11 +31,10 @@
 
             {{-- Gráficas --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {{-- Por tipo de falta --}}
-                <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Casos por tipo de falta</h3>
+                <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-6">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4">Casos por tipo de falta</h3>
                     @if (collect($byFault)->sum('total') === 0)
-                        <p class="text-sm text-gray-500">Aún no hay datos para graficar.</p>
+                        <p class="text-sm text-slate-500">Aún no hay datos para graficar.</p>
                     @else
                         <div wire:ignore
                             x-data="{
@@ -48,11 +56,10 @@
                     @endif
                 </div>
 
-                {{-- Por ciudad --}}
-                <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Casos por ciudad</h3>
+                <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-6">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4">Casos por ciudad</h3>
                     @if (count($byCity) === 0)
-                        <p class="text-sm text-gray-500">Aún no hay datos para graficar.</p>
+                        <p class="text-sm text-slate-500">Aún no hay datos para graficar.</p>
                     @else
                         <div wire:ignore
                             x-data="{
@@ -73,16 +80,16 @@
                 </div>
             </div>
 
-            {{-- Tabla carga por abogado --}}
-            <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-gray-700">Carga por abogado</h3>
-                    <span class="text-xs text-gray-500">{{ count($lawyerWorkload) }} usuarios</span>
+            {{-- Carga por abogado --}}
+            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-700">Carga por abogado</h3>
+                    <span class="text-xs text-slate-500">{{ count($lawyerWorkload) }} usuarios</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr class="text-xs uppercase tracking-wider text-gray-500">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr class="text-xs uppercase tracking-wider text-slate-500">
                                 <th class="px-6 py-3 text-left font-semibold">Abogado</th>
                                 <th class="px-6 py-3 text-right font-semibold">Total</th>
                                 <th class="px-6 py-3 text-right font-semibold">Pendientes</th>
@@ -90,10 +97,10 @@
                                 <th class="px-6 py-3 text-right font-semibold">Finalizados</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200 text-sm">
+                        <tbody class="bg-white divide-y divide-slate-200 text-sm">
                             @forelse ($lawyerWorkload as $row)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-3 font-medium text-gray-900">{{ $row['lawyer_name'] }}</td>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-900">{{ $row['lawyer_name'] }}</td>
                                     <td class="px-6 py-3 text-right">
                                         <span class="font-semibold">{{ $row['total'] }}</span>
                                     </td>
@@ -103,7 +110,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-6 text-center text-gray-500">
+                                    <td colspan="5" class="px-6 py-6 text-center text-slate-500">
                                         Sin abogados registrados todavía.
                                     </td>
                                 </tr>
@@ -112,7 +119,6 @@
                     </table>
                 </div>
             </div>
-
         </div>
     </div>
 
