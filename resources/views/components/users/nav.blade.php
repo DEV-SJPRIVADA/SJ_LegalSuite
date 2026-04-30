@@ -1,17 +1,15 @@
 @php
     $links = [
         ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => false],
-        ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')],
-        ['key' => 'cases', 'label' => 'Disciplinarios', 'route' => route('disciplinary.cases.index'), 'active' => request()->routeIs('disciplinary.cases.*')],
-        ['key' => 'formats', 'label' => 'Formatos', 'route' => null, 'active' => false, 'soon' => true],
-        ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true],
+        ['key' => 'index', 'label' => 'Usuarios', 'route' => route('users.index'), 'active' => request()->routeIs('users.*')],
+        ['key' => 'roles', 'label' => 'Roles', 'route' => null, 'active' => false, 'soon' => true],
+        ['key' => 'audit', 'label' => 'Auditoría de accesos', 'route' => null, 'active' => false, 'soon' => true],
     ];
 @endphp
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
     <div class="flex items-center justify-between gap-2 px-4 lg:px-6">
 
-        {{-- Botón hamburguesa móvil + links del módulo --}}
         <div class="flex items-center gap-1 min-w-0">
             <button x-on:click="sidebarOpen = true"
                     class="lg:hidden p-2 -ml-2 rounded-md text-slate-700 hover:bg-slate-100 flex-shrink-0">
@@ -44,7 +42,6 @@
             </nav>
         </div>
 
-        {{-- Acciones de usuario a la derecha --}}
         <div class="flex items-center gap-3 flex-shrink-0">
             <a href="{{ route('profile') }}" wire:navigate
                class="hidden sm:block text-sm text-slate-600 hover:text-slate-900">

@@ -29,6 +29,7 @@ class DisciplinaryCaseController extends Controller
         $this->authorize('viewAny', DisciplinaryCase::class);
 
         $query = DisciplinaryCase::query()
+            ->forDisciplinaryActor($request->user())
             ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
             ->when($request->filled('q'), fn ($q) => $q->search($request->string('q')))
             ->when($request->filled('status'), fn ($q) => $q->withStatus(CaseStatus::from($request->string('status'))))

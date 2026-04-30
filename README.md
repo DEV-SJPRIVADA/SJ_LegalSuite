@@ -37,15 +37,23 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 | 11 | 🛡️ Pólizas | 🚧 Próximamente |
 | 12 | 📊 Auditoría | 🚧 Próximamente |
 
+Además del catálogo jurídico, existe el módulo de **administración de usuarios** en el sidebar (permisos `users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
+
 ## ✨ Características principales (módulo Disciplinario)
 
 - **Workflow estricto y validado**: 13 estados, transiciones controladas, plazos legales automáticos
   (ej: 2 días hábiles para justificar inasistencia a citación).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
-- **Roles y permisos granulares** (Spatie Permission v6): admin, jurídico, gerencia, auditor, operaciones.
+- **Roles y permisos granulares** (Spatie Permission v6): admin, abogado, planeación, administrativa, auditor, operaciones; más el flag **solo lectura** por usuario.
 - **Dashboard analítico** con KPIs, distribución por falta, por ciudad y carga por abogado en una sola query.
 - **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
+
+### Gestión de usuarios y contraseñas
+
+- **Alta**: contraseña provisional aleatoria; modal único para copiar y enviar por canal seguro; el usuario debe cambiarla en el **primer ingreso** (`must_change_password`).
+- **Reinicio por administrador** (icono de llave en listado o detalle): se genera una nueva provisional; **Cancelar** descarta; **Aceptar** persiste el cambio y mantiene la obligación de cambiar contraseña al iniciar sesión.
+- **Middleware `must-change-password`**: redirige a `/password/first-login` hasta que el usuario define una contraseña definitiva (compatible con el resto de rutas autenticadas).
 
 ## 🖥️ Interfaz de usuario
 
@@ -82,6 +90,15 @@ Sub-nav superior: **Inicio | Dashboard | Disciplinarios | Formatos | Historial**
 | **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
+
+### Módulo Usuarios
+
+Sub-nav: **Inicio | Usuarios**
+
+| Vista | Contenido |
+|---|---|
+| **Usuarios** (listado) | Búsqueda, filtros por rol/área/estado, tabla con acciones (editar, llave reinicio contraseña, activar/desactivar, eliminar) |
+| **Detalle** | Datos del usuario, casos disciplinarios asignados, mismas acciones administrativas permitidas por política |
 
 ## 🏛️ Workflow del proceso disciplinario
 
@@ -136,18 +153,22 @@ app/
     Disciplinary/              Models del agregado disciplinario
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
+    UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
     Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService
-  Policies/                    DisciplinaryCasePolicy (autorización)
+  Policies/                    DisciplinaryCasePolicy, UserPolicy
   Livewire/
     Home.php                   Componente del dashboard global
-    Auth/LogoutButton.php
+    Auth/                      ForcePasswordChange, LogoutButton
+    Users/                     UsersIndex, UserDetail
     Disciplinary/              Componentes del módulo (Dashboard, CasesIndex, CaseDetail)
   Http/
+    Middleware/                must-change-password
     Controllers/Disciplinary/  Controllers (web + API JSON)
     Requests/Disciplinary/     FormRequests con autorización delegada al Policy
+    Requests/Users/            FormRequests del módulo usuarios
 
 database/
-  migrations/                  8 migraciones del módulo + Spatie tables
+  migrations/                  Disciplinario + Spatie + columnas users (`read_only`, `must_change_password`)
   seeders/                     RolesAndPermissions, FaultsCatalog, DemoUsers, WorkflowSmokeTest
 
 resources/views/
@@ -155,11 +176,13 @@ resources/views/
   livewire/
     home.blade.php             Vista del dashboard global
     disciplinary/              Vistas del módulo
-    auth/
+    users/                     Listado y detalle de usuarios
+    auth/                      force-password-change (primer login)
   components/
     app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
     app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
     disciplinary/              kpi-card, status-badge, nav (sub-nav del módulo)
+    users/                     Sub-nav del módulo Usuarios
     home/                      alert-card
 
 docs/
@@ -212,11 +235,15 @@ Esto crea un caso ficticio y lo recorre por las 8 transiciones del workflow, val
 
 | Email | Rol | Capacidades |
 |---|---|---|
-| `admin@sjlegalsuite.local` | admin | Todo |
-| `juridico@sjlegalsuite.local` | juridico | Control total del módulo disciplinario |
-| `gerencia@sjlegalsuite.local` | gerencia | Ver casos + dashboard + exportar |
-| `auditor@sjlegalsuite.local` | auditor | Solo lectura |
+| `admin@sjlegalsuite.local` | admin | Control total del sistema |
+| `admin.consulta@sjlegalsuite.local` | admin | Misma visión que admin pero **solo lectura** (consulta sin cambios) |
+| `abogado@sjlegalsuite.local` | abogado | Solo casos donde figura como abogado asignado |
+| `planeacion@sjlegalsuite.local` | planeacion | Ver disciplinarios y programar fechas en etapas, sin mover estados |
+| `administrativa@sjlegalsuite.local` | administrativa | Crear informes y cargar evidencias |
+| `auditor@sjlegalsuite.local` | auditor | Consulta + exportación disciplinaria |
 | `operaciones@sjlegalsuite.local` | operaciones | Crear casos + subir evidencias |
+
+En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan).
 
 > Contraseña por defecto: **`SJseguridad2026`**. Cambiarla antes de cualquier deploy productivo.
 
@@ -235,17 +262,17 @@ Configuración Apache: `C:\laragon\etc\apache2\sites-enabled\00-aac-sj_legalsuit
 Permisos disponibles:
 
 ```
-disciplinary.view              disciplinary.transition
-disciplinary.view-dashboard    disciplinary.assign
-disciplinary.create            disciplinary.upload-document
-disciplinary.update            disciplinary.export
-disciplinary.delete            personnel.view / .manage
-                               users.view / .manage
+disciplinary.view                  disciplinary.transition
+disciplinary.view-dashboard       disciplinary.assign
+disciplinary.create               disciplinary.assign-date
+disciplinary.update               disciplinary.upload-document
+disciplinary.delete               disciplinary.export
+personnel.view / .manage          users.view / .manage
 ```
 
 La autorización se evalúa en 3 capas:
 
-1. **Policies** (`DisciplinaryCasePolicy`) — reglas finas por rol, permiso y *ownership*.
+1. **Policies** (`DisciplinaryCasePolicy`, `UserPolicy`) — rol, permisos Spatie y flag **`read_only`** del usuario.
 2. **FormRequests** — `authorize()` delega al Policy.
 3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar).
 
@@ -259,6 +286,9 @@ La autorización se evalúa en 3 capas:
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario |
 | `GET /disciplinary/cases` | Listado de casos con filtros |
 | `GET /disciplinary/cases/{case}` | Detalle del caso (4 tabs + modal de transición) |
+| `GET /users` | Listado de usuarios (Livewire) |
+| `GET /users/{user}` | Detalle de usuario |
+| `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |
 | `GET /profile` | Configuración de cuenta |
 
 ### API JSON (programática)

@@ -5,6 +5,7 @@ namespace App\Livewire\Disciplinary\Cases;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\Disciplinary\DisciplinaryStage;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Workflow\Disciplinary\TransitionMap;
 use Illuminate\Support\Carbon;
@@ -23,10 +24,25 @@ class CaseDetail extends Component
 
     /* Modal de transición */
     public bool $showTransition = false;
+
     public string $newStatus = '';
+
     public string $note = '';
+
     public string $scheduledAt = '';
+
     public string $deadlineAt = '';
+
+    /* Modal programación de fechas (Planeación / Jurídico) */
+    public bool $showScheduleModal = false;
+
+    public ?int $scheduleStageId = null;
+
+    public string $scheduleAt = '';
+
+    public string $scheduleDeadline = '';
+
+    public string $scheduleNote = '';
 
     public function mount(DisciplinaryCase $case): void
     {
@@ -79,6 +95,51 @@ class CaseDetail extends Component
         } catch (InvalidStateTransitionException $e) {
             $this->addError('newStatus', $e->getMessage());
         }
+    }
+
+    public function openScheduleStage(int $stageId): void
+    {
+        Gate::authorize('assignDate', $this->case);
+        $stage = $this->case->stages()->findOrFail($stageId);
+        $this->scheduleStageId = $stage->id;
+        $this->scheduleAt = $stage->scheduled_at?->format('Y-m-d\TH:i') ?? '';
+        $this->scheduleDeadline = $stage->deadline_at?->format('Y-m-d') ?? '';
+        $this->scheduleNote = '';
+        $this->resetErrorBag();
+        $this->showScheduleModal = true;
+    }
+
+    public function closeScheduleModal(): void
+    {
+        $this->showScheduleModal = false;
+    }
+
+    public function saveSchedule(DisciplinaryWorkflowService $workflow): void
+    {
+        Gate::authorize('assignDate', $this->case);
+
+        $this->validate([
+            'scheduleAt' => ['nullable', 'date'],
+            'scheduleDeadline' => ['nullable', 'date'],
+            'scheduleNote' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $stage = DisciplinaryStage::query()
+            ->where('disciplinary_case_id', $this->case->id)
+            ->findOrFail($this->scheduleStageId);
+
+        $workflow->updateStageSchedule(
+            $this->case->fresh(),
+            $stage,
+            auth()->user(),
+            $this->scheduleAt !== '' ? Carbon::parse($this->scheduleAt) : null,
+            $this->scheduleDeadline !== '' ? Carbon::parse($this->scheduleDeadline)->startOfDay() : null,
+            $this->scheduleNote !== '' ? $this->scheduleNote : null,
+        );
+
+        $this->case = $this->case->fresh();
+        $this->showScheduleModal = false;
+        session()->flash('success', 'Fechas de la etapa actualizadas.');
     }
 
     public function render()

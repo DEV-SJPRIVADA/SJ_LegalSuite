@@ -155,6 +155,19 @@ class DisciplinaryCase extends Model
         });
     }
 
+    /**
+     * Alcance de casos visibles según rol: el perfil `abogado` (sin `admin`)
+     * sólo ve procesos donde es el abogado asignado.
+     */
+    public function scopeForDisciplinaryActor(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole('abogado') && ! $user->hasRole('admin')) {
+            return $query->where('assigned_lawyer_id', $user->id);
+        }
+
+        return $query;
+    }
+
     // ---------- Helpers de dominio ----------
 
     public function bucket(): CaseBucket

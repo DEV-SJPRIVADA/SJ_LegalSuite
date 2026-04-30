@@ -221,13 +221,19 @@ para enviar recordatorios o pasar al comité.
 
 ### Roles (Spatie)
 
-| Rol | Capacidades | Default users |
+| Rol | Capacidades | Usuario demo |
 | --- | --- | --- |
-| `admin` | Todos los permisos | `admin@sjlegalsuite.local` |
-| `juridico` | Control total del módulo: crear, asignar, transicionar, decidir | `juridico@sjlegalsuite.local` |
-| `gerencia` | Ver casos + dashboard + exportar | `gerencia@sjlegalsuite.local` |
-| `auditor` | **Solo lectura** | `auditor@sjlegalsuite.local` |
-| `operaciones` | Crear casos + subir evidencias | `operaciones@sjlegalsuite.local` |
+| `admin` | Todos los permisos (si `read_only` en BD = false) | `admin@sjlegalsuite.local` |
+| `admin` + **solo lectura** | Consulta disciplinarios, dashboard y usuarios; sin mutaciones | `admin.consulta@sjlegalsuite.local` |
+| `abogado` | Solo casos donde es abogado asignado | `abogado@sjlegalsuite.local` |
+| `planeacion` | Ver + programar fechas en etapas | `planeacion@sjlegalsuite.local` |
+| `administrativa` | Informes + evidencias | `administrativa@sjlegalsuite.local` |
+| `auditor` | Consulta + export disciplinario | `auditor@sjlegalsuite.local` |
+| `operaciones` | Crear casos + evidencias | `operaciones@sjlegalsuite.local` |
+
+El campo **`users.read_only`** (boolean) fuerza modo consulta en policies aunque el rol sea `admin` u otros con permisos de escritura.
+
+Los roles legacy `juridico` y `gerencia` se eliminan del seeder al ejecutar `RolesAndPermissionsSeeder`.
 
 > Contraseña por defecto en local: **`SJseguridad2026`**. Cambiar antes de producción.
 
@@ -241,6 +247,7 @@ disciplinary.update
 disciplinary.delete
 disciplinary.transition
 disciplinary.assign
+disciplinary.assign-date
 disciplinary.upload-document
 disciplinary.export
 personnel.view
@@ -286,6 +293,7 @@ Cada operación relevante deja registro **inmutable** en `disciplinary_actions`:
 | `caso_creado` | `DisciplinaryCaseService::create` |
 | `caso_asignado` | `DisciplinaryCaseService::assignLawyer` |
 | `estado_transicionado` | Toda llamada a `WorkflowService::transition` |
+| `fecha_etapa_actualizada` | `WorkflowService::updateStageSchedule` (programación por Planeación / Jurídico) |
 | `documento_cargado` / `documento_eliminado` | `DocumentService::upload/delete` |
 | `justificacion_aceptada` / `_rechazada` | Métodos del WorkflowService |
 | `decision_tomada` | `WorkflowService::recordDecision` |
@@ -334,8 +342,10 @@ URLs:
 
 Usuarios demo (password `SJseguridad2026`):
 - admin@sjlegalsuite.local
-- juridico@sjlegalsuite.local
-- gerencia@sjlegalsuite.local
+- admin.consulta@sjlegalsuite.local (admin solo lectura)
+- abogado@sjlegalsuite.local
+- planeacion@sjlegalsuite.local
+- administrativa@sjlegalsuite.local
 - auditor@sjlegalsuite.local
 - operaciones@sjlegalsuite.local
 

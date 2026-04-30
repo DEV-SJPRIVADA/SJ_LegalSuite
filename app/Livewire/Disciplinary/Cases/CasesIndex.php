@@ -77,6 +77,7 @@ class CasesIndex extends Component
     public function quickStats(): array
     {
         $base = DisciplinaryCase::query()
+            ->forDisciplinaryActor(auth()->user())
             ->select('current_status', DB::raw('COUNT(*) as total'))
             ->groupBy('current_status')
             ->pluck('total', 'current_status');
@@ -96,7 +97,7 @@ class CasesIndex extends Component
     #[Computed]
     public function lawyers()
     {
-        return User::query()->role('juridico')->orderBy('name')->get(['id', 'name']);
+        return User::query()->role('abogado')->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -109,6 +110,7 @@ class CasesIndex extends Component
     public function cities(): array
     {
         return DisciplinaryCase::query()
+            ->forDisciplinaryActor(auth()->user())
             ->whereNotNull('city')
             ->distinct()
             ->orderBy('city')
@@ -119,6 +121,7 @@ class CasesIndex extends Component
     public function render()
     {
         $cases = DisciplinaryCase::query()
+            ->forDisciplinaryActor(auth()->user())
             ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
             ->withCount('faults')
             ->when($this->search !== '', fn ($q) => $q->search($this->search))

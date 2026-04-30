@@ -24,19 +24,27 @@
         ['key' => 'licitaciones', 'label' => 'Licitaciones', 'icon' => 'briefcase', 'available' => false],
         ['key' => 'tutelas', 'label' => 'Acciones de tutela', 'icon' => 'shield-check', 'available' => false],
         ['key' => 'demandas', 'label' => 'Demandas', 'icon' => 'document-text', 'available' => false],
-        ['key' => 'negociacion', 'label' => 'Negociación colectiva', 'icon' => 'users', 'available' => false],
+        ['key' => 'negociacion', 'label' => 'Negociación colectiva', 'icon' => 'chat-bubbles', 'available' => false],
         ['key' => 'investigaciones', 'label' => 'Investigaciones', 'icon' => 'search', 'available' => false],
         ['key' => 'cartera', 'label' => 'Cartera', 'icon' => 'banknotes', 'available' => false],
         ['key' => 'requisitos', 'label' => 'Requisitos legales', 'icon' => 'clipboard-check', 'available' => false],
         ['key' => 'contratos', 'label' => 'Contratos', 'icon' => 'document-duplicate', 'available' => false],
         ['key' => 'polizas', 'label' => 'Pólizas', 'icon' => 'shield', 'available' => false],
         ['key' => 'auditoria', 'label' => 'Auditoría', 'icon' => 'chart-bar', 'available' => false],
+        [
+            'key' => 'users',
+            'label' => 'Usuarios',
+            'route' => route('users.index'),
+            'active' => request()->routeIs('users.*'),
+            'icon' => 'user-cog',
+            'available' => auth()->user()->can('viewAny', \App\Models\User::class),
+        ],
     ];
 @endphp
 
-<aside x-data="{ open: false }"
-       :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-       class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-800 text-slate-100 flex flex-col transition-transform duration-200 lg:static lg:translate-x-0">
+<aside x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+       class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-800 text-slate-100 flex flex-col transition-transform duration-200
+              lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0">
 
     {{-- Logo / branding --}}
     <div class="px-5 py-5 border-b border-slate-700/60 flex items-center gap-3">
@@ -79,7 +87,7 @@
     </nav>
 
     {{-- User --}}
-    <div class="p-3 border-t border-slate-700/60">
+    <div class="p-3 border-t border-slate-700/60 flex-shrink-0">
         <div class="flex items-center gap-3 px-2 py-2">
             <div class="h-9 w-9 rounded-full bg-indigo-500/30 flex items-center justify-center text-sm font-semibold text-white ring-1 ring-indigo-500/40">
                 {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
@@ -93,11 +101,3 @@
         </div>
     </div>
 </aside>
-
-{{-- Botón hamburguesa para móvil --}}
-<button x-data x-on:click="$dispatch('sidebar-toggle')"
-        class="fixed top-3 left-3 z-50 lg:hidden p-2 rounded-md bg-slate-800 text-white shadow-lg">
-    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-    </svg>
-</button>

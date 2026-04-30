@@ -142,17 +142,25 @@
                                         <span class="text-[10px] text-white font-bold">{{ $stage->sequence }}</span>
                                     </span>
                                     <div class="bg-gray-50 rounded-md p-4 ring-1 ring-gray-200">
-                                        <div class="flex items-center justify-between">
+                                        <div class="flex items-center justify-between gap-3 flex-wrap">
                                             <h4 class="font-semibold text-gray-900">
                                                 {{ $stage->stage_type->label() }}
                                                 @if ($stage->form_code)
                                                     <span class="text-xs text-gray-500 font-mono">({{ $stage->form_code }})</span>
                                                 @endif
                                             </h4>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset
-                                                {{ $stage->status->value === 'completada' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : ($stage->status->value === 'en_curso' ? 'bg-blue-50 text-blue-700 ring-blue-200' : 'bg-gray-50 text-gray-700 ring-gray-200') }}">
-                                                {{ $stage->status->label() }}
-                                            </span>
+                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                                @can('assignDate', $case)
+                                                    <button type="button" wire:click="openScheduleStage({{ $stage->id }})"
+                                                        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded ring-1 ring-indigo-200 bg-white">
+                                                        Programar fechas
+                                                    </button>
+                                                @endcan
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset
+                                                    {{ $stage->status->value === 'completada' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : ($stage->status->value === 'en_curso' ? 'bg-blue-50 text-blue-700 ring-blue-200' : 'bg-gray-50 text-gray-700 ring-gray-200') }}">
+                                                    {{ $stage->status->label() }}
+                                                </span>
+                                            </div>
                                         </div>
                                         <dl class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600">
                                             @if ($stage->scheduled_at)
@@ -298,6 +306,55 @@
                         <button type="submit"
                             class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
                             Aplicar transición
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal fechas de etapa (Planeación / Jurídico) --}}
+    @if ($showScheduleModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            x-data x-on:keydown.escape.window="$wire.closeScheduleModal()">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full" x-on:click.outside="$wire.closeScheduleModal()">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="font-semibold text-gray-900">Programar fechas de etapa</h3>
+                    <button wire:click="closeScheduleModal" type="button" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <form wire:submit="saveSchedule" class="p-6 space-y-4">
+                    <p class="text-xs text-gray-600">
+                        Define la fecha programada y el plazo sin cambiar el estado del proceso.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Programado para</label>
+                            <input type="datetime-local" wire:model="scheduleAt"
+                                class="w-full rounded-md border-gray-300 shadow-sm text-sm">
+                            @error('scheduleAt') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Plazo</label>
+                            <input type="date" wire:model="scheduleDeadline"
+                                class="w-full rounded-md border-gray-300 shadow-sm text-sm">
+                            @error('scheduleDeadline') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nota (opcional)</label>
+                        <textarea wire:model="scheduleNote" rows="2"
+                            class="w-full rounded-md border-gray-300 shadow-sm text-sm"
+                            placeholder="Motivo del cambio de fecha…"></textarea>
+                        @error('scheduleNote') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" wire:click="closeScheduleModal"
+                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                            Guardar fechas
                         </button>
                     </div>
                 </form>

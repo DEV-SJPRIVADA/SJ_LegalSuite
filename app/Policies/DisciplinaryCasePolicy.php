@@ -6,35 +6,52 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 
 /**
- * Reglas de autorización del caso disciplinario.
+ * Autorización del módulo disciplinario:
  *
- * Roles:
- *   - admin       → todo
- *   - juridico    → control total sobre casos
- *   - gerencia    → ver, supervisar; sin transición de estados
- *   - auditor     → sólo lectura
- *
- * Áreas con permisos específicos:
- *   - operaciones / administrativa → pueden crear casos y subir evidencias
- *   - planeacion → puede agendar fechas
+ * - admin (sin modo solo lectura) → control total vía `before`.
+ * - admin en modo solo lectura → sólo consulta (listados, detalle, dashboard).
+ * - Otros usuarios con `read_only` → igual: consulta sin mutaciones.
+ * - abogado → sólo casos asignados (si no está en solo lectura).
+ * - planeacion → fechas en etapas (assign-date).
+ * - administrativa / operaciones → informes + evidencias.
  */
 class DisciplinaryCasePolicy
 {
+    /** @var list<string> */
+    private const READ_ABILITIES = ['viewAny', 'view', 'viewDashboard'];
+
     public function before(User $user, string $ability): ?bool
     {
-        return $user->hasRole('admin') ? true : null;
+        if (! $user->hasRole('admin')) {
+            return null;
+        }
+
+        if ($user->read_only) {
+            return in_array($ability, self::READ_ABILITIES, true) ? true : false;
+        }
+
+        return true;
+    }
+
+    private function deniesMutation(User $user): bool
+    {
+        return (bool) $user->read_only;
     }
 
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['juridico', 'gerencia', 'auditor'])
+        return $user->hasAnyRole(['auditor', 'abogado', 'planeacion', 'administrativa', 'operaciones'])
             || $user->hasPermissionTo('disciplinary.view');
     }
 
     public function view(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasAnyRole(['juridico', 'gerencia', 'auditor'])) {
+        if ($user->hasRole('auditor')) {
             return true;
+        }
+
+        if ($user->hasRole('abogado')) {
+            return $case->assigned_lawyer_id === $user->id;
         }
 
         if ($user->hasPermissionTo('disciplinary.view')) {
@@ -46,14 +63,21 @@ class DisciplinaryCasePolicy
 
     public function create(User $user): bool
     {
-        return $user->hasAnyRole(['juridico'])
-            || $user->hasPermissionTo('disciplinary.create');
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.create');
     }
 
     public function update(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasRole('juridico')) {
-            return true;
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($user->hasRole('abogado')) {
+            return $case->assigned_lawyer_id === $user->id;
         }
 
         return $user->hasPermissionTo('disciplinary.update')
@@ -62,8 +86,12 @@ class DisciplinaryCasePolicy
 
     public function transition(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasRole('juridico')) {
-            return true;
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($user->hasRole('abogado')) {
+            return $case->assigned_lawyer_id === $user->id;
         }
 
         if (! $user->hasPermissionTo('disciplinary.transition')) {
@@ -73,30 +101,55 @@ class DisciplinaryCasePolicy
         return $case->assigned_lawyer_id === $user->id;
     }
 
+    public function assignDate(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.assign-date')
+            && $user->can('view', $case);
+    }
+
     public function assign(User $user, DisciplinaryCase $case): bool
     {
-        return $user->hasRole('juridico')
-            || $user->hasPermissionTo('disciplinary.assign');
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.assign');
     }
 
     public function uploadDocument(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasRole('juridico')) {
-            return true;
+        if ($this->deniesMutation($user)) {
+            return false;
         }
 
-        return $user->hasPermissionTo('disciplinary.upload-document');
+        if (! $user->hasPermissionTo('disciplinary.upload-document')) {
+            return false;
+        }
+
+        if ($user->hasRole('abogado')) {
+            return $case->assigned_lawyer_id === $user->id;
+        }
+
+        return true;
     }
 
     public function delete(User $user, DisciplinaryCase $case): bool
     {
-        return $user->hasRole('juridico')
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.delete')
             && ! $case->isFinalized();
     }
 
     public function viewDashboard(User $user): bool
     {
-        return $user->hasAnyRole(['juridico', 'gerencia', 'auditor'])
+        return $user->hasAnyRole(['auditor', 'abogado', 'planeacion'])
             || $user->hasPermissionTo('disciplinary.view-dashboard');
     }
 }

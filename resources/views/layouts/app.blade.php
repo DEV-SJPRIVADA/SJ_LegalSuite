@@ -29,40 +29,46 @@
                  style="display: none;"></div>
 
             {{-- Sidebar --}}
-            <div :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-                 class="lg:translate-x-0 transition-transform duration-200">
-                <x-app-sidebar />
-            </div>
+            <x-app-sidebar />
 
             {{-- Main content --}}
             <div class="flex-1 flex flex-col min-w-0">
 
-                {{-- Topbar --}}
-                <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
-                    <div class="flex items-center justify-between px-4 lg:px-6 py-3">
-                        <button x-on:click="sidebarOpen = true"
-                                class="lg:hidden p-2 -ml-2 rounded-md text-slate-700 hover:bg-slate-100">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                            </svg>
-                        </button>
+                @php
+                    /**
+                     * Si la vista del componente Livewire registró un sub-nav vía @push('module-nav'),
+                     * ese sub-nav reemplaza al topbar genérico (incluye links del módulo + acciones de usuario).
+                     * Si no, mostramos el topbar genérico (Inicio global, Profile, etc.).
+                     */
+                    $hasModuleNav = ! empty(trim($__env->yieldPushContent('module-nav')));
+                @endphp
 
-                        <div class="flex-1"></div>
+                @if ($hasModuleNav)
+                    {{-- El sub-nav del módulo es la única barra superior --}}
+                    @stack('module-nav')
+                @else
+                    {{-- Topbar genérico para vistas sin sub-nav (Inicio global, Profile) --}}
+                    <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+                        <div class="flex items-center justify-between px-4 lg:px-6 py-3">
+                            <button x-on:click="sidebarOpen = true"
+                                    class="lg:hidden p-2 -ml-2 rounded-md text-slate-700 hover:bg-slate-100">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                </svg>
+                            </button>
 
-                        {{-- User dropdown --}}
-                        <div class="flex items-center gap-3">
-                            <a href="{{ route('profile') }}" wire:navigate
-                               class="hidden sm:block text-sm text-slate-600 hover:text-slate-900">
-                                Mi perfil
-                            </a>
-                            <livewire:auth.logout-button />
+                            <div class="flex-1"></div>
+
+                            <div class="flex items-center gap-3">
+                                <a href="{{ route('profile') }}" wire:navigate
+                                   class="hidden sm:block text-sm text-slate-600 hover:text-slate-900">
+                                    Mi perfil
+                                </a>
+                                <livewire:auth.logout-button />
+                            </div>
                         </div>
-                    </div>
-
-                </header>
-
-                {{-- Sub-nav del módulo (renderizado vía @push('module-nav') desde la vista del componente) --}}
-                @stack('module-nav')
+                    </header>
+                @endif
 
                 {{-- Page content --}}
                 <main class="flex-1 overflow-y-auto">

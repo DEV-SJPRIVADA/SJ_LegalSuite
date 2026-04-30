@@ -23,9 +23,10 @@ class DisciplinaryDashboardService
      *
      * @return array{total:int, pendientes:int, en_proceso:int, finalizados:int, por_estado:array<string,int>}
      */
-    public function kpis(): array
+    public function kpis(?User $actor = null): array
     {
         $rows = DisciplinaryCase::query()
+            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
             ->select('current_status', DB::raw('COUNT(*) as total'))
             ->groupBy('current_status')
             ->pluck('total', 'current_status');
@@ -56,18 +57,22 @@ class DisciplinaryDashboardService
      *
      * @return list<array{fault_id:int, code:string, name:string, total:int}>
      */
-    public function casesByFault(int $limit = 10): array
+    public function casesByFault(int $limit = 10, ?User $actor = null): array
     {
         return Fault::query()
-            ->select('faults.id as fault_id', 'faults.code', 'faults.name')
-            ->selectRaw('COUNT(disciplinary_case_fault.disciplinary_case_id) as total')
-            ->leftJoin('disciplinary_case_fault', 'disciplinary_case_fault.fault_id', '=', 'faults.id')
-            ->groupBy('faults.id', 'faults.code', 'faults.name')
+            ->select(['faults.id', 'faults.code', 'faults.name'])
+            ->withCount([
+                'disciplinaryCases as total' => function ($q) use ($actor) {
+                    if ($actor) {
+                        $q->forDisciplinaryActor($actor);
+                    }
+                },
+            ])
             ->orderByDesc('total')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
-                'fault_id' => (int) $r->fault_id,
+                'fault_id' => (int) $r->id,
                 'code' => $r->code,
                 'name' => $r->name,
                 'total' => (int) $r->total,
@@ -80,9 +85,10 @@ class DisciplinaryDashboardService
      *
      * @return list<array{city:string, total:int}>
      */
-    public function casesByCity(): array
+    public function casesByCity(?User $actor = null): array
     {
         return DisciplinaryCase::query()
+            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
             ->select('city', DB::raw('COUNT(*) as total'))
             ->whereNotNull('city')
             ->groupBy('city')
@@ -98,7 +104,7 @@ class DisciplinaryDashboardService
      *
      * @return list<array{lawyer_id:int, lawyer_name:string, total:int, pendientes:int, en_proceso:int, finalizados:int}>
      */
-    public function lawyerWorkload(): array
+    public function lawyerWorkload(?User $actor = null): array
     {
         $pendingValues = $this->statusListByBucket(CaseBucket::PENDIENTE);
         $inProgressValues = $this->statusListByBucket(CaseBucket::EN_PROCESO);
@@ -116,6 +122,10 @@ class DisciplinaryDashboardService
             ->selectRaw("SUM(CASE WHEN dc.current_status IN ({$bind($finishedValues)}) THEN 1 ELSE 0 END) as finalizados")
             ->leftJoin('disciplinary_cases as dc', 'dc.assigned_lawyer_id', '=', 'users.id')
             ->whereNull('dc.deleted_at')
+            ->when(
+                $actor && $actor->hasRole('abogado') && ! $actor->hasRole('admin'),
+                fn ($q) => $q->where('users.id', $actor->id),
+            )
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('total')
             ->get()

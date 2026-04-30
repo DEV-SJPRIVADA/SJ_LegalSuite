@@ -27,6 +27,8 @@ class User extends Authenticatable
         'area',
         'position',
         'is_active',
+        'read_only',
+        'must_change_password',
     ];
 
     protected $hidden = [
@@ -41,6 +43,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'area' => UserArea::class,
             'is_active' => 'boolean',
+            'read_only' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 
@@ -66,6 +70,6 @@ class User extends Authenticatable
 
     public function scopeLawyers(Builder $query): Builder
     {
-        return $query->role('juridico');
+        return $query->role('abogado');
     }
 }

@@ -31,4 +31,5 @@ enum ActionType: string
     case CASO_FINALIZADO = 'caso_finalizado';
     case CASO_ARCHIVADO = 'caso_archivado';
     case COMENTARIO = 'comentario';
+    case FECHA_ETAPA_ACTUALIZADA = 'fecha_etapa_actualizada';
 }

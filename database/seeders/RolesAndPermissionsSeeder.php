@@ -21,6 +21,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.delete',
             'disciplinary.transition',
             'disciplinary.assign',
+            'disciplinary.assign-date',
             'disciplinary.upload-document',
             'disciplinary.export',
 
@@ -38,34 +39,39 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin->syncPermissions(Permission::all());
 
-        $juridico = Role::firstOrCreate(['name' => 'juridico', 'guard_name' => 'web']);
-        $juridico->syncPermissions([
+        /** Abogado operativo: sólo gestiona casos donde figure como asignado (ownership en política). */
+        $abogado = Role::firstOrCreate(['name' => 'abogado', 'guard_name' => 'web']);
+        $abogado->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
-            'disciplinary.create',
             'disciplinary.update',
             'disciplinary.transition',
-            'disciplinary.assign',
             'disciplinary.upload-document',
-            'disciplinary.export',
-            'personnel.view',
-            'personnel.manage',
-            'users.view',
         ]);
 
-        $gerencia = Role::firstOrCreate(['name' => 'gerencia', 'guard_name' => 'web']);
-        $gerencia->syncPermissions([
+        /** Planeación: visualización + programación de fechas en etapas (sin mover estados). */
+        $planeacion = Role::firstOrCreate(['name' => 'planeacion', 'guard_name' => 'web']);
+        $planeacion->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
-            'disciplinary.export',
+            'disciplinary.assign-date',
             'personnel.view',
-            'users.view',
+        ]);
+
+        /** Área administrativa: apertura de informes disciplinarios y evidencias (similar a operaciones). */
+        $administrativa = Role::firstOrCreate(['name' => 'administrativa', 'guard_name' => 'web']);
+        $administrativa->syncPermissions([
+            'disciplinary.view',
+            'disciplinary.create',
+            'disciplinary.upload-document',
+            'personnel.view',
         ]);
 
         $auditor = Role::firstOrCreate(['name' => 'auditor', 'guard_name' => 'web']);
         $auditor->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
+            'disciplinary.export',
             'personnel.view',
             'users.view',
         ]);
@@ -77,5 +83,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
             'personnel.view',
         ]);
+
+        foreach (Role::where('guard_name', 'web')->whereIn('name', ['juridico', 'gerencia'])->get() as $legacy) {
+            $legacy->delete();
+        }
     }
 }

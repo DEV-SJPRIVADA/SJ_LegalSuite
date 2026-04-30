@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\Decision;
-use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\Personnel;
 use App\Models\User;
@@ -28,7 +27,8 @@ class WorkflowSmokeTest extends Seeder
     public function run(): void
     {
         $reporter = User::where('email', 'operaciones@sjlegalsuite.local')->firstOrFail();
-        $lawyer = User::where('email', 'juridico@sjlegalsuite.local')->firstOrFail();
+        $coordinador = User::where('email', 'admin@sjlegalsuite.local')->firstOrFail();
+        $lawyer = User::where('email', 'abogado@sjlegalsuite.local')->firstOrFail();
 
         $personnel = Personnel::firstOrCreate(
             ['document_number' => '99999999'],
@@ -66,7 +66,7 @@ class WorkflowSmokeTest extends Seeder
             ],
         );
 
-        $cases->assignLawyer($case, $lawyer, $reporter);
+        $cases->assignLawyer($case, $lawyer, $coordinador);
 
         // BORRADOR -> INFORME -> CITACION -> NO_ASISTIO -> JUSTIFICACION -> COMITE -> DILIGENCIA -> DECISION -> FINALIZADO
         $case = $wf->transition($case, CaseStatus::INFORME, $lawyer, 'Informe radicado');

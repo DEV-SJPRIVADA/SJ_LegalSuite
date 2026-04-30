@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\StageStatus;
 use App\Enums\Disciplinary\StageType;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
@@ -75,6 +76,44 @@ class DisciplinaryWorkflowService
             ]);
 
             return $case->fresh(['stages', 'currentStage']);
+        });
+    }
+
+    /**
+     * Actualiza únicamente las fechas de una etapa (citación / plazo). Usado por Planeación.
+     */
+    public function updateStageSchedule(
+        DisciplinaryCase $case,
+        DisciplinaryStage $stage,
+        User $actor,
+        ?Carbon $scheduledAt,
+        ?Carbon $deadlineAt,
+        ?string $note = null,
+    ): DisciplinaryStage {
+        if ($stage->disciplinary_case_id !== $case->id) {
+            throw new \InvalidArgumentException('La etapa no pertenece al caso indicado.');
+        }
+
+        return DB::transaction(function () use ($case, $stage, $actor, $scheduledAt, $deadlineAt, $note) {
+            $stage->forceFill([
+                'scheduled_at' => $scheduledAt,
+                'deadline_at' => $deadlineAt,
+            ])->save();
+
+            DisciplinaryAction::create([
+                'disciplinary_case_id' => $case->id,
+                'disciplinary_stage_id' => $stage->id,
+                'user_id' => $actor->id,
+                'action_type' => ActionType::FECHA_ETAPA_ACTUALIZADA,
+                'description' => $note ?? 'Fechas de etapa actualizadas',
+                'metadata' => [
+                    'scheduled_at' => $scheduledAt?->toIso8601String(),
+                    'deadline_at' => $deadlineAt?->toIso8601String(),
+                ],
+                'performed_at' => now(),
+            ]);
+
+            return $stage->fresh();
         });
     }
 
@@ -190,7 +229,7 @@ class DisciplinaryWorkflowService
     public function recordDecision(
         DisciplinaryCase $case,
         User $actor,
-        \App\Enums\Disciplinary\Decision $decision,
+        Decision $decision,
         ?string $notes = null,
     ): DisciplinaryCase {
         $case = $this->transition(

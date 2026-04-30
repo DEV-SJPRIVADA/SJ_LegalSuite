@@ -14,10 +14,11 @@ class Home extends Component
     public function render()
     {
         $alerts = app(AlertsService::class);
+        $user = auth()->user();
 
         return view('livewire.home', [
-            'summary' => $alerts->summary(),
-            'trend' => $alerts->monthlyTrend(),
+            'summary' => $alerts->summary(5, $user),
+            'trend' => $alerts->monthlyTrend(6, $user),
         ]);
     }
 }
