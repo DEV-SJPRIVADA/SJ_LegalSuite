@@ -4,7 +4,7 @@
     @endpush
 
     <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">Disciplinarios · Listado</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900">Procesos disciplinarios</h1>
@@ -15,7 +15,7 @@
     </div>
 
     <div class="py-6 sm:py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- Tarjetas vistas rápidas --}}
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -44,11 +44,11 @@
 
             {{-- Filtros --}}
             <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="lg:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+                    <div class="lg:col-span-2 xl:col-span-2">
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Buscador</label>
                         <input type="search" wire:model.live.debounce.350ms="search"
-                            placeholder="Número de caso, nombre, documento, resumen..."
+                            placeholder="N° de caso, nombre, documento..."
                             class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
                     </div>
                     <div>
@@ -98,7 +98,7 @@
                     <div class="flex items-end">
                         <button type="button" wire:click="clearFilters"
                             class="w-full inline-flex items-center justify-center px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200">
-                            Limpiar filtros
+                            Limpiar
                         </button>
                     </div>
                 </div>

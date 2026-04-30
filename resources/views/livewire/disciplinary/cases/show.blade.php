@@ -4,7 +4,7 @@
     @endpush
 
     <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-[1600px] mx-auto py-5 px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
@@ -36,7 +36,7 @@
     </div>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             @if (session('success'))
                 <div class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
@@ -58,7 +58,7 @@
 
                 <div class="p-6">
                     @if ($activeTab === 'overview')
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             <dl class="space-y-3 text-sm">
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold">Disciplinado</dt>
@@ -87,7 +87,7 @@
                                     <dd class="text-gray-900">{{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}</dd>
                                 </div>
                             </dl>
-                            <dl class="space-y-3 text-sm">
+                            <dl class="space-y-3 text-sm md:col-span-1 xl:col-span-1">
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold">Apertura</dt>
                                     <dd class="text-gray-900">{{ $case->opened_at?->format('Y-m-d') }}</dd>
@@ -115,21 +115,22 @@
                                     <dd class="text-gray-700 whitespace-pre-line">{{ $case->summary ?? '—' }}</dd>
                                 </div>
                             </dl>
-                        </div>
 
-                        <div class="mt-6">
-                            <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Faltas imputadas</h4>
-                            <div class="flex flex-wrap gap-2">
-                                @forelse ($case->faults as $f)
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-rose-200">
-                                        {{ $f->code }} · {{ $f->name }}
-                                        @if ($f->pivot->extra_info)
-                                            <span class="text-rose-500 ml-1">({{ $f->pivot->extra_info }})</span>
-                                        @endif
-                                    </span>
-                                @empty
-                                    <span class="text-sm text-gray-500">Sin faltas registradas todavía.</span>
-                                @endforelse
+                            {{-- Faltas: tercera columna en xl, fila completa abajo en md --}}
+                            <div class="md:col-span-2 xl:col-span-1">
+                                <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Faltas imputadas</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    @forelse ($case->faults as $f)
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-rose-200">
+                                            {{ $f->code }} · {{ $f->name }}
+                                            @if ($f->pivot->extra_info)
+                                                <span class="text-rose-500 ml-1">({{ $f->pivot->extra_info }})</span>
+                                            @endif
+                                        </span>
+                                    @empty
+                                        <span class="text-sm text-gray-500">Sin faltas registradas todavía.</span>
+                                    @endforelse
+                                </div>
                             </div>
                         </div>
 

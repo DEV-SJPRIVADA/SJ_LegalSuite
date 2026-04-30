@@ -6,7 +6,7 @@
 
     {{-- Encabezado de la página --}}
     <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">Disciplinarios · Dashboard</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900">Indicadores del módulo</h1>
@@ -19,7 +19,7 @@
     </div>
 
     <div class="py-6 sm:py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- KPIs --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

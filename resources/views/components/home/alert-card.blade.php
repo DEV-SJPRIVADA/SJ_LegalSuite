@@ -32,8 +32,11 @@
     </div>
 
     @if (count($items) > 0)
-        <ul class="mt-4 space-y-1.5 text-xs flex-1">
-            @foreach (array_slice($items, 0, 3) as $item)
+        @php
+            $visible = array_slice($items, 0, 5);
+        @endphp
+        <ul class="mt-4 space-y-1.5 text-xs flex-1 border-t border-slate-100 pt-3">
+            @foreach ($visible as $item)
                 <li>
                     <a href="{{ $item['route'] ?? '#' }}"
                        wire:navigate
@@ -46,11 +49,11 @@
                 </li>
             @endforeach
         </ul>
-        @if ($count > 3)
-            <p class="mt-2 text-[11px] text-slate-400">y {{ $count - 3 }} más…</p>
+        @if ($count > count($visible))
+            <p class="mt-2 text-[11px] text-slate-400">y {{ $count - count($visible) }} más…</p>
         @endif
     @else
-        <div class="mt-4 flex-1 flex items-center justify-center text-xs text-slate-400">
+        <div class="mt-4 flex-1 flex items-center justify-center text-xs text-slate-400 border-t border-slate-100 pt-3">
             Sin alertas
         </div>
     @endif

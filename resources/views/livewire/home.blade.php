@@ -1,7 +1,7 @@
 <div>
     {{-- Encabezado --}}
     <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">Inicio</p>
@@ -20,7 +20,7 @@
     </div>
 
     <div class="py-6 sm:py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- Tarjetas: alertas --}}
             <section>
@@ -61,9 +61,9 @@
             </section>
 
             {{-- Gráfica + Acceso rápido a módulos --}}
-            <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {{-- Gráfica de tendencia --}}
-                <div class="lg:col-span-2 bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-5">
+            <section class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {{-- Gráfica de tendencia: ocupa 2/3 en lg y 3/4 en xl --}}
+                <div class="lg:col-span-2 xl:col-span-3 bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-5">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
                         <x-app-sidebar-icon name="chart-bar" class="h-4 w-4 text-indigo-500" />
                         Tendencia mensual de casos abiertos
@@ -77,7 +77,7 @@
                                 chart: null,
                                 init() {
                                     this.chart = new ApexCharts(this.$refs.target, {
-                                        chart: { type: 'area', height: 280, toolbar: { show: false }, sparkline: { enabled: false } },
+                                        chart: { type: 'area', height: 320, toolbar: { show: false }, sparkline: { enabled: false } },
                                         stroke: { curve: 'smooth', width: 2 },
                                         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
                                         dataLabels: { enabled: false },
@@ -95,27 +95,40 @@
                 </div>
 
                 {{-- Acceso rápido --}}
-                <div class="bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-5">
+                <div class="bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-5 flex flex-col">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4">Acceso rápido</h3>
 
-                    @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
-                        <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
-                           class="block rounded-lg ring-1 ring-slate-200 p-4 hover:ring-indigo-300 hover:bg-indigo-50/50 transition group">
-                            <div class="flex items-start gap-3">
-                                <div class="h-10 w-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                                    <x-app-sidebar-icon name="scale" class="h-5 w-5" />
+                    <div class="space-y-2 flex-1">
+                        @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
+                            <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
+                               class="block rounded-lg ring-1 ring-slate-200 p-3 hover:ring-indigo-300 hover:bg-indigo-50/50 transition group">
+                                <div class="flex items-start gap-3">
+                                    <div class="h-9 w-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                                        <x-app-sidebar-icon name="chart-bar" class="h-5 w-5" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-slate-900 group-hover:text-indigo-700">Dashboard</p>
+                                        <p class="text-xs text-slate-500">KPIs y gráficas disciplinarias</p>
+                                    </div>
                                 </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-slate-900 group-hover:text-indigo-700">Disciplinarios</p>
-                                    <p class="text-xs text-slate-500 mt-0.5">Procesos disciplinarios, citaciones, decisiones</p>
+                            </a>
+                            <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
+                               class="block rounded-lg ring-1 ring-slate-200 p-3 hover:ring-indigo-300 hover:bg-indigo-50/50 transition group">
+                                <div class="flex items-start gap-3">
+                                    <div class="h-9 w-9 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
+                                        <x-app-sidebar-icon name="scale" class="h-5 w-5" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-slate-900 group-hover:text-indigo-700">Disciplinarios</p>
+                                        <p class="text-xs text-slate-500">Listado y gestión de casos</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </a>
-                    @endcan
+                            </a>
+                        @endcan
+                    </div>
 
-                    <p class="text-xs text-slate-500 mt-4 leading-relaxed">
-                        Otros módulos del sistema están en desarrollo. Aparecerán aquí
-                        cuando estén listos.
+                    <p class="text-xs text-slate-500 mt-4 leading-relaxed border-t border-slate-100 pt-3">
+                        Más módulos disponibles próximamente.
                     </p>
                 </div>
             </section>
