@@ -191,7 +191,7 @@ class DisciplinaryWorkflowService
     }
 
     /**
-     * Marca inasistencia a la citación. Abre ventana de 2 días para justificar.
+     * Marca inasistencia a la citación. Abre ventana de 2 días calendario para justificar.
      */
     public function markCitationNoShow(DisciplinaryCase $case, User $actor, ?string $note = null): DisciplinaryCase
     {
@@ -201,9 +201,9 @@ class DisciplinaryWorkflowService
             $case,
             CaseStatus::JUSTIFICACION_PENDIENTE,
             $actor,
-            'Apertura ventana de 2 días hábiles para justificar inasistencia.',
+            'Apertura ventana de 2 días calendario para justificar inasistencia.',
             stageType: StageType::JUSTIFICACION,
-            deadlineAt: now()->addWeekdays(2),
+            deadlineAt: now()->addDays(2),
         );
     }
 

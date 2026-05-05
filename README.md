@@ -41,8 +41,7 @@ Además del catálogo jurídico, existe el módulo de **administración de usuar
 
 ## ✨ Características principales (módulo Disciplinario)
 
-- **Workflow estricto y validado**: 13 estados, transiciones controladas, plazos legales automáticos
-  (ej: 2 días hábiles para justificar inasistencia a citación).
+- **Workflow estricto y validado**: 13 estados, transiciones controladas, plazo de **2 días calendario** para justificar inasistencia a citación (tras constancia).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
 - **Roles y permisos granulares** (Spatie Permission v6): admin, abogado, planeación, administrativa, auditor, operaciones; más el flag **solo lectura** por usuario.
 - **Dashboard analítico** con KPIs, distribución por falta, por ciudad y carga por abogado en una sola query.
@@ -65,6 +64,14 @@ Además del catálogo jurídico, existe el módulo de **administración de usuar
 - **Topbar** con acceso a perfil y botón de salir.
 - **Sub-nav contextual** por módulo (sticky bajo el topbar).
 - **Responsive**: en móvil el sidebar se oculta y se accede con un botón hamburguesa.
+
+### Tema claro u oscuro
+
+- Cada usuario puede elegir **tema claro** u **oscuro** desde el interruptor en la barra superior (Livewire `ThemeToggle`).
+- La preferencia se guarda en la columna **`users.theme`** (`light` | `dark`). Es necesario ejecutar las migraciones (`php artisan migrate`) para crear esa columna.
+- El middleware **`ShareUiTheme`** comparte `$uiTheme` con las vistas; el layout aplica la clase `dark` en `<html>` cuando corresponde (Tailwind `darkMode: 'class'`).
+
+Las pantallas principales usan variantes `dark:` para mantener contraste y legibilidad en ambos modos.
 
 ### Vista de Inicio (Dashboard global)
 
@@ -90,6 +97,7 @@ Sub-nav superior: **Inicio | Dashboard | Disciplinarios | Formatos | Historial**
 | **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
+| **Formatos** | Catálogo FO-GJ por etapa A–F; vista previa modal (**Ver formato**) para FO-GJ-51; columna **Descarga** para plantilla en blanco (HTML editable FO-GJ-51 o PDF desde `public/formatos/disciplinarios/`). Ruta: `GET /disciplinary/formats/descarga-en-blanco/{code}` → nombre `disciplinary.formats.download-blank`. |
 
 ### Módulo Usuarios
 
@@ -102,6 +110,17 @@ Sub-nav: **Inicio | Usuarios**
 
 ## 🏛️ Workflow del proceso disciplinario
 
+Etapas normativas SJ (referencia):
+
+| Etapa | Contenido |
+| --- | --- |
+| **A** | Falta e informe disciplinario — **FO-GJ-51** |
+| **B** | Citación a diligencia disciplinaria por escrito — **FO-GJ-03**. Si no asiste: constancia de inasistencia y **2 días calendario** para justificar; si justifica → reprogramación (**FO-GJ-54**); si no → comité disciplinario para decisión |
+| **C** | Diligencia disciplinaria y acta — **FO-GJ-42** |
+| **D** | Comunicado de la decisión de sanción o cierre del proceso |
+| **E** | Recurso de apelación contra la decisión disciplinaria |
+| **F** | Decisión de segunda instancia |
+
 ```
 BORRADOR
    ↓
@@ -111,17 +130,19 @@ CITACION_PROGRAMADA (FO-GJ-03) ─┐
    │   │   │                    │
    │   │   └─► CITACION_NO_ASISTIO
    │   │             ↓
-   │   │      JUSTIFICACION_PENDIENTE (deadline 2 días hábiles)
+   │   │      JUSTIFICACION_PENDIENTE (deadline 2 días calendario)
    │   │           │            │
    │   │           ↓            ↓
-   │   └──► REPROGRAMADO   COMITE_DISCIPLINARIO
-   │           │
-   ↓           ↓
-DILIGENCIA (FO-GJ-42) ──► DECISION
-                            │  │
-                            │  └──► APELACION ──► SEGUNDA_INSTANCIA
-                            ↓                            │
-                         FINALIZADO ──────────► ARCHIVADO
+   │   └──► REPROGRAMADO (FO-GJ-54)   COMITE_DISCIPLINARIO
+   │           │                      │
+   ↓           ↓                      ↓
+DILIGENCIA (FO-GJ-42) ◄──────────────┘
+   ↓
+DECISION (comunicado sanción / cierre)
+         │  │
+         │  └──► APELACION ──► SEGUNDA_INSTANCIA
+         ↓                            │
+      FINALIZADO ──────────► ARCHIVADO
 ```
 
 Toda transición pasa por `DisciplinaryWorkflowService::transition()` que garantiza atómicamente:
@@ -148,6 +169,9 @@ app/
     Disciplinary/              Enums del dominio disciplinario
   Exceptions/Disciplinary/     InvalidStateTransitionException
   Workflow/Disciplinary/       TransitionMap (única fuente de verdad)
+  Support/
+    Disciplinary/
+      OfficialFormsCatalog.php   Catálogo FO-GJ / etapas A–F
   Models/
     User.php / Personnel.php
     Disciplinary/              Models del agregado disciplinario
@@ -160,31 +184,31 @@ app/
     Home.php                   Componente del dashboard global
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail
-    Disciplinary/              Componentes del módulo (Dashboard, CasesIndex, CaseDetail)
+    Disciplinary/              Componentes del módulo (Dashboard, CasesIndex, CaseDetail, FormatsCatalog)
+    Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
-    Middleware/                must-change-password
+    Middleware/                must-change-password, ShareUiTheme (comparte tema UI autenticado)
     Controllers/Disciplinary/  Controllers (web + API JSON)
     Requests/Disciplinary/     FormRequests con autorización delegada al Policy
     Requests/Users/            FormRequests del módulo usuarios
 
 database/
-  migrations/                  Disciplinario + Spatie + columnas users (`read_only`, `must_change_password`)
+  migrations/                  Disciplinario + Spatie + columnas users (`read_only`, `must_change_password`, `theme`)
   seeders/                     RolesAndPermissions, FaultsCatalog, DemoUsers, WorkflowSmokeTest
 
 resources/views/
   layouts/app.blade.php        Layout principal con sidebar + topbar + sub-nav
   livewire/
     home.blade.php             Vista del dashboard global
-    disciplinary/              Vistas del módulo
+    disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
     users/                     Listado y detalle de usuarios
     auth/                      force-password-change (primer login)
+    ui/                        Controles UI compartidos (p. ej. selector de tema)
+  disciplinary/forms/        HTML de descarga en blanco (FO-GJ-51)
   components/
     app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
     app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
-    disciplinary/              kpi-card, status-badge, nav (sub-nav del módulo)
-    users/                     Sub-nav del módulo Usuarios
-    home/                      alert-card
-
+    disciplinary/              kpi-card, status-badge, nav (sub-nav); `forms/` (vista previa FO-GJ-51)
 docs/
   ARCHITECTURE.md              Documentación detallada de arquitectura
 ```
@@ -196,7 +220,8 @@ docs/
 - PHP 8.2+
 - Composer 2
 - MySQL 8 (o MariaDB compatible)
-- Node.js 18+ (recomendado 20 LTS)
+- Node.js 18+ (recomendado 20 LTS). **Laragon** suele incluir Node en  
+  `C:\laragon\bin\nodejs\node-v18\` — si `npm` no está en el PATH del IDE, use esa ruta o añádala al PATH del usuario.
 - Apache o Nginx
 
 ### Pasos
@@ -218,7 +243,9 @@ php artisan key:generate
 # 4. Migrar y sembrar datos
 php artisan migrate --seed
 
-# 5. Frontend
+# 5. Frontend (Vite + Tailwind). Si npm no resuelve en la terminal:
+#    & "C:\laragon\bin\nodejs\node-v18\npm.cmd" install
+#    & "C:\laragon\bin\nodejs\node-v18\npm.cmd" run build
 npm install
 npm run build
 ```
@@ -285,7 +312,8 @@ La autorización se evalúa en 3 capas:
 | `GET /dashboard` | **Inicio** (dashboard global con alertas) |
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario |
 | `GET /disciplinary/cases` | Listado de casos con filtros |
-| `GET /disciplinary/cases/{case}` | Detalle del caso (4 tabs + modal de transición) |
+| `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
+| `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco (HTML FO-GJ-51 o PDF si existe en disco); autorización Gate `viewOfficialForms` sobre `DisciplinaryCase` (igual que el catálogo). |
 | `GET /users` | Listado de usuarios (Livewire) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |

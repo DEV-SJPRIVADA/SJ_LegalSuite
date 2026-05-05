@@ -3,12 +3,12 @@
         <x-users.nav />
     @endpush
 
-    <div class="bg-white border-b border-slate-200">
+    <div class="bg-white border-b border-slate-200 dark:bg-dash-ink/60 dark:border-white/10">
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-                <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold">Usuarios · Listado</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900">Gestión de usuarios</h1>
-                <p class="text-sm text-slate-600 mt-1">Crea, edita y administra los usuarios del sistema y sus roles.</p>
+                <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Usuarios · Listado</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Gestión de usuarios</h1>
+                <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">Crea, edita y administra los usuarios del sistema y sus roles.</p>
             </div>
             @can('create', \App\Models\User::class)
                 <button wire:click="openCreate"
@@ -32,7 +32,7 @@
             @endif
 
             {{-- Filtros --}}
-            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4">
+            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card p-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Buscador</label>
@@ -77,7 +77,7 @@
             </div>
 
             {{-- Tabla --}}
-            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden">
+            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200">
                         <thead class="bg-slate-50">
@@ -92,7 +92,7 @@
                                 <th class="px-4 py-3 text-right font-semibold">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-slate-200 text-sm">
+                        <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
                             @forelse ($users as $u)
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-4 py-3">
@@ -213,13 +213,13 @@
     @if ($showForm)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
              x-data x-on:keydown.escape.window="$wire.closeForm()">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            <div class="bg-white rounded-lg shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 dark:shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                  x-on:click.outside="$wire.closeForm()">
-                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
-                    <h3 class="font-semibold text-slate-900">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between sticky top-0 z-10 bg-white dark:bg-dash-ink">
+                    <h3 class="font-semibold text-slate-900 dark:text-white">
                         {{ $editingId ? 'Editar usuario' : 'Crear usuario nuevo' }}
                     </h3>
-                    <button wire:click="closeForm" class="text-slate-400 hover:text-slate-600">✕</button>
+                    <button wire:click="closeForm" class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
                 </div>
 
                 <form wire:submit="save" class="p-6 space-y-4">
@@ -316,7 +316,7 @@
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
              x-data="{ copied: false }"
              x-on:keydown.escape.window="$wire.closeCredentialModal()">
-            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full ring-1 ring-slate-200"
+            <div class="bg-white rounded-lg shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 dark:shadow-2xl max-w-lg w-full ring-1 ring-slate-200"
                  x-on:click.outside="$wire.closeCredentialModal()">
                 <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                     <h3 class="font-semibold text-slate-900">Contraseña provisional</h3>
@@ -357,7 +357,7 @@
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
              x-data="{ copied: false }"
              x-on:keydown.escape.window="$wire.closePasswordModal()">
-            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full ring-1 ring-slate-200"
+            <div class="bg-white rounded-lg shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 dark:shadow-2xl max-w-lg w-full ring-1 ring-slate-200"
                  x-on:click.outside="$wire.closePasswordModal()">
                 <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                     <h3 class="font-semibold text-slate-900">

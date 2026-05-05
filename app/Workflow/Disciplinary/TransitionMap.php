@@ -7,6 +7,15 @@ use App\Enums\Disciplinary\CaseStatus;
 /**
  * Mapa de transiciones permitidas entre estados del caso disciplinario.
  *
+ * Alineación con etapas del proceso disciplinario SJ:
+ * **A.** Falta e informe disciplinario (FO-GJ-51).
+ * **B.** Citación a diligencia disciplinaria por escrito (FO-GJ-03). Si no asiste: constancia de inasistencia
+ *     y **2 días calendario** para justificar; si justifica → reprogramación (FO-GJ-54); si no → comité disciplinario para decisión.
+ * **C.** Diligencia disciplinaria y levantamiento de acta (FO-GJ-42).
+ * **D.** Comunicado de decisión de sanción o cierre del proceso (`DECISION`).
+ * **E.** Recurso de apelación (`APELACION`).
+ * **F.** Decisión de segunda instancia (`SEGUNDA_INSTANCIA`).
+ *
  * Cada clave es el estado origen, y su valor es el listado de estados destino válidos.
  * Esta tabla es la única fuente de verdad del workflow: si una transición no está aquí,
  * no se permite. El WorkflowService consulta este mapa antes de aplicar cualquier cambio.

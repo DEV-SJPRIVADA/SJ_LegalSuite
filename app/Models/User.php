@@ -29,6 +29,7 @@ class User extends Authenticatable
         'is_active',
         'read_only',
         'must_change_password',
+        'theme',
     ];
 
     protected $hidden = [

@@ -210,7 +210,7 @@ $wf->archive($case, $actor);
 ### Plazos legales (deadlines)
 
 Cuando se llama `markCitationNoShow`, el WorkflowService crea automáticamente
-una stage de tipo `JUSTIFICACION` con `deadline_at = now()->addWeekdays(2)`.
+una stage de tipo `JUSTIFICACION` con `deadline_at = now()->addDays(2)` (**2 días calendario**).
 
 El scope `DisciplinaryStage::scopeOverdue()` permite identificar etapas vencidas
 para enviar recordatorios o pasar al comité.

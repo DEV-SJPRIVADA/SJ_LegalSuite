@@ -7,6 +7,9 @@ use Livewire\Component;
 
 class LogoutButton extends Component
 {
+    /** @var string light|dark */
+    public string $variant = 'light';
+
     public function logout(Logout $logout): void
     {
         $logout();

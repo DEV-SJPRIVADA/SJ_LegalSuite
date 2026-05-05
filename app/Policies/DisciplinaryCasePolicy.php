@@ -152,4 +152,10 @@ class DisciplinaryCasePolicy
         return $user->hasAnyRole(['auditor', 'abogado', 'planeacion'])
             || $user->hasPermissionTo('disciplinary.view-dashboard');
     }
+
+    /** Catálogo de formatos FO-GJ (referencia para quien puede consultar expedientes). */
+    public function viewOfficialForms(User $user): bool
+    {
+        return $this->viewAny($user);
+    }
 }

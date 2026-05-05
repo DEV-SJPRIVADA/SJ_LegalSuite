@@ -18,14 +18,14 @@ enum DocumentType: string
     public function label(): string
     {
         return match ($this) {
-            self::INFORME => 'Informe (FO-GJ-51)',
-            self::CITACION => 'Citación (FO-GJ-03)',
-            self::REPROGRAMACION => 'Reprogramación (FO-GJ-54)',
-            self::JUSTIFICACION => 'Justificación',
-            self::ACTA_DILIGENCIA => 'Acta de diligencia (FO-GJ-42)',
-            self::DECISION => 'Decisión',
-            self::APELACION => 'Apelación',
-            self::SEGUNDA_INSTANCIA => 'Segunda instancia',
+            self::INFORME => 'Informe disciplinario (FO-GJ-51)',
+            self::CITACION => 'Citación a diligencia disciplinaria por escrito (FO-GJ-03)',
+            self::REPROGRAMACION => 'Reprogramación a diligencia disciplinaria (FO-GJ-54)',
+            self::JUSTIFICACION => 'Justificación de inasistencia',
+            self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-42)',
+            self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
+            self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
+            self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',
             self::EVIDENCIA => 'Evidencia',
             self::OTRO => 'Otro',
         };

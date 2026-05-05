@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'must-change-password' => EnsureMustChangePassword::class,
         ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\ShareUiTheme::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

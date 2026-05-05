@@ -29,7 +29,7 @@ return new class extends Migration
             $table->dateTime('performed_at')->nullable();
             $table->dateTime('completed_at')->nullable();
             $table->date('deadline_at')->nullable()
-                ->comment('Para etapas con plazo legal, ej: 2 días para justificar inasistencia');
+                ->comment('Para etapas con plazo legal, ej: 2 días calendario para justificar inasistencia');
 
             $table->foreignId('performed_by')->nullable()
                 ->constrained('users')->nullOnDelete();
