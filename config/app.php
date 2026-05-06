@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | URL desde la petición (LAN con IP o hostname variable)
+    |--------------------------------------------------------------------------
+    |
+    | Si es true, cada solicitud HTTP fija la URL base con el Host real del
+    | navegador (p. ej. http://172.16.x.x:8082). Útil cuando el equipo Laragon
+    | recibe DHCP y no conviene mantener APP_URL sincronizado a mano.
+    | Desactive en producción con dominio fijo salvo que sepa lo que hace.
+    |
+    */
+
+    'use_request_url' => (bool) env('APP_USE_REQUEST_URL', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

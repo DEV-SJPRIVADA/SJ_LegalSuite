@@ -8,6 +8,7 @@ namespace App\Support\Disciplinary;
  * Convención:
  * - Agregue una fila por cada nuevo formato.
  * - `pdf`: nombre de archivo dentro de `public/formatos/disciplinarios/` o null hasta subir la plantilla.
+ * - Algunos códigos pueden generarse en blanco desde HTML (Letter + Browsershot); ver `htmlBlankPdfCodes()`.
  */
 final class OfficialFormsCatalog
 {
@@ -88,5 +89,55 @@ final class OfficialFormsCatalog
         $path = public_path('formatos/disciplinarios/'.$filename);
 
         return is_file($path) ? $filename : null;
+    }
+
+    /**
+     * Códigos cuya plantilla en blanco se genera desde HTML (Chrome headless), tamaño carta.
+     *
+     * @return list<string>
+     */
+    public static function htmlBlankPdfCodes(): array
+    {
+        return ['FO-GJ-51'];
+    }
+
+    public static function isHtmlBlankPdf(string $normalizedCode): bool
+    {
+        return in_array(strtoupper($normalizedCode), self::htmlBlankPdfCodes(), true);
+    }
+
+    /**
+     * Hay descarga o vista previa en PDF (archivo estático o generado desde HTML).
+     */
+    public static function hasBlankPdf(?string $code): bool
+    {
+        if (! filled($code)) {
+            return false;
+        }
+
+        $normalized = strtoupper($code);
+
+        if (self::staticBlankPdfAbsolutePath($normalized) !== null) {
+            return true;
+        }
+
+        return self::isHtmlBlankPdf($normalized);
+    }
+
+    /**
+     * Ruta absoluta al PDF estático “en blanco” del código FO-GJ, si existe archivo en servidor.
+     */
+    public static function staticBlankPdfAbsolutePath(string $normalizedCode): ?string
+    {
+        foreach (self::all() as $row) {
+            if (($row['code'] ?? '') !== $normalizedCode || empty($row['pdf'])) {
+                continue;
+            }
+            $path = public_path('formatos/disciplinarios/'.$row['pdf']);
+
+            return is_file($path) ? $path : null;
+        }
+
+        return null;
     }
 }

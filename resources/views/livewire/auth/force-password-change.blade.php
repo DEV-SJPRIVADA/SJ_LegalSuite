@@ -9,16 +9,18 @@
     <form wire:submit="save" class="space-y-4">
         <div>
             <label for="fp-password" class="block text-xs font-semibold text-slate-600 mb-1">Nueva contraseña</label>
-            <input wire:model="password" id="fp-password" type="password" autocomplete="new-password"
-                class="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <x-password-input wire:model="password" id="fp-password" name="password"
+                class="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-dash-lift dark:border-white/15 dark:text-slate-100"
+                required autocomplete="new-password" />
             @error('password')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
         </div>
         <div>
             <label for="fp-password_confirmation" class="block text-xs font-semibold text-slate-600 mb-1">Confirmar contraseña</label>
-            <input wire:model="password_confirmation" id="fp-password_confirmation" type="password" autocomplete="new-password"
-                class="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <x-password-input wire:model="password_confirmation" id="fp-password_confirmation" name="password_confirmation"
+                class="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-dash-lift dark:border-white/15 dark:text-slate-100"
+                required autocomplete="new-password" />
         </div>
 
         <button type="submit"

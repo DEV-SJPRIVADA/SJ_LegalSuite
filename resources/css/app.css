@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* Modo oscuro: listas nativas de <select> (p. ej. Chrome) usan colores del control; sin esto options pueden quedar texto claro sobre fondo claro. */
+@layer base {
+    .dark select {
+        color-scheme: dark;
+    }
+
+    .dark select option {
+        @apply bg-dash-lift text-slate-100;
+    }
+}

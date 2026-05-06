@@ -60,7 +60,7 @@
     {{-- Logo / branding --}}
     <div class="px-5 py-5 border-b {{ $isNeon ? 'border-white/10' : 'border-slate-200' }} flex items-center gap-3">
         <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 group">
-            <img src="{{ asset('images/logo solo.png') }}"
+            <img src="{{ \App\Support\Disciplinary\DisciplinaryAssets::logoPublicUrl() }}"
                  alt="SJ LegalSuite"
                  class="h-9 w-auto bg-white rounded-md p-1 shadow-sm ring-1 {{ $isNeon ? 'ring-white/10' : 'ring-slate-200' }}">
             <div class="leading-tight">

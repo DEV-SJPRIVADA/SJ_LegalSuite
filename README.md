@@ -97,7 +97,7 @@ Sub-nav superior: **Inicio | Dashboard | Disciplinarios | Formatos | Historial**
 | **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
-| **Formatos** | Catálogo FO-GJ por etapa A–F; vista previa modal (**Ver formato**) para FO-GJ-51; columna **Descarga** para plantilla en blanco (HTML editable FO-GJ-51 o PDF desde `public/formatos/disciplinarios/`). Ruta: `GET /disciplinary/formats/descarga-en-blanco/{code}` → nombre `disciplinary.formats.download-blank`. |
+| **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Si existe archivo estático en `public/formatos/disciplinarios/{código}.pdf`, tiene prioridad; si no (p. ej. **FO-GJ-51**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**. Quienes pueden crear casos disciplinarios pueden **diligenciar FO-GJ-51 en pantalla** y generar PDF con datos (`disciplinary.forms.informe-fo-gj-51`). Rutas: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
 
 ### Módulo Usuarios
 
@@ -157,6 +157,7 @@ Toda transición pasa por `DisciplinaryWorkflowService::transition()` que garant
 - **Backend**: Laravel 12, PHP 8.2+, MySQL 8
 - **Autorización**: Spatie Laravel Permission v6
 - **Frontend**: Livewire 3, Alpine.js, Tailwind CSS, ApexCharts
+- **PDF desde HTML**: Spatie Browsershot + Puppeteer (salida **Letter**); el paquete `barryvdh/laravel-dompdf` permanece disponible para otros usos si se requiere.
 - **Auth**: Laravel Breeze (stack Livewire)
 - **Servidor**: Apache (Laragon en desarrollo)
 
@@ -171,7 +172,13 @@ app/
   Workflow/Disciplinary/       TransitionMap (única fuente de verdad)
   Support/
     Disciplinary/
-      OfficialFormsCatalog.php   Catálogo FO-GJ / etapas A–F
+      OfficialFormsCatalog.php   Catálogo FO-GJ / etapas A–F + códigos con PDF HTML (Letter)
+      DisciplinaryAssets.php    Ruta única del logo público (`images/logo solo.png`)
+      FoGj51Catalog.php          Textos fijos FO-GJ-51 (validación + vista)
+    Pdf/
+      HtmlLetterPdfGenerator.php HTML → PDF tamaño Letter (Browsershot)
+      BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
+      EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
   Models/
     User.php / Personnel.php
     Disciplinary/              Models del agregado disciplinario
@@ -184,12 +191,12 @@ app/
     Home.php                   Componente del dashboard global
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail
-    Disciplinary/              Componentes del módulo (Dashboard, CasesIndex, CaseDetail, FormatsCatalog)
+    Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog (modal PDF), FO-GJ-51 en Blade
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
-    Middleware/                must-change-password, ShareUiTheme (comparte tema UI autenticado)
-    Controllers/Disciplinary/  Controllers (web + API JSON)
-    Requests/Disciplinary/     FormRequests con autorización delegada al Policy
+    Middleware/                must-change-password, ShareUiTheme, ForceRequestRootUrl (URLs con host/puerto de la petición)
+    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 informe PDF
+    Requests/Disciplinary/     FormRequests (casos + StoreFoGj51InformePdfRequest)
     Requests/Users/            FormRequests del módulo usuarios
 
 database/
@@ -204,7 +211,7 @@ resources/views/
     users/                     Listado y detalle de usuarios
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (p. ej. selector de tema)
-  disciplinary/forms/        HTML de descarga en blanco (FO-GJ-51)
+  disciplinary/forms/        FO-GJ-51: plantilla en blanco/rellena para PDF + pantalla de diligenciamiento
   components/
     app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
     app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
@@ -250,6 +257,16 @@ npm install
 npm run build
 ```
 
+### PDF disciplinarios (HTML → tamaño carta / Letter)
+
+Las plantillas que no tienen archivo estático en `public/formatos/disciplinarios/` (p. ej. **FO-GJ-51**) se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter**.
+
+1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
+2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
+3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT` (detalle en `.env.example`). En Windows suele bastar la detección automática (Laragon en `C:\laragon\bin\nodejs\…`, Chrome en Program Files).
+
+El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
+
 ### Probar el workflow end-to-end
 
 ```bash
@@ -274,15 +291,41 @@ En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** 
 
 > Contraseña por defecto: **`SJseguridad2026`**. Cambiarla antes de cualquier deploy productivo.
 
-## 🌐 Acceso en red local (Laragon)
+## 🌐 Acceso en red local (Laragon) — mismo criterio que **SJ_Armory**
 
-El proyecto está configurado para escuchar en el puerto **8082** sin afectar otros sitios:
+En el **mismo PC Laragon**, **SJ_Armory** atiende el **puerto 80** y **SJ_LegalSuite** el **8082**, para que convivan sin mezclar `DocumentRoot`.
 
-- Local: http://localhost:8082
-- LAN: http://172.16.16.90:8082 (sustituir por la IP del servidor)
-- Por hostname: http://SJPCANAOPE1:8082
+| App | Puerto | URL típica en LAN (misma IP del servidor) |
+|-----|--------|------------------------------------------|
+| **SJ_Armory** | 80 | `http://172.16.16.90` |
+| **SJ_LegalSuite** | 8082 | `http://172.16.16.90:8082` |
 
-Configuración Apache: `C:\laragon\etc\apache2\sites-enabled\00-aac-sj_legalsuite.conf`
+La IP (`172.16.16.90` en el ejemplo) es la del **equipo donde corre Laragon**; si DHCP asigna otra, use esa IP con **`:8082`**. El `.env` de LegalSuite usa **`APP_URL=http://172.16.16.90:8082`**, paralelo a Armory (`APP_URL=http://172.16.16.90`). Con **`APP_USE_REQUEST_URL=true`**, si entran con otro host/IP válido, Laravel genera enlaces con esa misma base.
+
+**Importante:** incluya **`http://`** y **`:8082`** para LegalSuite. En **Android**, el nombre `SJPCANAOPE1` puede **no resolverse**; use la **IP** como cuando abren Armory.
+
+Apache (misma forma que `00-aaa-sj_armory.conf`, otro puerto): `C:\laragon\etc\apache2\sites-enabled\00-aac-sj_legalsuite.conf`. **`SESSION_DOMAIN`** vacío, como en Armory.
+
+### Si no carga desde otro equipo o el móvil
+
+1. **`ERR_CONNECTION_TIMED_OUT` en `http://IP:8082`** — casi siempre el **Firewall de Windows** bloquea el **8082**. El **80** de Armory suele estar permitido; LegalSuite necesita regla aparte. En el **PC servidor**, PowerShell **como administrador**:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "Laragon HTTP — SJ LegalSuite 8082" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8082 -Profile Private, Domain
+   ```
+
+   O ejecute el script del repo (también como admin):  
+   `scripts/windows/open-firewall-port-8082.ps1`
+
+   Compruebe que la Wi‑Fi/Ethernet del servidor esté como red **Privada**, no **Pública** (Configuración → Red).
+
+2. En el servidor, pruebe **`http://127.0.0.1:8082`** en el navegador; si ahí funciona pero desde el móvil no, confirma firewall/red.
+
+3. **`ERR_NAME_NOT_RESOLVED`** — use **`http://IP-del-servidor:8082`** con **`http://`**, no solo el nombre del PC en Android.
+
+4. **Misma red / VLAN** que para Armory.
+
+> En producción con dominio HTTPS fijo: **`APP_USE_REQUEST_URL=false`** y **`APP_URL`** definitivo.
 
 ## 🔒 Modelo de autorización
 
@@ -313,7 +356,10 @@ La autorización se evalúa en 3 capas:
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario |
 | `GET /disciplinary/cases` | Listado de casos con filtros |
 | `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
-| `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco (HTML FO-GJ-51 o PDF si existe en disco); autorización Gate `viewOfficialForms` sobre `DisciplinaryCase` (igual que el catálogo). |
+| `GET /disciplinary/formats/preview/{code}` | Vista previa inline del PDF en blanco (misma fuente que la descarga): archivo en disco o **HTML→PDF Letter** (Browsershot) para códigos como FO-GJ-51; Gate `viewOfficialForms`. |
+| `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco en PDF Letter; si existe PDF estático en `public/formatos/disciplinarios/`, ese archivo tiene prioridad sobre la plantilla HTML; Gate `viewOfficialForms`. |
+| `GET /disciplinary/forms/informe-fo-gj-51` | Pantalla para diligenciar **FO-GJ-51** y enviar a generación de PDF; requiere `create` sobre `DisciplinaryCase`. |
+| `POST /disciplinary/forms/informe-fo-gj-51/pdf` | Genera y descarga el PDF Letter diligenciado (Browsershot). |
 | `GET /users` | Listado de usuarios (Livewire) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |

@@ -19,10 +19,29 @@
     'metaPageLine' => 'Página 1 de 1',
     /** Plantilla sin datos de sesión ni fecha automática (descarga manual). */
     'blankForDownload' => false,
+    /** Logo embebido (data URI) para PDF vía Browsershot; si es null se usa asset(). */
+    'logoSrc' => null,
+    /** @var list<string> */
+    'faultLeftChecked' => [],
+    /** @var list<string> */
+    'faultRightChecked' => [],
+    'faultOtherChecked' => false,
+    'jurPd' => '',
+    'entregaGh' => '',
+    'jurDd' => '',
+    'jurMm' => '',
+    'jurYyyy' => '',
 ])
 
 @php
+    use App\Support\Disciplinary\DisciplinaryAssets;
+    use App\Support\Disciplinary\FoGj51Catalog;
     use Illuminate\Support\Carbon;
+
+    $faultLeft = FoGj51Catalog::faultLeft();
+    $faultRight = FoGj51Catalog::faultRight();
+
+    $resolvedLogo = filled((string) $logoSrc) ? $logoSrc : DisciplinaryAssets::logoPublicUrl();
 
     $observationsText = trim((string) $observations);
     $user = auth()->user();
@@ -53,34 +72,16 @@
 
     $preparerFieldsReadonly = ! $blankForDownload && $useAuthPreparer && $user;
 
-    // Original diligenciado: equis + redacción; “alerta”; ENTREGA A G.H.
-    $faultLeft = [
-        'Retardo al Servicio',
-        'Actitud poco alerta y vigilante (dormido)',
-        'No porta uniforme de dotación adecuadamente',
-        'Ausencia al servicio',
-        'Cambio por solicitud del cliente',
-        'Descuido con elementos de puesto y/o dotación',
-        'Irrespeto a superiores, compañeros y/o clientes',
-        'Incautación o decomiso de arma de dotación',
-    ];
-    $faultRight = [
-        'Abandono del puesto',
-        'Síntomas de alicoramiento',
-        'Incumplimiento de consignas',
-        'Daño con elementos de puesto y/o dotación',
-        'Mala presentación personal',
-        'Incumplimiento de instrucciones',
-    ];
     $faultRightCount = count($faultRight);
     $faultRows = max(count($faultLeft), $faultRightCount + 1);
 @endphp
 
 <style>
     .fo51-wrap {
-        width: 8.5in;
-        min-width: 8.5in;
+        /* 100% del área útil: evita desborde horizontal vs @page margin Letter + segunda hoja en blanco en Chrome. */
+        width: 100%;
         max-width: 100%;
+        min-width: 0;
         box-sizing: border-box;
         margin: 0 auto;
         font-family: Arial, Helvetica, sans-serif;
@@ -96,7 +97,12 @@
         box-sizing: border-box;
         padding: 0.38in 0.44in 0.34in;
         background: #fff;
-        min-height: 11in;
+        /*
+          Importante: NO usar min-height: 11in aquí. El PDF ya aplica @page { margin }
+          en Letter; forzar 11in dentro del body supera la altura imprimible y Chromium
+          agrega una segunda página en blanco.
+        */
+        min-height: 0;
     }
     /* Cada bloque = una grilla propia + hueco debajo */
     .fo51-block {
@@ -129,25 +135,26 @@
         text-align: left;
     }
     .fo51-logo-cell {
-        width: 82px;
+        width: 102px;
+        max-width: 102px;
         text-align: center;
         vertical-align: middle;
         padding: 6px !important;
     }
+    /* Marco rectangular: el PNG corporativo no debe recortarse en círculo (overflow + radius). */
     .fo51-logo-ring {
-        width: 74px;
-        height: 74px;
         margin: 0 auto;
-        border-radius: 9999px;
-        border: 1px solid #000;
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: hidden;
+        border: 1px solid #000;
+        padding: 4px;
+        box-sizing: border-box;
+        max-width: 94px;
     }
     .fo51-logo-ring img {
-        max-width: 66px;
-        max-height: 62px;
+        max-width: 100%;
+        max-height: 72px;
         width: auto;
         height: auto;
         object-fit: contain;
@@ -277,10 +284,11 @@
         font-size: 7px;
         color: #555;
         text-align: center;
-        padding: 10px 8px 4px;
+        padding: 6px 8px 0;
         line-height: 1.25;
         border: none !important;
-        margin-top: 4px;
+        margin-top: 2px;
+        margin-bottom: 0;
     }
     @media (max-width: 900px) {
         .fo51-wrap {
@@ -299,7 +307,7 @@
         <div class="fo51-block">
             <table class="fo51-tbl" role="presentation">
                 <colgroup>
-                    <col style="width:82px">
+                    <col style="width:102px">
                     <col>
                     <col style="width:114px">
                 </colgroup>
@@ -307,7 +315,7 @@
                     <tr>
                         <td class="fo51-logo-cell">
                             <div class="fo51-logo-ring">
-                                <img src="{{ asset('images/logo solo.png') }}" alt="SJ Seguridad">
+                                <img src="{{ $resolvedLogo }}" alt="SJ Seguridad">
                             </div>
                         </td>
                         <td class="fo51-title">INFORME DISCIPLINARIO</td>
@@ -388,7 +396,8 @@
                                 @if (isset($faultLeft[$r]))
                                     <div class="fo51-fault-line">
                                         <span>{{ $faultLeft[$r] }}</span>
-                                        <input type="checkbox" name="fo51_fault_left[]" value="{{ $faultLeft[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultLeft[$r] }}">
+                                        <input type="checkbox" name="fo51_fault_left[]" value="{{ $faultLeft[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultLeft[$r] }}"
+                                            @checked(in_array($faultLeft[$r], $faultLeftChecked, true))>
                                     </div>
                                 @endif
                             </td>
@@ -396,13 +405,15 @@
                                 @if ($r < $faultRightCount)
                                     <div class="fo51-fault-line">
                                         <span>{{ $faultRight[$r] }}</span>
-                                        <input type="checkbox" name="fo51_fault_right[]" value="{{ $faultRight[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultRight[$r] }}">
+                                        <input type="checkbox" name="fo51_fault_right[]" value="{{ $faultRight[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultRight[$r] }}"
+                                            @checked(in_array($faultRight[$r], $faultRightChecked, true))>
                                     </div>
                                 @elseif ($r === $faultRightCount)
                                     <div class="fo51-fault-line">
                                         <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1">
                                             <strong>Otros</strong>
-                                            <input type="checkbox" name="fo51_fault_other_chk" value="1" class="fo51-chk" title="Otros" aria-label="Otros">
+                                            <input type="checkbox" name="fo51_fault_other_chk" value="1" class="fo51-chk" title="Otros" aria-label="Otros"
+                                                @checked($faultOtherChecked)>
                                             <span>¿Cuál?</span>
                                             <input type="text" name="fo51_fault_other_detail" value="{{ $faultOtherDetail }}" class="fo51-in" style="flex:1;min-width:8rem;border-bottom:1px solid #000!important;padding:2px 4px!important">
                                         </span>
@@ -461,7 +472,7 @@
         </div>
 
         {{-- 7 · Gestión jurídica (grilla aparte; barra gris como en el formato base) --}}
-        <div class="fo51-block" style="margin-bottom:8px">
+        <div class="fo51-block">
             <table class="fo51-tbl" role="presentation">
                 <thead>
                     <tr>
@@ -477,11 +488,11 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding:0!important;height:36px"><input type="text" name="fo51_jur_pd" class="fo51-in" style="height:34px"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_entrega_gh" class="fo51-in" style="height:34px"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_dd" maxlength="2" class="fo51-in" style="height:34px;text-align:center"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_mm" maxlength="2" class="fo51-in" style="height:34px;text-align:center"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_yyyy" maxlength="4" class="fo51-in" style="height:34px;text-align:center"></td>
+                        <td style="padding:0!important;height:36px"><input type="text" name="fo51_jur_pd" class="fo51-in" style="height:34px" value="{{ $jurPd }}"></td>
+                        <td style="padding:0!important"><input type="text" name="fo51_entrega_gh" class="fo51-in" style="height:34px" value="{{ $entregaGh }}"></td>
+                        <td style="padding:0!important"><input type="text" name="fo51_jur_dd" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurDd }}"></td>
+                        <td style="padding:0!important"><input type="text" name="fo51_jur_mm" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurMm }}"></td>
+                        <td style="padding:0!important"><input type="text" name="fo51_jur_yyyy" maxlength="4" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurYyyy }}"></td>
                     </tr>
                 </tbody>
             </table>

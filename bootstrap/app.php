@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\EnsureMustChangePassword;
+use App\Http\Middleware\ForceRequestRootUrl;
+use App\Http\Middleware\ShareUiTheme;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,8 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'must-change-password' => EnsureMustChangePassword::class,
         ]);
 
+        $middleware->web(prepend: [
+            ForceRequestRootUrl::class,
+        ]);
+
         $middleware->web(append: [
-            \App\Http\Middleware\ShareUiTheme::class,
+            ShareUiTheme::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

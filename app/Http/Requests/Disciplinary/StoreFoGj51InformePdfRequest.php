@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Http\Requests\Disciplinary;
+
+use App\Models\Disciplinary\DisciplinaryCase;
+use App\Support\Disciplinary\FoGj51Catalog;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreFoGj51InformePdfRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->can('create', DisciplinaryCase::class) ?? false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'fo51_report_dd' => ['nullable', 'string', 'max:2'],
+            'fo51_report_mm' => ['nullable', 'string', 'max:2'],
+            'fo51_report_yyyy' => ['nullable', 'string', 'max:4'],
+            'fo51_worker_name' => ['nullable', 'string', 'max:500'],
+            'fo51_worker_document' => ['nullable', 'string', 'max:32'],
+            'fo51_city' => ['nullable', 'string', 'max:120'],
+            'fo51_shift' => ['nullable', 'string', 'max:120'],
+            'fo51_position' => ['nullable', 'string', 'max:120'],
+            'fo51_fault_left' => ['nullable', 'array'],
+            'fo51_fault_left.*' => ['string', Rule::in(FoGj51Catalog::faultLeft())],
+            'fo51_fault_right' => ['nullable', 'array'],
+            'fo51_fault_right.*' => ['string', Rule::in(FoGj51Catalog::faultRight())],
+            'fo51_fault_other_chk' => ['nullable', 'boolean'],
+            'fo51_fault_other_detail' => ['nullable', 'string', 'max:500'],
+            'fo51_observations' => ['nullable', 'string', 'max:10000'],
+            'fo51_preparer_name' => ['nullable', 'string', 'max:300'],
+            'fo51_preparer_role' => ['nullable', 'string', 'max:300'],
+            'fo51_preparer_signature' => ['nullable', 'string', 'max:300'],
+            'fo51_jur_pd' => ['nullable', 'string', 'max:120'],
+            'fo51_entrega_gh' => ['nullable', 'string', 'max:120'],
+            'fo51_jur_dd' => ['nullable', 'string', 'max:2'],
+            'fo51_jur_mm' => ['nullable', 'string', 'max:2'],
+            'fo51_jur_yyyy' => ['nullable', 'string', 'max:4'],
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'fo51_fault_other_chk' => $this->boolean('fo51_fault_other_chk'),
+        ]);
+    }
+}

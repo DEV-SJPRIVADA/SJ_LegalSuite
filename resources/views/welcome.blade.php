@@ -7,7 +7,7 @@
 
         <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ @filemtime(public_path('favicon.ico')) }}">
         <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ @filemtime(public_path('favicon.ico')) }}">
-        <link rel="apple-touch-icon" href="{{ asset('images/logo solo.png') }}">
+        <link rel="apple-touch-icon" href="{{ \App\Support\Disciplinary\DisciplinaryAssets::logoPublicUrl() }}">
 
         <title>{{ config('app.name', 'SJ LegalSuite') }}</title>
 
@@ -34,7 +34,7 @@
             <header class="relative z-10">
                 <div class="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex items-center justify-between">
                     <div class="flex items-center gap-3 text-white">
-                        <img src="{{ asset('images/logo solo.png') }}"
+                        <img src="{{ \App\Support\Disciplinary\DisciplinaryAssets::logoPublicUrl() }}"
                              alt="SJ LegalSuite"
                              class="h-12 w-auto drop-shadow-lg">
                         <div class="leading-tight">

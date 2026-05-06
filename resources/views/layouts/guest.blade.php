@@ -7,7 +7,7 @@
 
         <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ @filemtime(public_path('favicon.ico')) }}">
         <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ @filemtime(public_path('favicon.ico')) }}">
-        <link rel="apple-touch-icon" href="{{ asset('images/logo solo.png') }}">
+        <link rel="apple-touch-icon" href="{{ \App\Support\Disciplinary\DisciplinaryAssets::logoPublicUrl() }}">
 
         <title>{{ config('app.name', 'SJ LegalSuite') }}</title>
 

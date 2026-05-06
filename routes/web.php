@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
+use App\Http\Controllers\Disciplinary\FoGj51InformeController;
+use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
+use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
 use App\Livewire\Auth\ForcePasswordChange;
 use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
@@ -10,9 +13,6 @@ use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Home;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
-use App\Models\Disciplinary\DisciplinaryCase;
-use App\Support\Disciplinary\OfficialFormsCatalog;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -31,31 +31,17 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
     Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
         Route::get('dashboard', Dashboard::class)->name('dashboard');
         Route::get('formats', FormatsCatalog::class)->name('formats.index');
-        Route::get('formats/descarga-en-blanco/{code}', function (string $code) {
-            Gate::authorize('viewOfficialForms', DisciplinaryCase::class);
+        Route::get('formats/descarga-en-blanco/{code}', OfficialFormBlankDownloadController::class)
+            ->where('code', '[A-Za-z0-9\-]+')
+            ->name('formats.download-blank');
+        Route::get('formats/preview/{code}', OfficialFormPreviewController::class)
+            ->where('code', '[A-Za-z0-9\-]+')
+            ->name('formats.preview');
 
-            $normalized = strtoupper($code);
-
-            if ($normalized === 'FO-GJ-51') {
-                return response()->view('disciplinary.forms.fo-gj-51-blank-download', [], 200, [
-                    'Content-Type' => 'text/html; charset=UTF-8',
-                    'Content-Disposition' => 'attachment; filename="FO-GJ-51-informe-disciplinario-en-blanco.html"',
-                ]);
-            }
-
-            foreach (OfficialFormsCatalog::all() as $row) {
-                if (($row['code'] ?? '') === $normalized && ! empty($row['pdf'])) {
-                    $path = public_path('formatos/disciplinarios/'.$row['pdf']);
-                    if (! is_file($path)) {
-                        abort(404);
-                    }
-
-                    return response()->download($path, $row['pdf']);
-                }
-            }
-
-            abort(404);
-        })->where('code', '[A-Za-z0-9\-]+')->name('formats.download-blank');
+        Route::get('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'show'])
+            ->name('forms.informe-fo-gj-51');
+        Route::post('forms/informe-fo-gj-51/pdf', [FoGj51InformeController::class, 'pdf'])
+            ->name('forms.informe.pdf');
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');

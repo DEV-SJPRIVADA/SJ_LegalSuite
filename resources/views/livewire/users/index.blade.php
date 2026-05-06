@@ -1,3 +1,9 @@
+@php
+    // ! en oscuro: @tailwindcss/forms fija background #fff en base; sin ! el texto hereda slate-100 del body → ilegible sobre blanco.
+    $usersField = 'w-full rounded-md border border-slate-300 bg-white !text-slate-900 shadow-sm text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-indigo-500 dark:!border-white/15 dark:!bg-dash-lift dark:!text-slate-100 dark:placeholder:!text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/25';
+    $usersReadonlyField = 'w-full rounded-md border border-slate-300 bg-slate-50 font-mono text-sm px-3 py-2 !text-slate-900 dark:!border-white/15 dark:!bg-dash-lift/80 dark:!text-slate-100';
+    $usersLabel = 'block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400';
+@endphp
 <div>
     @push('module-nav')
         <x-users.nav />
@@ -26,7 +32,7 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             @if (session('success'))
-                <div class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
+                <div class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/35 dark:text-emerald-300 dark:ring-emerald-500/25">
                     {{ session('success') }}
                 </div>
             @endif
@@ -35,14 +41,14 @@
             <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card p-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                     <div class="lg:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Buscador</label>
+                        <label class="{{ $usersLabel }}">Buscador</label>
                         <input type="search" wire:model.live.debounce.350ms="search"
                             placeholder="Nombre, email, documento..."
-                            class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            class="{{ $usersField }}">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Rol</label>
-                        <select wire:model.live="role" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label class="{{ $usersLabel }}">Rol</label>
+                        <select wire:model.live="role" class="{{ $usersField }}">
                             <option value="">— Todos —</option>
                             @foreach ($this->rolesList as $r)
                                 <option value="{{ $r }}">{{ ucfirst($r) }}</option>
@@ -50,8 +56,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Área</label>
-                        <select wire:model.live="area" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label class="{{ $usersLabel }}">Área</label>
+                        <select wire:model.live="area" class="{{ $usersField }}">
                             <option value="">— Todas —</option>
                             @foreach ($this->areasList as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
@@ -59,8 +65,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Estado</label>
-                        <select wire:model.live="status" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label class="{{ $usersLabel }}">Estado</label>
+                        <select wire:model.live="status" class="{{ $usersField }}">
                             <option value="">— Todos —</option>
                             <option value="activos">Activos</option>
                             <option value="inactivos">Inactivos</option>
@@ -69,7 +75,7 @@
                 </div>
                 @if ($search !== '' || $role !== '' || $area !== '' || $status !== '')
                     <div class="mt-3">
-                        <button wire:click="clearFilters" class="text-xs text-slate-500 hover:text-slate-700 underline">
+                        <button wire:click="clearFilters" class="text-xs text-slate-500 hover:text-slate-700 underline dark:text-slate-400 dark:hover:text-white">
                             Limpiar filtros
                         </button>
                     </div>
@@ -79,9 +85,9 @@
             {{-- Tabla --}}
             <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
-                            <tr class="text-xs uppercase tracking-wider text-slate-500">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10">
+                        <thead class="bg-slate-50 dark:bg-white/[0.06]">
+                            <tr class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                 <th class="px-4 py-3 text-left font-semibold">Usuario</th>
                                 <th class="px-4 py-3 text-left font-semibold">Documento</th>
                                 <th class="px-4 py-3 text-left font-semibold">Rol</th>
@@ -94,7 +100,7 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
                             @forelse ($users as $u)
-                                <tr class="hover:bg-slate-50">
+                                <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.04]">
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-3">
                                             <div class="h-9 w-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
@@ -202,7 +208,7 @@
                     </table>
                 </div>
 
-                <div class="p-4 border-t border-slate-200">
+                <div class="p-4 border-t border-slate-200 dark:border-white/10">
                     {{ $users->links() }}
                 </div>
             </div>
@@ -225,80 +231,80 @@
                 <form wire:submit="save" class="p-6 space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre completo *</label>
-                            <input type="text" wire:model="name" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
-                            @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <label class="{{ $usersLabel }}">Nombre completo *</label>
+                            <input type="text" wire:model="name" class="{{ $usersField }}">
+                            @error('name') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
-                            <input type="email" wire:model="email" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
-                            @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <label class="{{ $usersLabel }}">Email *</label>
+                            <input type="email" wire:model="email" class="{{ $usersField }}">
+                            @error('email') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Documento</label>
-                            <input type="text" wire:model="documentNumber" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
-                            @error('documentNumber') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <label class="{{ $usersLabel }}">Documento</label>
+                            <input type="text" wire:model="documentNumber" class="{{ $usersField }}">
+                            @error('documentNumber') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Teléfono</label>
-                            <input type="text" wire:model="phone" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
-                            @error('phone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <label class="{{ $usersLabel }}">Teléfono</label>
+                            <input type="text" wire:model="phone" class="{{ $usersField }}">
+                            @error('phone') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Cargo</label>
-                            <input type="text" wire:model="position" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
-                            @error('position') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            <label class="{{ $usersLabel }}">Cargo</label>
+                            <input type="text" wire:model="position" class="{{ $usersField }}">
+                            @error('position') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Área</label>
-                            <select wire:model="area_value" class="w-full rounded-md border-slate-300 shadow-sm text-sm">
+                            <label class="{{ $usersLabel }}">Área</label>
+                            <select wire:model="area_value" class="{{ $usersField }}">
                                 <option value="">— Sin área —</option>
                                 @foreach ($this->areasList as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
                             </select>
-                            @error('area_value') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('area_value') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         @if (! $editingId)
-                            <div class="md:col-span-2 rounded-md bg-indigo-50 ring-1 ring-indigo-100 px-3 py-2">
-                                <p class="text-xs text-indigo-900 font-medium">Contraseña inicial</p>
-                                <p class="text-xs text-indigo-800 mt-1">Se generará una contraseña segura automáticamente. Podrá copiarla en el siguiente paso para enviarla al usuario por un canal seguro.</p>
+                            <div class="md:col-span-2 rounded-md bg-indigo-50 ring-1 ring-indigo-100 px-3 py-2 dark:bg-indigo-950/35 dark:ring-indigo-500/25">
+                                <p class="text-xs text-indigo-900 font-medium dark:text-indigo-200">Contraseña inicial</p>
+                                <p class="text-xs text-indigo-800 mt-1 dark:text-indigo-300/90">Se generará una contraseña segura automáticamente. Podrá copiarla en el siguiente paso para enviarla al usuario por un canal seguro.</p>
                             </div>
                         @endif
 
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-600 mb-2">Roles</label>
+                            <label class="{{ $usersLabel }} mb-2">Roles</label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 @foreach ($this->rolesList as $r)
-                                    <label class="flex items-center gap-2 p-2 rounded-md ring-1 ring-slate-200 hover:bg-slate-50 cursor-pointer text-sm">
-                                        <input type="checkbox" value="{{ $r }}" wire:model="userRoles" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                    <label class="flex items-center gap-2 p-2 rounded-md ring-1 ring-slate-200 hover:bg-slate-50 cursor-pointer text-sm dark:ring-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07] dark:text-slate-200">
+                                        <input type="checkbox" value="{{ $r }}" wire:model="userRoles" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
                                         <span>{{ ucfirst($r) }}</span>
                                     </label>
                                 @endforeach
                             </div>
-                            @error('userRoles') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('userRoles') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" wire:model="allowChanges" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                                <span class="text-sm text-slate-700">Puede realizar cambios</span>
+                                <input type="checkbox" wire:model="allowChanges" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/20 dark:bg-transparent">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">Puede realizar cambios</span>
                             </label>
-                            <p class="mt-1 text-xs text-slate-500 ml-7">Si está desactivado, el usuario solo puede consultar (listados y detalle); no podrá crear, editar procesos ni gestionar otros usuarios.</p>
+                            <p class="mt-1 text-xs text-slate-500 ml-7 dark:text-slate-400">Si está desactivado, el usuario solo puede consultar (listados y detalle); no podrá crear, editar procesos ni gestionar otros usuarios.</p>
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" wire:model="isActive" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                                <span class="text-sm text-slate-700">Usuario activo (puede iniciar sesión)</span>
+                                <input type="checkbox" wire:model="isActive" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/20 dark:bg-transparent">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">Usuario activo (puede iniciar sesión)</span>
                             </label>
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-2 pt-4 border-t border-slate-200">
+                    <div class="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-white/10">
                         <button type="button" wire:click="closeForm"
-                            class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200">
+                            class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15">
                             Cancelar
                         </button>
                         <button type="submit"
@@ -318,21 +324,21 @@
              x-on:keydown.escape.window="$wire.closeCredentialModal()">
             <div class="bg-white rounded-lg shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 dark:shadow-2xl max-w-lg w-full ring-1 ring-slate-200"
                  x-on:click.outside="$wire.closeCredentialModal()">
-                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                    <h3 class="font-semibold text-slate-900">Contraseña provisional</h3>
-                    <button type="button" wire:click="closeCredentialModal" class="text-slate-400 hover:text-slate-600">✕</button>
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900 dark:text-white">Contraseña provisional</h3>
+                    <button type="button" wire:click="closeCredentialModal" class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
                 </div>
                 <div class="p-6 space-y-4">
-                    <p class="text-sm text-slate-600">
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
                         Esta contraseña solo se muestra una vez. Cópiala y envíala al usuario por un medio seguro.
                         La primera vez que inicie sesión deberá definir una nueva contraseña obligatoriamente.
                     </p>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Contraseña generada</label>
+                        <label class="{{ $usersLabel }}">Contraseña generada</label>
                         <input type="text" readonly id="provision-password-field"
                                value="{{ $generatedPlainPassword }}"
                                onclick="this.select()"
-                               class="w-full rounded-md border-slate-300 bg-slate-50 font-mono text-sm px-3 py-2">
+                               class="{{ $usersReadonlyField }}">
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <button type="button"
@@ -341,10 +347,10 @@
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a2.25 2.25 0 0 1-.084.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
                             Copiar al portapapeles
                         </button>
-                        <span x-show="copied" x-cloak class="text-xs font-medium text-emerald-600 self-center">¡Copiado!</span>
+                        <span x-show="copied" x-cloak class="text-xs font-medium text-emerald-600 dark:text-emerald-400 self-center">¡Copiado!</span>
                     </div>
                     <button type="button" wire:click="closeCredentialModal"
-                        class="w-full px-4 py-2 bg-slate-100 text-slate-800 rounded-md text-sm font-semibold hover:bg-slate-200">
+                        class="w-full px-4 py-2 bg-slate-100 text-slate-800 rounded-md text-sm font-semibold hover:bg-slate-200 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15">
                         Entendido
                     </button>
                 </div>
@@ -359,35 +365,35 @@
              x-on:keydown.escape.window="$wire.closePasswordModal()">
             <div class="bg-white rounded-lg shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 dark:shadow-2xl max-w-lg w-full ring-1 ring-slate-200"
                  x-on:click.outside="$wire.closePasswordModal()">
-                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                    <h3 class="font-semibold text-slate-900">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-900 dark:text-white">
                         @if ($passwordResetApplied)
                             Contraseña actualizada
                         @else
                             Reiniciar contraseña
                         @endif
                     </h3>
-                    <button type="button" wire:click="closePasswordModal" class="text-slate-400 hover:text-slate-600">✕</button>
+                    <button type="button" wire:click="closePasswordModal" class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
                 </div>
                 <div class="p-6 space-y-4">
                     @if (! $passwordResetApplied)
-                        <p class="text-sm text-slate-600">
-                            Contraseña provisional generada. Al <strong>Aceptar</strong> se guardará y el usuario deberá cambiarla en el primer ingreso.
+                        <p class="text-sm text-slate-600 dark:text-slate-400">
+                            Contraseña provisional generada. Al <strong class="text-slate-800 dark:text-slate-200">Aceptar</strong> se guardará y el usuario deberá cambiarla en el primer ingreso.
                             Puede copiarla antes o después de confirmar.
                         </p>
                     @else
-                        <p class="text-sm text-emerald-700 font-medium">
+                        <p class="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
                             Cambio aplicado. Copie la contraseña y compártala por un canal seguro.
                         </p>
                     @endif
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">
+                        <label class="{{ $usersLabel }}">
                             Contraseña {{ $passwordResetApplied ? 'activa' : 'generada' }}
                         </label>
                         <input type="text" readonly id="admin-reset-password-field"
                                value="{{ $provisionalResetPassword }}"
                                onclick="this.select()"
-                               class="w-full rounded-md border-slate-300 bg-slate-50 font-mono text-sm px-3 py-2">
+                               class="{{ $usersReadonlyField }}">
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <button type="button"
@@ -396,13 +402,13 @@
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a2.25 2.25 0 0 1-.084.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
                             Copiar al portapapeles
                         </button>
-                        <span x-show="copied" x-cloak class="text-xs font-medium text-emerald-600 self-center">¡Copiado!</span>
+                        <span x-show="copied" x-cloak class="text-xs font-medium text-emerald-600 dark:text-emerald-400 self-center">¡Copiado!</span>
                     </div>
 
-                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/10">
                         @if (! $passwordResetApplied)
                             <button type="button" wire:click="closePasswordModal"
-                                class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200">
+                                class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15">
                                 Cancelar
                             </button>
                             <button type="button" wire:click="confirmPasswordReset"
@@ -413,7 +419,7 @@
                             </button>
                         @else
                             <button type="button" wire:click="closePasswordModal"
-                                class="w-full px-4 py-2 bg-slate-100 text-slate-800 rounded-md text-sm font-semibold hover:bg-slate-200">
+                                class="w-full px-4 py-2 bg-slate-100 text-slate-800 rounded-md text-sm font-semibold hover:bg-slate-200 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15">
                                 Cerrar
                             </button>
                         @endif

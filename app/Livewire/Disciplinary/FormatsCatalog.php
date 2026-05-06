@@ -13,7 +13,7 @@ use Livewire\Component;
 #[Title('Formatos disciplinarios · SJ LegalSuite')]
 class FormatsCatalog extends Component
 {
-    /** Código FO-GJ cuya vista previa modal está abierta (ej. FO-GJ-51). */
+    /** Vista previa modal del PDF en blanco (archivo estático o HTML→PDF tamaño carta). */
     public ?string $activeFormPreview = null;
 
     public function mount(): void
