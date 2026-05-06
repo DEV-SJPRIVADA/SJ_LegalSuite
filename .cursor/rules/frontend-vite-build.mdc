@@ -1,0 +1,13 @@
+---
+description: Tras cambios de frontend, compilar assets con Vite (y limpiar cache Laravel si el usuario lo pide).
+alwaysApply: true
+---
+
+# Build de frontend (Laravel + Vite)
+
+- Después de **cualquier** ajuste que afecte UI o assets (vistas Blade con clases Tailwind, `resources/css/**`, `resources/js/**`, `vite.config.*`, `tailwind.config.js`, `package.json`), **cierra la tarea ejecutando la compilación de producción** para que `public/build/` quede al día.
+- Comando estándar (si `npm` está en el PATH): desde la raíz del proyecto, `npm run build`.
+- En entornos donde `npm` no esté en PATH (p. ej. PowerShell del agente):  
+  `node node_modules/vite/bin/vite.js build`  
+  usando el `node.exe` disponible (por ejemplo el de Node instalado o el del editor).
+- **`php artisan optimize:clear`**: solo cuando el usuario lo solicite explícitamente o haya cambios de config/rutas donde tenga sentido; no hace falta tras cada pequeño cambio de CSS si no lo piden.

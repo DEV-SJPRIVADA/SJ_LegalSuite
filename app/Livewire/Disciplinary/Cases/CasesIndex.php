@@ -48,9 +48,45 @@ class CasesIndex extends Component
 
     public int $perPage = 15;
 
+    /** Abre el modal FO-GJ-51 en esta misma pantalla. */
+    public bool $showFo51Modal = false;
+
+    /** Si true, el submodal «Cargar PDF» queda abierto al mostrar el formulario. */
+    public bool $fo51OpenPdfFirst = false;
+
+    public ?string $fo51PrefillName = null;
+
+    public ?string $fo51PrefillDocument = null;
+
     public function mount(): void
     {
         Gate::authorize('viewAny', DisciplinaryCase::class);
+
+        if (request()->boolean('informe_modal')) {
+            Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
+
+            $this->showFo51Modal = true;
+            $this->fo51OpenPdfFirst = request()->boolean('cargar_pdf');
+            $n = request()->string('nombre')->trim()->toString();
+            $c = request()->string('cedula')->trim()->toString();
+            $this->fo51PrefillName = $n !== '' ? $n : null;
+            $this->fo51PrefillDocument = $c !== '' ? $c : null;
+        }
+    }
+
+    public function openFo51Modal(bool $openPdfFirst = false): void
+    {
+        Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
+        $this->fo51PrefillName = null;
+        $this->fo51PrefillDocument = null;
+        $this->fo51OpenPdfFirst = $openPdfFirst;
+        $this->showFo51Modal = true;
+    }
+
+    public function closeFo51Modal(): void
+    {
+        $this->showFo51Modal = false;
+        $this->fo51OpenPdfFirst = false;
     }
 
     public function updating($prop): void

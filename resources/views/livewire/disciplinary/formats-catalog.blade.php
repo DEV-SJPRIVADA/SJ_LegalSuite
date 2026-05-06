@@ -11,9 +11,9 @@
                 Referencia de plantillas alineadas con las etapas <strong>A–F</strong> del proceso disciplinario SJ (informe, citación, reprogramación, diligencia, decisión, apelación y segunda instancia).
                 Use <strong>Plantilla</strong> para abrir el <strong>PDF en un modal</strong> (misma plantilla en blanco que la descarga).
                 En <strong>Descarga</strong> guarda el archivo PDF en su equipo.
-                @can('create', \App\Models\Disciplinary\DisciplinaryCase::class)
+                @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
                     Para diligenciar el informe en pantalla y generar PDF en tamaño carta:
-                    <a href="{{ route('disciplinary.forms.informe-fo-gj-51') }}" class="font-semibold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">Abrir FO-GJ-51 para diligenciar</a>.
+                    <a href="{{ route('disciplinary.cases.index', ['informe_modal' => 1]) }}" class="font-semibold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">Abrir FO-GJ-51 para diligenciar</a>.
                 @endcan
                 Los PDF opcionales van en
                 <code class="text-xs bg-slate-100 px-1 py-0.5 rounded dark:bg-white/10 dark:text-slate-200">public/formatos/disciplinarios/</code>.

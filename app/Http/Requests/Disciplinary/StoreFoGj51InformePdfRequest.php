@@ -11,13 +11,30 @@ class StoreFoGj51InformePdfRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('create', DisciplinaryCase::class) ?? false;
+        $user = $this->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('create', DisciplinaryCase::class)
+            || $user->can('generateFo51Inform', DisciplinaryCase::class);
     }
 
     /**
      * @return array<string, mixed>
      */
     public function rules(): array
+    {
+        return self::fieldRules();
+    }
+
+    /**
+     * Reglas de los campos del formulario FO-GJ-51 (sin acción ni adjuntos).
+     *
+     * @return array<string, mixed>
+     */
+    public static function fieldRules(): array
     {
         return [
             'fo51_report_dd' => ['nullable', 'string', 'max:2'],

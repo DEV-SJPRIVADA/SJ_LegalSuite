@@ -1,13 +1,40 @@
 @php
     $isDark = ($uiTheme ?? 'light') === 'dark';
+    $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
 
-    $links = [
-        ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => false],
-        ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')],
-        ['key' => 'cases', 'label' => 'Disciplinarios', 'route' => route('disciplinary.cases.index'), 'active' => request()->routeIs('disciplinary.cases.*')],
-        ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false],
-        ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true],
+    $links = [];
+
+    if (! auth()->user()->isMinimalDisciplinaryPortalUser()) {
+        $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
+    }
+
+    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel)) {
+        $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
+    }
+
+    $links[] = [
+        'key' => 'cases',
+        'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
+        'route' => route('disciplinary.cases.index'),
+        'active' => request()->routeIs('disciplinary.cases.*'),
     ];
+
+    $informeSubmissionModel = \App\Models\Disciplinary\InformeSubmission::class;
+
+    if (auth()->user()->can('viewAny', $informeSubmissionModel)) {
+        $links[] = [
+            'key' => 'informes-pend',
+            'label' => 'Revisión informes',
+            'route' => route('disciplinary.informes-pendientes.index'),
+            'active' => request()->routeIs('disciplinary.informes-pendientes.*'),
+        ];
+    }
+
+    if (auth()->user()->can('viewOfficialForms', $disciplinaryCaseModel)) {
+        $links[] = ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false];
+    }
+
+    $links[] = ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true];
 
     $header = $isDark
         ? 'border-b border-white/10 bg-dash-ink/85 backdrop-blur-md sticky top-0 z-20'

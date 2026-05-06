@@ -24,6 +24,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.assign-date',
             'disciplinary.upload-document',
             'disciplinary.export',
+            'disciplinary.generate-inform',
+            'disciplinary.review-inform',
+            'disciplinary.assign-field-operator',
+            'disciplinary.assign-planner',
 
             'personnel.view',
             'personnel.manage',
@@ -49,12 +53,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
         ]);
 
-        /** Planeación: visualización + programación de fechas en etapas (sin mover estados). */
+        /** Planeación (dirección): vista completa + delegación a programadores + fechas. */
         $planeacion = Role::firstOrCreate(['name' => 'planeacion', 'guard_name' => 'web']);
         $planeacion->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
             'disciplinary.assign-date',
+            'disciplinary.assign-planner',
             'personnel.view',
         ]);
 
@@ -64,6 +69,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.view',
             'disciplinary.create',
             'disciplinary.upload-document',
+            'disciplinary.review-inform',
             'personnel.view',
         ]);
 
@@ -76,12 +82,38 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.view',
         ]);
 
+        /** Operaciones (dirección / central): gestión completa del frente operativo y asignación a campo. */
         $admin_op = Role::firstOrCreate(['name' => 'operaciones', 'guard_name' => 'web']);
         $admin_op->syncPermissions([
             'disciplinary.view',
             'disciplinary.create',
             'disciplinary.upload-document',
+            'disciplinary.assign-field-operator',
+            'disciplinary.generate-inform',
+            'disciplinary.review-inform',
             'personnel.view',
+        ]);
+
+        /** Supervisor de campo: sólo casos asignados por operaciones — informe FO-GJ-51 y evidencias. */
+        $supervisor = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
+        $supervisor->syncPermissions([
+            'disciplinary.generate-inform',
+            'disciplinary.upload-document',
+            'personnel.view',
+        ]);
+
+        /** Operador / central de campo: mismo alcance que supervisor. */
+        $operador = Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
+        $operador->syncPermissions([
+            'disciplinary.generate-inform',
+            'disciplinary.upload-document',
+            'personnel.view',
+        ]);
+
+        /** Programador: sólo solicitudes delegadas por planeación — programar fechas en etapas. */
+        $programador = Role::firstOrCreate(['name' => 'programador', 'guard_name' => 'web']);
+        $programador->syncPermissions([
+            'disciplinary.assign-date',
         ]);
 
         foreach (Role::where('guard_name', 'web')->whereIn('name', ['juridico', 'gerencia'])->get() as $legacy) {

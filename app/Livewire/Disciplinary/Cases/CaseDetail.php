@@ -6,8 +6,10 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryStage;
+use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Workflow\Disciplinary\TransitionMap;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -44,10 +46,20 @@ class CaseDetail extends Component
 
     public string $scheduleNote = '';
 
+    public ?int $assignedOperatorId = null;
+
+    public ?int $assignedPlannerId = null;
+
     public function mount(DisciplinaryCase $case): void
     {
         Gate::authorize('view', $case);
         $this->case = $case;
+        $this->assignedOperatorId = $case->assigned_operator_id;
+        $this->assignedPlannerId = $case->assigned_planner_id;
+
+        if (auth()->user()->isDisciplinaryProgramador()) {
+            $this->activeTab = 'timeline';
+        }
     }
 
     public function setTab(string $tab): void
@@ -142,12 +154,83 @@ class CaseDetail extends Component
         session()->flash('success', 'Fechas de la etapa actualizadas.');
     }
 
+    public function saveFieldOperatorAssignment(): void
+    {
+        Gate::authorize('assignFieldOperator', $this->case);
+
+        $this->validate([
+            'assignedOperatorId' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        if ($this->assignedOperatorId !== null) {
+            $candidate = User::query()->find($this->assignedOperatorId);
+            if (! $candidate || ! $candidate->hasAnyRole(['supervisor', 'operador'])) {
+                $this->addError('assignedOperatorId', 'Seleccione un usuario con rol supervisor u operador.');
+
+                return;
+            }
+        }
+
+        $this->case->forceFill([
+            'assigned_operator_id' => $this->assignedOperatorId,
+        ])->save();
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Responsable de campo actualizado.');
+    }
+
+    public function savePlannerAssignment(): void
+    {
+        Gate::authorize('assignPlanner', $this->case);
+
+        $this->validate([
+            'assignedPlannerId' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        if ($this->assignedPlannerId !== null) {
+            $candidate = User::query()->find($this->assignedPlannerId);
+            if (! $candidate || ! $candidate->hasRole('programador')) {
+                $this->addError('assignedPlannerId', 'Seleccione un usuario con rol programador.');
+
+                return;
+            }
+        }
+
+        $this->case->forceFill([
+            'assigned_planner_id' => $this->assignedPlannerId,
+        ])->save();
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Programador asignado para este proceso.');
+    }
+
+    private function syncCaseFromDb(): void
+    {
+        $this->case = $this->case->fresh([
+            'personnel',
+            'reporter:id,name',
+            'assignedLawyer:id,name',
+            'assignedOperator:id,name',
+            'assignedPlanner:id,name',
+            'faults',
+            'stages.performer:id,name',
+            'documents.uploader:id,name',
+            'actions.user:id,name',
+            'actions.stage:id,stage_type',
+        ]) ?? $this->case;
+
+        $this->assignedOperatorId = $this->case->assigned_operator_id;
+        $this->assignedPlannerId = $this->case->assigned_planner_id;
+    }
+
     public function render()
     {
         $this->case->load([
             'personnel',
             'reporter:id,name',
             'assignedLawyer:id,name',
+            'assignedOperator:id,name',
+            'assignedPlanner:id,name',
             'faults',
             'stages.performer:id,name',
             'documents.uploader:id,name',
@@ -159,6 +242,36 @@ class CaseDetail extends Component
 
         return view('livewire.disciplinary.cases.show', [
             'allowedTransitions' => $allowed,
+            'relatedCases' => $this->relatedCasesSameDocument(),
+            'fieldOperatorCandidates' => Gate::allows('assignFieldOperator', $this->case)
+                ? User::query()->role(['supervisor', 'operador'])->active()->orderBy('name')->get(['id', 'name'])
+                : collect(),
+            'plannerCandidates' => Gate::allows('assignPlanner', $this->case)
+                ? User::query()->role('programador')->active()->orderBy('name')->get(['id', 'name'])
+                : collect(),
         ]);
+    }
+
+    /**
+     * Otros procesos disciplinarios con el mismo número de documento (misma persona en el sistema).
+     *
+     * @return Collection<int, DisciplinaryCase>
+     */
+    private function relatedCasesSameDocument()
+    {
+        $this->case->loadMissing('personnel');
+        $doc = $this->case->personnel?->document_number;
+        if (! filled($doc)) {
+            return collect();
+        }
+
+        return DisciplinaryCase::query()
+            ->forDisciplinaryActor(auth()->user())
+            ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
+            ->where('disciplinary_cases.id', '!=', $this->case->getKey())
+            ->whereHas('personnel', fn ($q) => $q->where('document_number', $doc))
+            ->orderByDesc('opened_at')
+            ->limit(50)
+            ->get();
     }
 }

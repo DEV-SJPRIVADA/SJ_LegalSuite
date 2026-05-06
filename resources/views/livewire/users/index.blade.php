@@ -103,54 +103,54 @@
                                 <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.04]">
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-3">
-                                            <div class="h-9 w-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-semibold">
-                                                {{ strtoupper(substr($u->name, 0, 1)) }}
+                                            <div class="h-9 w-9 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-semibold ring-1 ring-indigo-200/90 dark:bg-indigo-500/20 dark:text-indigo-50 dark:ring-indigo-400/35 flex-shrink-0">
+                                                {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim((string) $u->name), 0, 1)) ?: '?' }}
                                             </div>
                                             <div class="min-w-0">
-                                                <a href="{{ route('users.show', $u) }}" wire:navigate class="font-medium text-slate-900 hover:text-indigo-700 truncate block">
+                                                <a href="{{ route('users.show', $u) }}" wire:navigate class="font-medium text-slate-900 dark:text-white hover:text-indigo-700 dark:hover:text-indigo-300 truncate block">
                                                     {{ $u->name }}
                                                 </a>
-                                                <p class="text-xs text-slate-500 truncate">{{ $u->email }}</p>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{{ $u->email }}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3 text-slate-700">
+                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                                         {{ $u->document_number ?? '—' }}
                                     </td>
                                     <td class="px-4 py-3">
                                         @forelse ($u->roles as $r)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 mr-1">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200 mr-1 mb-1 dark:bg-indigo-500/20 dark:text-indigo-100 dark:ring-indigo-400/45">
                                                 {{ $r->name }}
                                             </span>
                                         @empty
-                                            <span class="text-xs text-slate-400">— Sin rol —</span>
+                                            <span class="text-xs text-slate-400 dark:text-slate-500">— Sin rol —</span>
                                         @endforelse
                                     </td>
-                                    <td class="px-4 py-3 text-slate-700">
+                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                                         {{ $u->area?->label() ?? '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-center text-slate-700">
+                                    <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
                                         {{ $u->assigned_cases_count }}
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         @if ($u->read_only)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 ring-1 ring-amber-200 !text-slate-900 dark:bg-amber-100 dark:ring-amber-400/70">
                                                 Solo lectura
                                             </span>
                                         @else
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-50 text-slate-700 ring-1 ring-slate-200">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-200 text-slate-900 ring-1 ring-slate-300 dark:bg-slate-600 dark:!text-white dark:ring-slate-400/55">
                                                 Cambios
                                             </span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         @if ($u->is_active)
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-                                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
                                                 Activo
                                             </span>
                                         @else
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 ring-1 ring-slate-200">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/15">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
                                                 Inactivo
                                             </span>

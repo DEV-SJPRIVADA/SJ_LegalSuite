@@ -4,42 +4,70 @@
      * habilitado. El resto se renderiza como "Próximamente" para que el cliente
      * vea el alcance completo del sistema desde el primer día.
      */
-    $modules = [
-        [
+    $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
+    $canDisciplinaryDashboard = auth()->user()->can('viewDashboard', $disciplinaryCaseModel);
+    $canDisciplinaryCases = auth()->user()->can('viewAny', $disciplinaryCaseModel);
+    $disciplinaryAvailable = $canDisciplinaryDashboard || $canDisciplinaryCases;
+    $disciplinaryRoute = $canDisciplinaryDashboard
+        ? route('disciplinary.dashboard')
+        : ($canDisciplinaryCases ? route('disciplinary.cases.index') : route('dashboard'));
+
+    $minimalPortal = auth()->user()->isMinimalDisciplinaryPortalUser();
+    $sidebarBrandHref = $minimalPortal ? route('disciplinary.cases.index') : route('dashboard');
+
+    if ($minimalPortal) {
+        $modules = [
+            [
+                'key' => 'disciplinary',
+                'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
+                'route' => $disciplinaryRoute,
+                'active' => request()->routeIs('disciplinary.*'),
+                'icon' => 'scale',
+                'available' => $disciplinaryAvailable,
+            ],
+        ];
+    } else {
+        $modules = [];
+
+        $modules[] = [
             'key' => 'home',
             'label' => 'Inicio',
             'route' => route('dashboard'),
             'active' => request()->routeIs('dashboard'),
             'icon' => 'home',
             'available' => true,
-        ],
-        [
+        ];
+
+        $modules[] = [
             'key' => 'disciplinary',
-            'label' => 'Disciplinarios',
-            'route' => route('disciplinary.dashboard'),
+            'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
+            'route' => $disciplinaryRoute,
             'active' => request()->routeIs('disciplinary.*'),
             'icon' => 'scale',
-            'available' => auth()->user()->can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class),
-        ],
-        ['key' => 'licitaciones', 'label' => 'Licitaciones', 'icon' => 'briefcase', 'available' => false],
-        ['key' => 'tutelas', 'label' => 'Acciones de tutela', 'icon' => 'shield-check', 'available' => false],
-        ['key' => 'demandas', 'label' => 'Demandas', 'icon' => 'document-text', 'available' => false],
-        ['key' => 'negociacion', 'label' => 'Negociación colectiva', 'icon' => 'chat-bubbles', 'available' => false],
-        ['key' => 'investigaciones', 'label' => 'Investigaciones', 'icon' => 'search', 'available' => false],
-        ['key' => 'cartera', 'label' => 'Cartera', 'icon' => 'banknotes', 'available' => false],
-        ['key' => 'requisitos', 'label' => 'Requisitos legales', 'icon' => 'clipboard-check', 'available' => false],
-        ['key' => 'contratos', 'label' => 'Contratos', 'icon' => 'document-duplicate', 'available' => false],
-        ['key' => 'polizas', 'label' => 'Pólizas', 'icon' => 'shield', 'available' => false],
-        ['key' => 'auditoria', 'label' => 'Auditoría', 'icon' => 'chart-bar', 'available' => false],
-        [
-            'key' => 'users',
-            'label' => 'Usuarios',
-            'route' => route('users.index'),
-            'active' => request()->routeIs('users.*'),
-            'icon' => 'user-cog',
-            'available' => auth()->user()->can('viewAny', \App\Models\User::class),
-        ],
-    ];
+            'available' => $disciplinaryAvailable,
+        ];
+
+        $modules = array_merge($modules, [
+            ['key' => 'licitaciones', 'label' => 'Licitaciones', 'icon' => 'briefcase', 'available' => false],
+            ['key' => 'tutelas', 'label' => 'Acciones de tutela', 'icon' => 'shield-check', 'available' => false],
+            ['key' => 'demandas', 'label' => 'Demandas', 'icon' => 'document-text', 'available' => false],
+            ['key' => 'negociacion', 'label' => 'Negociación colectiva', 'icon' => 'chat-bubbles', 'available' => false],
+            ['key' => 'investigaciones', 'label' => 'Investigaciones', 'icon' => 'search', 'available' => false],
+            ['key' => 'cartera', 'label' => 'Cartera', 'icon' => 'banknotes', 'available' => false],
+            ['key' => 'requisitos', 'label' => 'Requisitos legales', 'icon' => 'clipboard-check', 'available' => false],
+            ['key' => 'contratos', 'label' => 'Contratos', 'icon' => 'document-duplicate', 'available' => false],
+            ['key' => 'polizas', 'label' => 'Pólizas', 'icon' => 'shield', 'available' => false],
+            ['key' => 'auditoria', 'label' => 'Auditoría', 'icon' => 'chart-bar', 'available' => false],
+            [
+                'key' => 'users',
+                'label' => 'Usuarios',
+                'route' => route('users.index'),
+                'active' => request()->routeIs('users.*'),
+                'icon' => 'user-cog',
+                'available' => auth()->user()->can('viewAny', \App\Models\User::class),
+            ],
+        ]);
+    }
 @endphp
 
 @props([
@@ -59,7 +87,7 @@
 
     {{-- Logo / branding --}}
     <div class="px-5 py-5 border-b {{ $isNeon ? 'border-white/10' : 'border-slate-200' }} flex items-center gap-3">
-        <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 group">
+        <a href="{{ $sidebarBrandHref }}" wire:navigate class="flex items-center gap-3 group">
             <img src="{{ \App\Support\Disciplinary\DisciplinaryAssets::logoPublicUrl() }}"
                  alt="SJ LegalSuite"
                  class="h-9 w-auto bg-white rounded-md p-1 shadow-sm ring-1 {{ $isNeon ? 'ring-white/10' : 'ring-slate-200' }}">
@@ -105,7 +133,7 @@
     <div class="p-3 border-t {{ $isNeon ? 'border-white/10' : 'border-slate-200' }} flex-shrink-0">
         <div class="flex items-center gap-3 px-2 py-2">
             <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold ring-1 {{ $isNeon ? 'bg-indigo-500/30 text-white ring-indigo-500/40' : 'bg-indigo-100 text-indigo-700 ring-indigo-200' }}">
-                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim((string) auth()->user()->name), 0, 1)) ?: '?' }}
             </div>
             <div class="leading-tight min-w-0">
                 <p class="text-sm font-medium truncate {{ $isNeon ? 'text-white' : 'text-slate-900' }}">{{ auth()->user()->name }}</p>

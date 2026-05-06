@@ -188,9 +188,12 @@
                     @endif
                 </x-dashboard.card>
 
+                @php
+                    $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
+                @endphp
                 <x-dashboard.card title="Acceso rápido" subtitle="Módulos activos">
                     <div class="space-y-3">
-                        @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
+                        @can('viewDashboard', $disciplinaryCaseModel)
                             <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
                                class="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-indigo-300 hover:bg-white hover:shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-cyan-400/45 dark:hover:shadow-dash-glow-cyan">
                                 <div class="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 ring-1 ring-indigo-200 flex items-center justify-center dark:bg-gradient-to-br dark:from-cyan-400/25 dark:to-fuchsia-500/20 dark:text-cyan-200 dark:ring-cyan-400/30">
@@ -201,6 +204,8 @@
                                     <p class="text-xs text-slate-500 mt-0.5 dark:text-dash-muted">KPIs y distribución por falta y ciudad</p>
                                 </div>
                             </a>
+                        @endcan
+                        @can('viewAny', $disciplinaryCaseModel)
                             <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
                                class="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-indigo-300 hover:bg-white hover:shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-fuchsia-400/45 dark:hover:shadow-dash-glow-fuchsia">
                                 <div class="h-10 w-10 rounded-xl bg-rose-100 text-rose-600 ring-1 ring-rose-200 flex items-center justify-center dark:bg-gradient-to-br dark:from-fuchsia-500/25 dark:to-orange-400/15 dark:text-fuchsia-200 dark:ring-fuchsia-400/30">

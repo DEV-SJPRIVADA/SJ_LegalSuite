@@ -10,6 +10,7 @@ use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
+use App\Livewire\Disciplinary\InformesPendientes;
 use App\Livewire\Home;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
@@ -40,8 +41,12 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
 
         Route::get('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'show'])
             ->name('forms.informe-fo-gj-51');
-        Route::post('forms/informe-fo-gj-51/pdf', [FoGj51InformeController::class, 'pdf'])
-            ->name('forms.informe.pdf');
+        Route::post('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'process'])
+            ->name('forms.informe.process');
+
+        Route::get('informes-pendientes', InformesPendientes::class)->name('informes-pendientes.index');
+        Route::get('informes-pendientes/{submission}/pdf', [FoGj51InformeController::class, 'pendingPdf'])
+            ->name('informes-pendientes.pdf');
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');

@@ -90,14 +90,15 @@ cuando se vayan creando.
 
 ### Módulo Disciplinario
 
-Sub-nav superior: **Inicio | Dashboard | Disciplinarios | Formatos | Historial**
+Sub-nav superior (según permisos): **Inicio | Dashboard | Disciplinarios | (Revisión informes) | Formatos | Historial**. El enlace *Revisión informes* aparece quienes tienen **`disciplinary.review-inform`** (`InformeSubmissionPolicy::viewAny`).
 
 | Vista | Contenido |
 |---|---|
 | **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
-| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada |
+| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). |
+| **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
-| **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Si existe archivo estático en `public/formatos/disciplinarios/{código}.pdf`, tiene prioridad; si no (p. ej. **FO-GJ-51**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**. Quienes pueden crear casos disciplinarios pueden **diligenciar FO-GJ-51 en pantalla** y generar PDF con datos (`disciplinary.forms.informe-fo-gj-51`). Rutas: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
+| **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Si existe archivo estático en `public/formatos/disciplinarios/{código}.pdf`, tiene prioridad; si no (p. ej. **FO-GJ-51**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
 
 ### Módulo Usuarios
 
@@ -181,22 +182,23 @@ app/
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
   Models/
     User.php / Personnel.php
-    Disciplinary/              Models del agregado disciplinario
+    Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51)
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
     UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
-    Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService
-  Policies/                    DisciplinaryCasePolicy, UserPolicy
+    Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService / DisciplinaryInformeSubmissionService (cola FO-GJ-51)
+    Personnel/                 Resolución de personal desde identidad del informe
+  Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, PersonnelPolicy
   Livewire/
     Home.php                   Componente del dashboard global
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail
-    Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog (modal PDF), FO-GJ-51 en Blade
+    Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
     Middleware/                must-change-password, ShareUiTheme, ForceRequestRootUrl (URLs con host/puerto de la petición)
-    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 informe PDF
-    Requests/Disciplinary/     FormRequests (casos + StoreFoGj51InformePdfRequest)
+    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente inline/descarga)
+    Requests/Disciplinary/     FormRequests (casos + FO-GJ-51: FoGj51ProcessRequest, StoreFoGj51InformePdfRequest)
     Requests/Users/            FormRequests del módulo usuarios
 
 database/
@@ -211,7 +213,7 @@ resources/views/
     users/                     Listado y detalle de usuarios
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (p. ej. selector de tema)
-  disciplinary/forms/        FO-GJ-51: plantilla en blanco/rellena para PDF + pantalla de diligenciamiento
+  disciplinary/forms/        FO-GJ-51: plantilla en blanco/rellena para PDF; parciales reutilizados en modal y pantalla `vista_completa`
   components/
     app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
     app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
@@ -286,6 +288,9 @@ Esto crea un caso ficticio y lo recorre por las 8 transiciones del workflow, val
 | `administrativa@sjlegalsuite.local` | administrativa | Crear informes y cargar evidencias |
 | `auditor@sjlegalsuite.local` | auditor | Consulta + exportación disciplinaria |
 | `operaciones@sjlegalsuite.local` | operaciones | Crear casos + subir evidencias |
+| `supervisor@sjlegalsuite.local` | supervisor | Casos asignados en campo; FO-GJ-51 + informes (sin enlace catálogo formatos en el formulario) |
+| `operador@sjlegalsuite.local` | operador | Mismo alcance operativo que supervisor |
+| `programador@sjlegalsuite.local` | programador | Programación de fechas (planeación) |
 
 En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan).
 
@@ -337,12 +342,13 @@ disciplinary.view-dashboard       disciplinary.assign
 disciplinary.create               disciplinary.assign-date
 disciplinary.update               disciplinary.upload-document
 disciplinary.delete               disciplinary.export
+disciplinary.review-inform
 personnel.view / .manage          users.view / .manage
 ```
 
 La autorización se evalúa en 3 capas:
 
-1. **Policies** (`DisciplinaryCasePolicy`, `UserPolicy`) — rol, permisos Spatie y flag **`read_only`** del usuario.
+1. **Policies** (`DisciplinaryCasePolicy`, `UserPolicy`, `InformeSubmissionPolicy`, `PersonnelPolicy`) — rol, permisos Spatie y flag **`read_only`** del usuario.
 2. **FormRequests** — `authorize()` delega al Policy.
 3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar).
 
@@ -358,8 +364,10 @@ La autorización se evalúa en 3 capas:
 | `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
 | `GET /disciplinary/formats/preview/{code}` | Vista previa inline del PDF en blanco (misma fuente que la descarga): archivo en disco o **HTML→PDF Letter** (Browsershot) para códigos como FO-GJ-51; Gate `viewOfficialForms`. |
 | `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco en PDF Letter; si existe PDF estático en `public/formatos/disciplinarios/`, ese archivo tiene prioridad sobre la plantilla HTML; Gate `viewOfficialForms`. |
-| `GET /disciplinary/forms/informe-fo-gj-51` | Pantalla para diligenciar **FO-GJ-51** y enviar a generación de PDF; requiere `create` sobre `DisciplinaryCase`. |
-| `POST /disciplinary/forms/informe-fo-gj-51/pdf` | Genera y descarga el PDF Letter diligenciado (Browsershot). |
+| `GET /disciplinary/forms/informe-fo-gj-51` | Por defecto **redirige** al listado de casos con query (`informe_modal`, opc. `cargar_pdf`, `nombre`, `cedula`). Con **`?vista_completa=1`** devuelve la pantalla completa de diligenciamiento FO-GJ-51. |
+| `POST /disciplinary/forms/informe-fo-gj-51` | Procesa el informe (`FoGj51ProcessRequest`): acción `pdf` (descarga Letter), `enviar` (cola de revisión) o `cargar` (PDF externo). |
+| `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes de autorización; permiso `disciplinary.review-inform`. |
+| `GET /disciplinary/informes-pendientes/{submission}/pdf` | Descarga el PDF almacenado o, con **`?inline=1`**, lo sirve **inline** para iframe (vista previa en modal). |
 | `GET /users` | Listado de usuarios (Livewire) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |
@@ -392,6 +400,7 @@ La autorización se evalúa en 3 capas:
 - **Audit log**: nunca editar `DisciplinaryAction`; ante un error, registrar otra actuación correctiva.
 - **Estados**: nunca asignar `current_status` directamente; usar siempre `WorkflowService::transition()`.
 - **Comentarios**: se permiten para explicar *por qué*, no *qué* hace el código.
+- **Assets frontend**: tras cambios en vistas Blade (clases Tailwind), `resources/css` o JS del bundle, ejecutar **`npm run build`** (o `vite build`) para actualizar `public/build/`.
 
 ## 📚 Documentación adicional
 

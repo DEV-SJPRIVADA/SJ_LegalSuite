@@ -59,6 +59,52 @@ class User extends Authenticatable
         return $this->hasMany(DisciplinaryCase::class, 'reporter_id');
     }
 
+    public function assignedOperatorCases(): HasMany
+    {
+        return $this->hasMany(DisciplinaryCase::class, 'assigned_operator_id');
+    }
+
+    public function assignedPlannerCases(): HasMany
+    {
+        return $this->hasMany(DisciplinaryCase::class, 'assigned_planner_id');
+    }
+
+    /**
+     * Perfil de campo (supervisor / operador): sólo trabajo asignado por dirección de operaciones.
+     */
+    public function isDisciplinaryFieldOperator(): bool
+    {
+        if ($this->hasRole('admin')) {
+            return false;
+        }
+
+        return $this->hasAnyRole(['supervisor', 'operador']);
+    }
+
+    /**
+     * Programador de fechas: sólo solicitudes asignadas por dirección de planeación.
+     */
+    public function isDisciplinaryProgramador(): bool
+    {
+        if ($this->hasRole('admin')) {
+            return false;
+        }
+
+        return $this->hasRole('programador');
+    }
+
+    /**
+     * Portal reducido: sin tablero general ni otros módulos; sólo asignaciones disciplinarias.
+     */
+    public function isMinimalDisciplinaryPortalUser(): bool
+    {
+        if ($this->hasRole('admin')) {
+            return false;
+        }
+
+        return $this->hasAnyRole(['supervisor', 'operador', 'programador']);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

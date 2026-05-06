@@ -97,6 +97,14 @@ class AlertsService
             return ['count' => 0, 'items' => []];
         }
 
+        if ($user && $user->hasRole('programador') && ! $user->hasRole('admin')) {
+            return ['count' => 0, 'items' => []];
+        }
+
+        if ($user && $user->hasAnyRole(['supervisor', 'operador']) && ! $user->hasRole('admin')) {
+            return ['count' => 0, 'items' => []];
+        }
+
         $cases = DisciplinaryCase::query()
             ->with('personnel:id,first_name,last_name')
             ->when($user, fn ($q) => $q->forDisciplinaryActor($user))

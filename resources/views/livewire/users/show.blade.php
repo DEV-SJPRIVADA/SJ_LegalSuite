@@ -7,8 +7,8 @@
         <div class="max-w-[1600px] mx-auto py-5 px-4 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="flex items-center gap-4">
-                    <div class="h-14 w-14 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 flex items-center justify-center text-xl font-bold flex-shrink-0">
-                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                    <div class="h-14 w-14 rounded-full bg-indigo-100 text-indigo-800 ring-1 ring-indigo-200/90 dark:bg-indigo-500/25 dark:text-indigo-50 dark:ring-indigo-400/35 flex items-center justify-center text-xl font-bold flex-shrink-0">
+                        {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim((string) $user->name), 0, 1)) ?: '?' }}
                     </div>
                     <div>
                         <a href="{{ route('users.index') }}" wire:navigate class="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">← Volver al listado</a>
@@ -31,7 +31,7 @@
                     @endif
 
                     @if ($user->read_only)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/35 dark:text-amber-200 dark:ring-amber-500/25">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-amber-50 ring-1 ring-amber-200 !text-slate-900 dark:bg-amber-100 dark:ring-amber-400/70">
                             Solo lectura
                         </span>
                     @endif
@@ -107,7 +107,7 @@
                         <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted mb-2">Roles asignados</p>
                         <div class="flex flex-wrap gap-2">
                             @forelse ($user->roles as $r)
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-500/30">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-100 dark:ring-indigo-400/45">
                                     {{ ucfirst($r->name) }}
                                 </span>
                             @empty

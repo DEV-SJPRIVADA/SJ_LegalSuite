@@ -45,9 +45,24 @@
             @endif
 
             {{-- Tabs --}}
+            @php
+                $actor = auth()->user();
+                $tabs = [
+                    'overview' => 'Información',
+                    'timeline' => 'Línea de tiempo',
+                    'documents' => 'Documentos',
+                    'history' => 'Historial (misma cédula)',
+                    'audit' => 'Actuaciones',
+                ];
+                if ($actor->isDisciplinaryFieldOperator()) {
+                    unset($tabs['timeline'], $tabs['audit']);
+                } elseif ($actor->isDisciplinaryProgramador()) {
+                    unset($tabs['audit']);
+                }
+            @endphp
             <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden dark:bg-white/[0.04] dark:ring-1 dark:ring-white/10 dark:shadow-dash-card">
-                <div class="flex border-b border-gray-200 text-sm dark:border-white/10">
-                    @foreach (['overview' => 'Información', 'timeline' => 'Línea de tiempo', 'documents' => 'Documentos', 'audit' => 'Actuaciones'] as $key => $label)
+                <div class="flex border-b border-gray-200 text-sm dark:border-white/10 overflow-x-auto">
+                    @foreach ($tabs as $key => $label)
                         <button wire:click="setTab('{{ $key }}')"
                             class="px-5 py-3 font-medium border-b-2 transition
                                 {{ $activeTab === $key ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200' }}">
@@ -85,6 +100,14 @@
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Abogado asignado</dt>
                                     <dd class="text-gray-900 dark:text-white">{{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Supervisor / operador asignado</dt>
+                                    <dd class="text-gray-900 dark:text-white">{{ $case->assignedOperator?->name ?? '—' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Programador asignado</dt>
+                                    <dd class="text-gray-900 dark:text-white">{{ $case->assignedPlanner?->name ?? '—' }}</dd>
                                 </div>
                             </dl>
                             <dl class="space-y-3 text-sm md:col-span-1 xl:col-span-1">
@@ -132,6 +155,116 @@
                                     @endforelse
                                 </div>
                             </div>
+
+                            @canany(['assignFieldOperator', 'assignPlanner'], $case)
+                                <div class="md:col-span-2 xl:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-6 dark:border-white/10 dark:bg-white/[0.04]">
+                                    @can('assignFieldOperator', $case)
+                                        <div>
+                                            <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-3">
+                                                Asignación · Supervisor / operador de campo</h4>
+                                            <p class="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                                                Quién elabora el informe y carga evidencias de la notificación.</p>
+                                            <div class="flex flex-wrap items-end gap-3">
+                                                <div class="min-w-[220px] flex-1">
+                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Usuario</label>
+                                                    <select wire:model.live="assignedOperatorId"
+                                                        class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
+                                                        <option value="">— Sin asignar —</option>
+                                                        @foreach ($fieldOperatorCandidates as $op)
+                                                            <option value="{{ $op->id }}">{{ $op->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('assignedOperatorId')
+                                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                                    @enderror
+                                                </div>
+                                                <button type="button" wire:click="saveFieldOperatorAssignment"
+                                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                                                    Guardar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endcan
+                                    @can('assignPlanner', $case)
+                                        <div
+                                            @can('assignFieldOperator', $case)
+                                                class="mt-5 pt-5 border-t border-slate-200 dark:border-white/10"
+                                            @endcan>
+                                            <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-3">
+                                                Asignación · Programador de fechas</h4>
+                                            <p class="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                                                Dirección de planeación delega la contestación de solicitudes de agenda.</p>
+                                            <div class="flex flex-wrap items-end gap-3">
+                                                <div class="min-w-[220px] flex-1">
+                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Usuario</label>
+                                                    <select wire:model.live="assignedPlannerId"
+                                                        class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
+                                                        <option value="">— Sin asignar —</option>
+                                                        @foreach ($plannerCandidates as $p)
+                                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    @error('assignedPlannerId')
+                                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                                    @enderror
+                                                </div>
+                                                <button type="button" wire:click="savePlannerAssignment"
+                                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                                                    Guardar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endcan
+                                </div>
+                            @endcanany
+
+                            @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
+                                <div class="md:col-span-2 xl:col-span-3 rounded-xl border border-indigo-100 bg-indigo-50/80 p-4 dark:border-cyan-400/25 dark:bg-cyan-500/10">
+                                    <p class="text-sm font-semibold text-indigo-900 dark:text-cyan-100">Informe disciplinario FO-GJ-51</p>
+                                    <p class="text-xs text-indigo-800/90 mt-1 dark:text-slate-300">
+                                        Antes de existir expediente, el informe pasa por la cola «Revisión informes». Si el caso ya existe, puede generar de nuevo el PDF o cargar un anexo cuando corresponda.</p>
+                                    <a href="{{ $case->personnel ? route('disciplinary.cases.index', ['informe_modal' => 1, 'nombre' => trim($case->personnel->first_name.' '.$case->personnel->last_name), 'cedula' => $case->personnel->document_number]) : route('disciplinary.cases.index', ['informe_modal' => 1]) }}" wire:navigate
+                                        class="mt-3 inline-flex items-center px-4 py-2 bg-white text-indigo-700 text-sm font-semibold rounded-md ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-white/10 dark:text-cyan-200 dark:ring-cyan-400/35 dark:hover:bg-white/15">
+                                        Abrir formulario FO-GJ-51
+                                    </a>
+                                </div>
+                            @endcan
+                        </div>
+
+                    @elseif ($activeTab === 'history')
+                        <div class="space-y-4">
+                            <p class="text-sm text-gray-700 dark:text-slate-300 max-w-3xl">
+                                Procesos <span class="font-semibold">distintos a este caso</span> que el sistema encuentra por el mismo
+                                número de documento del trabajador ({{ $case->personnel?->document_number ?? '—' }}), según su perfil en el listado disciplinario.
+                            </p>
+                            @php
+                                /** @var \Illuminate\Support\Collection|null $relatedCases */
+                                $__related = $relatedCases ?? collect();
+                            @endphp
+                            @if ($case->personnel === null || ! filled($case->personnel->document_number ?? null))
+                                <p class="text-sm text-gray-500 dark:text-slate-400">Este caso no tiene trabajador vinculado; no puede armarse historial por cédula.</p>
+                            @elseif ($__related->isEmpty())
+                                <p class="text-sm text-gray-500 dark:text-slate-400">No aparecen otros expedientes registrados para esta cédula con su usuario actual.</p>
+                            @else
+                                <ul class="divide-y divide-gray-200 dark:divide-white/10 rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden bg-white dark:bg-dash-ink/40">
+                                    @foreach ($__related as $rel)
+                                        <li class="px-4 py-3 flex flex-wrap items-start justify-between gap-3 hover:bg-gray-50 dark:hover:bg-white/5">
+                                            <div>
+                                                <a href="{{ route('disciplinary.cases.show', $rel) }}" wire:navigate class="font-mono font-semibold text-indigo-700 hover:underline dark:text-cyan-300">
+                                                    {{ $rel->case_number }}</a>
+                                                <p class="text-xs text-gray-600 dark:text-slate-400 mt-1">
+                                                    Apertura {{ $rel->opened_at?->format('Y-m-d') ?? '—' }}
+                                                    · Estado: {{ $rel->current_status->label() }}
+                                                    @if ($rel->assignedLawyer)
+                                                        · Abogado: {{ $rel->assignedLawyer->name }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                            <span class="text-xs uppercase tracking-wide text-gray-400 dark:text-slate-500">Ver expediente</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
                         </div>
 
                     @elseif ($activeTab === 'timeline')
@@ -187,6 +320,11 @@
                         </ol>
 
                     @elseif ($activeTab === 'documents')
+                        @if (auth()->user()->isDisciplinaryFieldOperator())
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                                Para diligenciar el <strong class="text-slate-800 dark:text-slate-200">informe disciplinario FO-GJ-51</strong>, use la pestaña
+                                <strong class="text-slate-800 dark:text-slate-200">Información</strong>. Adjunte aquí las evidencias de notificación cuando el sistema lo permita.</p>
+                        @endif
                         @if ($case->documents->isEmpty())
                             <p class="text-sm text-gray-500 dark:text-slate-400">No hay documentos cargados todavía.</p>
                         @else

@@ -3,8 +3,12 @@
 namespace App\Providers;
 
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\Disciplinary\InformeSubmission;
+use App\Models\Personnel;
 use App\Models\User;
 use App\Policies\DisciplinaryCasePolicy;
+use App\Policies\InformeSubmissionPolicy;
+use App\Policies\PersonnelPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -16,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     protected array $policies = [
         DisciplinaryCase::class => DisciplinaryCasePolicy::class,
+        InformeSubmission::class => InformeSubmissionPolicy::class,
+        Personnel::class => PersonnelPolicy::class,
         User::class => UserPolicy::class,
     ];
 

@@ -11,6 +11,13 @@ use Livewire\Component;
 #[Title('Inicio · SJ LegalSuite')]
 class Home extends Component
 {
+    public function mount(): void
+    {
+        if (auth()->user()->isMinimalDisciplinaryPortalUser()) {
+            $this->redirect(route('disciplinary.cases.index'), navigate: true);
+        }
+    }
+
     public function render()
     {
         $alerts = app(AlertsService::class);

@@ -12,8 +12,10 @@ use App\Models\User;
  * - admin en modo solo lectura → sólo consulta (listados, detalle, dashboard).
  * - Otros usuarios con `read_only` → igual: consulta sin mutaciones.
  * - abogado → sólo casos asignados (si no está en solo lectura).
- * - planeacion → fechas en etapas (assign-date).
- * - administrativa / operaciones → informes + evidencias.
+ * - supervisor / operador → sólo casos con `assigned_operator_id`; informe FO-GJ-51 + evidencias.
+ * - programador → sólo casos con `assigned_planner_id`; programar fechas de etapa.
+ * - planeacion → fechas en etapas (assign-date) y vista completa.
+ * - administrativa / operaciones → informes + evidencias y gestión operativa.
  */
 class DisciplinaryCasePolicy
 {
@@ -40,7 +42,10 @@ class DisciplinaryCasePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['auditor', 'abogado', 'planeacion', 'administrativa', 'operaciones'])
+        return $user->hasAnyRole([
+            'auditor', 'abogado', 'planeacion', 'administrativa', 'operaciones',
+            'supervisor', 'operador', 'programador',
+        ])
             || $user->hasPermissionTo('disciplinary.view');
     }
 
@@ -48,6 +53,14 @@ class DisciplinaryCasePolicy
     {
         if ($user->hasRole('auditor')) {
             return true;
+        }
+
+        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+            return $case->assigned_operator_id === $user->id;
+        }
+
+        if ($user->hasRole('programador')) {
+            return $case->assigned_planner_id === $user->id;
         }
 
         if ($user->hasRole('abogado')) {
@@ -67,12 +80,20 @@ class DisciplinaryCasePolicy
             return false;
         }
 
+        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
+            return false;
+        }
+
         return $user->hasPermissionTo('disciplinary.create');
     }
 
     public function update(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
             return false;
         }
 
@@ -87,6 +108,10 @@ class DisciplinaryCasePolicy
     public function transition(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
             return false;
         }
 
@@ -107,8 +132,15 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasPermissionTo('disciplinary.assign-date')
-            && $user->can('view', $case);
+        if (! $user->hasPermissionTo('disciplinary.assign-date')) {
+            return false;
+        }
+
+        if ($user->hasRole('programador')) {
+            return $case->assigned_planner_id === $user->id;
+        }
+
+        return $user->can('view', $case);
     }
 
     public function assign(User $user, DisciplinaryCase $case): bool
@@ -118,6 +150,30 @@ class DisciplinaryCasePolicy
         }
 
         return $user->hasPermissionTo('disciplinary.assign');
+    }
+
+    public function assignFieldOperator(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.assign-field-operator');
+    }
+
+    public function assignPlanner(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('disciplinary.assign-planner');
+    }
+
+    /** Plantilla FO-GJ-51 (PDF): operaciones crean casos; campo sólo con permiso dedicado. */
+    public function generateFo51Inform(User $user): bool
+    {
+        return $user->hasPermissionTo('disciplinary.generate-inform');
     }
 
     public function uploadDocument(User $user, DisciplinaryCase $case): bool
@@ -132,6 +188,10 @@ class DisciplinaryCasePolicy
 
         if ($user->hasRole('abogado')) {
             return $case->assigned_lawyer_id === $user->id;
+        }
+
+        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+            return $case->assigned_operator_id === $user->id;
         }
 
         return true;
@@ -156,6 +216,10 @@ class DisciplinaryCasePolicy
     /** Catálogo de formatos FO-GJ (referencia para quien puede consultar expedientes). */
     public function viewOfficialForms(User $user): bool
     {
+        if ($user->isMinimalDisciplinaryPortalUser()) {
+            return false;
+        }
+
         return $this->viewAny($user);
     }
 }

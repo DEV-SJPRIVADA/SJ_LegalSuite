@@ -15,7 +15,17 @@ class Dashboard extends Component
 {
     public function mount(): void
     {
-        Gate::authorize('viewDashboard', DisciplinaryCase::class);
+        if (Gate::allows('viewDashboard', DisciplinaryCase::class)) {
+            return;
+        }
+
+        if (Gate::allows('viewAny', DisciplinaryCase::class)) {
+            $this->redirect(route('disciplinary.cases.index'), navigate: true);
+
+            return;
+        }
+
+        abort(403);
     }
 
     public function render()

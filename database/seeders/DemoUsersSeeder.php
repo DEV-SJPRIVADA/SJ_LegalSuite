@@ -24,6 +24,9 @@ class DemoUsersSeeder extends Seeder
             ['email' => 'administrativa@sjlegalsuite.local', 'name' => 'Área administrativa', 'role' => 'administrativa', 'area' => UserArea::ADMINISTRATIVA, 'read_only' => false],
             ['email' => 'auditor@sjlegalsuite.local', 'name' => 'Auditor', 'role' => 'auditor', 'area' => UserArea::ADMINISTRATIVA, 'read_only' => false],
             ['email' => 'operaciones@sjlegalsuite.local', 'name' => 'Operaciones', 'role' => 'operaciones', 'area' => UserArea::OPERACIONES, 'read_only' => false],
+            ['email' => 'supervisor@sjlegalsuite.local', 'name' => 'Supervisor campo', 'role' => 'supervisor', 'area' => UserArea::OPERACIONES, 'read_only' => false],
+            ['email' => 'operador@sjlegalsuite.local', 'name' => 'Operador central', 'role' => 'operador', 'area' => UserArea::OPERACIONES, 'read_only' => false],
+            ['email' => 'programador@sjlegalsuite.local', 'name' => 'Programador fechas', 'role' => 'programador', 'area' => UserArea::PLANEACION, 'read_only' => false],
         ];
 
         foreach ($defaults as $row) {

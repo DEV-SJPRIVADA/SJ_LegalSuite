@@ -35,6 +35,8 @@ class DisciplinaryCase extends Model
         'personnel_id',
         'reporter_id',
         'assigned_lawyer_id',
+        'assigned_operator_id',
+        'assigned_planner_id',
         'city',
         'sede',
         'current_status',
@@ -76,6 +78,16 @@ class DisciplinaryCase extends Model
     public function assignedLawyer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_lawyer_id');
+    }
+
+    public function assignedOperator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_operator_id');
+    }
+
+    public function assignedPlanner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_planner_id');
     }
 
     public function faults(): BelongsToMany
@@ -161,8 +173,20 @@ class DisciplinaryCase extends Model
      */
     public function scopeForDisciplinaryActor(Builder $query, User $user): Builder
     {
-        if ($user->hasRole('abogado') && ! $user->hasRole('admin')) {
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        if ($user->hasRole('abogado')) {
             return $query->where('assigned_lawyer_id', $user->id);
+        }
+
+        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+            return $query->where('assigned_operator_id', $user->id);
+        }
+
+        if ($user->hasRole('programador')) {
+            return $query->where('assigned_planner_id', $user->id);
         }
 
         return $query;
