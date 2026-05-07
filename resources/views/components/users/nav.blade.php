@@ -3,7 +3,8 @@
 
     $links = [
         ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => false],
-        ['key' => 'index', 'label' => 'Usuarios', 'route' => route('users.index'), 'active' => request()->routeIs('users.*')],
+        ['key' => 'index', 'label' => 'Usuarios', 'route' => route('users.index'), 'active' => request()->routeIs('users.index') || request()->routeIs('users.show')],
+        ['key' => 'organization', 'label' => 'Organización', 'route' => route('users.organization'), 'active' => request()->routeIs('users.organization')],
         ['key' => 'roles', 'label' => 'Roles', 'route' => null, 'active' => false, 'soon' => true],
         ['key' => 'audit', 'label' => 'Auditoría de accesos', 'route' => null, 'active' => false, 'soon' => true],
     ];
@@ -35,6 +36,14 @@
         : 'text-slate-600 hover:text-slate-900';
 
     $logoutVariant = $isDark ? 'dark' : 'light';
+
+    $links = array_values(array_filter($links, function (array $l): bool {
+        if (($l['key'] ?? '') === 'organization') {
+            return auth()->user()?->can('create', \App\Models\User::class) ?? false;
+        }
+
+        return true;
+    }));
 @endphp
 
 <header class="{{ $header }}">

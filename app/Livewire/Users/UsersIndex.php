@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Users;
 
-use App\Enums\UserArea;
+use App\Models\JobPosition;
+use App\Models\OrganizationalArea;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Gate;
@@ -14,13 +16,19 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Spatie\Permission\Models\Role;
 
 #[Layout('layouts.app')]
 #[Title('Usuarios · SJ LegalSuite')]
 class UsersIndex extends Component
 {
     use WithPagination;
+
+    /** Permisos que el administrador puede conceder/revocar en forma directa para el área Operaciones. */
+    private const OPERATIONS_TOGGLE_PERMISSIONS = [
+        'disciplinary.generate-inform',
+        'disciplinary.upload-notification',
+        'disciplinary.download-pdf',
+    ];
 
     /* ---------- Filtros (sincronizados con URL) ---------- */
     #[Url(as: 'q')]
@@ -29,8 +37,8 @@ class UsersIndex extends Component
     #[Url]
     public string $role = '';
 
-    #[Url]
-    public string $area = '';
+    #[Url(as: 'area')]
+    public string $organizationalAreaFilter = '';
 
     #[Url(as: 'estado')]
     public string $status = '';
@@ -50,16 +58,20 @@ class UsersIndex extends Component
 
     public string $phone = '';
 
-    public string $area_value = '';
+    public ?int $organizationalAreaId = null;
 
-    public string $position = '';
+    public ?int $jobPositionId = null;
 
     public bool $isActive = true;
 
     /** Si es false, el usuario queda en modo solo lectura (sin mutaciones en disciplinarios ni gestión). */
     public bool $allowChanges = true;
 
-    public array $userRoles = [];
+    /** Administrador de la plataforma (rol técnico único con todos los permisos). */
+    public bool $assignPlatformAdmin = false;
+
+    /** Permisos directos adicionales (solo UI para área Operaciones). */
+    public array $directPermissionToggles = [];
 
     /** Contraseña provisional mostrada solo tras crear usuario */
     public bool $showCredentialModal = false;
@@ -83,38 +95,95 @@ class UsersIndex extends Component
 
     public function updating($prop): void
     {
-        if (in_array($prop, ['search', 'role', 'area', 'status'], true)) {
+        if (in_array($prop, ['search', 'role', 'organizationalAreaFilter', 'status'], true)) {
             $this->resetPage();
+        }
+    }
+
+    public function updatedOrganizationalAreaId(?int $value): void
+    {
+        $this->jobPositionId = null;
+        if (! $this->shouldShowOperationsPermissionToggles()) {
+            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
+                $this->directPermissionToggles[$perm] = false;
+            }
+        }
+    }
+
+    public function toggleOperationsPerm(string $perm): void
+    {
+        if (! in_array($perm, self::OPERATIONS_TOGGLE_PERMISSIONS, true)) {
+            return;
+        }
+
+        $current = (bool) ($this->directPermissionToggles[$perm] ?? false);
+        $this->directPermissionToggles[$perm] = ! $current;
+    }
+
+    public function updatedAssignPlatformAdmin(bool $value): void
+    {
+        if ($value) {
+            $this->organizationalAreaId = null;
+            $this->jobPositionId = null;
+            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
+                $this->directPermissionToggles[$perm] = false;
+            }
         }
     }
 
     public function clearFilters(): void
     {
-        $this->reset(['search', 'role', 'area', 'status']);
+        $this->reset(['search', 'role', 'organizationalAreaFilter', 'status']);
         $this->resetPage();
     }
 
-    /* ---------- Datos auxiliares ---------- */
-
     #[Computed]
-    public function rolesList()
+    public function organizationalAreasList()
     {
-        return Role::orderBy('name')->pluck('name')->all();
+        return OrganizationalArea::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
     }
 
     #[Computed]
-    public function areasList(): array
+    public function jobPositionsForArea()
     {
-        return UserArea::options();
+        if (! $this->organizationalAreaId) {
+            return collect();
+        }
+
+        return JobPosition::query()
+            ->where('organizational_area_id', $this->organizationalAreaId)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'permission_role_name']);
     }
 
-    /* ---------- Crear / Editar ---------- */
+    #[Computed]
+    public function operationsPermissionLabels(): array
+    {
+        return [
+            'disciplinary.generate-inform' => 'Crear informes (FO-GJ-51)',
+            'disciplinary.upload-notification' => 'Cargar notificaciones / avisos al equipo de revisión',
+            'disciplinary.download-pdf' => 'Descargar PDF del informe',
+        ];
+    }
+
+    #[Computed]
+    public function rolesListForFilter()
+    {
+        return Role::where('guard_name', 'web')->orderBy('name')->pluck('name')->all();
+    }
 
     public function openCreate(): void
     {
         Gate::authorize('create', User::class);
         $this->resetFormState();
         $this->editingId = null;
+        $this->primeOperationsPermissionDefaults();
         $this->showForm = true;
     }
 
@@ -128,11 +197,13 @@ class UsersIndex extends Component
         $this->email = $user->email;
         $this->documentNumber = (string) ($user->document_number ?? '');
         $this->phone = (string) ($user->phone ?? '');
-        $this->area_value = $user->area?->value ?? '';
-        $this->position = (string) ($user->position ?? '');
-        $this->isActive = (bool) $user->is_active;
-        $this->allowChanges = ! $user->read_only;
-        $this->userRoles = $user->roles->pluck('name')->all();
+        $this->assignPlatformAdmin = $user->hasRole('admin');
+        $this->organizationalAreaId = $this->assignPlatformAdmin ? null : $user->organizational_area_id;
+        $this->jobPositionId = $this->assignPlatformAdmin ? null : $user->job_position_id;
+
+        foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
+            $this->directPermissionToggles[$perm] = $user->hasDirectPermission($perm);
+        }
 
         $this->resetErrorBag();
         $this->showForm = true;
@@ -156,30 +227,75 @@ class UsersIndex extends Component
             ],
             'documentNumber' => ['nullable', 'string', 'max:32'],
             'phone' => ['nullable', 'string', 'max:32'],
-            'area_value' => ['nullable', Rule::in(array_keys(UserArea::options()))],
-            'position' => ['nullable', 'string', 'max:120'],
+            'assignPlatformAdmin' => ['boolean'],
+            'organizationalAreaId' => [
+                Rule::requiredIf(fn () => ! $this->assignPlatformAdmin),
+                'nullable',
+                'integer',
+                'exists:organizational_areas,id',
+            ],
+            'jobPositionId' => [
+                Rule::requiredIf(fn () => ! $this->assignPlatformAdmin),
+                'nullable',
+                'integer',
+                Rule::exists('job_positions', 'id')->where(function ($q) {
+                    if ($this->organizationalAreaId) {
+                        $q->where('organizational_area_id', $this->organizationalAreaId);
+                    } else {
+                        $q->whereRaw('1 = 0');
+                    }
+                }),
+            ],
             'isActive' => ['boolean'],
             'allowChanges' => ['boolean'],
-            'userRoles' => ['array'],
-            'userRoles.*' => ['string', Rule::exists('roles', 'name')],
         ];
 
         $this->validate($rules);
+
+        $rolesToSync = $this->resolvedSpatieRolesForSave();
+
+        if (! $this->assignPlatformAdmin) {
+            if ($this->jobPositionId && ! $this->organizationalAreaId) {
+                $this->addError('jobPositionId', 'Seleccione un área antes de asignar un cargo.');
+
+                return;
+            }
+
+            if ($rolesToSync === []) {
+                $this->addError(
+                    'jobPositionId',
+                    'Este cargo no tiene perfil de permisos definido. Configúrelo en Organización o elija otro cargo.'
+                );
+
+                return;
+            }
+        }
 
         $payload = [
             'name' => $this->name,
             'email' => $this->email,
             'document_number' => $this->documentNumber ?: null,
             'phone' => $this->phone ?: null,
-            'area' => $this->area_value ?: null,
-            'position' => $this->position ?: null,
+            'organizational_area_id' => $this->organizationalAreaId,
+            'job_position_id' => $this->assignPlatformAdmin ? null : $this->jobPositionId,
             'is_active' => $this->isActive,
             'read_only' => ! $this->allowChanges,
         ];
 
+        $directSnapshotCreate = [];
+        $directSnapshotUpdate = null;
+        if ($this->shouldShowOperationsPermissionToggles()) {
+            $directSnapshotUpdate = [];
+            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
+                $on = (bool) ($this->directPermissionToggles[$perm] ?? false);
+                $directSnapshotCreate[$perm] = $on;
+                $directSnapshotUpdate[$perm] = $on;
+            }
+        }
+
         if ($this->editingId === null) {
             Gate::authorize('create', User::class);
-            $result = $service->create($payload, $this->userRoles);
+            $result = $service->create($payload, $rolesToSync, $directSnapshotCreate);
             $this->showForm = false;
             $this->resetUserFormFields();
             $this->generatedPlainPassword = $result['plain_password'];
@@ -191,7 +307,7 @@ class UsersIndex extends Component
         } else {
             $user = User::findOrFail($this->editingId);
             Gate::authorize('update', $user);
-            $service->update($user, $payload, $this->userRoles);
+            $service->update($user, $payload, $rolesToSync, $directSnapshotUpdate);
             session()->flash('success', 'Usuario actualizado correctamente.');
             $this->showForm = false;
             $this->resetFormState();
@@ -204,14 +320,23 @@ class UsersIndex extends Component
         $this->generatedPlainPassword = '';
     }
 
+    private function primeOperationsPermissionDefaults(): void
+    {
+        foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
+            $this->directPermissionToggles[$perm] = false;
+        }
+    }
+
     private function resetUserFormFields(): void
     {
         $this->reset([
             'editingId', 'name', 'email', 'documentNumber', 'phone',
-            'area_value', 'position', 'userRoles',
+            'organizationalAreaId', 'jobPositionId',
         ]);
+        $this->assignPlatformAdmin = false;
         $this->isActive = true;
         $this->allowChanges = true;
+        $this->primeOperationsPermissionDefaults();
         $this->resetErrorBag();
     }
 
@@ -221,7 +346,45 @@ class UsersIndex extends Component
         $this->closeCredentialModal();
     }
 
+    private function shouldShowOperationsPermissionToggles(): bool
+    {
+        if ($this->assignPlatformAdmin) {
+            return false;
+        }
+
+        if (! $this->organizationalAreaId) {
+            return false;
+        }
+
+        $slug = OrganizationalArea::whereKey($this->organizationalAreaId)->value('slug');
+
+        return $slug === 'operaciones';
+    }
+
     /* ---------- Toggle activo / Eliminar ---------- */
+
+    /**
+     * @return list<string>
+     */
+    private function resolvedSpatieRolesForSave(): array
+    {
+        if ($this->assignPlatformAdmin) {
+            return ['admin'];
+        }
+
+        if (! $this->jobPositionId) {
+            return [];
+        }
+
+        $job = JobPosition::find($this->jobPositionId);
+        $roleName = $job?->permission_role_name;
+
+        if (! $roleName || ! Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
+            return [];
+        }
+
+        return [$roleName];
+    }
 
     public function toggleActive(int $id, UserService $service): void
     {
@@ -291,7 +454,7 @@ class UsersIndex extends Component
     public function render()
     {
         $users = User::query()
-            ->with('roles:id,name')
+            ->with(['roles:id,name', 'organizationalArea:id,name', 'jobPosition:id,name,permission_role_name'])
             ->withCount(['assignedCases', 'reportedCases'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.str_replace(' ', '%', $this->search).'%';
@@ -302,7 +465,7 @@ class UsersIndex extends Component
                 });
             })
             ->when($this->role !== '', fn ($q) => $q->role($this->role))
-            ->when($this->area !== '', fn ($q) => $q->where('area', $this->area))
+            ->when($this->organizationalAreaFilter !== '', fn ($q) => $q->where('organizational_area_id', (int) $this->organizationalAreaFilter))
             ->when($this->status === 'activos', fn ($q) => $q->where('is_active', true))
             ->when($this->status === 'inactivos', fn ($q) => $q->where('is_active', false))
             ->orderBy('name')
@@ -310,6 +473,8 @@ class UsersIndex extends Component
 
         return view('livewire.users.index', [
             'users' => $users,
+            'showOperationsToggles' => $this->shouldShowOperationsPermissionToggles(),
+            'operationsPermissionLabels' => $this->operationsPermissionLabels,
         ]);
     }
 }

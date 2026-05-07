@@ -14,16 +14,22 @@
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Usuarios · Listado</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Gestión de usuarios</h1>
-                <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">Crea, edita y administra los usuarios del sistema y sus roles.</p>
+                <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">Asigna <strong class="font-semibold text-slate-800 dark:text-slate-200">área</strong> (ámbito organizacional), <strong class="font-semibold text-slate-800 dark:text-slate-200">cargo</strong> (supervisor, operador, programador, etc.) y, si aplica, administrador de plataforma.</p>
             </div>
             @can('create', \App\Models\User::class)
-                <button wire:click="openCreate"
-                    class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Nuevo usuario
-                </button>
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <a href="{{ route('users.organization') }}" wire:navigate
+                        class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
+                        Organización
+                    </a>
+                    <button wire:click="openCreate"
+                        class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Nuevo usuario
+                    </button>
+                </div>
             @endcan
         </div>
     </div>
@@ -47,20 +53,20 @@
                             class="{{ $usersField }}">
                     </div>
                     <div>
-                        <label class="{{ $usersLabel }}">Rol</label>
+                        <label class="{{ $usersLabel }}">Perfil de permisos (técnico)</label>
                         <select wire:model.live="role" class="{{ $usersField }}">
                             <option value="">— Todos —</option>
-                            @foreach ($this->rolesList as $r)
+                            @foreach ($this->rolesListForFilter as $r)
                                 <option value="{{ $r }}">{{ ucfirst($r) }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="{{ $usersLabel }}">Área</label>
-                        <select wire:model.live="area" class="{{ $usersField }}">
+                        <select wire:model.live="organizationalAreaFilter" class="{{ $usersField }}">
                             <option value="">— Todas —</option>
-                            @foreach ($this->areasList as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
+                            @foreach ($this->organizationalAreasList as $a)
+                                <option value="{{ $a->id }}">{{ $a->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -73,7 +79,7 @@
                         </select>
                     </div>
                 </div>
-                @if ($search !== '' || $role !== '' || $area !== '' || $status !== '')
+                @if ($search !== '' || $role !== '' || $organizationalAreaFilter !== '' || $status !== '')
                     <div class="mt-3">
                         <button wire:click="clearFilters" class="text-xs text-slate-500 hover:text-slate-700 underline dark:text-slate-400 dark:hover:text-white">
                             Limpiar filtros
@@ -90,8 +96,8 @@
                             <tr class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                 <th class="px-4 py-3 text-left font-semibold">Usuario</th>
                                 <th class="px-4 py-3 text-left font-semibold">Documento</th>
-                                <th class="px-4 py-3 text-left font-semibold">Rol</th>
                                 <th class="px-4 py-3 text-left font-semibold">Área</th>
+                                <th class="px-4 py-3 text-left font-semibold">Cargo</th>
                                 <th class="px-4 py-3 text-center font-semibold">Casos</th>
                                 <th class="px-4 py-3 text-center font-semibold">Acceso</th>
                                 <th class="px-4 py-3 text-center font-semibold">Estado</th>
@@ -117,17 +123,21 @@
                                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                                         {{ $u->document_number ?? '—' }}
                                     </td>
-                                    <td class="px-4 py-3">
-                                        @forelse ($u->roles as $r)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200 mr-1 mb-1 dark:bg-indigo-500/20 dark:text-indigo-100 dark:ring-indigo-400/45">
-                                                {{ $r->name }}
-                                            </span>
-                                        @empty
-                                            <span class="text-xs text-slate-400 dark:text-slate-500">— Sin rol —</span>
-                                        @endforelse
+                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                        {{ $u->organizationalArea?->name ?? $u->areaDisplayLabel() ?? '—' }}
                                     </td>
                                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                        {{ $u->area?->label() ?? '—' }}
+                                        @if ($u->hasRole('admin'))
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-violet-50 text-violet-900 ring-1 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-100 dark:ring-violet-400/45">
+                                                Admin plataforma
+                                            </span>
+                                        @elseif ($u->jobPosition)
+                                            {{ $u->jobPosition->name }}
+                                        @elseif ($u->position)
+                                            {{ $u->position }}
+                                        @else
+                                            —
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">
                                         {{ $u->assigned_cases_count }}
@@ -250,20 +260,31 @@
                             <input type="text" wire:model="phone" class="{{ $usersField }}">
                             @error('phone') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="{{ $usersLabel }}">Cargo</label>
-                            <input type="text" wire:model="position" class="{{ $usersField }}">
-                            @error('position') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        <div class="md:col-span-2 rounded-md bg-slate-50 ring-1 ring-slate-200 px-3 py-2 dark:bg-white/[0.04] dark:ring-white/10">
+                            <p class="text-xs text-slate-600 dark:text-slate-400"><strong class="text-slate-800 dark:text-slate-200">Área</strong> es el ámbito organizacional (Jurídica, Operaciones, etc.). <strong class="text-slate-800 dark:text-slate-200">Cargo</strong> es el puesto dentro del área (p. ej. supervisor, operador, programador); los permisos los define el perfil técnico ligado a ese cargo en Organización.</p>
                         </div>
                         <div>
-                            <label class="{{ $usersLabel }}">Área</label>
-                            <select wire:model="area_value" class="{{ $usersField }}">
+                            <label class="{{ $usersLabel }}">Área @unless ($assignPlatformAdmin) * @endunless</label>
+                            <select wire:model.live="organizationalAreaId" class="{{ $usersField }}" @disabled($assignPlatformAdmin)>
                                 <option value="">— Sin área —</option>
-                                @foreach ($this->areasList as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @foreach ($this->organizationalAreasList as $a)
+                                    <option value="{{ $a->id }}">{{ $a->name }}</option>
                                 @endforeach
                             </select>
-                            @error('area_value') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                            @error('organizationalAreaId') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="{{ $usersLabel }}">Cargo @unless ($assignPlatformAdmin) * @endunless</label>
+                            <select wire:model="jobPositionId" class="{{ $usersField }}" @disabled(! $organizationalAreaId || $assignPlatformAdmin)>
+                                <option value="">— Sin cargo —</option>
+                                @foreach ($this->jobPositionsForArea as $p)
+                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('jobPositionId') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                            @unless ($organizationalAreaId || $assignPlatformAdmin)
+                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Seleccione un área para ver los cargos configurados.</p>
+                            @endunless
                         </div>
 
                         @if (! $editingId)
@@ -273,18 +294,31 @@
                             </div>
                         @endif
 
-                        <div class="md:col-span-2">
-                            <label class="{{ $usersLabel }} mb-2">Roles</label>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                @foreach ($this->rolesList as $r)
-                                    <label class="flex items-center gap-2 p-2 rounded-md ring-1 ring-slate-200 hover:bg-slate-50 cursor-pointer text-sm dark:ring-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07] dark:text-slate-200">
-                                        <input type="checkbox" value="{{ $r }}" wire:model="userRoles" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
-                                        <span>{{ ucfirst($r) }}</span>
+                        <div class="md:col-span-2 rounded-lg ring-1 ring-slate-200 dark:ring-white/10 p-4 dark:bg-white/[0.03]">
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" wire:model.live="assignPlatformAdmin" class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-semibold text-slate-900 dark:text-white">Administrador de la plataforma</span>
+                                    <span class="block text-xs text-slate-500 mt-1 dark:text-slate-400">Otorga el perfil técnico global (<span class="font-mono">admin</span>). No use área ni cargo para este caso; desmarque esta opción para usuarios de ámbito operativo con cargo definido.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        @if ($showOperationsToggles)
+                            <div class="md:col-span-2 rounded-lg ring-1 ring-slate-200 dark:ring-white/10 p-4 space-y-3 dark:bg-white/[0.03]">
+                                <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Permisos directos adicionales (Operaciones)</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Los interruptores solo muestran o modifican permisos concedidos <strong>directamente</strong> al usuario. Si ya los tiene por rol, el acceso sigue activo aunque el interruptor esté apagado.</p>
+                                @foreach ($operationsPermissionLabels as $perm => $label)
+                                    <label class="flex items-center justify-between gap-4 cursor-pointer rounded-md px-2 py-2 hover:bg-slate-50 dark:hover:bg-white/[0.05]">
+                                        <span class="text-sm text-slate-700 dark:text-slate-300">{{ $label }}</span>
+                                        <input type="checkbox" wire:key="op-{{ $perm }}"
+                                            @checked($directPermissionToggles[$perm] ?? false)
+                                            wire:click.prevent="toggleOperationsPerm('{{ $perm }}')"
+                                            class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
                                     </label>
                                 @endforeach
                             </div>
-                            @error('userRoles') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
-                        </div>
+                        @endif
 
                         <div class="md:col-span-2">
                             <label class="flex items-center gap-2 cursor-pointer">

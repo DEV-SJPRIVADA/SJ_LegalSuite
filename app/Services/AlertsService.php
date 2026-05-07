@@ -156,11 +156,21 @@ class AlertsService
     {
         $start = Carbon::now()->subMonths($months - 1)->startOfMonth();
 
-        $rows = DisciplinaryCase::query()
+        $query = DisciplinaryCase::query()
             ->when($user, fn ($q) => $q->forDisciplinaryActor($user))
-            ->selectRaw("DATE_FORMAT(opened_at, '%Y-%m') as month, COUNT(*) as total")
-            ->where('opened_at', '>=', $start->toDateString())
-            ->groupBy('month')
+            ->where('opened_at', '>=', $start->toDateString());
+
+        $driver = $query->getConnection()->getDriverName();
+
+        $monthSql = match ($driver) {
+            'sqlite' => "strftime('%Y-%m', opened_at)",
+            'pgsql' => "to_char(opened_at, 'YYYY-MM')",
+            default => "DATE_FORMAT(opened_at, '%Y-%m')",
+        };
+
+        $rows = (clone $query)
+            ->selectRaw("{$monthSql} as month, COUNT(*) as total")
+            ->groupByRaw($monthSql)
             ->orderBy('month')
             ->pluck('total', 'month');
 

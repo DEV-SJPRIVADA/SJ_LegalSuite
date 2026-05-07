@@ -20,7 +20,8 @@ class FoGj51ProcessRequest extends FormRequest
         }
 
         if ((string) $this->input('fo51_action') === 'pdf') {
-            return $user->can('create', DisciplinaryCase::class)
+            return $user->can('disciplinary.download-pdf')
+                || $user->can('create', DisciplinaryCase::class)
                 || $user->can('generateFo51Inform', DisciplinaryCase::class);
         }
 
@@ -70,6 +71,9 @@ class FoGj51ProcessRequest extends FormRequest
                 'mimetypes:application/pdf',
                 'max:15360',
             ],
+
+            'evidence_images' => ['nullable', 'array', 'max:10'],
+            'evidence_images.*' => ['nullable', 'image', 'max:5120'],
         ]);
     }
 

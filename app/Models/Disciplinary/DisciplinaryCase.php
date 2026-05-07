@@ -169,7 +169,8 @@ class DisciplinaryCase extends Model
 
     /**
      * Alcance de casos visibles según rol: el perfil `abogado` (sin `admin`)
-     * sólo ve procesos donde es el abogado asignado.
+     * sólo ve procesos donde es el abogado asignado. Supervisores y operadores ven
+     * el pool (expedientes ya formalizados, distintos de borrador), sin titular fijo.
      */
     public function scopeForDisciplinaryActor(Builder $query, User $user): Builder
     {
@@ -182,7 +183,7 @@ class DisciplinaryCase extends Model
         }
 
         if ($user->hasAnyRole(['supervisor', 'operador'])) {
-            return $query->where('assigned_operator_id', $user->id);
+            return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
         if ($user->hasRole('programador')) {
@@ -197,6 +198,14 @@ class DisciplinaryCase extends Model
     public function bucket(): CaseBucket
     {
         return $this->current_status->bucket();
+    }
+
+    /**
+     * Pool de campo (supervisor / operador por turno): no hay titular fijo; se excluye borrador interno.
+     */
+    public function isVisibleToDisciplinaryFieldPool(): bool
+    {
+        return $this->current_status !== CaseStatus::BORRADOR;
     }
 
     public function isFinalized(): bool

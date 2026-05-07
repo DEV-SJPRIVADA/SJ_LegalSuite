@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests\Users;
 
-use App\Enums\UserArea;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Enum;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -23,12 +21,14 @@ class UpdateUserRequest extends FormRequest
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($userId)],
             'document_number' => ['nullable', 'string', 'max:32'],
             'phone' => ['nullable', 'string', 'max:32'],
-            'area' => ['nullable', new Enum(UserArea::class)],
+            'organizational_area_id' => ['nullable', 'integer', 'exists:organizational_areas,id'],
+            'job_position_id' => ['nullable', 'integer', 'exists:job_positions,id'],
             'position' => ['nullable', 'string', 'max:120'],
+            'area' => ['nullable', 'string', 'max:64'],
             'is_active' => ['boolean'],
             'read_only' => ['boolean'],
             'roles' => ['array'],
-            'roles.*' => ['string', Rule::exists('roles', 'name')],
+            'roles.*' => ['string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
         ];
     }
 }

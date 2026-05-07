@@ -38,10 +38,15 @@
 
                 @php
                     $hasModuleNav = ! empty(trim($__env->yieldPushContent('module-nav')));
+                    $informesOnlyNav = auth()->check()
+                        && ! auth()->user()->canSeeFullAppSidebar()
+                        && ! request()->routeIs('password.force-change');
                 @endphp
 
                 @if ($hasModuleNav)
                     @stack('module-nav')
+                @elseif ($informesOnlyNav)
+                    <x-disciplinary.nav />
                 @else
                     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white dark:border-white/10 dark:bg-dash-ink/90 dark:backdrop-blur-md">
                         <div class="flex items-center justify-between px-4 lg:px-6 py-3 gap-3">
@@ -56,6 +61,7 @@
 
                             <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                                 @auth
+                                    <livewire:ui.notification-bell />
                                     <livewire:ui.theme-toggle />
                                 @endauth
                                 <a href="{{ route('profile') }}" wire:navigate

@@ -12,6 +12,7 @@ use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
 use App\Livewire\Home;
+use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +55,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', UsersIndex::class)->name('index');
+        Route::get('/organizacion', OrganizationCatalog::class)->name('organization');
         Route::get('/{user}', UserDetail::class)->name('show');
     });
 

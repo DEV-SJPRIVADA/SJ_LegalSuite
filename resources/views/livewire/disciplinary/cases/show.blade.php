@@ -102,8 +102,8 @@
                                     <dd class="text-gray-900 dark:text-white">{{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Supervisor / operador asignado</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->assignedOperator?->name ?? '—' }}</dd>
+                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Campo (supervisión / operador)</dt>
+                                    <dd class="text-gray-700 dark:text-slate-300 text-xs leading-relaxed">Por turno; no hay responsable fijo del expediente. Quien envía el informe o sube la notificación puede ser distinto según disponibilidad.</dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Programador asignado</dt>
@@ -156,67 +156,35 @@
                                 </div>
                             </div>
 
-                            @canany(['assignFieldOperator', 'assignPlanner'], $case)
+                            @can('assignPlanner', $case)
                                 <div class="md:col-span-2 xl:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-5 space-y-6 dark:border-white/10 dark:bg-white/[0.04]">
-                                    @can('assignFieldOperator', $case)
-                                        <div>
-                                            <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-3">
-                                                Asignación · Supervisor / operador de campo</h4>
-                                            <p class="text-xs text-gray-600 dark:text-slate-400 mb-3">
-                                                Quién elabora el informe y carga evidencias de la notificación.</p>
-                                            <div class="flex flex-wrap items-end gap-3">
-                                                <div class="min-w-[220px] flex-1">
-                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Usuario</label>
-                                                    <select wire:model.live="assignedOperatorId"
-                                                        class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                                                        <option value="">— Sin asignar —</option>
-                                                        @foreach ($fieldOperatorCandidates as $op)
-                                                            <option value="{{ $op->id }}">{{ $op->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @error('assignedOperatorId')
-                                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                                    @enderror
-                                                </div>
-                                                <button type="button" wire:click="saveFieldOperatorAssignment"
-                                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                                                    Guardar
-                                                </button>
+                                    <div>
+                                        <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-3">
+                                            Asignación · Programador de fechas</h4>
+                                        <p class="text-xs text-gray-600 dark:text-slate-400 mb-3">
+                                            Dirección de planeación delega la contestación de solicitudes de agenda.</p>
+                                        <div class="flex flex-wrap items-end gap-3">
+                                            <div class="min-w-[220px] flex-1">
+                                                <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Usuario</label>
+                                                <select wire:model.live="assignedPlannerId"
+                                                    class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
+                                                    <option value="">— Sin asignar —</option>
+                                                    @foreach ($plannerCandidates as $p)
+                                                        <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error('assignedPlannerId')
+                                                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                                @enderror
                                             </div>
+                                            <button type="button" wire:click="savePlannerAssignment"
+                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                                                Guardar
+                                            </button>
                                         </div>
-                                    @endcan
-                                    @can('assignPlanner', $case)
-                                        <div
-                                            @can('assignFieldOperator', $case)
-                                                class="mt-5 pt-5 border-t border-slate-200 dark:border-white/10"
-                                            @endcan>
-                                            <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-3">
-                                                Asignación · Programador de fechas</h4>
-                                            <p class="text-xs text-gray-600 dark:text-slate-400 mb-3">
-                                                Dirección de planeación delega la contestación de solicitudes de agenda.</p>
-                                            <div class="flex flex-wrap items-end gap-3">
-                                                <div class="min-w-[220px] flex-1">
-                                                    <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Usuario</label>
-                                                    <select wire:model.live="assignedPlannerId"
-                                                        class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                                                        <option value="">— Sin asignar —</option>
-                                                        @foreach ($plannerCandidates as $p)
-                                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    @error('assignedPlannerId')
-                                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                                    @enderror
-                                                </div>
-                                                <button type="button" wire:click="savePlannerAssignment"
-                                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                                                    Guardar
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endcan
+                                    </div>
                                 </div>
-                            @endcanany
+                            @endcan
 
                             @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
                                 <div class="md:col-span-2 xl:col-span-3 rounded-xl border border-indigo-100 bg-indigo-50/80 p-4 dark:border-cyan-400/25 dark:bg-cyan-500/10">

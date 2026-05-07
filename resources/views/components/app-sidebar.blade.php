@@ -1,32 +1,24 @@
 @php
     /**
-     * Catálogo de módulos del sistema. El campo `available` controla si está
-     * habilitado. El resto se renderiza como "Próximamente" para que el cliente
-     * vea el alcance completo del sistema desde el primer día.
+     * Catálogo de módulos del sistema.
+     *
+     * - Roles «amplio»: admin (gerencia), abogado (dirección jurídica), auditor → ven todos los ítems (habilitados + Próx.).
+     * - Resto → un ítem según rol: **Informes**, o **Diciplinarios** para **director** / **operaciones** (sidebar reducido).
      */
+    $u = auth()->user();
     $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
-    $canDisciplinaryDashboard = auth()->user()->can('viewDashboard', $disciplinaryCaseModel);
-    $canDisciplinaryCases = auth()->user()->can('viewAny', $disciplinaryCaseModel);
+    $canDisciplinaryDashboard = $u->can('viewDashboard', $disciplinaryCaseModel);
+    $canDisciplinaryCases = $u->can('viewAny', $disciplinaryCaseModel);
     $disciplinaryAvailable = $canDisciplinaryDashboard || $canDisciplinaryCases;
     $disciplinaryRoute = $canDisciplinaryDashboard
         ? route('disciplinary.dashboard')
         : ($canDisciplinaryCases ? route('disciplinary.cases.index') : route('dashboard'));
 
-    $minimalPortal = auth()->user()->isMinimalDisciplinaryPortalUser();
-    $sidebarBrandHref = $minimalPortal ? route('disciplinary.cases.index') : route('dashboard');
+    $fullAppSidebar = $u->canSeeFullAppSidebar();
 
-    if ($minimalPortal) {
-        $modules = [
-            [
-                'key' => 'disciplinary',
-                'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
-                'route' => $disciplinaryRoute,
-                'active' => request()->routeIs('disciplinary.*'),
-                'icon' => 'scale',
-                'available' => $disciplinaryAvailable,
-            ],
-        ];
-    } else {
+    $sidebarBrandHref = $fullAppSidebar ? route('dashboard') : ($disciplinaryAvailable ? $disciplinaryRoute : route('dashboard'));
+
+    if ($fullAppSidebar) {
         $modules = [];
 
         $modules[] = [
@@ -40,7 +32,7 @@
 
         $modules[] = [
             'key' => 'disciplinary',
-            'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
+            'label' => $u->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
             'route' => $disciplinaryRoute,
             'active' => request()->routeIs('disciplinary.*'),
             'icon' => 'scale',
@@ -64,9 +56,20 @@
                 'route' => route('users.index'),
                 'active' => request()->routeIs('users.*'),
                 'icon' => 'user-cog',
-                'available' => auth()->user()->can('viewAny', \App\Models\User::class),
+                'available' => $u->can('viewAny', \App\Models\User::class),
             ],
         ]);
+    } else {
+        $modules = [
+            [
+                'key' => 'informes',
+                'label' => $u->minimalDisciplinarySidebarLabel(),
+                'route' => $disciplinaryRoute,
+                'active' => request()->routeIs('disciplinary.*'),
+                'icon' => 'document-text',
+                'available' => true,
+            ],
+        ];
     }
 @endphp
 

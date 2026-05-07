@@ -29,6 +29,12 @@ return new class extends Migration
                 ->comment('Abogado responsable del caso')
                 ->constrained('users')->nullOnDelete();
 
+            $table->foreignId('assigned_operator_id')->nullable()
+                ->constrained('users')->nullOnDelete();
+
+            $table->foreignId('assigned_planner_id')->nullable()
+                ->constrained('users')->nullOnDelete();
+
             $table->string('city', 100)->nullable();
             $table->string('sede', 120)->nullable();
 
@@ -50,6 +56,8 @@ return new class extends Migration
             $table->index(['current_status', 'assigned_lawyer_id'], 'idx_dc_status_lawyer');
             $table->index(['current_status', 'city'], 'idx_dc_status_city');
             $table->index(['assigned_lawyer_id', 'opened_at'], 'idx_dc_lawyer_opened');
+            $table->index(['assigned_operator_id', 'opened_at'], 'idx_dc_operator_opened');
+            $table->index(['assigned_planner_id', 'opened_at'], 'idx_dc_planner_opened');
             $table->index('opened_at');
         });
     }

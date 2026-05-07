@@ -46,15 +46,12 @@ class CaseDetail extends Component
 
     public string $scheduleNote = '';
 
-    public ?int $assignedOperatorId = null;
-
     public ?int $assignedPlannerId = null;
 
     public function mount(DisciplinaryCase $case): void
     {
         Gate::authorize('view', $case);
         $this->case = $case;
-        $this->assignedOperatorId = $case->assigned_operator_id;
         $this->assignedPlannerId = $case->assigned_planner_id;
 
         if (auth()->user()->isDisciplinaryProgramador()) {
@@ -154,31 +151,6 @@ class CaseDetail extends Component
         session()->flash('success', 'Fechas de la etapa actualizadas.');
     }
 
-    public function saveFieldOperatorAssignment(): void
-    {
-        Gate::authorize('assignFieldOperator', $this->case);
-
-        $this->validate([
-            'assignedOperatorId' => ['nullable', 'integer', 'exists:users,id'],
-        ]);
-
-        if ($this->assignedOperatorId !== null) {
-            $candidate = User::query()->find($this->assignedOperatorId);
-            if (! $candidate || ! $candidate->hasAnyRole(['supervisor', 'operador'])) {
-                $this->addError('assignedOperatorId', 'Seleccione un usuario con rol supervisor u operador.');
-
-                return;
-            }
-        }
-
-        $this->case->forceFill([
-            'assigned_operator_id' => $this->assignedOperatorId,
-        ])->save();
-
-        $this->syncCaseFromDb();
-        session()->flash('success', 'Responsable de campo actualizado.');
-    }
-
     public function savePlannerAssignment(): void
     {
         Gate::authorize('assignPlanner', $this->case);
@@ -210,7 +182,6 @@ class CaseDetail extends Component
             'personnel',
             'reporter:id,name',
             'assignedLawyer:id,name',
-            'assignedOperator:id,name',
             'assignedPlanner:id,name',
             'faults',
             'stages.performer:id,name',
@@ -219,7 +190,6 @@ class CaseDetail extends Component
             'actions.stage:id,stage_type',
         ]) ?? $this->case;
 
-        $this->assignedOperatorId = $this->case->assigned_operator_id;
         $this->assignedPlannerId = $this->case->assigned_planner_id;
     }
 
@@ -229,7 +199,6 @@ class CaseDetail extends Component
             'personnel',
             'reporter:id,name',
             'assignedLawyer:id,name',
-            'assignedOperator:id,name',
             'assignedPlanner:id,name',
             'faults',
             'stages.performer:id,name',
@@ -243,9 +212,6 @@ class CaseDetail extends Component
         return view('livewire.disciplinary.cases.show', [
             'allowedTransitions' => $allowed,
             'relatedCases' => $this->relatedCasesSameDocument(),
-            'fieldOperatorCandidates' => Gate::allows('assignFieldOperator', $this->case)
-                ? User::query()->role(['supervisor', 'operador'])->active()->orderBy('name')->get(['id', 'name'])
-                : collect(),
             'plannerCandidates' => Gate::allows('assignPlanner', $this->case)
                 ? User::query()->role('programador')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),

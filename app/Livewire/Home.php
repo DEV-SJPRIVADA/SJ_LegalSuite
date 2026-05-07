@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Disciplinary\DisciplinaryCase;
 use App\Services\AlertsService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -13,7 +14,21 @@ class Home extends Component
 {
     public function mount(): void
     {
-        if (auth()->user()->isMinimalDisciplinaryPortalUser()) {
+        $user = auth()->user();
+
+        if ($user->canSeeFullAppSidebar()) {
+            return;
+        }
+
+        $model = DisciplinaryCase::class;
+
+        if ($user->can('viewDashboard', $model)) {
+            $this->redirect(route('disciplinary.dashboard'), navigate: true);
+
+            return;
+        }
+
+        if ($user->can('viewAny', $model)) {
             $this->redirect(route('disciplinary.cases.index'), navigate: true);
         }
     }

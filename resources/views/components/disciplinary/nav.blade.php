@@ -4,7 +4,7 @@
 
     $links = [];
 
-    if (! auth()->user()->isMinimalDisciplinaryPortalUser()) {
+    if (! auth()->user()->isMinimalDisciplinaryPortalUser() && auth()->user()->canSeeFullAppSidebar()) {
         $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
 
@@ -12,9 +12,15 @@
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
+    $casesNavLabel = auth()->user()->isDisciplinaryProgramador()
+        ? 'Mis solicitudes'
+        : (auth()->user()->canSeeFullAppSidebar()
+            ? 'Disciplinarios'
+            : auth()->user()->minimalDisciplinarySidebarLabel());
+
     $links[] = [
         'key' => 'cases',
-        'label' => auth()->user()->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
+        'label' => $casesNavLabel,
         'route' => route('disciplinary.cases.index'),
         'active' => request()->routeIs('disciplinary.cases.*'),
     ];
@@ -100,6 +106,7 @@
 
         <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0 py-2 lg:py-0">
             @auth
+                <livewire:ui.notification-bell />
                 <livewire:ui.theme-toggle />
             @endauth
             <a href="{{ route('profile') }}" wire:navigate

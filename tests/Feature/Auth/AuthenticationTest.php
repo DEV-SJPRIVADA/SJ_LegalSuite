@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Home;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -64,7 +65,7 @@ class AuthenticationTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+            ->assertSeeLivewire(Home::class);
     }
 
     public function test_users_can_logout(): void

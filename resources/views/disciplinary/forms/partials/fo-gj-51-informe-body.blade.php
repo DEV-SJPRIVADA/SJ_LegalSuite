@@ -11,12 +11,13 @@
     $pdfIframeName = $pdfIframeName ?? 'fo51_pdf_iframe';
     /** Dentro del modal FO: sin segunda tarjeta ring/sombra sobre el mismo marco exterior */
     $embedInModal = ($embedInModal ?? false) === true;
+    $evidenceModalOpenInitially = collect($errors->keys())->contains(fn (string $k): bool => str_starts_with($k, 'evidence_images'));
 @endphp
 
 <div
     class="relative"
-    x-data="{ pdfModalOpen: {{ $pdfModalOpenInitially ? 'true' : 'false' }} }"
-    @keydown.escape.window="pdfModalOpen = false">
+    x-data="{ pdfModalOpen: {{ $pdfModalOpenInitially ? 'true' : 'false' }}, evidenceModalOpen: {{ $evidenceModalOpenInitially ? 'true' : 'false' }} }"
+    @keydown.escape.window="pdfModalOpen = false; evidenceModalOpen = false">
 
     {{-- Oculto: recibe el POST del PDF para que la página lista no navegue fuera del modal --}}
     <iframe name="{{ $pdfIframeName }}" title="Ventana interna PDF" class="fixed -left-[9999px] h-px w-px opacity-0 pointer-events-none" aria-hidden="true"></iframe>
@@ -49,10 +50,12 @@
                     class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
                     Enviar a revisión (dirección)
                 </button>
-                <button type="button" @click.prevent="pdfModalOpen = true"
-                    class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
-                    Cargar informe en PDF
-                </button>
+                @unless($embedInModal)
+                    <button type="button" @click.prevent="pdfModalOpen = true"
+                        class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
+                        Cargar informe en PDF
+                    </button>
+                @endunless
                 @unless(auth()->user()->isDisciplinaryFieldOperator())
                     <a href="{{ route('disciplinary.formats.index') }}" class="inline-flex items-center text-xs font-semibold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900 sm:self-center dark:text-cyan-400 dark:hover:text-cyan-300">
                         Catálogo de formatos
@@ -61,6 +64,68 @@
                 <span class="text-xs text-slate-500 dark:text-dash-muted sm:max-w-xl sm:basis-full">
                     Si el trabajador no existía en el catálogo, se crea un registro mínimo con nombre y cédula declarados para futuros procesos.
                 </span>
+            </div>
+
+            <div class="rounded-lg ring-1 ring-slate-200 bg-slate-50/80 px-4 py-3 dark:bg-white/[0.05] dark:ring-white/10">
+                <label class="flex flex-wrap items-center gap-3 cursor-pointer select-none">
+                    <input type="checkbox" x-model="evidenceModalOpen"
+                        class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
+                    <span class="text-sm font-semibold text-slate-800 dark:text-white">Cargar evidencia</span>
+                    <span class="text-xs text-slate-600 dark:text-slate-400">Hasta 10 imágenes opcionales con el envío a revisión.</span>
+                </label>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400 pl-8">Desmarque la casilla para omitir evidencias; puede abrir de nuevo para cambiar los archivos antes de enviar.</p>
+            </div>
+
+            @error('evidence_images')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+
+            {{-- Modal evidencias (mismo formulario que «Enviar a revisión») --}}
+            <div x-show="evidenceModalOpen"
+                x-transition.opacity.duration.200ms
+                x-cloak
+                class="fixed inset-0 z-[72] flex items-center justify-center bg-black/50 p-4 dark:bg-black/60"
+                style="display: none;"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="evidence-modal-title"
+                x-on:click.self="evidenceModalOpen = false">
+                <div x-show="evidenceModalOpen"
+                    x-transition
+                    @click.stop
+                    class="max-h-[min(92vh,720px)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 id="evidence-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Evidencia fotográfica</h2>
+                            <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                                Adjunte hasta diez imágenes (JPEG, PNG, WebP, etc.). No son obligatorias.
+                            </p>
+                        </div>
+                        <button type="button" @click="evidenceModalOpen = false"
+                            class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+                            aria-label="Cerrar">
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-1 gap-4">
+                        @for ($i = 0; $i < 10; $i++)
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-dash-muted">
+                                    Imagen {{ $i + 1 }}</label>
+                                <input type="file" name="evidence_images[]" accept="image/*"
+                                    class="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800 dark:text-slate-300 dark:file:bg-dash-lift dark:file:ring-1 dark:file:ring-white/15 dark:hover:file:bg-dash-lift/90" />
+                            </div>
+                        @endfor
+                    </div>
+
+                    <div class="flex justify-end pt-6">
+                        <button type="button" @click="evidenceModalOpen = false"
+                            class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                            Listo
+                        </button>
+                    </div>
+                </div>
             </div>
         </form>
     </div>

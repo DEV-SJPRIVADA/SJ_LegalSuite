@@ -90,11 +90,11 @@
                         </div>
                         <div>
                             <dt class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted">Cargo</dt>
-                            <dd class="text-slate-900 dark:text-white">{{ $user->position ?? '—' }}</dd>
+                            <dd class="text-slate-900 dark:text-white">{{ $user->jobPosition?->name ?? $user->position ?? '—' }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted">Área</dt>
-                            <dd class="text-slate-900 dark:text-white">{{ $user->area?->label() ?? '—' }}</dd>
+                            <dd class="text-slate-900 dark:text-white">{{ $user->organizationalArea?->name ?? $user->areaDisplayLabel() ?? '—' }}</dd>
                         </div>
                     </dl>
                 </div>

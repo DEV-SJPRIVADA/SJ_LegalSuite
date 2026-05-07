@@ -12,7 +12,7 @@ use App\Models\User;
  * - admin en modo solo lectura → sólo consulta (listados, detalle, dashboard).
  * - Otros usuarios con `read_only` → igual: consulta sin mutaciones.
  * - abogado → sólo casos asignados (si no está en solo lectura).
- * - supervisor / operador → sólo casos con `assigned_operator_id`; informe FO-GJ-51 + evidencias.
+ * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → sólo casos con `assigned_planner_id`; programar fechas de etapa.
  * - planeacion → fechas en etapas (assign-date) y vista completa.
  * - administrativa / operaciones → informes + evidencias y gestión operativa.
@@ -56,7 +56,7 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasAnyRole(['supervisor', 'operador'])) {
-            return $case->assigned_operator_id === $user->id;
+            return $case->isVisibleToDisciplinaryFieldPool();
         }
 
         if ($user->hasRole('programador')) {
@@ -152,15 +152,6 @@ class DisciplinaryCasePolicy
         return $user->hasPermissionTo('disciplinary.assign');
     }
 
-    public function assignFieldOperator(User $user, DisciplinaryCase $case): bool
-    {
-        if ($this->deniesMutation($user)) {
-            return false;
-        }
-
-        return $user->hasPermissionTo('disciplinary.assign-field-operator');
-    }
-
     public function assignPlanner(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
@@ -191,7 +182,7 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasAnyRole(['supervisor', 'operador'])) {
-            return $case->assigned_operator_id === $user->id;
+            return $case->isVisibleToDisciplinaryFieldPool();
         }
 
         return true;

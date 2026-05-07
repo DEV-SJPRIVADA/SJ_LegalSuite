@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\JobPosition;
+use App\Models\OrganizationalArea;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Orquesta operaciones sobre usuarios del sistema.
@@ -14,14 +17,22 @@ use Illuminate\Support\Str;
  */
 class UserService
 {
+    /** Permisos gestionados como concesiones directas opcionales (área Operaciones). */
+    private const OPERATIONS_DIRECT_PERMISSIONS = [
+        'disciplinary.generate-inform',
+        'disciplinary.upload-notification',
+        'disciplinary.download-pdf',
+    ];
+
     /**
      * @param  array<string,mixed>  $attributes
      * @param  list<string>  $roles
+     * @param  array<string,bool>  $directOperationalPermissions  nombre permiso => activo
      * @return array{user: User, plain_password: string}
      */
-    public function create(array $attributes, array $roles = []): array
+    public function create(array $attributes, array $roles = [], array $directOperationalPermissions = []): array
     {
-        return DB::transaction(function () use ($attributes, $roles) {
+        return DB::transaction(function () use ($attributes, $roles, $directOperationalPermissions) {
             $plainPassword = Str::password(14, true, true, true, false);
 
             $user = new User;
@@ -30,8 +41,9 @@ class UserService
             $user->password = $plainPassword;
             $user->document_number = $attributes['document_number'] ?? null;
             $user->phone = $attributes['phone'] ?? null;
-            $user->area = $attributes['area'] ?? null;
-            $user->position = $attributes['position'] ?? null;
+            $user->organizational_area_id = $attributes['organizational_area_id'] ?? null;
+            $user->job_position_id = $attributes['job_position_id'] ?? null;
+            $this->applyLegacyOrganizationColumns($user);
             $user->is_active = $attributes['is_active'] ?? true;
             $user->read_only = $attributes['read_only'] ?? false;
             $user->must_change_password = true;
@@ -42,8 +54,10 @@ class UserService
                 $user->syncRoles($roles);
             }
 
+            $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
+
             return [
-                'user' => $user->fresh('roles'),
+                'user' => $user->fresh(['roles', 'organizationalArea', 'jobPosition']),
                 'plain_password' => $plainPassword,
             ];
         });
@@ -52,29 +66,78 @@ class UserService
     /**
      * @param  array<string,mixed>  $attributes
      * @param  list<string>|null  $roles  null = no tocar roles
+     * @param  array<string,bool>|null  $directOperationalPermissions  null = no tocar permisos directos de esta lista
      */
-    public function update(User $user, array $attributes, ?array $roles = null): User
+    public function update(User $user, array $attributes, ?array $roles = null, ?array $directOperationalPermissions = null): User
     {
-        return DB::transaction(function () use ($user, $attributes, $roles) {
+        return DB::transaction(function () use ($user, $attributes, $roles, $directOperationalPermissions) {
             $user->fill([
                 'name' => $attributes['name'] ?? $user->name,
                 'email' => $attributes['email'] ?? $user->email,
                 'document_number' => $attributes['document_number'] ?? $user->document_number,
                 'phone' => $attributes['phone'] ?? $user->phone,
-                'area' => $attributes['area'] ?? $user->area,
-                'position' => $attributes['position'] ?? $user->position,
+                'organizational_area_id' => array_key_exists('organizational_area_id', $attributes)
+                    ? $attributes['organizational_area_id']
+                    : $user->organizational_area_id,
+                'job_position_id' => array_key_exists('job_position_id', $attributes)
+                    ? $attributes['job_position_id']
+                    : $user->job_position_id,
                 'is_active' => $attributes['is_active'] ?? $user->is_active,
                 'read_only' => array_key_exists('read_only', $attributes)
                     ? (bool) $attributes['read_only']
                     : $user->read_only,
-            ])->save();
+            ]);
+
+            $this->applyLegacyOrganizationColumns($user);
+
+            $user->save();
 
             if ($roles !== null) {
                 $user->syncRoles($roles);
             }
 
-            return $user->fresh('roles');
+            if ($directOperationalPermissions !== null) {
+                $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
+            }
+
+            return $user->fresh(['roles', 'organizationalArea', 'jobPosition']);
         });
+    }
+
+    private function applyLegacyOrganizationColumns(User $user): void
+    {
+        $slug = null;
+        $positionLabel = null;
+
+        if ($user->organizational_area_id) {
+            $slug = OrganizationalArea::whereKey($user->organizational_area_id)->value('slug');
+        }
+
+        if ($user->job_position_id) {
+            $positionLabel = JobPosition::whereKey($user->job_position_id)->value('name');
+        }
+
+        $user->area = $slug;
+        $user->position = $positionLabel;
+    }
+
+    /**
+     * @param  array<string,bool>  $desired  nombre permiso => conceder como permiso directo
+     */
+    private function syncOperationalDirectExtras(User $user, array $desired): void
+    {
+        foreach (self::OPERATIONS_DIRECT_PERMISSIONS as $perm) {
+            $on = (bool) ($desired[$perm] ?? false);
+            if ($on) {
+                if (! $user->hasDirectPermission($perm)) {
+                    $user->givePermissionTo($perm);
+                }
+            } elseif ($user->hasDirectPermission($perm)) {
+                $user->revokePermissionTo($perm);
+            }
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     public function changePassword(User $user, string $newPassword): User

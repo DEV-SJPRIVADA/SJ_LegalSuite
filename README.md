@@ -43,7 +43,7 @@ Además del catálogo jurídico, existe el módulo de **administración de usuar
 
 - **Workflow estricto y validado**: 13 estados, transiciones controladas, plazo de **2 días calendario** para justificar inasistencia a citación (tras constancia).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
-- **Roles y permisos granulares** (Spatie Permission v6): admin, abogado, planeación, administrativa, auditor, operaciones; más el flag **solo lectura** por usuario.
+- **Roles y permisos granulares** (Spatie Permission v6): paquetes de permisos técnicos (`admin`, `abogado`, `planeacion`, etc.). En negocio, el **área** es el ámbito organizacional (Jurídica, Operaciones…); **dentro del área** el usuario tiene un **cargo** (supervisor, operador, programador…). Cada cargo enlaza a un rol Spatie vía **`job_positions.permission_role_name`** (configurable en **Usuarios → Organización**). El perfil **`admin`** es aparte: «Administrador de la plataforma» en el formulario de usuario. Más el flag **solo lectura** por usuario.
 - **Dashboard analítico** con KPIs, distribución por falta, por ciudad y carga por abogado en una sola query.
 - **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
@@ -102,12 +102,15 @@ Sub-nav superior (según permisos): **Inicio | Dashboard | Disciplinarios | (Rev
 
 ### Módulo Usuarios
 
-Sub-nav: **Inicio | Usuarios**
+Sub-nav: **Inicio | Usuarios | Organización**
 
 | Vista | Contenido |
 |---|---|
-| **Usuarios** (listado) | Búsqueda, filtros por rol/área/estado, tabla con acciones (editar, llave reinicio contraseña, activar/desactivar, eliminar) |
+| **Usuarios** (listado) | Búsqueda; filtros por **perfil de permisos (técnico)**, área y estado; tabla con **área** y **cargo** (los admins muestran etiqueta *Admin plataforma*). Acciones: editar, reinicio de contraseña, activar/desactivar, eliminar |
+| **Organización** | Catálogo de **áreas** activas y **cargos** por área; cada cargo define el **perfil de permisos (Spatie)** que recibirán los usuarios asignados a ese cargo (`permission_role_name`) |
 | **Detalle** | Datos del usuario, casos disciplinarios asignados, mismas acciones administrativas permitidas por política |
+
+En **crear/editar usuario**: **Área** + **Cargo** (obligatorios salvo «Administrador de la plataforma»); checkbox para **`admin`** desactiva área/cargo en pantalla. Los permisos directos extra para **Operaciones** (FO-GJ-51, notificaciones, PDF) siguen como toggles cuando el ámbito es Operaciones.
 
 ## 🏛️ Workflow del proceso disciplinario
 
@@ -181,7 +184,7 @@ app/
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
   Models/
-    User.php / Personnel.php
+    User.php / Personnel.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51)
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
@@ -192,7 +195,7 @@ app/
   Livewire/
     Home.php                   Componente del dashboard global
     Auth/                      ForcePasswordChange, LogoutButton
-    Users/                     UsersIndex, UserDetail
+    Users/                     UsersIndex, UserDetail, OrganizationCatalog
     Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
@@ -202,7 +205,7 @@ app/
     Requests/Users/            FormRequests del módulo usuarios
 
 database/
-  migrations/                  Disciplinario + Spatie + columnas users (`read_only`, `must_change_password`, `theme`)
+  migrations/                  Disciplinario + Spatie + extensión `users` (contacto, `read_only`, `must_change_password`, `theme`, soft deletes, FK a áreas/cargos), tablas **`organizational_areas`** y **`job_positions`** (columna **`permission_role_name`**), notificaciones, etc.
   seeders/                     RolesAndPermissions, FaultsCatalog, DemoUsers, WorkflowSmokeTest
 
 resources/views/
@@ -210,7 +213,7 @@ resources/views/
   livewire/
     home.blade.php             Vista del dashboard global
     disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
-    users/                     Listado y detalle de usuarios
+    users/                     Listado, detalle y catálogo de organización (áreas/cargos)
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (p. ej. selector de tema)
   disciplinary/forms/        FO-GJ-51: plantilla en blanco/rellena para PDF; parciales reutilizados en modal y pantalla `vista_completa`
@@ -251,6 +254,8 @@ php artisan key:generate
 
 # 4. Migrar y sembrar datos
 php artisan migrate --seed
+#    Entorno local desde cero (borra todas las tablas):
+# php artisan migrate:fresh --seed
 
 # 5. Frontend (Vite + Tailwind). Si npm no resuelve en la terminal:
 #    & "C:\laragon\bin\nodejs\node-v18\npm.cmd" install
@@ -292,7 +297,9 @@ Esto crea un caso ficticio y lo recorre por las 8 transiciones del workflow, val
 | `operador@sjlegalsuite.local` | operador | Mismo alcance operativo que supervisor |
 | `programador@sjlegalsuite.local` | programador | Programación de fechas (planeación) |
 
-En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan).
+En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan). Los usuarios demo con rol **`admin`** se crean **sin** `organizational_area_id`; el resto lleva **área + `job_position_id`** acorde al catálogo sembrado en la migración de legalsuite.
+
+Si actualizas código y una BD ya tenía migraciones viejas aplicadas, puede faltar una columna nueva: en desarrollo suele bastar **`migrate:fresh --seed`**; en datos reales, revisar que el esquema coincida con las migraciones del repo (no editar migraciones ya ejecutadas en producción sin plan de alter explícito).
 
 > Contraseña por defecto: **`SJseguridad2026`**. Cambiarla antes de cualquier deploy productivo.
 
@@ -369,6 +376,7 @@ La autorización se evalúa en 3 capas:
 | `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes de autorización; permiso `disciplinary.review-inform`. |
 | `GET /disciplinary/informes-pendientes/{submission}/pdf` | Descarga el PDF almacenado o, con **`?inline=1`**, lo sirve **inline** para iframe (vista previa en modal). |
 | `GET /users` | Listado de usuarios (Livewire) |
+| `GET /users/organizacion` | Catálogo **Organización**: áreas y cargos (`permission_role_name`) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |
 | `GET /profile` | Configuración de cuenta |

@@ -134,6 +134,11 @@ class FoGj51InformeController
                 $personnel->id,
                 $v,
                 isset($v['fo51_observations']) ? mb_substr((string) $v['fo51_observations'], 0, 5000) : null,
+                collect($request->file('evidence_images', []))
+                    ->filter(fn ($f) => $f instanceof UploadedFile && $f->isValid())
+                    ->take(10)
+                    ->values()
+                    ->all(),
             );
         } finally {
             if (is_file($path)) {

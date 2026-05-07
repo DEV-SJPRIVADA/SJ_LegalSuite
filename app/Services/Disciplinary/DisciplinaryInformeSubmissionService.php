@@ -10,8 +10,12 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\User;
+use App\Notifications\InformeAuthorizedNotification;
+use App\Notifications\InformePendingReviewNotification;
+use App\Notifications\InformeRejectedNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -25,6 +29,7 @@ class DisciplinaryInformeSubmissionService
 
     /**
      * @param  array<string, mixed>  $formSnapshot
+     * @param  list<UploadedFile>  $evidenceImages
      */
     public function storePending(
         UploadedFile $file,
@@ -32,8 +37,9 @@ class DisciplinaryInformeSubmissionService
         int $personnelId,
         array $formSnapshot = [],
         ?string $summary = null,
+        array $evidenceImages = [],
     ): InformeSubmission {
-        return DB::transaction(function () use ($file, $submitter, $personnelId, $formSnapshot, $summary) {
+        return DB::transaction(function () use ($file, $submitter, $personnelId, $formSnapshot, $summary, $evidenceImages) {
             $submission = InformeSubmission::create([
                 'submitted_by' => $submitter->id,
                 'personnel_id' => $personnelId,
@@ -45,6 +51,7 @@ class DisciplinaryInformeSubmissionService
                 'size_bytes' => $file->getSize(),
                 'checksum_sha256' => hash_file('sha256', $file->getRealPath()),
                 'form_snapshot' => $formSnapshot ?: null,
+                'evidence_paths' => null,
                 'summary' => $summary,
             ]);
 
@@ -53,7 +60,32 @@ class DisciplinaryInformeSubmissionService
 
             $submission->forceFill(['storage_path' => $path])->save();
 
-            return $submission->fresh(['personnel', 'submitter']);
+            $evidencePaths = [];
+            foreach ($evidenceImages as $evidenceImage) {
+                if (! $evidenceImage instanceof UploadedFile || ! $evidenceImage->isValid()) {
+                    continue;
+                }
+                $stored = Storage::disk('local')->putFile("{$relativeDir}/evidence", $evidenceImage);
+                if ($stored !== false && $stored !== '') {
+                    $evidencePaths[] = $stored;
+                }
+            }
+
+            if ($evidencePaths !== []) {
+                $submission->forceFill(['evidence_paths' => $evidencePaths])->save();
+            }
+
+            $submission = $submission->fresh(['personnel', 'submitter']);
+
+            $reviewers = User::query()
+                ->where('is_active', true)
+                ->permission('disciplinary.review-inform')
+                ->whereKeyNot($submitter->id)
+                ->get();
+
+            Notification::send($reviewers, new InformePendingReviewNotification($submission));
+
+            return $submission;
         });
     }
 
@@ -64,6 +96,8 @@ class DisciplinaryInformeSubmissionService
         }
 
         DB::transaction(function () use ($submission, $reviewer, $notes) {
+            $submitter = User::query()->find($submission->submitted_by);
+
             $this->deleteStoredFile($submission);
 
             $submission->forceFill([
@@ -72,7 +106,12 @@ class DisciplinaryInformeSubmissionService
                 'reviewed_at' => now(),
                 'reviewer_notes' => $notes,
                 'storage_path' => '',
+                'evidence_paths' => null,
             ])->save();
+
+            if ($submitter instanceof User) {
+                Notification::send($submitter, new InformeRejectedNotification($submission->fresh(['personnel']), $notes));
+            }
 
             $submission->delete();
         });
@@ -155,7 +194,13 @@ class DisciplinaryInformeSubmissionService
                 'reviewer_notes' => $notes,
                 'disciplinary_case_id' => $case->id,
                 'storage_path' => '',
+                'evidence_paths' => null,
             ])->save();
+
+            $submitterModel = User::query()->find($submission->submitted_by);
+            if ($submitterModel instanceof User) {
+                Notification::send($submitterModel, new InformeAuthorizedNotification($case->fresh(['personnel'])));
+            }
 
             return $case->fresh(['personnel']);
         });
@@ -163,6 +208,13 @@ class DisciplinaryInformeSubmissionService
 
     private function deleteStoredFile(InformeSubmission $submission): void
     {
+        foreach ($submission->evidence_paths ?? [] as $rel) {
+            $rel = (string) $rel;
+            if ($rel !== '') {
+                Storage::disk('local')->delete($rel);
+            }
+        }
+
         if ($submission->storage_path === '') {
             return;
         }

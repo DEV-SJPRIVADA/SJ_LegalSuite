@@ -26,6 +26,7 @@ class InformeSubmission extends Model
         'size_bytes',
         'checksum_sha256',
         'form_snapshot',
+        'evidence_paths',
         'summary',
         'reviewed_by',
         'reviewed_at',
@@ -38,6 +39,7 @@ class InformeSubmission extends Model
         return [
             'status' => InformeSubmissionStatus::class,
             'form_snapshot' => 'array',
+            'evidence_paths' => 'array',
             'reviewed_at' => 'datetime',
             'size_bytes' => 'integer',
         ];

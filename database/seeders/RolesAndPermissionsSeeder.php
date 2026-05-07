@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
@@ -26,8 +26,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.export',
             'disciplinary.generate-inform',
             'disciplinary.review-inform',
-            'disciplinary.assign-field-operator',
             'disciplinary.assign-planner',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
 
             'personnel.view',
             'personnel.manage',
@@ -51,6 +52,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.update',
             'disciplinary.transition',
             'disciplinary.upload-document',
+            'disciplinary.download-pdf',
         ]);
 
         /** Planeación (dirección): vista completa + delegación a programadores + fechas. */
@@ -61,6 +63,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.assign-date',
             'disciplinary.assign-planner',
             'personnel.view',
+            'disciplinary.download-pdf',
         ]);
 
         /** Área administrativa: apertura de informes disciplinarios y evidencias (similar a operaciones). */
@@ -71,6 +74,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
             'disciplinary.review-inform',
             'personnel.view',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
         ]);
 
         $auditor = Role::firstOrCreate(['name' => 'auditor', 'guard_name' => 'web']);
@@ -80,40 +85,47 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.export',
             'personnel.view',
             'users.view',
+            'disciplinary.download-pdf',
         ]);
 
-        /** Operaciones (dirección / central): gestión completa del frente operativo y asignación a campo. */
+        /** Operaciones (dirección / central): gestión completa del frente operativo. */
         $admin_op = Role::firstOrCreate(['name' => 'operaciones', 'guard_name' => 'web']);
         $admin_op->syncPermissions([
             'disciplinary.view',
             'disciplinary.create',
             'disciplinary.upload-document',
-            'disciplinary.assign-field-operator',
             'disciplinary.generate-inform',
             'disciplinary.review-inform',
             'personnel.view',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
         ]);
 
-        /** Supervisor de campo: sólo casos asignados por operaciones — informe FO-GJ-51 y evidencias. */
+        /** Supervisor de campo: pool por turno — informe FO-GJ-51 y evidencias en expedientes ya formalizados. */
         $supervisor = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
         $supervisor->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
             'personnel.view',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
         ]);
 
-        /** Operador / central de campo: mismo alcance que supervisor. */
+        /** Operador / central de campo: mismo alcance que supervisor (pool por turno). */
         $operador = Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
         $operador->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
             'personnel.view',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
         ]);
 
         /** Programador: sólo solicitudes delegadas por planeación — programar fechas en etapas. */
         $programador = Role::firstOrCreate(['name' => 'programador', 'guard_name' => 'web']);
         $programador->syncPermissions([
             'disciplinary.assign-date',
+            'disciplinary.download-pdf',
         ]);
 
         foreach (Role::where('guard_name', 'web')->whereIn('name', ['juridico', 'gerencia'])->get() as $legacy) {

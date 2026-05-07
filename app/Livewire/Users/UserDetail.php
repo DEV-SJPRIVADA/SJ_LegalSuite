@@ -81,6 +81,8 @@ class UserDetail extends Component
     {
         $this->user->load([
             'roles',
+            'organizationalArea:id,name',
+            'jobPosition:id,name',
             'assignedCases' => fn ($q) => $q->with('personnel:id,first_name,last_name')->latest()->limit(10),
         ]);
 

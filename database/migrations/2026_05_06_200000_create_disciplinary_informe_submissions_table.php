@@ -20,6 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('size_bytes')->nullable();
             $table->string('checksum_sha256', 64)->nullable();
             $table->json('form_snapshot')->nullable();
+            $table->json('evidence_paths')->nullable();
             $table->text('summary')->nullable();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('reviewed_at')->nullable();

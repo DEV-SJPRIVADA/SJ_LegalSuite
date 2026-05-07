@@ -17,7 +17,8 @@ class StoreFoGj51InformePdfRequest extends FormRequest
             return false;
         }
 
-        return $user->can('create', DisciplinaryCase::class)
+        return $user->can('disciplinary.download-pdf')
+            || $user->can('create', DisciplinaryCase::class)
             || $user->can('generateFo51Inform', DisciplinaryCase::class);
     }
 
