@@ -14,6 +14,9 @@ class DisciplinaryDocument extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /** Nota en documentos de evidencia copiados del FO-GJ-51 al autorizar el expediente. */
+    public const NOTE_FO51_AUTHORIZED_EVIDENCE = 'Evidencia fotográfica del informe FO-GJ-51 (conservada al autorizar).';
+
     protected $fillable = [
         'disciplinary_case_id',
         'disciplinary_stage_id',
@@ -55,5 +58,20 @@ class DisciplinaryDocument extends Model
     public function url(): string
     {
         return Storage::disk($this->disk)->url($this->path);
+    }
+
+    /**
+     * Detecta imágenes típicas de evidencia aunque el MIME guardado sea genérico (p. ej. octet-stream en Windows).
+     */
+    public function isLikelyRasterImage(): bool
+    {
+        $mime = strtolower((string) ($this->mime_type ?? ''));
+        if (str_starts_with($mime, 'image/')) {
+            return true;
+        }
+
+        $ext = strtolower(pathinfo((string) $this->original_name, PATHINFO_EXTENSION));
+
+        return in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
     }
 }

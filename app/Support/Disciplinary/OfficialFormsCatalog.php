@@ -9,6 +9,12 @@ namespace App\Support\Disciplinary;
  * - Agregue una fila por cada nuevo formato.
  * - `pdf`: nombre de archivo dentro de `public/formatos/disciplinarios/` o null hasta subir la plantilla.
  * - Algunos códigos pueden generarse en blanco desde HTML (Letter + Browsershot); ver `htmlBlankPdfCodes()`.
+ *
+ * **Alta de un nuevo formato HTML→PDF (como FO-GJ-51):**
+ * 1. Añadir el código en `htmlBlankPdfCodes()` y en `htmlBlankPdfRegistry()` (vista Blade + nombres de archivo).
+ * 2. Crear `resources/views/disciplinary/forms/{slug}-blank-download.blade.php` (documento HTML que incluye el layout Letter).
+ * 3. Opcional: pantalla de diligenciamiento + `FormRequest` + ruta `POST` (solo FO-GJ-51 tiene flujo completo hoy).
+ * 4. Si existe PDF estático con el mismo código, tiene prioridad sobre HTML (ver `OfficialFormPreviewController`).
  */
 final class OfficialFormsCatalog
 {
@@ -98,12 +104,66 @@ final class OfficialFormsCatalog
      */
     public static function htmlBlankPdfCodes(): array
     {
-        return ['FO-GJ-51'];
+        return array_keys(self::htmlBlankPdfRegistry());
+    }
+
+    /**
+     * Vista Blade (documento HTML Letter) y nombres de archivo PDF por código.
+     *
+     * @return array<string, array{view: string, inline: string, download: string}>
+     */
+    public static function htmlBlankPdfRegistry(): array
+    {
+        return [
+            'FO-GJ-51' => [
+                'view' => 'disciplinary.forms.fo-gj-51-blank-download',
+                'inline' => 'FO-GJ-51-informe-disciplinario-en-blanco.pdf',
+                'download' => 'FO-GJ-51-informe-disciplinario-en-blanco.pdf',
+            ],
+            'FO-GJ-03' => [
+                'view' => 'disciplinary.forms.fo-gj-03-blank-download',
+                'inline' => 'FO-GJ-03-citacion-en-blanco.pdf',
+                'download' => 'FO-GJ-03-citacion-en-blanco.pdf',
+            ],
+            'FO-GJ-54' => [
+                'view' => 'disciplinary.forms.fo-gj-54-blank-download',
+                'inline' => 'FO-GJ-54-reprogramacion-en-blanco.pdf',
+                'download' => 'FO-GJ-54-reprogramacion-en-blanco.pdf',
+            ],
+            'FO-GJ-42' => [
+                'view' => 'disciplinary.forms.fo-gj-42-blank-download',
+                'inline' => 'FO-GJ-42-acta-en-blanco.pdf',
+                'download' => 'FO-GJ-42-acta-en-blanco.pdf',
+            ],
+        ];
+    }
+
+    public static function htmlBlankPdfView(string $normalizedCode): ?string
+    {
+        $row = self::htmlBlankPdfRegistry()[strtoupper($normalizedCode)] ?? null;
+
+        return $row['view'] ?? null;
+    }
+
+    /**
+     * @return array{inline: string, download: string}|null
+     */
+    public static function htmlBlankPdfFilenames(string $normalizedCode): ?array
+    {
+        $row = self::htmlBlankPdfRegistry()[strtoupper($normalizedCode)] ?? null;
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'inline' => $row['inline'],
+            'download' => $row['download'],
+        ];
     }
 
     public static function isHtmlBlankPdf(string $normalizedCode): bool
     {
-        return in_array(strtoupper($normalizedCode), self::htmlBlankPdfCodes(), true);
+        return isset(self::htmlBlankPdfRegistry()[strtoupper($normalizedCode)]);
     }
 
     /**

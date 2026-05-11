@@ -34,7 +34,7 @@ class Dashboard extends Component
         $actor = auth()->user();
 
         return view('livewire.disciplinary.dashboard', [
-            'kpis' => $dashboard->kpis($actor),
+            'workflowDonuts' => $dashboard->workflowStageDonuts($actor),
             'byFault' => $dashboard->casesByFault(10, $actor),
             'byCity' => $dashboard->casesByCity($actor),
             'lawyerWorkload' => $dashboard->lawyerWorkload($actor),

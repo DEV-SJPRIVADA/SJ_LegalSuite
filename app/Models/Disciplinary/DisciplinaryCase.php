@@ -5,6 +5,7 @@ namespace App\Models\Disciplinary;
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\Decision;
+use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Personnel;
 use App\Models\User;
@@ -14,7 +15,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 /**
  * Caso disciplinario. Es la raíz del agregado.
@@ -112,6 +115,19 @@ class DisciplinaryCase extends Model
         return $this->hasMany(DisciplinaryDocument::class)->latest();
     }
 
+    public function agendaThread(): HasOne
+    {
+        return $this->hasOne(DisciplinaryAgendaThread::class, 'disciplinary_case_id');
+    }
+
+    /**
+     * Etapa A → B: exige respuesta de planeación en el hilo de agenda (primera intervención del lado planeación).
+     */
+    public function hasAgendaPlanningReply(): bool
+    {
+        return $this->agendaThread?->hasPlanningReply() ?? false;
+    }
+
     public function currentStage(): HasMany
     {
         return $this->hasMany(DisciplinaryStage::class)
@@ -187,7 +203,7 @@ class DisciplinaryCase extends Model
         }
 
         if ($user->hasRole('programador')) {
-            return $query->where('assigned_planner_id', $user->id);
+            return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
         return $query;
@@ -211,5 +227,75 @@ class DisciplinaryCase extends Model
     public function isFinalized(): bool
     {
         return $this->current_status->isTerminal();
+    }
+
+    /**
+     * PDF del informe FO-GJ-51 incorporado al expediente (p. ej. copia autorizada en revisión).
+     */
+    public function primaryFo51InformeDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents->sortBy('id')->values()
+            : $this->documents()->orderBy('id')->get();
+
+        $informes = $docs->filter(fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::INFORME
+            && $d->form_code === 'FO-GJ-51');
+
+        $match = $informes->first(fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), 'autorizado por dirección'));
+
+        return $match instanceof DisciplinaryDocument ? $match : $informes->first();
+    }
+
+    /**
+     * Evidencias del FO-GJ-51 conservadas al autorizar (imágenes copiadas al expediente).
+     *
+     * @return Collection<int, DisciplinaryDocument>
+     */
+    public function fo51AuthorizedEvidenceDocuments(): Collection
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderBy('id')->get();
+
+        return $docs
+            ->filter(fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::EVIDENCIA
+                && ($d->notes ?? '') === DisciplinaryDocument::NOTE_FO51_AUTHORIZED_EVIDENCE)
+            ->sortBy('id')
+            ->values();
+    }
+
+    /**
+     * Evidencias a mostrar junto al PDF del informe: copias FO-51 al autorizar y, en su defecto,
+     * cualquier evidencia cargada en la misma etapa que el PDF del informe (etapa Informe).
+     *
+     * @return Collection<int, DisciplinaryDocument>
+     */
+    public function fo51InformePreviewEvidenceDocuments(?DisciplinaryDocument $primaryInforme = null): Collection
+    {
+        $informe = $primaryInforme ?? $this->primaryFo51InformeDocument();
+        if (! $informe) {
+            return collect();
+        }
+
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderBy('id')->get();
+
+        $byNote = $docs->filter(
+            fn (DisciplinaryDocument $d): bool => $d->document_type === DocumentType::EVIDENCIA
+                && ($d->notes ?? '') === DisciplinaryDocument::NOTE_FO51_AUTHORIZED_EVIDENCE
+        );
+
+        $byStage = collect();
+        if ($informe->disciplinary_stage_id !== null) {
+            $stageId = (int) $informe->disciplinary_stage_id;
+            $byStage = $docs->filter(
+                fn (DisciplinaryDocument $d): bool => $d->document_type === DocumentType::EVIDENCIA
+                    && $d->disciplinary_stage_id !== null
+                    && (int) $d->disciplinary_stage_id === $stageId
+            );
+        }
+
+        return $byNote->concat($byStage)->unique('id')->sortBy('id')->values();
     }
 }

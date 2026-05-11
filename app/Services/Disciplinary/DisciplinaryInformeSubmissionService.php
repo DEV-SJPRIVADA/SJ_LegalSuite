@@ -7,12 +7,13 @@ use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
-use App\Models\Disciplinary\Fault;
+use App\Models\Disciplinary\DisciplinaryDocument;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\User;
 use App\Notifications\InformeAuthorizedNotification;
 use App\Notifications\InformePendingReviewNotification;
 use App\Notifications\InformeRejectedNotification;
+use App\Support\Disciplinary\FoGj51SnapshotFaultMapper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -127,10 +128,10 @@ class DisciplinaryInformeSubmissionService
             $submission->loadMissing('submitter');
 
             $snapshot = $submission->form_snapshot ?? [];
-            $extra = $snapshot['fo51_observations'] ?? $submission->summary;
-            $extra = Str::limit(trim((string) $extra), 900) ?: 'Informe disciplinario FO-GJ-51 — detalle en documento adjunto.';
+            $observationsForFaults = Str::limit(trim((string) ($snapshot['fo51_observations'] ?? $submission->summary ?? '')), 900)
+                ?: 'Informe disciplinario FO-GJ-51 — detalle en documento adjunto.';
 
-            $fault = Fault::query()->where('code', 'F-006')->firstOrFail();
+            $faultPivotRows = FoGj51SnapshotFaultMapper::pivotRowsFromSnapshot($snapshot, $observationsForFaults);
 
             $case = $this->cases->create(
                 $submission->submitter,
@@ -142,9 +143,7 @@ class DisciplinaryInformeSubmissionService
                     'opened_at' => now()->toDateString(),
                     'summary' => Str::limit(trim((string) ($submission->summary ?? $snapshot['fo51_observations'] ?? '')), 5000) ?: null,
                 ],
-                [
-                    ['fault_id' => $fault->id, 'extra_info' => $extra],
-                ],
+                $faultPivotRows,
             );
 
             $case = $this->workflow->transition(
@@ -184,6 +183,34 @@ class DisciplinaryInformeSubmissionService
                 $informeStage,
                 'FO-GJ-51 autorizado por dirección',
             );
+
+            foreach ($submission->evidence_paths ?? [] as $rel) {
+                $rel = (string) $rel;
+                if ($rel === '' || ! Storage::disk($submission->storage_disk)->exists($rel)) {
+                    continue;
+                }
+                $absolute = Storage::disk($submission->storage_disk)->path($rel);
+                if (! is_file($absolute)) {
+                    continue;
+                }
+                $basename = basename($rel) ?: 'evidencia';
+                $mime = Storage::disk($submission->storage_disk)->mimeType($rel) ?? 'application/octet-stream';
+                $evidenceFile = new UploadedFile(
+                    $absolute,
+                    $basename,
+                    $mime,
+                    UPLOAD_ERR_OK,
+                    true
+                );
+                $this->documents->upload(
+                    $case,
+                    $evidenceFile,
+                    DocumentType::EVIDENCIA,
+                    $reviewer,
+                    $informeStage,
+                    DisciplinaryDocument::NOTE_FO51_AUTHORIZED_EVIDENCE,
+                );
+            }
 
             $this->deleteStoredFile($submission);
 

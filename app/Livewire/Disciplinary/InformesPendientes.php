@@ -24,6 +24,9 @@ class InformesPendientes extends Component
     /** Modal de vista previa del PDF. */
     public ?int $previewSubmissionId = null;
 
+    /** Evidencias asociadas al envío actualmente en vista previa. */
+    public array $previewEvidencePaths = [];
+
     public function mount(): void
     {
         Gate::authorize('viewAny', InformeSubmission::class);
@@ -112,11 +115,13 @@ class InformesPendientes extends Component
 
         $this->approveConfirmId = null;
         $this->previewSubmissionId = $id;
+        $this->previewEvidencePaths = $submission->evidence_paths ?? [];
     }
 
     public function closePdfPreview(): void
     {
         $this->previewSubmissionId = null;
+        $this->previewEvidencePaths = [];
     }
 
     public function render(): View

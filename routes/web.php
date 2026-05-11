@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
+use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
+use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
+use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
 use App\Livewire\Auth\ForcePasswordChange;
@@ -48,8 +52,17 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::get('informes-pendientes', InformesPendientes::class)->name('informes-pendientes.index');
         Route::get('informes-pendientes/{submission}/pdf', [FoGj51InformeController::class, 'pendingPdf'])
             ->name('informes-pendientes.pdf');
+        Route::get('informes-pendientes/{submission}/evidence/{index}', InformeSubmissionEvidenceInlineController::class)
+            ->whereNumber('index')
+            ->name('informes-pendientes.evidence');
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
+        Route::get('cases/{case}/agenda-attachments/{attachment}/inline', DisciplinaryAgendaAttachmentInlineController::class)
+            ->name('cases.agenda-attachment.inline');
+        Route::get('cases/{case}/agenda-attachments/{attachment}', DisciplinaryAgendaAttachmentDownloadController::class)
+            ->name('cases.agenda-attachment.download');
+        Route::get('cases/{case}/documents/{document}/file', DisciplinaryCaseDocumentInlineController::class)
+            ->name('cases.documents.file');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
 

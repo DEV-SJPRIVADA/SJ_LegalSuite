@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 
@@ -11,16 +12,26 @@ use App\Models\User;
  * - admin (sin modo solo lectura) → control total vía `before`.
  * - admin en modo solo lectura → sólo consulta (listados, detalle, dashboard).
  * - Otros usuarios con `read_only` → igual: consulta sin mutaciones.
- * - abogado → sólo casos asignados (si no está en solo lectura).
+ * - abogado → sólo casos asignados (si no está en solo lectura); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
- * - programador → sólo casos con `assigned_planner_id`; programar fechas de etapa.
- * - planeacion → fechas en etapas (assign-date) y vista completa.
- * - administrativa / operaciones → informes + evidencias y gestión operativa.
+ * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
+ * - planeacion → fechas en etapas (assign-date) y vista completa; responde en hilo de agenda (Etapa A).
+ * - administrativa / operaciones → informes + evidencias.
+ * - Asignar abogado titular: sólo rol `admin` (no solo lectura), vía `assign`.
+ * - Hilo agenda Etapa A: `postAgendaLawyer` (abogado asignado), `postAgendaPlanning` (rol planeación o admin explícito).
  */
 class DisciplinaryCasePolicy
 {
     /** @var list<string> */
     private const READ_ABILITIES = ['viewAny', 'view', 'viewDashboard'];
+
+    /**
+     * El admin no debe suplantar al abogado titular ni a planeación en el hilo de agenda;
+     * se evalúa en los métodos específicos.
+     *
+     * @var list<string>
+     */
+    private const ADMIN_DO_NOT_SHORT_CIRCUIT = ['postAgendaLawyer', 'postAgendaPlanning', 'assign'];
 
     public function before(User $user, string $ability): ?bool
     {
@@ -30,6 +41,10 @@ class DisciplinaryCasePolicy
 
         if ($user->read_only) {
             return in_array($ability, self::READ_ABILITIES, true) ? true : false;
+        }
+
+        if (in_array($ability, self::ADMIN_DO_NOT_SHORT_CIRCUIT, true)) {
+            return null;
         }
 
         return true;
@@ -60,7 +75,7 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasRole('programador')) {
-            return $case->assigned_planner_id === $user->id;
+            return $case->isVisibleToDisciplinaryFieldPool();
         }
 
         if ($user->hasRole('abogado')) {
@@ -137,7 +152,7 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasRole('programador')) {
-            return $case->assigned_planner_id === $user->id;
+            return $case->isVisibleToDisciplinaryFieldPool();
         }
 
         return $user->can('view', $case);
@@ -149,7 +164,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasPermissionTo('disciplinary.assign');
+        return $user->hasRole('admin');
     }
 
     public function assignPlanner(User $user, DisciplinaryCase $case): bool
@@ -161,10 +176,61 @@ class DisciplinaryCasePolicy
         return $user->hasPermissionTo('disciplinary.assign-planner');
     }
 
+    /** Solicitud de agenda (Etapa A): mensajes del abogado titular. */
+    public function postAgendaLawyer(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::INFORME || $case->assigned_lawyer_id === null) {
+            return false;
+        }
+
+        return (int) $case->assigned_lawyer_id === (int) $user->id;
+    }
+
+    /** Respuestas y adjuntos del lado planeación (rol planeación; admin evaluado en el método). */
+    public function postAgendaPlanning(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::INFORME || $case->assigned_lawyer_id === null) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        return $user->hasRole('planeacion');
+    }
+
     /** Plantilla FO-GJ-51 (PDF): operaciones crean casos; campo sólo con permiso dedicado. */
     public function generateFo51Inform(User $user): bool
     {
         return $user->hasPermissionTo('disciplinary.generate-inform');
+    }
+
+    /**
+     * Ver el bloque FO-GJ-51 en expediente: quien puede generar informe, o el abogado titular
+     * cuando ya existe PDF del informe en el caso (solo consulta).
+     */
+    public function viewFo51InformePdf(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->generateFo51Inform($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole('abogado') || (int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        $doc = $case->primaryFo51InformeDocument();
+
+        return $doc !== null && $doc->path !== '';
     }
 
     public function uploadDocument(User $user, DisciplinaryCase $case): bool

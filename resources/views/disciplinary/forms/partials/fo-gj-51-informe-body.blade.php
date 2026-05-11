@@ -16,7 +16,7 @@
 
 <div
     class="relative"
-    x-data="{ pdfModalOpen: {{ $pdfModalOpenInitially ? 'true' : 'false' }}, evidenceModalOpen: {{ $evidenceModalOpenInitially ? 'true' : 'false' }} }"
+    x-data="Object.assign({}, window.evidenceTilesState(), { pdfModalOpen: @js($pdfModalOpenInitially), evidenceModalOpen: @js($evidenceModalOpenInitially) })"
     @keydown.escape.window="pdfModalOpen = false; evidenceModalOpen = false">
 
     {{-- Oculto: recibe el POST del PDF para que la página lista no navegue fuera del modal --}}
@@ -74,6 +74,21 @@
                     <span class="text-xs text-slate-600 dark:text-slate-400">Hasta 10 imágenes opcionales con el envío a revisión.</span>
                 </label>
                 <p class="mt-2 text-xs text-slate-500 dark:text-slate-400 pl-8">Desmarque la casilla para omitir evidencias; puede abrir de nuevo para cambiar los archivos antes de enviar.</p>
+                <div class="mt-3 space-y-1 border-t border-slate-200/80 pt-3 dark:border-white/10">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Imágenes seleccionadas
+                    </p>
+                    <div class="flex gap-2 overflow-x-auto rounded-lg border border-slate-200/80 bg-white/80 p-2 dark:border-white/10 dark:bg-dash-ink/50">
+                        <template x-for="(url, idx) in urls" :key="idx">
+                            <div x-show="url" class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-slate-200/70 dark:bg-black/40">
+                                <img :src="url" alt="" class="h-full w-full object-cover">
+                            </div>
+                        </template>
+                        <p x-show="! urls.filter(Boolean).length" class="text-[11px] text-slate-500 dark:text-slate-500">
+                            Aún no hay imágenes seleccionadas.
+                        </p>
+                    </div>
+                </div>
             </div>
 
             @error('evidence_images')
@@ -93,12 +108,13 @@
                 <div x-show="evidenceModalOpen"
                     x-transition
                     @click.stop
-                    class="max-h-[min(92vh,720px)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
-                    <div class="flex items-start justify-between gap-3">
+                    class="flex max-h-[min(92vh,780px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
+                    <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-5 py-4 dark:border-white/10">
                         <div>
-                            <h2 id="evidence-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Evidencia fotográfica</h2>
+                            <p class="text-[11px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300/90">Cargar evidencia</p>
+                            <h2 id="evidence-modal-title" class="mt-1 text-lg font-bold text-slate-900 dark:text-white">Evidencia fotográfica</h2>
                             <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                                Adjunte hasta diez imágenes (JPEG, PNG, WebP, etc.). No son obligatorias.
+                                Seleccione la imagen o tome la foto. Hasta 10 archivos (JPEG, PNG, WebP, GIF). No son obligatorias.
                             </p>
                         </div>
                         <button type="button" @click="evidenceModalOpen = false"
@@ -108,18 +124,39 @@
                         </button>
                     </div>
 
-                    <div class="mt-6 grid grid-cols-1 gap-4">
-                        @for ($i = 0; $i < 10; $i++)
-                            <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-dash-muted">
-                                    Imagen {{ $i + 1 }}</label>
-                                <input type="file" name="evidence_images[]" accept="image/*"
-                                    class="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800 dark:text-slate-300 dark:file:bg-dash-lift dark:file:ring-1 dark:file:ring-white/15 dark:hover:file:bg-dash-lift/90" />
-                            </div>
-                        @endfor
+                    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                            @for ($i = 0; $i < 10; $i++)
+                                <div class="relative aspect-[5/4] overflow-hidden rounded-xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/25 via-slate-900/20 to-slate-900/50 shadow-inner ring-1 ring-emerald-500/10 dark:from-emerald-950/50 dark:via-dash-void/80 dark:to-slate-950/90 dark:ring-emerald-400/20">
+                                    <input type="file"
+                                        id="evidence_in_{{ $i }}"
+                                        name="evidence_images[]"
+                                        accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                                        class="sr-only"
+                                        x-on:change="setPreview({{ $i }}, $event)" />
+                                    <label for="evidence_in_{{ $i }}"
+                                        class="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 p-2 text-center">
+                                        <span class="sr-only">Seleccionar imagen {{ $i + 1 }}</span>
+                                        <img x-show="urls[{{ $i }}]"
+                                            x-bind:src="urls[{{ $i }}]"
+                                            alt=""
+                                            class="absolute inset-0 h-full w-full object-cover" />
+                                        <span x-show="! urls[{{ $i }}]"
+                                            class="select-none text-3xl font-extralight leading-none text-white/90 drop-shadow-sm dark:text-emerald-100/90">+</span>
+                                    </label>
+                                    <button type="button"
+                                        x-show="urls[{{ $i }}]"
+                                        x-on:click.prevent.stop="clear({{ $i }})"
+                                        class="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white shadow-md ring-1 ring-white/20 hover:bg-rose-700"
+                                        title="Quitar imagen">
+                                        ×
+                                    </button>
+                                </div>
+                            @endfor
+                        </div>
                     </div>
 
-                    <div class="flex justify-end pt-6">
+                    <div class="flex shrink-0 justify-end border-t border-slate-200/80 px-5 py-4 dark:border-white/10">
                         <button type="button" @click="evidenceModalOpen = false"
                             class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
                             Listo

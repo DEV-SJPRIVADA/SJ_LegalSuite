@@ -4,6 +4,9 @@ namespace App\Support\Disciplinary;
 
 /**
  * Textos fijos del FO-GJ-51 (faltas listadas). Una sola fuente para Blade y validación POST.
+ *
+ * Si agrega o cambia textos aquí, actualice el mapeo a códigos F-xxx en {@see FoGj51SnapshotFaultMapper}
+ * (y el test `every_catalog_checkbox_label_maps_to_a_fault`).
  */
 final class FoGj51Catalog
 {

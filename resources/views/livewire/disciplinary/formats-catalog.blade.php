@@ -15,6 +15,7 @@
                     Para diligenciar el informe en pantalla y generar PDF en tamaño carta:
                     <a href="{{ route('disciplinary.cases.index', ['informe_modal' => 1]) }}" class="font-semibold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">Abrir FO-GJ-51 para diligenciar</a>.
                 @endcan
+                Las plantillas <strong class="text-slate-800 dark:text-slate-200">FO-GJ-03, FO-GJ-54 y FO-GJ-42</strong> tienen por ahora <strong>PDF en blanco</strong> desde HTML (misma mecánica que la plantilla FO-GJ-51); el diligenciamiento en pantalla y el vínculo al expediente se irán conectando por formato.
                 Los PDF opcionales van en
                 <code class="text-xs bg-slate-100 px-1 py-0.5 rounded dark:bg-white/10 dark:text-slate-200">public/formatos/disciplinarios/</code>.
             </p>

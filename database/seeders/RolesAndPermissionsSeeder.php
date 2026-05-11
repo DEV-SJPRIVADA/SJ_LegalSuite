@@ -55,13 +55,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Planeación (dirección): vista completa + delegación a programadores + fechas. */
+        /** Planeación (dirección): vista completa + fechas; responde en hilo de agenda Etapa A. */
         $planeacion = Role::firstOrCreate(['name' => 'planeacion', 'guard_name' => 'web']);
         $planeacion->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
             'disciplinary.assign-date',
-            'disciplinary.assign-planner',
             'personnel.view',
             'disciplinary.download-pdf',
         ]);
@@ -121,7 +120,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Programador: sólo solicitudes delegadas por planeación — programar fechas en etapas. */
+        /** Programador: expedientes formalizados — programar fechas en etapas (sin hilo de agenda). */
         $programador = Role::firstOrCreate(['name' => 'programador', 'guard_name' => 'web']);
         $programador->syncPermissions([
             'disciplinary.assign-date',

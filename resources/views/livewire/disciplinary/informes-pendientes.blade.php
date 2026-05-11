@@ -125,8 +125,8 @@
             $pdfDownloadUrl = route('disciplinary.informes-pendientes.pdf', ['submission' => $previewSubmissionId]);
         @endphp
         <div class="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4"
-             x-data
-             x-on:keydown.escape.window="$wire.closePdfPreview()"
+             x-data="window.sjInformePdfPreviewLightbox()"
+             x-on:keydown.escape.window="zoomOpen ? closeZoom() : $wire.closePdfPreview()"
              role="dialog"
              aria-modal="true"
              aria-labelledby="informe-pdf-preview-title"
@@ -141,18 +141,69 @@
                         ✕
                     </button>
                 </div>
-                <iframe wire:ignore title="Vista previa informe PDF"
-                        class="min-h-0 flex-1 w-full bg-slate-100 dark:bg-black/40"
-                        src="{{ $pdfPreviewUrl }}"></iframe>
+                <div class="relative flex min-h-0 flex-1 flex-col">
+                    <iframe wire:ignore title="Vista previa informe PDF"
+                            class="min-h-0 flex-1 min-h-[200px] bg-slate-100 dark:bg-black/40"
+                            src="{{ $pdfPreviewUrl }}"></iframe>
+
+                    @if ($previewEvidencePaths !== [])
+                        <section class="shrink-0 border-t border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-white/10 dark:bg-dash-ink/90 sm:px-5">
+                            <p class="text-[11px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300/90">Evidencia</p>
+                            <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">Clic en una miniatura para ampliar. Use la rueda del ratón para acercar o alejar.</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($previewEvidencePaths as $idx => $path)
+                                    @php
+                                        $evidenceUrl = route('disciplinary.informes-pendientes.evidence', ['submission' => $previewSubmissionId, 'index' => $idx]);
+                                        $evidenceLabel = 'Evidencia '.($idx + 1);
+                                    @endphp
+                                    <button type="button"
+                                            title="Ver en grande"
+                                            class="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-200/70 ring-emerald-500/20 transition hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-white/15 dark:bg-black/50 dark:ring-emerald-400/30"
+                                            x-on:click="openZoom(@js($evidenceUrl), @js($evidenceLabel))">
+                                        <img src="{{ $evidenceUrl }}" alt="{{ $evidenceLabel }}" loading="lazy"
+                                             class="pointer-events-none h-full w-full object-cover transition group-hover:brightness-95 dark:group-hover:brightness-110">
+                                    </button>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
+
+                    <div x-show="zoomOpen"
+                         x-cloak
+                         class="absolute inset-0 z-[80] flex flex-col bg-black/85 p-3 backdrop-blur-[1px]"
+                         x-transition
+                         role="dialog"
+                         aria-modal="true"
+                         aria-label="Vista ampliada de evidencia"
+                         x-on:click.self="closeZoom()">
+                        <div class="flex shrink-0 justify-end pb-2">
+                            <button type="button" x-on:click="closeZoom()"
+                                    class="rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20 hover:bg-white/20">
+                                Cerrar (Esc)
+                            </button>
+                        </div>
+                        <div class="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+                             x-on:wheel="wheelZoom($event)">
+                            <img x-bind:src="zoomSrc"
+                                 x-bind:alt="zoomAlt"
+                                 x-bind:style="'transform: scale(' + zoomScale + '); transform-origin: center center;'"
+                                 class="max-h-[88vh] max-w-[96vw] cursor-default select-none object-contain shadow-2xl ring-1 ring-white/15"
+                                 x-on:click.stop
+                                 draggable="false">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
                     <button type="button" wire:click="closePdfPreview"
                             class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
                         Cerrar
                     </button>
-                    <a href="{{ $pdfDownloadUrl }}" target="_blank" rel="noopener noreferrer"
-                       class="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90">
+                    <button type="button"
+                            class="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90"
+                            x-on:click="(() => { const a = document.createElement('a'); a.href = @js($pdfDownloadUrl); a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); a.remove(); })()">
                         Descargar PDF
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>

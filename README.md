@@ -44,7 +44,7 @@ Además del catálogo jurídico, existe el módulo de **administración de usuar
 - **Workflow estricto y validado**: 13 estados, transiciones controladas, plazo de **2 días calendario** para justificar inasistencia a citación (tras constancia).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
 - **Roles y permisos granulares** (Spatie Permission v6): paquetes de permisos técnicos (`admin`, `abogado`, `planeacion`, etc.). En negocio, el **área** es el ámbito organizacional (Jurídica, Operaciones…); **dentro del área** el usuario tiene un **cargo** (supervisor, operador, programador…). Cada cargo enlaza a un rol Spatie vía **`job_positions.permission_role_name`** (configurable en **Usuarios → Organización**). El perfil **`admin`** es aparte: «Administrador de la plataforma» en el formulario de usuario. Más el flag **solo lectura** por usuario.
-- **Dashboard analítico** con KPIs, distribución por falta, por ciudad y carga por abogado en una sola query.
+- **Dashboard analítico**: donas por **etapa del flujo** (total + **A–F** según `current_stage_type`, vía `DisciplinaryDashboardService::workflowStageDonuts`), más distribución por **tipo de falta**, por **ciudad** y **carga por abogado** (consultas agregadas eficientes).
 - **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
 
@@ -94,7 +94,7 @@ Sub-nav superior (según permisos): **Inicio | Dashboard | Disciplinarios | (Rev
 
 | Vista | Contenido |
 |---|---|
-| **Dashboard** | 4 KPIs (total/pendientes/en proceso/finalizados), gráfica por falta, por ciudad y carga por abogado |
+| **Dashboard** | **Casos por etapa**: 7 donas (ApexCharts) — total del alcance + etapas **A–F** (porcentaje y cantidad al centro; **B** agrupa citación/reprogramación/justificación; **C** comité/diligencia). Bloque compacto sin cabecera de tarjeta; etiqueta corta por columna. Debajo: barras por **tipo de falta**, dona por **ciudad** y tabla **carga por abogado**. |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
@@ -385,7 +385,7 @@ La autorización se evalúa en 3 capas:
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` | `/api/disciplinary/dashboard` | KPIs en JSON |
+| `GET` | `/api/disciplinary/dashboard` | `kpis`, `workflow_donuts` (total + etapas A–F), `by_fault`, `by_city`, `lawyer_workload` en JSON |
 | `GET` | `/api/disciplinary/cases` | Listado con filtros |
 | `POST` | `/api/disciplinary/cases` | Crear caso |
 | `GET` | `/api/disciplinary/cases/{case}` | Detalle |

@@ -2,24 +2,34 @@
 
 namespace App\Livewire\Disciplinary\Cases;
 
+use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
+use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryStage;
+use App\Models\OrganizationalArea;
 use App\Models\User;
+use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
+use App\Services\Disciplinary\DisciplinaryCaseService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Workflow\Disciplinary\TransitionMap;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Detalle del caso')]
 class CaseDetail extends Component
 {
+    use WithFileUploads;
+
     public DisciplinaryCase $case;
 
     public string $activeTab = 'overview';
@@ -46,13 +56,37 @@ class CaseDetail extends Component
 
     public string $scheduleNote = '';
 
-    public ?int $assignedPlannerId = null;
+    public ?int $assignedLawyerId = null;
+
+    /** Confirmación antes de persistir titular (asignar / cambiar / quitar). */
+    public bool $showLawyerConfirmModal = false;
+
+    public ?int $lawyerConfirmPendingId = null;
+
+    /** assign | change | clear */
+    public string $lawyerConfirmKind = '';
+
+    public string $lawyerConfirmTargetName = '';
+
+    /** Solicitud de agenda (Etapa A) — abogado */
+    public string $agendaLawyerBody = '';
+
+    public ?int $agendaOrganizationalAreaId = null;
+
+    /** Respuesta planeación (campo aparte para no chocar con admin que ve ambos formularios) */
+    public string $agendaPlanningBody = '';
+
+    /** @var array<int, mixed> */
+    public array $agendaPlanningUploads = [];
+
+    /** Vista previa del PDF FO-GJ-51 ya incorporado al expediente. */
+    public ?int $fo51PdfPreviewDocumentId = null;
 
     public function mount(DisciplinaryCase $case): void
     {
         Gate::authorize('view', $case);
         $this->case = $case;
-        $this->assignedPlannerId = $case->assigned_planner_id;
+        $this->assignedLawyerId = $case->assigned_lawyer_id;
 
         if (auth()->user()->isDisciplinaryProgramador()) {
             $this->activeTab = 'timeline';
@@ -151,29 +185,218 @@ class CaseDetail extends Component
         session()->flash('success', 'Fechas de la etapa actualizadas.');
     }
 
-    public function savePlannerAssignment(): void
+    public function onLawyerSelectChanged(): void
     {
-        Gate::authorize('assignPlanner', $this->case);
+        Gate::authorize('assign', $this->case);
+
+        $newId = $this->normalizeLawyerId($this->assignedLawyerId);
+        $currentId = $this->normalizeLawyerId($this->case->assigned_lawyer_id);
+
+        if ($newId === $currentId) {
+            return;
+        }
+
+        $this->lawyerConfirmPendingId = $newId;
+        if ($newId === null) {
+            $this->lawyerConfirmKind = 'clear';
+            $this->lawyerConfirmTargetName = '';
+        } elseif ($currentId === null) {
+            $this->lawyerConfirmKind = 'assign';
+            $lawyer = User::query()->find($newId);
+            $this->lawyerConfirmTargetName = $lawyer?->name ?? '';
+        } else {
+            $this->lawyerConfirmKind = 'change';
+            $lawyer = User::query()->find($newId);
+            $this->lawyerConfirmTargetName = $lawyer?->name ?? '';
+        }
+
+        $this->showLawyerConfirmModal = true;
+        $this->assignedLawyerId = $currentId;
+    }
+
+    public function confirmLawyerAssignment(DisciplinaryCaseService $cases): void
+    {
+        Gate::authorize('assign', $this->case);
+        if (! $this->showLawyerConfirmModal) {
+            return;
+        }
+
+        $pending = $this->lawyerConfirmPendingId;
+        $this->showLawyerConfirmModal = false;
+        $this->lawyerConfirmPendingId = null;
+        $this->lawyerConfirmKind = '';
+        $this->lawyerConfirmTargetName = '';
+
+        $this->assignedLawyerId = $pending;
+        $this->saveLawyerAssignment($cases);
+    }
+
+    public function cancelLawyerAssignment(): void
+    {
+        $this->showLawyerConfirmModal = false;
+        $this->lawyerConfirmPendingId = null;
+        $this->lawyerConfirmKind = '';
+        $this->lawyerConfirmTargetName = '';
+    }
+
+    public function saveLawyerAssignment(DisciplinaryCaseService $cases): void
+    {
+        Gate::authorize('assign', $this->case);
 
         $this->validate([
-            'assignedPlannerId' => ['nullable', 'integer', 'exists:users,id'],
+            'assignedLawyerId' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        if ($this->assignedPlannerId !== null) {
-            $candidate = User::query()->find($this->assignedPlannerId);
-            if (! $candidate || ! $candidate->hasRole('programador')) {
-                $this->addError('assignedPlannerId', 'Seleccione un usuario con rol programador.');
+        $newLawyerId = $this->normalizeLawyerId($this->assignedLawyerId);
+        $currentLawyerId = $this->normalizeLawyerId($this->case->assigned_lawyer_id);
+        if ($newLawyerId === $currentLawyerId) {
+            return;
+        }
+
+        if ($newLawyerId !== null) {
+            $lawyer = User::query()->find($newLawyerId);
+            if (! $lawyer || ! $lawyer->hasRole('abogado')) {
+                $this->addError('assignedLawyerId', 'Seleccione un usuario con rol abogado.');
+                $this->assignedLawyerId = $currentId;
 
                 return;
             }
+
+            $this->case = $cases->assignLawyer($this->case->fresh(), $lawyer, auth()->user());
+        } else {
+            DB::transaction(function () {
+                $c = $this->case->fresh();
+                $c->forceFill(['assigned_lawyer_id' => null])->save();
+                DisciplinaryAction::create([
+                    'disciplinary_case_id' => $c->id,
+                    'user_id' => auth()->id(),
+                    'action_type' => ActionType::CASO_ASIGNADO,
+                    'description' => 'Abogado desasignado del expediente',
+                    'metadata' => ['lawyer_id' => null],
+                    'performed_at' => now(),
+                ]);
+            });
+            $this->case = $this->case->fresh();
         }
 
-        $this->case->forceFill([
-            'assigned_planner_id' => $this->assignedPlannerId,
-        ])->save();
-
         $this->syncCaseFromDb();
-        session()->flash('success', 'Programador asignado para este proceso.');
+        session()->flash('success', 'Abogado asignado actualizado.');
+    }
+
+    private function normalizeLawyerId(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
+    {
+        Gate::authorize('postAgendaLawyer', $this->case);
+
+        $rules = [
+            'agendaLawyerBody' => ['required', 'string', 'max:8000'],
+        ];
+        if ($this->case->agendaThread === null) {
+            $rules['agendaOrganizationalAreaId'] = ['required', 'integer', 'exists:organizational_areas,id'];
+        }
+
+        $this->validate($rules);
+
+        try {
+            $agenda->postLawyerMessage(
+                $this->case->fresh(['agendaThread']),
+                auth()->user(),
+                $this->agendaLawyerBody,
+                $this->case->agendaThread ? null : $this->agendaOrganizationalAreaId,
+                [],
+            );
+        } catch (\Throwable $e) {
+            $this->addError('agendaLawyerBody', $e->getMessage());
+
+            return;
+        }
+
+        $this->reset('agendaLawyerBody', 'agendaOrganizationalAreaId');
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Mensaje publicado en el hilo de solicitud de agenda.');
+    }
+
+    public function postAgendaPlanning(DisciplinaryAgendaThreadService $agenda): void
+    {
+        Gate::authorize('postAgendaPlanning', $this->case);
+
+        $this->validate([
+            'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
+            'agendaPlanningUploads' => ['nullable', 'array', 'max:6'],
+            'agendaPlanningUploads.*' => ['nullable', 'file', 'max:5120', 'mimes:jpeg,jpg,png,gif,webp'],
+        ]);
+
+        $body = trim($this->agendaPlanningBody);
+        $files = array_values(array_filter($this->agendaPlanningUploads));
+
+        if ($body === '' && $files === []) {
+            $this->addError('agendaPlanningBody', 'Escriba un mensaje o adjunte al menos una imagen.');
+
+            return;
+        }
+
+        try {
+            $agenda->postPlanningMessage(
+                $this->case->fresh(['agendaThread']),
+                auth()->user(),
+                $body,
+                $files,
+            );
+        } catch (\Throwable $e) {
+            $this->addError('agendaPlanningBody', $e->getMessage());
+
+            return;
+        }
+
+        $this->reset('agendaPlanningBody', 'agendaPlanningUploads');
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Respuesta publicada en el hilo de agenda.');
+    }
+
+    public function removeAgendaPlanningUploadAt(int $index): void
+    {
+        Gate::authorize('postAgendaPlanning', $this->case);
+
+        $files = $this->agendaPlanningUploads;
+        if (! is_array($files) || ! isset($files[$index])) {
+            return;
+        }
+
+        $upload = $files[$index];
+        if ($upload instanceof TemporaryUploadedFile) {
+            $upload->delete();
+        }
+
+        unset($files[$index]);
+        $this->agendaPlanningUploads = array_values($files);
+    }
+
+    public function openFo51PdfPreview(): void
+    {
+        Gate::authorize('viewFo51InformePdf', $this->case);
+        $this->case->load('documents');
+        $doc = $this->case->primaryFo51InformeDocument();
+        if (! $doc || $doc->path === '') {
+            $this->addError('fo51', 'No hay PDF del informe FO-GJ-51 guardado en este expediente.');
+
+            return;
+        }
+
+        $this->resetErrorBag();
+        $this->fo51PdfPreviewDocumentId = $doc->id;
+    }
+
+    public function closeFo51PdfPreview(): void
+    {
+        $this->fo51PdfPreviewDocumentId = null;
     }
 
     private function syncCaseFromDb(): void
@@ -182,39 +405,69 @@ class CaseDetail extends Component
             'personnel',
             'reporter:id,name',
             'assignedLawyer:id,name',
-            'assignedPlanner:id,name',
             'faults',
             'stages.performer:id,name',
             'documents.uploader:id,name',
             'actions.user:id,name',
             'actions.stage:id,stage_type',
+            'agendaThread.organizationalArea:id,name,slug',
+            'agendaThread.messages.author:id,name',
+            'agendaThread.messages.attachments',
         ]) ?? $this->case;
 
-        $this->assignedPlannerId = $this->case->assigned_planner_id;
+        $this->assignedLawyerId = $this->case->assigned_lawyer_id;
     }
 
     public function render()
     {
+        if ($this->fo51PdfPreviewDocumentId !== null) {
+            $this->case->loadMissing('documents');
+            $previewDoc = $this->case->documents->firstWhere('id', $this->fo51PdfPreviewDocumentId);
+            if (! $previewDoc || $previewDoc->path === '') {
+                $this->fo51PdfPreviewDocumentId = null;
+            }
+        }
+
         $this->case->load([
             'personnel',
             'reporter:id,name',
             'assignedLawyer:id,name',
-            'assignedPlanner:id,name',
             'faults',
             'stages.performer:id,name',
             'documents.uploader:id,name',
             'actions.user:id,name',
             'actions.stage:id,stage_type',
+            'agendaThread.organizationalArea:id,name,slug',
+            'agendaThread.messages.author:id,name',
+            'agendaThread.messages.attachments',
         ]);
 
         $allowed = TransitionMap::allowedFrom($this->case->current_status);
 
+        $agendaAreas = OrganizationalArea::query()
+            ->where('is_active', true)
+            ->where('slug', 'planeacion')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        if ($agendaAreas->isEmpty()) {
+            $agendaAreas = OrganizationalArea::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug']);
+        }
+
         return view('livewire.disciplinary.cases.show', [
             'allowedTransitions' => $allowed,
             'relatedCases' => $this->relatedCasesSameDocument(),
-            'plannerCandidates' => Gate::allows('assignPlanner', $this->case)
-                ? User::query()->role('programador')->active()->orderBy('name')->get(['id', 'name'])
+            'lawyerCandidates' => Gate::allows('assign', $this->case)
+                ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
+            'organizationalAreasForAgenda' => $agendaAreas,
+            'agendaGateBlocksCitacion' => $this->case->current_status === CaseStatus::INFORME
+                && ! $this->case->hasAgendaPlanningReply(),
         ]);
     }
 

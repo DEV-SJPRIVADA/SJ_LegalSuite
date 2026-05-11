@@ -19,6 +19,7 @@ class DisciplinaryDashboardController extends Controller
 
         return response()->json([
             'kpis' => $this->dashboard->kpis(),
+            'workflow_donuts' => $this->dashboard->workflowStageDonuts(),
             'by_fault' => $this->dashboard->casesByFault(),
             'by_city' => $this->dashboard->casesByCity(),
             'lawyer_workload' => $this->dashboard->lawyerWorkload(),

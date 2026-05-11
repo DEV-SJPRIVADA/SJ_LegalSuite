@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\User;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Las consultas se basan en disciplinary_cases.current_status (denormalizado e
  * indexado) para evitar joins costosos contra disciplinary_stages en tiempo real.
+ *
+ * La distribución por etapa de flujo (A–F) usa current_stage_type (StageType).
  */
 class DisciplinaryDashboardService
 {
@@ -50,6 +53,109 @@ class DisciplinaryDashboardService
             'finalizados' => $totals['finalizados'],
             'por_estado' => $byStatus,
         ];
+    }
+
+    /**
+     * Métricas para las donas «Casos por etapa»: total del alcance y seis buckets
+     * A–F sobre current_stage_type. B incluye citación, reprogramación y justificación;
+     * C incluye comité y diligencia/acta.
+     *
+     * @return array{
+     *     total: int,
+     *     stages: list<array{
+     *         letter: string,
+     *         title: string,
+     *         count: int,
+     *         rest: int,
+     *         percent: float,
+     *         percent_label: string
+     *     }>
+     * }
+     */
+    public function workflowStageDonuts(?User $actor = null): array
+    {
+        $byStage = DisciplinaryCase::query()
+            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
+            ->select('current_stage_type', DB::raw('COUNT(*) as c'))
+            ->groupBy('current_stage_type')
+            ->get()
+            ->mapWithKeys(function ($row) {
+                $raw = $row->current_stage_type;
+                $key = match (true) {
+                    $raw instanceof StageType => $raw->value,
+                    $raw === null, $raw === '' => '',
+                    default => (string) $raw,
+                };
+
+                return [$key => (int) $row->c];
+            });
+
+        $total = (int) $byStage->sum();
+
+        $definitions = [
+            [
+                'letter' => 'A',
+                'title' => 'Informe disciplinario',
+                'types' => [StageType::INFORME],
+            ],
+            [
+                'letter' => 'B',
+                'title' => 'Citación a diligencia',
+                'types' => [StageType::CITACION, StageType::REPROGRAMACION, StageType::JUSTIFICACION],
+            ],
+            [
+                'letter' => 'C',
+                'title' => 'Diligencia y acta',
+                'types' => [StageType::COMITE, StageType::DILIGENCIA],
+            ],
+            [
+                'letter' => 'D',
+                'title' => 'Decisión / cierre',
+                'types' => [StageType::DECISION],
+            ],
+            [
+                'letter' => 'E',
+                'title' => 'Apelación',
+                'types' => [StageType::APELACION],
+            ],
+            [
+                'letter' => 'F',
+                'title' => 'Segunda instancia',
+                'types' => [StageType::SEGUNDA_INSTANCIA],
+            ],
+        ];
+
+        $stages = [];
+        foreach ($definitions as $def) {
+            $count = 0;
+            foreach ($def['types'] as $type) {
+                $count += (int) ($byStage[$type->value] ?? 0);
+            }
+            $rest = max(0, $total - $count);
+            $percent = $total > 0 ? round(100 * $count / $total, 1) : 0.0;
+            $percentLabel = $this->formatPercentLabel($percent);
+
+            $stages[] = [
+                'letter' => $def['letter'],
+                'title' => $def['title'],
+                'count' => $count,
+                'rest' => $rest,
+                'percent' => $percent,
+                'percent_label' => $percentLabel,
+            ];
+        }
+
+        return [
+            'total' => $total,
+            'stages' => $stages,
+        ];
+    }
+
+    private function formatPercentLabel(float $percent): string
+    {
+        $s = number_format($percent, 1, '.', '');
+
+        return rtrim(rtrim($s, '0'), '.');
     }
 
     /**
