@@ -6,13 +6,12 @@
         <x-disciplinary.nav />
     @endpush
 
-    <div class="py-8 sm:py-10">
+    <div class="py-4 sm:py-6">
         <div class="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:max-w-[min(100%,1920px)] 2xl:px-10">
-            <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
-                <x-dashboard.page-heading
-                    eyebrow="Disciplinarios · Dashboard"
-                    title="Indicadores del módulo"
-                    description="Todos los valores se calculan en vivo según tus permisos y asignaciones." />
+            <div class="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
+                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-fuchsia-400/90">
+                    Disciplinarios · Dashboard
+                </p>
 
                 <x-dashboard.button href="{{ route('disciplinary.cases.index') }}" variant="ghost" class="shrink-0">
                     Ver listado de casos →
@@ -37,10 +36,10 @@
                         ];
                     @endphp
                 <div
-                    class="mb-8 overflow-visible rounded-2xl border border-slate-200 bg-white px-2 py-2 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:py-3"
+                    class="mb-6 overflow-visible rounded-2xl border border-slate-200 bg-white px-2 pt-1.5 pb-1 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:pt-2 sm:pb-1.5"
                     aria-label="Distribución de casos por etapa del flujo"
                 >
-                    <div class="grid w-full min-w-0 grid-cols-2 gap-3 overflow-visible sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-7 lg:gap-2 xl:gap-3">
+                    <div class="grid w-full min-w-0 grid-cols-2 items-start gap-3 overflow-visible sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-7 lg:gap-2 xl:gap-3">
                         <div class="flex min-w-0 w-full flex-col">
                             <p class="mb-1 shrink-0 px-0.5 text-center leading-snug" title="Total de casos en su alcance">
                                 <span class="block text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300 sm:text-[11px]">Total</span>
