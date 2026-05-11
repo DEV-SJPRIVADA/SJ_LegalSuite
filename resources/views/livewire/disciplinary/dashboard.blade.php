@@ -36,7 +36,7 @@
                         ];
                     @endphp
                 <div
-                    class="mb-6 overflow-visible rounded-2xl border border-slate-200 bg-white px-2 pt-1.5 pb-1 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:pt-2 sm:pb-1.5"
+                    class="mb-6 overflow-visible rounded-2xl border border-slate-200 bg-white px-2 pt-1.5 pb-0 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:pt-2 sm:pb-0"
                     aria-label="Distribución de casos por etapa del flujo"
                 >
                     <div class="grid w-full min-w-0 grid-cols-2 items-start gap-3 overflow-visible sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-7 lg:gap-2 xl:gap-3">
@@ -52,7 +52,7 @@
                                     init() {
                                         const chartDark = @json($chartDark);
                                         const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                        const chartH = lg ? 232 : 196;
+                                        const chartH = lg ? 208 : 176;
                                         const fg = chartDark ? '#94a3b8' : '#64748b';
                                         const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
                                         const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
@@ -97,7 +97,7 @@
                                             plotOptions: {
                                                 pie: {
                                                     offsetY: -4,
-                                                    customScale: 0.96,
+                                                    customScale: 0.97,
                                                     expandOnClick: false,
                                                     donut: {
                                                         size: '70%',
@@ -145,7 +145,7 @@
                                  }"
                                     wire:key="workflow-donut-total"
                                 >
-                                    <div x-ref="el" class="h-[196px] w-full min-w-0 lg:h-[232px]"></div>
+                                    <div x-ref="el" class="h-[176px] w-full min-w-0 lg:h-[208px]"></div>
                                 </div>
                             </div>
                         </div>
@@ -176,7 +176,7 @@
                                         init() {
                                             const chartDark = @json($chartDark);
                                             const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                            const chartH = lg ? 232 : 196;
+                                            const chartH = lg ? 208 : 176;
                                             const fg = chartDark ? '#94a3b8' : '#64748b';
                                             const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
                                             const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
@@ -225,7 +225,7 @@
                                                 plotOptions: {
                                                     pie: {
                                                         offsetY: -4,
-                                                        customScale: 0.96,
+                                                        customScale: 0.97,
                                                         expandOnClick: false,
                                                         donut: {
                                                             size: '70%',
@@ -272,7 +272,7 @@
                                         },
                                      }"
                                     >
-                                        <div x-ref="el" class="h-[196px] w-full min-w-0 lg:h-[232px]"></div>
+                                        <div x-ref="el" class="h-[176px] w-full min-w-0 lg:h-[208px]"></div>
                                     </div>
                                 </div>
                             </div>
