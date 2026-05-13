@@ -36,7 +36,7 @@ class Dashboard extends Component
         return view('livewire.disciplinary.dashboard', [
             'workflowDonuts' => $dashboard->workflowStageDonuts($actor),
             'byFault' => $dashboard->casesByFault(10, $actor),
-            'byCity' => $dashboard->casesByCity($actor),
+            'caseMapPins' => $dashboard->casesByMunicipalityMapPins($actor),
             'lawyerWorkload' => $dashboard->lawyerWorkload($actor),
         ]);
     }

@@ -187,6 +187,48 @@ class DisciplinaryDashboardService
     }
 
     /**
+     * Agregación por municipio (código DANE) con coordenadas para mapa Leaflet.
+     *
+     * @return list<array{code:string, label:string, lat:float, lon:float, count:int}>
+     */
+    public function casesByMunicipalityMapPins(?User $actor = null): array
+    {
+        $rows = DisciplinaryCase::query()
+            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
+            ->whereNotNull('disciplinary_cases.municipality_code')
+            ->join(
+                'colombian_municipalities as m',
+                'disciplinary_cases.municipality_code',
+                '=',
+                'm.municipality_code'
+            )
+            ->whereNotNull('m.latitude')
+            ->whereNotNull('m.longitude')
+            ->select(
+                'disciplinary_cases.municipality_code',
+                'm.municipality_name',
+                'm.latitude',
+                'm.longitude',
+                DB::raw('COUNT(*) as total')
+            )
+            ->groupBy(
+                'disciplinary_cases.municipality_code',
+                'm.municipality_name',
+                'm.latitude',
+                'm.longitude'
+            )
+            ->get();
+
+        return $rows->map(fn ($r) => [
+            'code' => (string) $r->municipality_code,
+            'label' => (string) $r->municipality_name,
+            'lat' => (float) $r->latitude,
+            'lon' => (float) $r->longitude,
+            'count' => (int) $r->total,
+        ])->values()->all();
+    }
+
+    /**
      * Distribución por ciudad.
      *
      * @return list<array{city:string, total:int}>

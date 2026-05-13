@@ -1,4 +1,7 @@
 @php
+    use App\Models\ColombianMunicipality;
+
+    $municipalitiesGrouped = $municipalitiesGrouped ?? ColombianMunicipality::groupedByDepartmentForSelect();
     /** @var string|null $prefillWorkerName */
     /** @var string|null $prefillWorkerDocument */
     $pdfUploadErrors = $errors->has('informe_file')
@@ -33,6 +36,7 @@
             <x-disciplinary.forms.fo-gj-51-preview
                 :workerName="old('fo51_worker_name', $prefillWorkerName ?? '')"
                 :workerDocument="old('fo51_worker_document', $prefillWorkerDocument ?? '')"
+                :municipalitiesGrouped="$municipalitiesGrouped"
             />
             @error('fo51_worker_name')
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>

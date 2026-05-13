@@ -16,3 +16,16 @@
         @apply bg-dash-lift text-slate-100;
     }
 }
+
+.leaflet-container .disciplinary-colombia-map-pin-wrap {
+    background: transparent !important;
+    border: none !important;
+}
+
+.fo51-static {
+    display: inline-block;
+    min-height: 1.1em;
+    padding: 2px 4px;
+    font: inherit;
+    color: #000;
+}

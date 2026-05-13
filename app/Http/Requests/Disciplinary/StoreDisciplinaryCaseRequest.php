@@ -18,6 +18,7 @@ class StoreDisciplinaryCaseRequest extends FormRequest
             'personnel_id' => ['required', 'integer', 'exists:personnel,id'],
             'assigned_lawyer_id' => ['nullable', 'integer', 'exists:users,id'],
             'city' => ['nullable', 'string', 'max:100'],
+            'municipality_code' => ['nullable', 'string', 'size:5', 'exists:colombian_municipalities,municipality_code'],
             'sede' => ['nullable', 'string', 'max:120'],
             'opened_at' => ['nullable', 'date'],
             'summary' => ['nullable', 'string', 'max:5000'],

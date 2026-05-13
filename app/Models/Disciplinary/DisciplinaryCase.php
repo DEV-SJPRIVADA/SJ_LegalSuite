@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
+use App\Models\ColombianMunicipality;
 use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,6 +42,7 @@ class DisciplinaryCase extends Model
         'assigned_operator_id',
         'assigned_planner_id',
         'city',
+        'municipality_code',
         'sede',
         'current_status',
         'current_stage_type',
@@ -157,8 +159,17 @@ class DisciplinaryCase extends Model
         return $query->where('assigned_lawyer_id', $userId);
     }
 
+    public function municipality(): BelongsTo
+    {
+        return $this->belongsTo(ColombianMunicipality::class, 'municipality_code', 'municipality_code');
+    }
+
     public function scopeInCity(Builder $query, string $city): Builder
     {
+        if (preg_match('/^\d{5}$/', $city) === 1) {
+            return $query->where('municipality_code', $city);
+        }
+
         return $query->where('city', $city);
     }
 

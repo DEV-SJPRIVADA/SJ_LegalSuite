@@ -39,12 +39,14 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 
 Además del catálogo jurídico, existe el módulo de **administración de usuarios** en el sidebar (permisos `users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
 
+Quienes tengan **`settings.manage-territory`** ven **Ajustes** en el sidebar: pantalla **`/settings/territorio`** para importar el listado **DIVIPOLA** (municipios con código oficial y coordenadas). Ese catálogo alimenta los **pins del mapa** en el dashboard disciplinario y la vinculación por municipio en los expedientes.
+
 ## ✨ Características principales (módulo Disciplinario)
 
 - **Workflow estricto y validado**: 13 estados, transiciones controladas, plazo de **2 días calendario** para justificar inasistencia a citación (tras constancia).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
 - **Roles y permisos granulares** (Spatie Permission v6): paquetes de permisos técnicos (`admin`, `abogado`, `planeacion`, etc.). En negocio, el **área** es el ámbito organizacional (Jurídica, Operaciones…); **dentro del área** el usuario tiene un **cargo** (supervisor, operador, programador…). Cada cargo enlaza a un rol Spatie vía **`job_positions.permission_role_name`** (configurable en **Usuarios → Organización**). El perfil **`admin`** es aparte: «Administrador de la plataforma» en el formulario de usuario. Más el flag **solo lectura** por usuario.
-- **Dashboard analítico**: donas por **etapa del flujo** (total + **A–F** según `current_stage_type`, vía `DisciplinaryDashboardService::workflowStageDonuts`), más distribución por **tipo de falta**, por **ciudad** y **carga por abogado** (consultas agregadas eficientes).
+- **Dashboard analítico**: donas por **etapa del flujo** (total + **A–F** según `current_stage_type`, vía `DisciplinaryDashboardService::workflowStageDonuts`), más distribución por **tipo de falta**, **mapa Leaflet de Colombia** (límites GADM por departamento y, al acercar zoom, municipios; pins con total de casos por municipio según DIVIPOLA en catálogo) y **carga por abogado** (consultas agregadas eficientes).
 - **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
 
@@ -94,7 +96,7 @@ Sub-nav superior (según permisos): **Inicio | Dashboard | Disciplinarios | (Rev
 
 | Vista | Contenido |
 |---|---|
-| **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. Debajo: barras por **tipo de falta**, dona por **ciudad** y tabla **carga por abogado**. |
+| **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
@@ -160,7 +162,7 @@ Toda transición pasa por `DisciplinaryWorkflowService::transition()` que garant
 
 - **Backend**: Laravel 12, PHP 8.2+, MySQL 8
 - **Autorización**: Spatie Laravel Permission v6
-- **Frontend**: Livewire 3, Alpine.js, Tailwind CSS, ApexCharts
+- **Frontend**: Livewire 3, Alpine.js, Tailwind CSS, ApexCharts, Leaflet (mapa Colombia en dashboard disciplinario)
 - **PDF desde HTML**: Spatie Browsershot + Puppeteer (salida **Letter**); el paquete `barryvdh/laravel-dompdf` permanece disponible para otros usos si se requiere.
 - **Auth**: Laravel Breeze (stack Livewire)
 - **Servidor**: Apache (Laragon en desarrollo)
@@ -185,11 +187,13 @@ app/
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
   Models/
     User.php / Personnel.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
+    ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
     Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51)
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
     UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
     Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService / DisciplinaryInformeSubmissionService (cola FO-GJ-51)
+    Settings/                  ColombianMunicipalityImportService (Excel/CSV DIVIPOLA)
     Personnel/                 Resolución de personal desde identidad del informe
   Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, PersonnelPolicy
   Livewire/
@@ -197,10 +201,11 @@ app/
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail, OrganizationCatalog
     Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
+    Settings/                  TerritoryImport (importación DIVIPOLA / municipios)
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
     Middleware/                must-change-password, ShareUiTheme, ForceRequestRootUrl (URLs con host/puerto de la petición)
-    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente inline/descarga)
+    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente inline/descarga), GeoJSON mapa (`DisciplinaryGeoJsonController`)
     Requests/Disciplinary/     FormRequests (casos + FO-GJ-51: FoGj51ProcessRequest, StoreFoGj51InformePdfRequest)
     Requests/Users/            FormRequests del módulo usuarios
 
@@ -212,6 +217,7 @@ resources/views/
   layouts/app.blade.php        Layout principal con sidebar + topbar + sub-nav
   livewire/
     home.blade.php             Vista del dashboard global
+    settings/                  Ajustes (importación territorio DIVIPOLA)
     disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
     users/                     Listado, detalle y catálogo de organización (áreas/cargos)
     auth/                      force-password-change (primer login)
@@ -273,6 +279,22 @@ Las plantillas que no tienen archivo estático en `public/formatos/disciplinario
 3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT` (detalle en `.env.example`). En Windows suele bastar la detección automática (Laragon en `C:\laragon\bin\nodejs\…`, Chrome en Program Files).
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
+
+### Mapa Colombia (dashboard disciplinario)
+
+1. Descargue los GeoJSON GADM al árbol público del proyecto:
+
+   ```bash
+   php artisan geo:download-colombia-gadm
+   ```
+
+   Dejarán de existir (o actualizarse) **`public/geo/gadm41_COL_1.json`** (departamentos) y **`public/geo/gadm41_COL_2.json`** (municipios).
+
+2. El navegador **no** lee esos archivos solo por ruta estática en todos los despliegues: la aplicación los expone autenticada en **`GET /disciplinary/map-geo/{file}`** (`disciplinary.map-geo`), con lista blanca de los dos nombres anteriores y la misma autorización que ver el dashboard o el listado de casos.
+
+3. El bundle Vite incluye **`resources/js/disciplinary-colombia-map.js`** (Leaflet). El montaje evita inicializar el mapa dos veces en paralelo (p. ej. al refrescar la página). Tras tocar JS o estilos del mapa, ejecute **`npm run build`**.
+
+4. Para **pins** en el mapa hace falta que los expedientes tengan código de municipio acorde al catálogo y que existan coordenadas en **`colombian_municipalities`** (importación en **Ajustes · Territorio**).
 
 ### Probar el workflow end-to-end
 
@@ -350,6 +372,7 @@ disciplinary.create               disciplinary.assign-date
 disciplinary.update               disciplinary.upload-document
 disciplinary.delete               disciplinary.export
 disciplinary.review-inform
+settings.manage-territory
 personnel.view / .manage          users.view / .manage
 ```
 
@@ -367,6 +390,8 @@ La autorización se evalúa en 3 capas:
 |---|---|
 | `GET /dashboard` | **Inicio** (dashboard global con alertas) |
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario |
+| `GET /disciplinary/map-geo/{file}` | Sirve GeoJSON GADM (`gadm41_COL_1.json` \| `gadm41_COL_2.json`); sesión + `viewDashboard` o `viewAny` sobre casos disciplinarios |
+| `GET /settings/territorio` | **Ajustes · Territorio**: importación listado DIVIPOLA; permiso `settings.manage-territory` |
 | `GET /disciplinary/cases` | Listado de casos con filtros |
 | `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
 | `GET /disciplinary/formats/preview/{code}` | Vista previa inline del PDF en blanco (misma fuente que la descarga): archivo en disco o **HTML→PDF Letter** (Browsershot) para códigos como FO-GJ-51; Gate `viewOfficialForms`. |

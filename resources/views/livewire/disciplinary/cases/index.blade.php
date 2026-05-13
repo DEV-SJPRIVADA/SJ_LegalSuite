@@ -106,11 +106,11 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Ciudad</label>
-                        <select wire:model.live="city" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Municipio / ciudad</label>
+                        <select wire:model.live="city" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todas —</option>
-                            @foreach ($this->cities as $c)
-                                <option value="{{ $c }}">{{ $c }}</option>
+                            @foreach ($this->cities as $opt)
+                                <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
                             @endforeach
                         </select>
                     </div>

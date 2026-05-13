@@ -31,6 +31,15 @@
         ];
 
         $modules[] = [
+            'key' => 'settings-territory',
+            'label' => 'Ajustes',
+            'route' => route('settings.territory-import'),
+            'active' => request()->routeIs('settings.*'),
+            'icon' => 'adjustments',
+            'available' => $u->can('settings.manage-territory'),
+        ];
+
+        $modules[] = [
             'key' => 'disciplinary',
             'label' => $u->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
             'route' => $disciplinaryRoute,

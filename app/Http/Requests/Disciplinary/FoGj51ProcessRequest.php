@@ -84,6 +84,15 @@ class FoGj51ProcessRequest extends FormRequest
         ]);
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->sometimes(
+            'fo51_municipality_code',
+            ['required', 'string', 'size:5', Rule::exists('colombian_municipalities', 'municipality_code')],
+            fn () => in_array((string) $this->input('fo51_action'), ['pdf', 'enviar'], true)
+        );
+    }
+
     protected function failedValidation(Validator $validator): void
     {
         $action = (string) $this->input('fo51_action');

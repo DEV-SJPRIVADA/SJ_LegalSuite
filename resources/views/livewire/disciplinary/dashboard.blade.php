@@ -386,104 +386,25 @@
                     @endif
                 </x-dashboard.card>
 
-                <x-dashboard.card title="Casos por ciudad" subtitle="Distribución proporcional · anillos con degradado">
-                    @if (count($byCity) === 0)
-                        <p class="text-sm text-slate-500 dark:text-dash-muted">Aún no hay datos para graficar.</p>
+                <x-dashboard.card title="Casos por ciudad" subtitle="Mapa Colombia · líneas por departamento; al acercar zoom, municipios · pins con total">
+                    <div wire:ignore
+                         id="disciplinary-colombia-map"
+                         class="h-[400px] w-full rounded-xl border border-slate-200/80 bg-slate-950/40 ring-1 ring-cyan-500/15 dark:border-white/10 dark:bg-black/30 dark:ring-fuchsia-500/20 z-0"
+                         data-pins='@json($caseMapPins)'
+                         data-chart-dark="{{ $chartDark ? '1' : '0' }}"
+                         data-geo-dept="{{ route('disciplinary.map-geo', ['file' => 'gadm41_COL_1.json'], absolute: false) }}"
+                         data-geo-mun="{{ route('disciplinary.map-geo', ['file' => 'gadm41_COL_2.json'], absolute: false) }}"
+                         role="presentation"
+                         aria-label="Mapa de casos por municipio en Colombia">
+                    </div>
+                    @if (count($caseMapPins) === 0)
+                        <p class="mt-2 text-xs text-slate-500 dark:text-dash-muted">
+                            Aún no hay casos con municipio (DIVIPOLA) en su alcance: el mapa muestra el territorio; los pins aparecerán cuando existan expedientes con código de municipio y coordenadas en el catálogo de Ajustes.
+                        </p>
                     @else
-                        @php
-                            $cityLabels = collect($byCity)->pluck('city')->all();
-                            $cityValues = collect($byCity)->pluck('total')->all();
-                            $cn = count($cityValues);
-                            $donutTop = ['#22d3ee', '#e879f9', '#fb923c', '#a78bfa', '#34d399', '#f472b6', '#38bdf8', '#fcd34d'];
-                            $donutBot = ['#0e7490', '#86198f', '#c2410c', '#5b21b6', '#14532d', '#9f1239', '#0369a1', '#b45309'];
-                            $donutFrom = [];
-                            $donutTo = [];
-                            for ($i = 0; $i < $cn; $i++) {
-                                $donutFrom[] = $donutTop[$i % count($donutTop)];
-                                $donutTo[] = $donutBot[$i % count($donutBot)];
-                            }
-                        @endphp
-                        <div wire:ignore
-                             x-data="{
-                                chart: null,
-                                init() {
-                                    const chartDark = @json($chartDark);
-                                    const labels = @js($cityLabels);
-                                    const series = @js($cityValues);
-                                    const colorsFrom = @js($donutFrom);
-                                    const colorsTo = @js($donutTo);
-                                    const fg = chartDark ? '#94a3b8' : '#64748b';
-                                    const legendLbl = chartDark ? '#cbd5e1' : '#475569';
-                                    const donutLblName = chartDark ? '#cbd5e1' : '#475569';
-                                    const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
-                                    const donutLblTot = chartDark ? '#8b93b3' : '#64748b';
-                                    const strokeCols = chartDark ? ['rgba(7,8,20,0.95)'] : ['#ffffff'];
-                                    this.chart = new ApexCharts(this.$refs.target, {
-                                        chart: {
-                                            type: 'donut',
-                                            height: 320,
-                                            fontFamily: 'Figtree, ui-sans-serif, system-ui',
-                                            foreColor: fg,
-                                            background: 'transparent',
-                                            dropShadow: chartDark ? {
-                                                enabled: true,
-                                                top: 8,
-                                                blur: 14,
-                                                opacity: 0.28,
-                                                color: '#a78bfa',
-                                            } : { enabled: false },
-                                        },
-                                        theme: { mode: chartDark ? 'dark' : 'light' },
-                                        labels,
-                                        series,
-                                        colors: colorsFrom,
-                                        fill: {
-                                            type: 'gradient',
-                                            gradient: {
-                                                shade: 'dark',
-                                                type: 'horizontal',
-                                                shadeIntensity: chartDark ? 0.7 : 0.55,
-                                                opacityFrom: 1,
-                                                opacityTo: chartDark ? 0.9 : 0.92,
-                                                gradientToColors: colorsTo,
-                                            },
-                                        },
-                                        plotOptions: {
-                                            pie: {
-                                                donut: {
-                                                    size: '68%',
-                                                    labels: {
-                                                        show: true,
-                                                        name: { color: donutLblName },
-                                                        value: { fontWeight: 700, color: donutLblVal },
-                                                        total: {
-                                                            show: true,
-                                                            label: 'Total',
-                                                            color: donutLblTot,
-                                                            formatter: function (w) {
-                                                                return w.globals.seriesTotals.reduce((a, b) => a + b, 0);
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        stroke: { width: chartDark ? 3 : 2, colors: strokeCols },
-                                        legend: {
-                                            position: 'bottom',
-                                            labels: { colors: legendLbl },
-                                            markers: { strokeWidth: 0 },
-                                        },
-                                        tooltip: {
-                                            theme: chartDark ? 'dark' : 'light',
-                                            y: { formatter: (val) => val + ' caso(s)' },
-                                        },
-                                    });
-                                    this.chart.render();
-                                },
-                             }">
-                            <div x-ref="target"></div>
-                        </div>
+                        <p class="mt-2 text-xs text-slate-500 dark:text-dash-muted">
+                            Límites administrativos: GADM (Colombia). Pin en coordenadas del listado DIVIPOLA cargado en Ajustes.
+                        </p>
                     @endif
                 </x-dashboard.card>
             </div>

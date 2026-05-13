@@ -54,7 +54,7 @@ class DisciplinaryCaseController extends Controller
     {
         $case = $this->cases->create(
             $request->user(),
-            $request->only(['personnel_id', 'assigned_lawyer_id', 'city', 'sede', 'opened_at', 'summary']),
+            $request->only(['personnel_id', 'assigned_lawyer_id', 'city', 'municipality_code', 'sede', 'opened_at', 'summary']),
             $request->input('faults', []),
         );
 

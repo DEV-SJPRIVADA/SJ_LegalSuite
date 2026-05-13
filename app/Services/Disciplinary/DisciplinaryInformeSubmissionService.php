@@ -6,6 +6,7 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Enums\Disciplinary\StageType;
+use App\Models\ColombianMunicipality;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryDocument;
 use App\Models\Disciplinary\InformeSubmission;
@@ -133,12 +134,26 @@ class DisciplinaryInformeSubmissionService
 
             $faultPivotRows = FoGj51SnapshotFaultMapper::pivotRowsFromSnapshot($snapshot, $observationsForFaults);
 
+            $munCode = isset($snapshot['fo51_municipality_code']) ? trim((string) $snapshot['fo51_municipality_code']) : '';
+            $municipalityCode = (preg_match('/^\d{5}$/', $munCode) === 1) ? $munCode : null;
+            $cityLabel = null;
+            if ($municipalityCode !== null) {
+                $cityLabel = ColombianMunicipality::query()
+                    ->where('municipality_code', $municipalityCode)
+                    ->value('municipality_name');
+            }
+            if ($cityLabel === null || $cityLabel === '') {
+                $legacy = isset($snapshot['fo51_city']) ? trim((string) $snapshot['fo51_city']) : '';
+                $cityLabel = $legacy !== '' ? Str::limit($legacy, 100) : null;
+            }
+
             $case = $this->cases->create(
                 $submission->submitter,
                 [
                     'personnel_id' => $submission->personnel_id,
                     'assigned_lawyer_id' => null,
-                    'city' => isset($snapshot['fo51_city']) ? Str::limit((string) $snapshot['fo51_city'], 100) : null,
+                    'city' => $cityLabel,
+                    'municipality_code' => $municipalityCode,
                     'sede' => null,
                     'opened_at' => now()->toDateString(),
                     'summary' => Str::limit(trim((string) ($submission->summary ?? $snapshot['fo51_observations'] ?? '')), 5000) ?: null,

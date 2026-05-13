@@ -43,7 +43,7 @@ class StoreFoGj51InformePdfRequest extends FormRequest
             'fo51_report_yyyy' => ['nullable', 'string', 'max:4'],
             'fo51_worker_name' => ['nullable', 'string', 'max:500'],
             'fo51_worker_document' => ['nullable', 'string', 'max:32'],
-            'fo51_city' => ['nullable', 'string', 'max:120'],
+            'fo51_municipality_code' => ['nullable', 'string', 'size:5', Rule::exists('colombian_municipalities', 'municipality_code')],
             'fo51_shift' => ['nullable', 'string', 'max:120'],
             'fo51_position' => ['nullable', 'string', 'max:120'],
             'fo51_fault_left' => ['nullable', 'array'],

@@ -5,6 +5,7 @@ use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineControll
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
+use App\Http\Controllers\Disciplinary\DisciplinaryGeoJsonController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
@@ -16,6 +17,7 @@ use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
 use App\Livewire\Home;
+use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
@@ -34,8 +36,13 @@ Route::middleware(['auth', 'must-change-password'])->group(function () {
 Route::middleware(['auth', 'must-change-password', 'verified'])->group(function () {
     Route::get('dashboard', Home::class)->name('dashboard');
 
+    Route::get('settings/territorio', TerritoryImport::class)->name('settings.territory-import');
+
     Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
         Route::get('dashboard', Dashboard::class)->name('dashboard');
+        Route::get('map-geo/{file}', DisciplinaryGeoJsonController::class)
+            ->where('file', 'gadm41_COL_1\.json|gadm41_COL_2\.json')
+            ->name('map-geo');
         Route::get('formats', FormatsCatalog::class)->name('formats.index');
         Route::get('formats/descarga-en-blanco/{code}', OfficialFormBlankDownloadController::class)
             ->where('code', '[A-Za-z0-9\-]+')

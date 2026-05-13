@@ -35,6 +35,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
             'users.view',
             'users.manage',
+
+            'settings.manage-territory',
         ];
 
         foreach ($permissions as $perm) {

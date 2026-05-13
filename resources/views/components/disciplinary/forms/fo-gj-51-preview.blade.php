@@ -4,6 +4,8 @@
 @props([
     'workerName' => '',
     'workerDocument' => '',
+    /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, array{code: string, name: string}>> */
+    'municipalitiesGrouped' => null,
     'city' => '',
     'shift' => '',
     'position' => '',
@@ -31,12 +33,18 @@
     'jurDd' => '',
     'jurMm' => '',
     'jurYyyy' => '',
+    'renderAsPdf' => false,
 ])
 
 @php
+    use App\Models\ColombianMunicipality;
     use App\Support\Disciplinary\DisciplinaryAssets;
     use App\Support\Disciplinary\FoGj51Catalog;
     use Illuminate\Support\Carbon;
+
+    $municipalitiesGrouped = $municipalitiesGrouped instanceof \Illuminate\Support\Collection
+        ? $municipalitiesGrouped
+        : ColombianMunicipality::groupedByDepartmentForSelect();
 
     $faultLeft = FoGj51Catalog::faultLeft();
     $faultRight = FoGj51Catalog::faultRight();
@@ -370,7 +378,27 @@
                 </tr>
                 <tr>
                     <td class="fo51-lbl-cap">CIUDAD:</td>
-                    <td><input type="text" name="fo51_city" class="fo51-in" value="{{ $city }}"></td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $city }}</span>
+                        @else
+                            <select name="fo51_municipality_code"
+                                class="fo51-in fo51-select-mun"
+                                style="width:100%;max-width:100%;box-sizing:border-box"
+                                @if (! $blankForDownload) required @endif>
+                                <option value="">{{ $blankForDownload ? '—' : '— Elija municipio (DIVIPOLA) —' }}</option>
+                                @foreach ($municipalitiesGrouped as $deptName => $rows)
+                                    <optgroup label="{{ $deptName }}">
+                                        @foreach ($rows as $mun)
+                                            <option value="{{ $mun['code'] }}" @selected(old('fo51_municipality_code', '') === $mun['code'])>
+                                                {{ $mun['name'] }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        @endif
+                    </td>
                     <td class="fo51-lbl-cap">TURNO:</td>
                     <td><input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}"></td>
                     <td class="fo51-lbl-cap">PUESTO:</td>

@@ -11,6 +11,7 @@
 <body>
 <x-disciplinary.forms.fo-gj-51-preview
     :use-auth-preparer="false"
+    :render-as-pdf="true"
     :worker-name="$workerName"
     :worker-document="$workerDocument"
     :city="$city"

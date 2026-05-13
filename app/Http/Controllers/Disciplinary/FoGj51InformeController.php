@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Disciplinary;
 
 use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Http\Requests\Disciplinary\FoGj51ProcessRequest;
+use App\Models\ColombianMunicipality;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
@@ -224,11 +225,16 @@ class FoGj51InformeController
     {
         $embeddedLogo = EmbeddedPublicAsset::disciplinaryLogoDataUri();
 
+        $code = isset($v['fo51_municipality_code']) ? trim((string) $v['fo51_municipality_code']) : '';
+        $cityLabel = $code !== ''
+            ? (string) (ColombianMunicipality::query()->where('municipality_code', $code)->value('municipality_name') ?? '')
+            : '';
+
         return HtmlLetterPdfGenerator::fromView('disciplinary.forms.fo-gj-51-filled-download', [
             'embeddedLogoSrc' => $embeddedLogo,
             'workerName' => $v['fo51_worker_name'] ?? '',
             'workerDocument' => $v['fo51_worker_document'] ?? '',
-            'city' => $v['fo51_city'] ?? '',
+            'city' => $cityLabel,
             'shift' => $v['fo51_shift'] ?? '',
             'position' => $v['fo51_position'] ?? '',
             'faultOtherDetail' => $v['fo51_fault_other_detail'] ?? '',

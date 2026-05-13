@@ -142,16 +142,49 @@ class CasesIndex extends Component
         return Fault::active()->ordered()->get(['id', 'name']);
     }
 
+    /**
+     * @return list<array{value: string, label: string}>
+     */
     #[Computed]
     public function cities(): array
     {
-        return DisciplinaryCase::query()
-            ->forDisciplinaryActor(auth()->user())
+        $actor = auth()->user();
+        $opts = [];
+
+        $coded = DisciplinaryCase::query()
+            ->forDisciplinaryActor($actor)
+            ->whereNotNull('disciplinary_cases.municipality_code')
+            ->join(
+                'colombian_municipalities as m',
+                'disciplinary_cases.municipality_code',
+                '=',
+                'm.municipality_code'
+            )
+            ->select('disciplinary_cases.municipality_code', 'm.municipality_name', 'm.department_name')
+            ->distinct()
+            ->orderBy('m.municipality_name')
+            ->get();
+
+        foreach ($coded as $row) {
+            $opts[] = [
+                'value' => (string) $row->municipality_code,
+                'label' => (string) $row->municipality_name.' · '.(string) $row->department_name,
+            ];
+        }
+
+        $legacyCities = DisciplinaryCase::query()
+            ->forDisciplinaryActor($actor)
+            ->whereNull('municipality_code')
             ->whereNotNull('city')
             ->distinct()
             ->orderBy('city')
-            ->pluck('city')
-            ->all();
+            ->pluck('city');
+
+        foreach ($legacyCities as $c) {
+            $opts[] = ['value' => (string) $c, 'label' => (string) $c.' (texto libre)'];
+        }
+
+        return $opts;
     }
 
     public function render()
