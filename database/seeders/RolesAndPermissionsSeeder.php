@@ -61,7 +61,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $planeacion = Role::firstOrCreate(['name' => 'planeacion', 'guard_name' => 'web']);
         $planeacion->syncPermissions([
             'disciplinary.view',
-            'disciplinary.view-dashboard',
             'disciplinary.assign-date',
             'personnel.view',
             'disciplinary.download-pdf',

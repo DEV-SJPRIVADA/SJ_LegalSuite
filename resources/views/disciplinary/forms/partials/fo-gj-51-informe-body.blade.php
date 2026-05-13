@@ -17,6 +17,20 @@
     $evidenceModalOpenInitially = collect($errors->keys())->contains(fn (string $k): bool => str_starts_with($k, 'evidence_images'));
 @endphp
 
+@if ($municipalitiesGrouped->isEmpty())
+    <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+        <p class="font-semibold">No hay municipios en el catálogo (DIVIPOLA).</p>
+        <p class="mt-1 text-amber-900/90 dark:text-amber-50/90">
+            Sin datos importados, el desplegable <strong>CIUDAD</strong> no mostrará opciones. Quien tenga permiso de ajustes debe importar el archivo oficial en
+            @can('settings.manage-territory')
+                <a href="{{ route('settings.territory-import') }}" class="font-semibold underline underline-offset-2 hover:text-amber-950 dark:hover:text-white">Ajustes → Territorio</a>.
+            @else
+                <span class="font-semibold">Ajustes → Territorio</span> (pida a un administrador que cargue el listado DIVIPOLA).
+            @endcan
+        </p>
+    </div>
+@endif
+
 <div
     class="relative"
     x-data="Object.assign({}, window.evidenceTilesState(), { pdfModalOpen: @js($pdfModalOpenInitially), evidenceModalOpen: @js($evidenceModalOpenInitially) })"

@@ -15,7 +15,8 @@ use App\Models\User;
  * - abogado → sólo casos asignados (si no está en solo lectura); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
- * - planeacion → fechas en etapas (assign-date) y vista completa; responde en hilo de agenda (Etapa A).
+ * - planeacion → sólo listado de casos en etapa Informe con al menos un mensaje del abogado titular en el hilo de agenda;
+ *   sin dashboard ni formatos; al salir de Informe el caso deja de mostrarse.
  * - administrativa / operaciones → informes + evidencias.
  * - Asignar abogado titular: sólo rol `admin` (no solo lectura), vía `assign`.
  * - Hilo agenda Etapa A: `postAgendaLawyer` (abogado asignado), `postAgendaPlanning` (rol planeación o admin explícito).
@@ -80,6 +81,10 @@ class DisciplinaryCasePolicy
 
         if ($user->hasRole('abogado')) {
             return $case->assigned_lawyer_id === $user->id;
+        }
+
+        if ($user->hasRole('planeacion')) {
+            return $case->isVisibleToPlaneacionUser();
         }
 
         if ($user->hasPermissionTo('disciplinary.view')) {
@@ -266,14 +271,18 @@ class DisciplinaryCasePolicy
 
     public function viewDashboard(User $user): bool
     {
-        return $user->hasAnyRole(['auditor', 'abogado', 'planeacion'])
+        if ($user->hasRole('planeacion')) {
+            return false;
+        }
+
+        return $user->hasAnyRole(['auditor', 'abogado'])
             || $user->hasPermissionTo('disciplinary.view-dashboard');
     }
 
     /** Catálogo de formatos FO-GJ (referencia para quien puede consultar expedientes). */
     public function viewOfficialForms(User $user): bool
     {
-        if ($user->isMinimalDisciplinaryPortalUser()) {
+        if ($user->isMinimalDisciplinaryPortalUser() || $user->hasRole('planeacion')) {
             return false;
         }
 

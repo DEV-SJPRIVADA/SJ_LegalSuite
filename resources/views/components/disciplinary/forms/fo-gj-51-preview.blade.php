@@ -46,6 +46,17 @@
         ? $municipalitiesGrouped
         : ColombianMunicipality::groupedByDepartmentForSelect();
 
+    $municipalitiesFlat = [];
+    foreach ($municipalitiesGrouped as $deptName => $rows) {
+        foreach ($rows as $mun) {
+            $municipalitiesFlat[] = [
+                'code' => (string) $mun['code'],
+                'name' => (string) $mun['name'],
+                'dept' => (string) $deptName,
+            ];
+        }
+    }
+
     $faultLeft = FoGj51Catalog::faultLeft();
     $faultRight = FoGj51Catalog::faultRight();
 
@@ -381,22 +392,51 @@
                     <td>
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $city }}</span>
-                        @else
-                            <select name="fo51_municipality_code"
-                                class="fo51-in fo51-select-mun"
-                                style="width:100%;max-width:100%;box-sizing:border-box"
-                                @if (! $blankForDownload) required @endif>
-                                <option value="">{{ $blankForDownload ? '—' : '— Elija municipio (DIVIPOLA) —' }}</option>
-                                @foreach ($municipalitiesGrouped as $deptName => $rows)
-                                    <optgroup label="{{ $deptName }}">
-                                        @foreach ($rows as $mun)
-                                            <option value="{{ $mun['code'] }}" @selected(old('fo51_municipality_code', '') === $mun['code'])>
-                                                {{ $mun['name'] }}
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                @endforeach
+                        @elseif ($blankForDownload ?? false)
+                            <select name="fo51_municipality_code" class="fo51-in fo51-select-mun" style="width:100%;max-width:100%;box-sizing:border-box" aria-hidden="true" tabindex="-1">
+                                <option value="">—</option>
                             </select>
+                        @else
+                            <div
+                                class="relative"
+                                style="width:100%;max-width:100%;box-sizing:border-box"
+                                x-data="window.disciplinaryFo51MunicipalityCombo(@js($municipalitiesFlat), @js(old('fo51_municipality_code', '')), @js(['required' => true]))">
+                                <input type="hidden" name="fo51_municipality_code" x-model="code" required>
+                                <input
+                                    type="text"
+                                    class="fo51-in"
+                                    style="width:100%;max-width:100%;box-sizing:border-box"
+                                    autocomplete="off"
+                                    autocorrect="off"
+                                    autocapitalize="off"
+                                    spellcheck="false"
+                                    placeholder="Escriba para buscar (municipio, departamento o código)…"
+                                    x-model="query"
+                                    @focus="openList()"
+                                    @input="onInput()"
+                                    @blur="onBlur()"
+                                    @keydown="onKeydown($event)"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    :aria-expanded="open ? 'true' : 'false'">
+                                <ul
+                                    x-show="open && (filtered.length > 0 || (query.trim().length >= 1 && filtered.length === 0))"
+                                    x-cloak
+                                    class="absolute left-0 right-0 z-[80] mt-0.5 max-h-60 overflow-auto rounded-md border border-slate-300 bg-white py-1 text-left text-sm text-slate-900 shadow-xl dark:border-white/20 dark:bg-slate-900 dark:text-slate-100"
+                                    role="listbox">
+                                    <template x-for="(it, idx) in filtered" :key="it.code">
+                                        <li
+                                            role="option"
+                                            class="cursor-pointer px-3 py-1.5 hover:bg-indigo-50 dark:hover:bg-white/10"
+                                            :class="{ 'bg-indigo-100 dark:bg-white/15': idx === highlightedIndex }"
+                                            @mousedown.prevent="selectItem(it)"
+                                            x-text="it.name + ' — ' + it.dept + ' (' + it.code + ')'"></li>
+                                    </template>
+                                    <li
+                                        x-show="query.trim().length >= 1 && filtered.length === 0"
+                                        class="px-3 py-2 text-slate-500 dark:text-slate-400">Sin resultados. Ajuste el texto o importe DIVIPOLA en Ajustes → Territorio.</li>
+                                </ul>
+                            </div>
                         @endif
                     </td>
                     <td class="fo51-lbl-cap">TURNO:</td>

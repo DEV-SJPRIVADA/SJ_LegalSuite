@@ -1,4 +1,5 @@
 import './bootstrap';
+import './fo51-municipality-combobox';
 import './disciplinary-planning-composer';
 import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';

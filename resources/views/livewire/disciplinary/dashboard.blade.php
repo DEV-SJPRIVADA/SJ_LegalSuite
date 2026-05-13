@@ -36,12 +36,12 @@
                         ];
                     @endphp
                 <div
-                    class="mb-6 overflow-visible rounded-2xl border border-slate-200 bg-white px-2 pt-1.5 pb-0 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:pt-2 sm:pb-0"
+                    class="mb-6 h-fit w-full self-start overflow-visible rounded-2xl border border-slate-200 bg-white px-2 pt-1.5 pb-0 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:backdrop-blur-sm dark:ring-0 sm:px-3 sm:pt-2 sm:pb-0"
                     aria-label="Distribución de casos por etapa del flujo"
                 >
-                    <div class="grid w-full min-w-0 grid-cols-2 items-start gap-3 overflow-visible sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-7 lg:gap-2 xl:gap-3">
-                        <div class="flex min-w-0 w-full flex-col">
-                            <p class="mb-1 shrink-0 px-0.5 text-center leading-snug" title="Total de casos en su alcance">
+                    <div class="grid w-full min-w-0 auto-rows-auto grid-cols-2 content-start items-start gap-3 overflow-visible sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-7 lg:gap-2 xl:gap-3">
+                        <div class="flex h-fit min-w-0 w-full flex-col self-start">
+                            <p class="mb-0.5 shrink-0 px-0.5 text-center leading-snug" title="Total de casos en su alcance">
                                 <span class="block text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300 sm:text-[11px]">Total</span>
                                 <span class="mt-0.5 block text-[9px] font-medium text-slate-500 dark:text-dash-muted sm:text-[10px]">Alcance</span>
                             </p>
@@ -52,7 +52,7 @@
                                     init() {
                                         const chartDark = @json($chartDark);
                                         const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                        const chartH = lg ? 208 : 176;
+                                        const chartH = lg ? 182 : 156;
                                         const fg = chartDark ? '#94a3b8' : '#64748b';
                                         const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
                                         const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
@@ -68,6 +68,7 @@
                                                 height: chartH,
                                                 width: '100%',
                                                 offsetY: 0,
+                                                parentHeightOffset: 0,
                                                 fontFamily: 'Figtree, ui-sans-serif, system-ui',
                                                 foreColor: fg,
                                                 background: 'transparent',
@@ -96,8 +97,8 @@
                                             },
                                             plotOptions: {
                                                 pie: {
-                                                    offsetY: -4,
-                                                    customScale: 0.97,
+                                                    offsetY: -10,
+                                                    customScale: 1,
                                                     expandOnClick: false,
                                                     donut: {
                                                         size: '70%',
@@ -115,7 +116,7 @@
                                                                 color: donutLblVal,
                                                                 fontSize: '24px',
                                                                 fontWeight: 700,
-                                                                offsetY: 6,
+                                                                offsetY: 2,
                                                             },
                                                             total: {
                                                                 show: true,
@@ -145,7 +146,7 @@
                                  }"
                                     wire:key="workflow-donut-total"
                                 >
-                                    <div x-ref="el" class="h-[176px] w-full min-w-0 lg:h-[208px]"></div>
+                                    <div x-ref="el" class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
                                 </div>
                             </div>
                         </div>
@@ -164,8 +165,8 @@
                                 $restFill = $chartDark ? 'rgba(51,65,85,0.55)' : '#e2e8f0';
                                 $restFillTo = $chartDark ? 'rgba(30,41,59,0.85)' : '#cbd5e1';
                             @endphp
-                            <div class="flex min-w-0 w-full flex-col" wire:key="workflow-donut-{{ $letter }}">
-                                <p class="mb-1 shrink-0 px-0.5 text-center leading-snug" title="{{ $st['title'] }} (etapa {{ $letter }})">
+                            <div class="flex h-fit min-w-0 w-full flex-col self-start" wire:key="workflow-donut-{{ $letter }}">
+                                <p class="mb-0.5 shrink-0 px-0.5 text-center leading-snug" title="{{ $st['title'] }} (etapa {{ $letter }})">
                                     <span class="block text-[10px] font-bold tabular-nums sm:text-[11px] {{ $letterClass }}">{{ $letter }}</span>
                                     <span class="mt-0.5 line-clamp-2 block text-[9px] font-medium text-slate-600 dark:text-slate-400 sm:text-[10px]">{{ $st['title'] }}</span>
                                 </p>
@@ -176,7 +177,7 @@
                                         init() {
                                             const chartDark = @json($chartDark);
                                             const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                            const chartH = lg ? 208 : 176;
+                                            const chartH = lg ? 182 : 156;
                                             const fg = chartDark ? '#94a3b8' : '#64748b';
                                             const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
                                             const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
@@ -196,6 +197,7 @@
                                                     height: chartH,
                                                     width: '100%',
                                                     offsetY: 0,
+                                                    parentHeightOffset: 0,
                                                     fontFamily: 'Figtree, ui-sans-serif, system-ui',
                                                     foreColor: fg,
                                                     background: 'transparent',
@@ -224,8 +226,8 @@
                                                 },
                                                 plotOptions: {
                                                     pie: {
-                                                        offsetY: -4,
-                                                        customScale: 0.97,
+                                                        offsetY: -10,
+                                                        customScale: 1,
                                                         expandOnClick: false,
                                                         donut: {
                                                             size: '70%',
@@ -243,7 +245,7 @@
                                                                     color: donutLblVal,
                                                                     fontSize: '24px',
                                                                     fontWeight: 700,
-                                                                    offsetY: 6,
+                                                                    offsetY: 2,
                                                                 },
                                                                 total: {
                                                                     show: true,
@@ -272,7 +274,7 @@
                                         },
                                      }"
                                     >
-                                        <div x-ref="el" class="h-[176px] w-full min-w-0 lg:h-[208px]"></div>
+                                        <div x-ref="el" class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
                                     </div>
                                 </div>
                             </div>

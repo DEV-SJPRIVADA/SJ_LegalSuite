@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Caso disciplinario. Es la raíz del agregado.
@@ -195,6 +196,32 @@ class DisciplinaryCase extends Model
     }
 
     /**
+     * Planeación: expedientes en etapa Informe donde el abogado titular ya escribió al menos un mensaje en el hilo de agenda.
+     * Si el caso sale de Informe, deja de aparecer en el listado de planeación.
+     */
+    public function scopeForPlaneacionInbox(Builder $query): Builder
+    {
+        return $query
+            ->where('disciplinary_cases.current_status', CaseStatus::INFORME->value)
+            ->whereNotNull('disciplinary_cases.assigned_lawyer_id')
+            ->whereExists(function ($sub) {
+                $sub->select(DB::raw('1'))
+                    ->from('disciplinary_agenda_messages as dam')
+                    ->join('disciplinary_agenda_threads as dat', 'dam.thread_id', '=', 'dat.id')
+                    ->whereColumn('dat.disciplinary_case_id', 'disciplinary_cases.id')
+                    ->whereColumn('dam.user_id', 'disciplinary_cases.assigned_lawyer_id');
+            });
+    }
+
+    public function isVisibleToPlaneacionUser(): bool
+    {
+        return static::query()
+            ->whereKey($this->getKey())
+            ->forPlaneacionInbox()
+            ->exists();
+    }
+
+    /**
      * Alcance de casos visibles según rol: el perfil `abogado` (sin `admin`)
      * sólo ve procesos donde es el abogado asignado. Supervisores y operadores ven
      * el pool (expedientes ya formalizados, distintos de borrador), sin titular fijo.
@@ -215,6 +242,10 @@ class DisciplinaryCase extends Model
 
         if ($user->hasRole('programador')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
+        }
+
+        if ($user->hasRole('planeacion')) {
+            return $query->forPlaneacionInbox();
         }
 
         return $query;

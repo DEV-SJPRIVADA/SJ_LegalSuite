@@ -8,7 +8,7 @@
         $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
 
-    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel)) {
+    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel) && ! auth()->user()->hasRole('planeacion')) {
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
@@ -40,7 +40,9 @@
         $links[] = ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false];
     }
 
-    $links[] = ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true];
+    if (! auth()->user()->hasRole('planeacion')) {
+        $links[] = ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true];
+    }
 
     $header = $isDark
         ? 'border-b border-white/10 bg-dash-ink/85 backdrop-blur-md sticky top-0 z-20'

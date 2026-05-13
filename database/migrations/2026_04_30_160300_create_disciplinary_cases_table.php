@@ -36,6 +36,8 @@ return new class extends Migration
                 ->constrained('users')->nullOnDelete();
 
             $table->string('city', 100)->nullable();
+            $table->string('municipality_code', 5)->nullable()->index()
+                ->comment('Código DIVIPOLA municipio (5 dígitos); coordenadas en colombian_municipalities');
             $table->string('sede', 120)->nullable();
 
             $table->string('current_status', 40)->index();
