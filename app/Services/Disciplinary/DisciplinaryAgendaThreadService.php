@@ -3,14 +3,19 @@
 namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Events\Disciplinary\AgendaThreadMessagePosted;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\OrganizationalArea;
 use App\Models\User;
+use App\Notifications\DisciplinaryAgendaLawyerMessageNotification;
+use App\Notifications\DisciplinaryAgendaPlanningMessageNotification;
+use App\Support\Broadcasting\PusherBroadcasting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 class DisciplinaryAgendaThreadService
@@ -87,11 +92,23 @@ class DisciplinaryAgendaThreadService
                 ]);
             }
 
-            return DisciplinaryAgendaMessage::create([
+            $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $lawyer->id,
                 'body' => $body,
             ]);
+
+            $this->notifyPlanningUsersOfLawyerMessage(
+                $case->fresh(['personnel']),
+                $thread,
+                $message,
+                $lawyer,
+            );
+
+            $caseKey = (int) $case->getKey();
+            DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));
+
+            return $message;
         });
     }
 
@@ -122,7 +139,7 @@ class DisciplinaryAgendaThreadService
             throw new \InvalidArgumentException('Escriba un mensaje o adjunte al menos un archivo.');
         }
 
-        return DB::transaction(function () use ($actor, $body, $attachments, $thread) {
+        return DB::transaction(function () use ($case, $actor, $body, $attachments, $thread) {
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $actor->id,
@@ -140,8 +157,87 @@ class DisciplinaryAgendaThreadService
                 $thread->forceFill(['planning_replied_at' => now()])->save();
             }
 
-            return $message->fresh(['attachments']);
+            $message = $message->fresh(['attachments']);
+
+            $this->notifyLawyerOfPlanningMessage($case->fresh(['personnel']), $message, $actor);
+
+            $caseKey = (int) $case->getKey();
+            DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));
+
+            return $message;
         });
+    }
+
+    private function notifyPlanningUsersOfLawyerMessage(
+        DisciplinaryCase $case,
+        DisciplinaryAgendaThread $thread,
+        DisciplinaryAgendaMessage $message,
+        User $lawyer,
+    ): void {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->where('read_only', false)
+            ->role('planeacion')
+            ->where('organizational_area_id', $thread->organizational_area_id)
+            ->whereKeyNot($lawyer->id)
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            $recipients = User::query()
+                ->where('is_active', true)
+                ->where('read_only', false)
+                ->role('planeacion')
+                ->whereKeyNot($lawyer->id)
+                ->get();
+        }
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send(
+            $recipients,
+            new DisciplinaryAgendaLawyerMessageNotification($case, $message)
+        );
+    }
+
+    private function notifyLawyerOfPlanningMessage(
+        DisciplinaryCase $case,
+        DisciplinaryAgendaMessage $message,
+        User $actor,
+    ): void {
+        $lawyerId = $case->assigned_lawyer_id;
+        if (! $lawyerId || (int) $lawyerId === (int) $actor->id) {
+            return;
+        }
+
+        $lawyerUser = User::query()
+            ->whereKey($lawyerId)
+            ->where('is_active', true)
+            ->where('read_only', false)
+            ->first();
+
+        if (! $lawyerUser instanceof User) {
+            return;
+        }
+
+        Notification::send(
+            $lawyerUser,
+            new DisciplinaryAgendaPlanningMessageNotification($case, $message)
+        );
+    }
+
+    private function broadcastCaseAgendaIfEnabled(int $disciplinaryCaseId): void
+    {
+        if (! PusherBroadcasting::isEnabled()) {
+            return;
+        }
+
+        try {
+            broadcast(new AgendaThreadMessagePosted($disciplinaryCaseId));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function storeAttachment(DisciplinaryAgendaMessage $message, UploadedFile $file): void

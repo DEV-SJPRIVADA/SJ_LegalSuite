@@ -1,4 +1,4 @@
-<div>
+<div data-live-case-id="{{ $case->id }}" wire:key="case-detail-{{ $case->id }}">
     @push('module-nav')
         <x-disciplinary.nav />
     @endpush

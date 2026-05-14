@@ -1,4 +1,11 @@
+import ApexCharts from 'apexcharts';
+
+/** Global para gráficas en Blade/Alpine (incl. `wire:navigate`: `@stack('scripts')` no re-ejecuta el vendor). */
+window.ApexCharts = ApexCharts;
+
 import './bootstrap';
+import './echo-notification-bell';
+import './notification-bell-sound';
 import './fo51-municipality-combobox';
 import './disciplinary-planning-composer';
 import './agenda-attachment-lightbox';

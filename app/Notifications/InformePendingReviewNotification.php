@@ -3,27 +3,21 @@
 namespace App\Notifications;
 
 use App\Models\Disciplinary\InformeSubmission;
+use App\Support\Notifications\BroadcastsInAppDatabaseNotification;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Notification;
 
 /**
  * Quienes tienen permiso de revisión de informes FO-GJ-51 (salvo exclusión explícita del remitente).
  */
-class InformePendingReviewNotification extends Notification
+class InformePendingReviewNotification extends Notification implements ShouldBroadcastNow
 {
-    use Queueable;
+    use BroadcastsInAppDatabaseNotification, Queueable;
 
     public function __construct(
         public InformeSubmission $submission,
     ) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     /**
      * @return array<string, mixed>

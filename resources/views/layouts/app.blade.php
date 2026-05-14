@@ -14,6 +14,19 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        @auth
+            @if (\App\Support\Broadcasting\PusherBroadcasting::isEnabled())
+                <script>
+                    window.__appBroadcasting = {
+                        userId: {{ auth()->id() }},
+                        key: @json((string) config('broadcasting.connections.pusher.key')),
+                        cluster: @json((string) config('broadcasting.connections.pusher.options.cluster', 'mt1')),
+                        forceTls: @json((bool) (config('broadcasting.connections.pusher.options.useTLS') ?? true)),
+                    };
+                </script>
+            @endif
+        @endauth
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     @php

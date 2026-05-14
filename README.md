@@ -96,7 +96,7 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 
 | Vista | Contenido |
 |---|---|
-| **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
+| **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. ApexCharts se expone desde **Vite** (`resources/js/app.js` → `window.ApexCharts`) para compatibilidad con **`wire:navigate`**; el montaje en Blade **espera ancho de contenedor** antes de `render()` para evitar errores SVG (`NaN`). Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** solo ve casos en etapa **Informe** con al menos un **mensaje del abogado titular** en el hilo de agenda; al cambiar de etapa el caso deja de listarse. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). En **CIUDAD** (FO-GJ-51) el municipio DIVIPOLA se elige con **búsqueda al escribir** (Alpine + `resources/js/fo51-municipality-combobox.js`); el catálogo proviene de **Ajustes → Territorio**. |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
@@ -162,7 +162,8 @@ Toda transición pasa por `DisciplinaryWorkflowService::transition()` que garant
 
 - **Backend**: Laravel 12, PHP 8.2+, MySQL 8
 - **Autorización**: Spatie Laravel Permission v6
-- **Frontend**: Livewire 3, Alpine.js, Tailwind CSS, ApexCharts, Leaflet (mapa Colombia en dashboard disciplinario)
+- **Frontend**: Livewire 3, Alpine.js, Tailwind CSS, ApexCharts (global vía Vite), Leaflet (mapa Colombia en dashboard disciplinario)
+- **Broadcasting**: [Pusher Channels](https://pusher.com/channels) + Laravel Echo (`resources/js/echo-notification-bell.js`); `BROADCAST_CONNECTION=pusher` y credenciales `PUSHER_*` en `.env` para campanita y canales privados de agenda (sin servidor WebSocket propio en Laragon).
 - **PDF desde HTML**: Spatie Browsershot + Puppeteer (salida **Letter**); el paquete `barryvdh/laravel-dompdf` permanece disponible para otros usos si se requiere.
 - **Auth**: Laravel Breeze (stack Livewire)
 - **Servidor**: Apache (Laragon en desarrollo)
@@ -177,10 +178,9 @@ app/
   Exceptions/Disciplinary/     InvalidStateTransitionException
   Workflow/Disciplinary/       TransitionMap (única fuente de verdad)
   Support/
-    Disciplinary/
-      OfficialFormsCatalog.php   Catálogo FO-GJ / etapas A–F + códigos con PDF HTML (Letter)
-      DisciplinaryAssets.php    Ruta única del logo público (`images/logo solo.png`)
-      FoGj51Catalog.php          Textos fijos FO-GJ-51 (validación + vista)
+    Disciplinary/              OfficialFormsCatalog, DisciplinaryAssets, FoGj51Catalog, …
+    Broadcasting/              PusherBroadcasting (Echo solo si `BROADCAST_CONNECTION=pusher` y credenciales completas)
+    Notifications/             Trait BroadcastsInAppDatabaseNotification (canal `broadcast` además de `database` cuando Pusher está activo)
     Pdf/
       HtmlLetterPdfGenerator.php HTML → PDF tamaño Letter (Browsershot)
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
@@ -208,6 +208,9 @@ app/
     Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente inline/descarga), GeoJSON mapa (`DisciplinaryGeoJsonController`)
     Requests/Disciplinary/     FormRequests (casos + FO-GJ-51: FoGj51ProcessRequest, StoreFoGj51InformePdfRequest)
     Requests/Users/            FormRequests del módulo usuarios
+
+routes/
+  channels.php               Canales privados broadcasting (`App.Models.User.*`, `disciplinary.case.*`)
 
 database/
   migrations/                  Disciplinario + Spatie + extensión `users` (contacto, `read_only`, `must_change_password`, `theme`, soft deletes, FK a áreas/cargos), tablas **`organizational_areas`** y **`job_positions`** (columna **`permission_role_name`**), notificaciones, etc. En **`disciplinary_cases`**, el código DIVIPOLA del municipio está en **`municipality_code`** (misma migración de creación de la tabla en el repo).
@@ -269,6 +272,17 @@ php artisan migrate --seed
 npm install
 npm run build
 ```
+
+### Broadcasting (Pusher Channels, opcional)
+
+Para **notificaciones en la campanita** y eventos en canales privados (`App.Models.User.{id}`, `disciplinary.case.{id}`) sin Reverb ni puertos WebSocket locales:
+
+1. Cree una app en el [panel de Pusher](https://dashboard.pusher.com/) y copie **App ID**, **Key**, **Secret** y **Cluster** (en `.env`, `PUSHER_APP_CLUSTER` debe coincidir con el del panel, p. ej. `us2`).
+2. En `.env`: `BROADCAST_CONNECTION=pusher` y `PUSHER_APP_ID`, `PUSHER_APP_KEY`, `PUSHER_APP_SECRET`, `PUSHER_APP_CLUSTER`.
+3. En la app de Pusher, autorice el **origen** desde el que se usa la suite (p. ej. `http://172.16.16.90:8082`) para que `POST /broadcasting/auth` no falle por CORS.
+4. Sin credenciales puede usar `BROADCAST_CONNECTION=log` o `null`: la UI sigue con **polling** de respaldo en la campanita.
+
+Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 ### PDF disciplinarios (HTML → tamaño carta / Letter)
 
@@ -334,11 +348,13 @@ En el **mismo PC Laragon**, **SJ_Armory** atiende el **puerto 80** y **SJ_LegalS
 | **SJ_Armory** | 80 | `http://172.16.16.90` |
 | **SJ_LegalSuite** | 8082 | `http://172.16.16.90:8082` |
 
+En el mismo Laragon suelen existir otros proyectos en **8080** y **8081**; el tiempo casi real con **Pusher** no requiere abrir un puerto WebSocket adicional en el PC (el navegador se conecta a la nube de Pusher).
+
 La IP (`172.16.16.90` en el ejemplo) es la del **equipo donde corre Laragon**; si DHCP asigna otra, use esa IP con **`:8082`**. El `.env` de LegalSuite usa **`APP_URL=http://172.16.16.90:8082`**, paralelo a Armory (`APP_URL=http://172.16.16.90`). Con **`APP_USE_REQUEST_URL=true`**, si entran con otro host/IP válido, Laravel genera enlaces con esa misma base.
 
 **Importante:** incluya **`http://`** y **`:8082`** para LegalSuite. En **Android**, el nombre `SJPCANAOPE1` puede **no resolverse**; use la **IP** como cuando abren Armory.
 
-Apache (misma forma que `00-aaa-sj_armory.conf`, otro puerto): `C:\laragon\etc\apache2\sites-enabled\00-aac-sj_legalsuite.conf`. **`SESSION_DOMAIN`** vacío, como en Armory.
+Apache (misma forma que `00-aaa-sj_armory.conf`, otro puerto): `C:\laragon\etc\apache2\sites-enabled\00-aac-sj_legalsuite.conf` (HTTP de esta app en **8082**). **`SESSION_DOMAIN`** vacío, como en Armory.
 
 ### Si no carga desde otro equipo o el móvil
 

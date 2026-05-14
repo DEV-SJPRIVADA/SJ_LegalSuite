@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -91,6 +92,12 @@ class CaseDetail extends Component
         if (auth()->user()->isDisciplinaryProgramador()) {
             $this->activeTab = 'timeline';
         }
+    }
+
+    #[On('agenda-thread-refresh')]
+    public function refreshAgendaThreadFromBroadcast(): void
+    {
+        $this->syncCaseFromDb();
     }
 
     public function setTab(string $tab): void

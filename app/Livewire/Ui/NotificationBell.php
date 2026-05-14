@@ -5,16 +5,67 @@ namespace App\Livewire\Ui;
 use App\Models\User;
 use App\Support\Notifications\InAppNotificationFeed;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Notifications\DatabaseNotification;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class NotificationBell extends Component
 {
     public bool $open = false;
 
+    public int $unreadCount = 0;
+
+    /** @var Collection<int, DatabaseNotification> */
+    public $recent;
+
+    /** Último conteo de no leídas (para sonido al subir). */
+    public int $lastUnreadSnapshot = 0;
+
+    public function mount(): void
+    {
+        $viewer = auth()->user();
+        $this->unreadCount = InAppNotificationFeed::unreadCountFor($viewer);
+        $this->lastUnreadSnapshot = $this->unreadCount;
+        $this->recent = InAppNotificationFeed::queryFor($viewer)
+            ->limit(20)
+            ->get();
+    }
+
+    #[On('notifications-updated')]
+    public function onBroadcastNotification(): void
+    {
+        $this->syncInbox();
+    }
+
+    /**
+     * Polling de respaldo (p. ej. sin Pusher) y refresco tras broadcast.
+     */
+    public function syncInbox(): void
+    {
+        $viewer = auth()->user();
+        $count = InAppNotificationFeed::unreadCountFor($viewer);
+
+        if ($count > $this->lastUnreadSnapshot) {
+            $this->js('window.sjPlayNotificationBellSound && window.sjPlayNotificationBellSound()');
+        }
+        $this->lastUnreadSnapshot = $count;
+        $this->unreadCount = $count;
+
+        if ($this->open) {
+            $this->recent = InAppNotificationFeed::queryFor($viewer)
+                ->limit(20)
+                ->get();
+        }
+    }
+
     public function toggle(): void
     {
         $this->open = ! $this->open;
+
+        if ($this->open) {
+            $this->loadRecentList();
+        }
     }
 
     public function close(): void
@@ -22,11 +73,20 @@ class NotificationBell extends Component
         $this->open = false;
     }
 
+    public function loadRecentList(): void
+    {
+        $viewer = auth()->user();
+        $this->recent = InAppNotificationFeed::queryFor($viewer)
+            ->limit(20)
+            ->get();
+    }
+
     public function markOneRead(string $id): void
     {
         $notification = DatabaseNotification::query()->whereKey($id)->firstOrFail();
         $this->ensureCanInteract($notification);
         $notification->markAsRead();
+        $this->syncInbox();
     }
 
     public function openAndMark(string $id): void
@@ -56,6 +116,7 @@ class NotificationBell extends Component
         }
 
         $viewer->unreadNotifications()->update(['read_at' => now()]);
+        $this->syncInbox();
     }
 
     private function ensureCanInteract(DatabaseNotification $notification): void
@@ -77,16 +138,8 @@ class NotificationBell extends Component
 
     public function render(): View
     {
-        $viewer = auth()->user();
-        $unreadCount = InAppNotificationFeed::unreadCountFor($viewer);
-        $recent = InAppNotificationFeed::queryFor($viewer)
-            ->limit(20)
-            ->get();
-
         return view('livewire.ui.notification-bell', [
-            'unreadCount' => $unreadCount,
-            'recent' => $recent,
-            'viewerIsAdmin' => InAppNotificationFeed::adminSeesEveryonesNotifications($viewer),
+            'viewerIsAdmin' => InAppNotificationFeed::adminSeesEveryonesNotifications(auth()->user()),
         ]);
     }
 }

@@ -50,23 +50,42 @@
                                     x-data="{
                                     chart: null,
                                     init() {
-                                        const chartDark = @json($chartDark);
-                                        const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                        const chartH = lg ? 182 : 156;
-                                        const fg = chartDark ? '#94a3b8' : '#64748b';
-                                        const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
-                                        const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
-                                        const wTotalVal = @js($wTotal);
-                                        const hair = chartDark ? 'rgba(15,23,42,0.28)' : 'rgba(255,255,255,0.55)';
-                                        const strokeCols = [hair, hair];
-                                        const tFrom = @js($totalNeon['from']);
-                                        const tTo = @js($totalNeon['to']);
-                                        const tShadow = @js($totalNeon['shadow']);
-                                        this.chart = new ApexCharts(this.$refs.el, {
+                                        const el = this.$refs.el;
+                                        let tries = 0;
+                                        const mount = () => {
+                                            tries++;
+                                            const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
+                                            if (!el || w < 32) {
+                                                if (tries < 48) {
+                                                    requestAnimationFrame(mount);
+                                                }
+                                                return;
+                                            }
+                                            if (this.chart) {
+                                                try {
+                                                    this.chart.destroy();
+                                                } catch (e) {
+                                                }
+                                                this.chart = null;
+                                            }
+                                            const chartW = Math.max(96, w);
+                                            const chartDark = @json($chartDark);
+                                            const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+                                            const chartH = lg ? 182 : 156;
+                                            const fg = chartDark ? '#94a3b8' : '#64748b';
+                                            const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
+                                            const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
+                                            const wTotalVal = @js($wTotal);
+                                            const hair = chartDark ? 'rgba(15,23,42,0.28)' : 'rgba(255,255,255,0.55)';
+                                            const strokeCols = [hair, hair];
+                                            const tFrom = @js($totalNeon['from']);
+                                            const tTo = @js($totalNeon['to']);
+                                            const tShadow = @js($totalNeon['shadow']);
+                                            this.chart = new ApexCharts(el, {
                                             chart: {
                                                 type: 'donut',
                                                 height: chartH,
-                                                width: '100%',
+                                                width: chartW,
                                                 offsetY: 0,
                                                 parentHeightOffset: 0,
                                                 fontFamily: 'Figtree, ui-sans-serif, system-ui',
@@ -142,6 +161,8 @@
                                             },
                                         });
                                         this.chart.render();
+                                        };
+                                        requestAnimationFrame(mount);
                                     },
                                  }"
                                     wire:key="workflow-donut-total"
@@ -175,27 +196,46 @@
                                         x-data="{
                                         chart: null,
                                         init() {
-                                            const chartDark = @json($chartDark);
-                                            const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
-                                            const chartH = lg ? 182 : 156;
-                                            const fg = chartDark ? '#94a3b8' : '#64748b';
-                                            const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
-                                            const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
-                                            const hair = chartDark ? 'rgba(15,23,42,0.28)' : 'rgba(255,255,255,0.55)';
-                                            const strokeCols = [hair, hair];
-                                            const rest = @js($rest);
-                                            const active = @js($active);
-                                            const pct = @js($pctLbl.'%');
-                                            const cFrom = @js($from);
-                                            const cTo = @js($to);
-                                            const cShadow = @js($shadow);
-                                            const restFill = @js($restFill);
-                                            const restFillTo = @js($restFillTo);
-                                            this.chart = new ApexCharts(this.$refs.el, {
+                                            const el = this.$refs.el;
+                                            let tries = 0;
+                                            const mount = () => {
+                                                tries++;
+                                                const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
+                                                if (!el || w < 32) {
+                                                    if (tries < 48) {
+                                                        requestAnimationFrame(mount);
+                                                    }
+                                                    return;
+                                                }
+                                                if (this.chart) {
+                                                    try {
+                                                        this.chart.destroy();
+                                                    } catch (e) {
+                                                    }
+                                                    this.chart = null;
+                                                }
+                                                const chartW = Math.max(96, w);
+                                                const chartDark = @json($chartDark);
+                                                const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+                                                const chartH = lg ? 182 : 156;
+                                                const fg = chartDark ? '#94a3b8' : '#64748b';
+                                                const donutLblTot = chartDark ? '#cbd5e1' : '#64748b';
+                                                const donutLblVal = chartDark ? '#f8fafc' : '#0f172a';
+                                                const hair = chartDark ? 'rgba(15,23,42,0.28)' : 'rgba(255,255,255,0.55)';
+                                                const strokeCols = [hair, hair];
+                                                const rest = @js($rest);
+                                                const active = @js($active);
+                                                const pct = @js($pctLbl.'%');
+                                                const cFrom = @js($from);
+                                                const cTo = @js($to);
+                                                const cShadow = @js($shadow);
+                                                const restFill = @js($restFill);
+                                                const restFillTo = @js($restFillTo);
+                                                this.chart = new ApexCharts(el, {
                                                 chart: {
                                                     type: 'donut',
                                                     height: chartH,
-                                                    width: '100%',
+                                                    width: chartW,
                                                     offsetY: 0,
                                                     parentHeightOffset: 0,
                                                     fontFamily: 'Figtree, ui-sans-serif, system-ui',
@@ -271,6 +311,8 @@
                                                 },
                                             });
                                             this.chart.render();
+                                            };
+                                            requestAnimationFrame(mount);
                                         },
                                      }"
                                     >
@@ -310,18 +352,38 @@
                              x-data="{
                                 chart: null,
                                 init() {
-                                    const chartDark = @json($chartDark);
-                                    const data = @js($faultValues);
-                                    const cats = @js($faultLabels);
-                                    const colorsFrom = @js($faultFrom);
-                                    const colorsTo = @js($faultTo);
-                                    const fg = chartDark ? '#94a3b8' : '#64748b';
-                                    const grid = chartDark ? 'rgba(148,163,184,0.1)' : '#e2e8f0';
-                                    const lbl = chartDark ? '#8b93b3' : '#475569';
-                                    this.chart = new ApexCharts(this.$refs.target, {
+                                    const el = this.$refs.target;
+                                    let tries = 0;
+                                    const mount = () => {
+                                        tries++;
+                                        const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
+                                        if (!el || w < 64) {
+                                            if (tries < 48) {
+                                                requestAnimationFrame(mount);
+                                            }
+                                            return;
+                                        }
+                                        if (this.chart) {
+                                            try {
+                                                this.chart.destroy();
+                                            } catch (e) {
+                                            }
+                                            this.chart = null;
+                                        }
+                                        const chartW = Math.max(200, w);
+                                        const chartDark = @json($chartDark);
+                                        const data = (@js($faultValues)).map((v) => Number(v) || 0);
+                                        const cats = @js($faultLabels);
+                                        const colorsFrom = @js($faultFrom);
+                                        const colorsTo = @js($faultTo);
+                                        const fg = chartDark ? '#94a3b8' : '#64748b';
+                                        const grid = chartDark ? 'rgba(148,163,184,0.1)' : '#e2e8f0';
+                                        const lbl = chartDark ? '#8b93b3' : '#475569';
+                                        this.chart = new ApexCharts(el, {
                                         chart: {
                                             type: 'bar',
                                             height: 320,
+                                            width: chartW,
                                             toolbar: { show: false },
                                             fontFamily: 'Figtree, ui-sans-serif, system-ui',
                                             foreColor: fg,
@@ -381,9 +443,11 @@
                                         },
                                     });
                                     this.chart.render();
+                                    };
+                                    requestAnimationFrame(mount);
                                 },
                              }">
-                            <div x-ref="target"></div>
+                            <div x-ref="target" class="min-h-[320px] w-full min-w-0"></div>
                         </div>
                     @endif
                 </x-dashboard.card>
@@ -448,7 +512,4 @@
         </div>
     </div>
 
-    @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
-    @endpush
 </div>

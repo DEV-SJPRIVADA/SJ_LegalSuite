@@ -3,26 +3,20 @@
 namespace App\Notifications;
 
 use App\Models\Disciplinary\InformeSubmission;
+use App\Support\Notifications\BroadcastsInAppDatabaseNotification;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Notification;
 
 /** Notifica al usuario que elaboró/envió el informe. */
-class InformeRejectedNotification extends Notification
+class InformeRejectedNotification extends Notification implements ShouldBroadcastNow
 {
-    use Queueable;
+    use BroadcastsInAppDatabaseNotification, Queueable;
 
     public function __construct(
         public InformeSubmission $submission,
         public ?string $notes = null,
     ) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     /**
      * @return array<string, mixed>
