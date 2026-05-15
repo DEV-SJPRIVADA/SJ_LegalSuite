@@ -82,14 +82,15 @@
                 <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
                     <div class="lg:col-span-2 xl:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Buscador</label>
-                        <input type="search" wire:model.live.debounce.350ms="search"
+                        <label for="dcf-case-search" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Buscador</label>
+                        <input id="dcf-case-search" name="dcf_case_search" type="search" wire:model.live.debounce.350ms="search"
                             placeholder="N° de caso, nombre, documento..."
-                            class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            autocomplete="off"
+                            class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Estado</label>
-                        <select wire:model.live="status" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label for="dcf-case-status" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Estado</label>
+                        <select id="dcf-case-status" name="dcf_case_status" wire:model.live="status" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todos —</option>
                             @foreach ($statuses as $s)
                                 <option value="{{ $s->value }}">{{ $s->label() }}</option>
@@ -97,8 +98,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Abogado</label>
-                        <select wire:model.live="lawyerId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label for="dcf-case-lawyer" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Abogado</label>
+                        <select id="dcf-case-lawyer" name="dcf_case_lawyer" wire:model.live="lawyerId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todos —</option>
                             @foreach ($this->lawyers as $u)
                                 <option value="{{ $u->id }}">{{ $u->name }}</option>
@@ -106,8 +107,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Municipio / ciudad</label>
-                        <select wire:model.live="city" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                        <label for="dcf-case-city" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Municipio / ciudad</label>
+                        <select id="dcf-case-city" name="dcf_case_city" wire:model.live="city" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todas —</option>
                             @foreach ($this->cities as $opt)
                                 <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
@@ -115,8 +116,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Falta</label>
-                        <select wire:model.live="faultId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label for="dcf-case-fault" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Falta</label>
+                        <select id="dcf-case-fault" name="dcf_case_fault" wire:model.live="faultId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todas —</option>
                             @foreach ($this->faults as $f)
                                 <option value="{{ $f->id }}">{{ $f->name }}</option>
@@ -124,12 +125,12 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Desde</label>
-                        <input type="date" wire:model.live="from" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label for="dcf-case-from" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Desde</label>
+                        <input id="dcf-case-from" name="dcf_case_from" type="date" wire:model.live="from" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Hasta</label>
-                        <input type="date" wire:model.live="to" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        <label for="dcf-case-to" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Hasta</label>
+                        <input id="dcf-case-to" name="dcf_case_to" type="date" wire:model.live="to" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                     </div>
                     <div class="flex items-end">
                         <button type="button" wire:click="clearFilters"
@@ -141,10 +142,11 @@
                 </div>
             @else
                 <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Buscador</label>
-                    <input type="search" wire:model.live.debounce.350ms="search"
+                    <label for="dcf-case-search-min" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Buscador</label>
+                    <input id="dcf-case-search-min" name="dcf_case_search_min" type="search" wire:model.live.debounce.350ms="search"
                         placeholder="N° de caso, nombre, documento..."
-                        class="w-full max-w-md rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                        autocomplete="off"
+                        class="w-full max-w-md rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                 </div>
             @endunless
             <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">

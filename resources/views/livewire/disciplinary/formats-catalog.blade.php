@@ -111,7 +111,7 @@
             <div class="mx-auto flex w-full max-w-6xl flex-shrink-0 flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/10"
                  style="height: calc(100vh - 5rem); height: calc(100dvh - 5rem); max-height: calc(100dvh - 5rem);"
                  wire:key="pdf-modal-{{ $activeFormPreview }}"
-                 wire:click.stop
+                 x-on:click.stop
                  x-data="{ pdfReady: false }">
                 <header class="flex flex-none items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10">
                     <div>

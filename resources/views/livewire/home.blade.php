@@ -82,6 +82,34 @@
                              x-data="{
                                 chart: null,
                                 init() {
+                                    const el = this.$refs.target;
+                                    let tries = 0;
+                                    const mount = () => {
+                                        tries++;
+                                        if (!el || !el.isConnected) {
+                                            if (tries < 72) {
+                                                requestAnimationFrame(mount);
+                                            }
+                                            return;
+                                        }
+                                        const wRaw = Math.max(
+                                            el.offsetWidth || 0,
+                                            el.getBoundingClientRect?.().width || 0,
+                                        );
+                                        const w = Number.isFinite(wRaw) ? Math.floor(wRaw) : 0;
+                                        if (w < 64 && tries < 72) {
+                                            requestAnimationFrame(mount);
+                                            return;
+                                        }
+                                        if (this.chart) {
+                                            try {
+                                                delete el._apexChart;
+                                                this.chart.destroy();
+                                            } catch (e) {
+                                            }
+                                            this.chart = null;
+                                        }
+                                        const chartW = Math.max(200, w || 320);
                                     const chartDark = @json($chartDark);
                                     const values = @js($trendValues);
                                     const labels = @js($trendLabels);
@@ -93,6 +121,7 @@
                                         chart: {
                                             type: 'bar',
                                             height: 352,
+                                            width: chartW,
                                             toolbar: { show: false },
                                             zoom: { enabled: false },
                                             fontFamily: 'Figtree, ui-sans-serif, system-ui',
@@ -179,11 +208,26 @@
                                             },
                                         },
                                     };
-                                    this.chart = new ApexCharts(this.$refs.target, opts);
+                                    this.chart = new ApexCharts(el, opts);
                                     this.chart.render();
+                                    el._apexChart = this.chart;
+                                    requestAnimationFrame(() => {
+                                        try {
+                                            this.chart.resize();
+                                        } catch (e) {
+                                        }
+                                    });
+                                    setTimeout(() => {
+                                        try {
+                                            this.chart.resize();
+                                        } catch (e) {
+                                        }
+                                    }, 120);
+                                    };
+                                    requestAnimationFrame(() => requestAnimationFrame(mount));
                                 },
                              }">
-                            <div x-ref="target" class="min-h-[360px]"></div>
+                            <div x-ref="target" data-apex-chart-root class="min-h-[360px] w-full min-w-0"></div>
                         </div>
                     @endif
                 </x-dashboard.card>

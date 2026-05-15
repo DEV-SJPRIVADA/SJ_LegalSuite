@@ -3,6 +3,22 @@ import 'leaflet/dist/leaflet.css';
 
 const ZOOM_MUNICIPALITIES = 8;
 
+/** Algunas builds/contextos de Leaflet no exponen `bringToFront` en todas las capas; evitar TypeError en consola. */
+function safeBringToFront(layer) {
+    if (!layer) {
+        return;
+    }
+    const fn = layer.bringToFront;
+    if (typeof fn !== 'function') {
+        return;
+    }
+    try {
+        fn.call(layer);
+    } catch {
+        //
+    }
+}
+
 /**
  * @param {string|null} pathOrUrl
  */
@@ -198,9 +214,9 @@ export async function mountDisciplinaryColombiaMap(el) {
                             style: () => neonMunStyle(dark),
                             interactive: false,
                         }).addTo(map);
-                        munLayer.bringToFront();
+                        safeBringToFront(munLayer);
                     }
-                    markers.forEach((mk) => mk.bringToFront());
+                    markers.forEach((mk) => safeBringToFront(mk));
                 } else if (munLayer) {
                     map.removeLayer(munLayer);
                     munLayer = null;

@@ -11,6 +11,7 @@ use App\Policies\InformeSubmissionPolicy;
 use App\Policies\PersonnelPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +33,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        /*
+         * Laravel @vite inserta <link rel="preload" as="style"> además del stylesheet.
+         * Con Livewire (wire:navigate) Chrome suele advertir «preloaded but not used» en bucle.
+         * El stylesheet normal basta; el preload de CSS no aporta y ensucia la consola.
+         */
+        Vite::usePreloadTagAttributes(function (?string $src, string $url, ?array $chunk, ?array $manifest) {
+            if (preg_match('/\.(css|less|sass|scss|pcss|postcss)(\?[^.]*)?$/i', $url) === 1) {
+                return false;
+            }
+
+            return [];
+        });
+
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }

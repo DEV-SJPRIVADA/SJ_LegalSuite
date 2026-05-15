@@ -54,21 +54,30 @@
                                         let tries = 0;
                                         const mount = () => {
                                             tries++;
-                                            const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
-                                            if (!el || w < 32) {
-                                                if (tries < 48) {
+                                            if (!el || !el.isConnected) {
+                                                if (tries < 72) {
                                                     requestAnimationFrame(mount);
                                                 }
                                                 return;
                                             }
+                                            const wRaw = Math.max(
+                                                el.offsetWidth || 0,
+                                                el.getBoundingClientRect?.().width || 0,
+                                            );
+                                            const w = Number.isFinite(wRaw) ? Math.floor(wRaw) : 0;
+                                            if (w < 32 && tries < 72) {
+                                                requestAnimationFrame(mount);
+                                                return;
+                                            }
                                             if (this.chart) {
                                                 try {
+                                                    delete el._apexChart;
                                                     this.chart.destroy();
                                                 } catch (e) {
                                                 }
                                                 this.chart = null;
                                             }
-                                            const chartW = Math.max(96, w);
+                                            const chartW = Math.max(96, w || 140);
                                             const chartDark = @json($chartDark);
                                             const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
                                             const chartH = lg ? 182 : 156;
@@ -161,13 +170,26 @@
                                             },
                                         });
                                         this.chart.render();
+                                        el._apexChart = this.chart;
+                                        requestAnimationFrame(() => {
+                                            try {
+                                                this.chart.resize();
+                                            } catch (e) {
+                                            }
+                                        });
+                                        setTimeout(() => {
+                                            try {
+                                                this.chart.resize();
+                                            } catch (e) {
+                                            }
+                                        }, 120);
                                         };
-                                        requestAnimationFrame(mount);
+                                        requestAnimationFrame(() => requestAnimationFrame(mount));
                                     },
                                  }"
                                     wire:key="workflow-donut-total"
                                 >
-                                    <div x-ref="el" class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
+                                    <div x-ref="el" data-apex-chart-root class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
                                 </div>
                             </div>
                         </div>
@@ -200,21 +222,30 @@
                                             let tries = 0;
                                             const mount = () => {
                                                 tries++;
-                                                const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
-                                                if (!el || w < 32) {
-                                                    if (tries < 48) {
+                                                if (!el || !el.isConnected) {
+                                                    if (tries < 72) {
                                                         requestAnimationFrame(mount);
                                                     }
                                                     return;
                                                 }
+                                                const wRaw = Math.max(
+                                                    el.offsetWidth || 0,
+                                                    el.getBoundingClientRect?.().width || 0,
+                                                );
+                                                const w = Number.isFinite(wRaw) ? Math.floor(wRaw) : 0;
+                                                if (w < 32 && tries < 72) {
+                                                    requestAnimationFrame(mount);
+                                                    return;
+                                                }
                                                 if (this.chart) {
                                                     try {
+                                                        delete el._apexChart;
                                                         this.chart.destroy();
                                                     } catch (e) {
                                                     }
                                                     this.chart = null;
                                                 }
-                                                const chartW = Math.max(96, w);
+                                                const chartW = Math.max(96, w || 140);
                                                 const chartDark = @json($chartDark);
                                                 const lg = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
                                                 const chartH = lg ? 182 : 156;
@@ -311,12 +342,25 @@
                                                 },
                                             });
                                             this.chart.render();
+                                            el._apexChart = this.chart;
+                                            requestAnimationFrame(() => {
+                                                try {
+                                                    this.chart.resize();
+                                                } catch (e) {
+                                                }
+                                            });
+                                            setTimeout(() => {
+                                                try {
+                                                    this.chart.resize();
+                                                } catch (e) {
+                                                }
+                                            }, 120);
                                             };
-                                            requestAnimationFrame(mount);
+                                            requestAnimationFrame(() => requestAnimationFrame(mount));
                                         },
                                      }"
                                     >
-                                        <div x-ref="el" class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
+                                        <div x-ref="el" data-apex-chart-root class="h-[156px] w-full min-w-0 shrink-0 lg:h-[182px]"></div>
                                     </div>
                                 </div>
                             </div>
@@ -356,21 +400,30 @@
                                     let tries = 0;
                                     const mount = () => {
                                         tries++;
-                                        const w = Math.floor((el && el.getBoundingClientRect().width) || 0);
-                                        if (!el || w < 64) {
-                                            if (tries < 48) {
+                                        if (!el || !el.isConnected) {
+                                            if (tries < 72) {
                                                 requestAnimationFrame(mount);
                                             }
                                             return;
                                         }
+                                        const wRaw = Math.max(
+                                            el.offsetWidth || 0,
+                                            el.getBoundingClientRect?.().width || 0,
+                                        );
+                                        const w = Number.isFinite(wRaw) ? Math.floor(wRaw) : 0;
+                                        if (w < 64 && tries < 72) {
+                                            requestAnimationFrame(mount);
+                                            return;
+                                        }
                                         if (this.chart) {
                                             try {
+                                                delete el._apexChart;
                                                 this.chart.destroy();
                                             } catch (e) {
                                             }
                                             this.chart = null;
                                         }
-                                        const chartW = Math.max(200, w);
+                                        const chartW = Math.max(200, w || 280);
                                         const chartDark = @json($chartDark);
                                         const data = (@js($faultValues)).map((v) => Number(v) || 0);
                                         const cats = @js($faultLabels);
@@ -443,11 +496,24 @@
                                         },
                                     });
                                     this.chart.render();
+                                    el._apexChart = this.chart;
+                                    requestAnimationFrame(() => {
+                                        try {
+                                            this.chart.resize();
+                                        } catch (e) {
+                                        }
+                                    });
+                                    setTimeout(() => {
+                                        try {
+                                            this.chart.resize();
+                                        } catch (e) {
+                                        }
+                                    }, 120);
                                     };
-                                    requestAnimationFrame(mount);
+                                    requestAnimationFrame(() => requestAnimationFrame(mount));
                                 },
                              }">
-                            <div x-ref="target" class="min-h-[320px] w-full min-w-0"></div>
+                            <div x-ref="target" data-apex-chart-root class="min-h-[320px] w-full min-w-0"></div>
                         </div>
                     @endif
                 </x-dashboard.card>

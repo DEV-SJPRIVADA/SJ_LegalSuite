@@ -1,3 +1,5 @@
+import '../css/app.css';
+
 import ApexCharts from 'apexcharts';
 
 /** Global para gráficas en Blade/Alpine (incl. `wire:navigate`: `@stack('scripts')` no re-ejecuta el vendor). */
@@ -11,6 +13,9 @@ import './disciplinary-planning-composer';
 import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';
 import './informe-pdf-preview-lightbox';
+import { registerApexChartsLivewireHooks } from './apex-charts-lifecycle';
+
+registerApexChartsLivewireHooks();
 
 function setupDisciplinaryColombiaMap() {
     const el = document.getElementById('disciplinary-colombia-map');

@@ -1,4 +1,4 @@
-<div class="relative" wire:poll.5s="syncInbox">
+<div class="relative" wire:poll.visible.5s="syncInbox">
     @php
         $bellAccent = $unreadCount > 0
             ? 'ring-2 ring-offset-2 ring-indigo-400 dark:ring-cyan-500 ring-offset-white dark:ring-offset-dash-void'
