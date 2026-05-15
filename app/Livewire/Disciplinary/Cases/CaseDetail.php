@@ -69,7 +69,7 @@ class CaseDetail extends Component
 
     public string $lawyerConfirmTargetName = '';
 
-    /** Solicitud de agenda (Etapa A) — abogado */
+    /** Coordinación citación FO-GJ-03 — solicitud abogado ↔ planeación */
     public string $agendaLawyerBody = '';
 
     public ?int $agendaOrganizationalAreaId = null;
@@ -328,7 +328,7 @@ class CaseDetail extends Component
 
         $this->reset('agendaLawyerBody', 'agendaOrganizationalAreaId');
         $this->syncCaseFromDb();
-        session()->flash('success', 'Mensaje publicado en el hilo de solicitud de agenda.');
+        session()->flash('success', 'Solicitud enviada a planeación (hilo de citación FO-GJ-03).');
     }
 
     public function postAgendaPlanning(DisciplinaryAgendaThreadService $agenda): void
@@ -410,12 +410,19 @@ class CaseDetail extends Component
     {
         $this->case = $this->case->fresh([
             'personnel',
-            'reporter:id,name',
+            'reporter:id,name,job_position_id,position',
+            'reporter.jobPosition:id,name',
             'assignedLawyer:id,name',
+            'informeSubmission.submitter:id,name,job_position_id,position',
+            'informeSubmission.submitter.jobPosition:id,name',
+            'informeSubmission.reviewer:id,name,job_position_id,position',
+            'informeSubmission.reviewer.jobPosition:id,name',
             'faults',
             'stages.performer:id,name',
-            'documents.uploader:id,name',
-            'actions.user:id,name',
+            'documents.uploader:id,name,job_position_id,position',
+            'documents.uploader.jobPosition:id,name',
+            'actions.user:id,name,job_position_id,position',
+            'actions.user.jobPosition:id,name',
             'actions.stage:id,stage_type',
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
@@ -437,12 +444,19 @@ class CaseDetail extends Component
 
         $this->case->load([
             'personnel',
-            'reporter:id,name',
+            'reporter:id,name,job_position_id,position',
+            'reporter.jobPosition:id,name',
             'assignedLawyer:id,name',
+            'informeSubmission.submitter:id,name,job_position_id,position',
+            'informeSubmission.submitter.jobPosition:id,name',
+            'informeSubmission.reviewer:id,name,job_position_id,position',
+            'informeSubmission.reviewer.jobPosition:id,name',
             'faults',
             'stages.performer:id,name',
-            'documents.uploader:id,name',
-            'actions.user:id,name',
+            'documents.uploader:id,name,job_position_id,position',
+            'documents.uploader.jobPosition:id,name',
+            'actions.user:id,name,job_position_id,position',
+            'actions.user.jobPosition:id,name',
             'actions.stage:id,stage_type',
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
@@ -473,8 +487,6 @@ class CaseDetail extends Component
                 ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
             'organizationalAreasForAgenda' => $agendaAreas,
-            'agendaGateBlocksCitacion' => $this->case->current_status === CaseStatus::INFORME
-                && ! $this->case->hasAgendaPlanningReply(),
         ]);
     }
 

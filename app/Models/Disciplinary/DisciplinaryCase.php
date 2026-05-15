@@ -124,8 +124,37 @@ class DisciplinaryCase extends Model
     }
 
     /**
-     * Etapa A → B: exige respuesta de planeación en el hilo de agenda (primera intervención del lado planeación).
+     * Envío FO-GJ-51 que originó este expediente (tras autorización queda vinculado por disciplinary_case_id).
      */
+    public function informeSubmission(): HasOne
+    {
+        return $this->hasOne(InformeSubmission::class, 'disciplinary_case_id');
+    }
+
+    /**
+     * Estados en los que opera el hilo de coordinación citación FO-GJ-03 (abogado ↔ planeación).
+     */
+    public static function statusesAllowingAgendaCoordination(): array
+    {
+        return [
+            CaseStatus::CITACION_PROGRAMADA,
+            CaseStatus::REPROGRAMADO,
+        ];
+    }
+
+    /**
+     * Hilo chat con planeación: sólo etapa citación / reprogramación y con titular asignado.
+     */
+    public function allowsAgendaThread(): bool
+    {
+        if ($this->assigned_lawyer_id === null) {
+            return false;
+        }
+
+        return in_array($this->current_status, self::statusesAllowingAgendaCoordination(), true);
+    }
+
+    /** Indica si planeación ya intervino en el hilo (métricas / UX). */
     public function hasAgendaPlanningReply(): bool
     {
         return $this->agendaThread?->hasPlanningReply() ?? false;
@@ -196,13 +225,14 @@ class DisciplinaryCase extends Model
     }
 
     /**
-     * Planeación: expedientes en etapa Informe donde el abogado titular ya escribió al menos un mensaje en el hilo de agenda.
-     * Si el caso sale de Informe, deja de aparecer en el listado de planeación.
+     * Planeación (bandeja tipo informes/agendas): citación o reprogramación con mensaje inicial del abogado en el hilo.
      */
     public function scopeForPlaneacionInbox(Builder $query): Builder
     {
+        $statuses = array_map(static fn (CaseStatus $s) => $s->value, self::statusesAllowingAgendaCoordination());
+
         return $query
-            ->where('disciplinary_cases.current_status', CaseStatus::INFORME->value)
+            ->whereIn('disciplinary_cases.current_status', $statuses)
             ->whereNotNull('disciplinary_cases.assigned_lawyer_id')
             ->whereExists(function ($sub) {
                 $sub->select(DB::raw('1'))

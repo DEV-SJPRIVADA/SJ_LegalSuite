@@ -52,13 +52,6 @@ class DisciplinaryWorkflowService
             throw InvalidStateTransitionException::notAllowed($from, $to);
         }
 
-        if ($from === CaseStatus::INFORME && $to === CaseStatus::CITACION_PROGRAMADA) {
-            $case->loadMissing('agendaThread');
-            if (! $case->hasAgendaPlanningReply()) {
-                throw InvalidStateTransitionException::agendaPlanningReplyRequired();
-            }
-        }
-
         return DB::transaction(function () use (
             $case, $from, $to, $actor, $note, $context, $stageType, $scheduledAt, $deadlineAt,
         ) {

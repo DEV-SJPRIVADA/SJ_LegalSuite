@@ -110,10 +110,12 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 | Vista | Contenido |
 |---|---|
 | **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. ApexCharts se expone desde **Vite** (`resources/js/app.js` → `window.ApexCharts`) para compatibilidad con **`wire:navigate`**; el montaje en Blade **espera ancho de contenedor** antes de `render()` para evitar errores SVG (`NaN`). Entre páginas, **`resources/js/apex-charts-lifecycle.js`** destruye/recicla las instancias al navegar para no duplicar morfos en el DOM. Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
-| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** solo ve casos en etapa **Informe** con al menos un **mensaje del abogado titular** en el hilo de agenda; al cambiar de etapa el caso deja de listarse. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). En **CIUDAD** (FO-GJ-51) el municipio DIVIPOLA se elige con **búsqueda al escribir** (Alpine + `resources/js/fo51-municipality-combobox.js`); el catálogo proviene de **Ajustes → Territorio**. |
+| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** ve casos en **citación o reprogramación** con al menos un **mensaje inicial del abogado titular** en el hilo de coordinación con planeación (FO-GJ-03). **Etapa A (Informe):** el titular **no** chatea con planeación; tras revisar el caso pasa a citación o archiva. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). En **CIUDAD** (FO-GJ-51) el municipio DIVIPOLA se elige con **búsqueda al escribir** (Alpine + `resources/js/fo51-municipality-combobox.js`); el catálogo proviene de **Ajustes → Territorio**. |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
-| **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición |
+| **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición. **Tarjeta «Etapa A»** (Información, estado **Informe** y titular asignado): fila 1 **Etapa A** + botón **Ver informe (PDF)**; fila 2 trazabilidad del envío a revisión e incorporación del PDF con **fecha/hora Colombia** (`America/Bogota`); fila 3 **Autorización y creación del caso** — cargo y nombre de quien **autoriza** el FO-GJ-51 y genera el expediente (`InformeSubmission` vía `DisciplinaryCase::informeSubmission()`); fila 4 **Revisión y asignación** — cargo y nombre de quien registra la asignación del titular (última actuación **`CASO_ASIGNADO`** en `disciplinary_actions`), abogado asignado y fecha Colombia. En ese escenario no se duplica el recuadro índigo del PDF. **Hilo agenda / planeación (FO-GJ-03):** activo solo en **citación** o **reprogramación** (`allowsAgendaThread()`); en Informe, mensajes antiguos del hilo en solo lectura. |
 | **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Si existe archivo estático en `public/formatos/disciplinarios/{código}.pdf`, tiene prioridad; si no (p. ej. **FO-GJ-51**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
+
+**Disciplinario — agenda Etapa B:** `DisciplinaryCase::statusesAllowingAgendaCoordination()` limita el chat abogado ↔ planeación a **citación** y **reprogramación**; `DisciplinaryWorkflowService` no exige respuesta de planeación para pasar de **Informe** a **citación**. Políticas y `DisciplinaryAgendaThreadService` usan `allowsAgendaThread()`.
 
 ### Módulo Usuarios
 
@@ -133,7 +135,7 @@ Etapas normativas SJ (referencia):
 
 | Etapa | Contenido |
 | --- | --- |
-| **A** | Falta e informe disciplinario — **FO-GJ-51** |
+| **A** | Falta e informe disciplinario — **FO-GJ-51**. La coordinación de fechas con planeación (**FO-GJ-03**, chat e imágenes) corresponde a la **Etapa B** (citación / reprogramación), no al estado Informe. |
 | **B** | Citación a diligencia disciplinaria por escrito — **FO-GJ-03**. Si no asiste: constancia de inasistencia y **2 días calendario** para justificar; si justifica → reprogramación (**FO-GJ-54**); si no → comité disciplinario para decisión |
 | **C** | Diligencia disciplinaria y acta — **FO-GJ-42** |
 | **D** | Comunicado de la decisión de sanción o cierre del proceso |
@@ -201,7 +203,7 @@ app/
   Models/
     User.php / Personnel.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
-    Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51)
+    Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51); `DisciplinaryCase::informeSubmission()` enlaza el envío autorizado al expediente
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
     UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
@@ -338,7 +340,7 @@ Esto crea un caso ficticio y lo recorre por las 8 transiciones del workflow, val
 | `admin@sjlegalsuite.local` | admin | Control total del sistema |
 | `admin.consulta@sjlegalsuite.local` | admin | Misma visión que admin pero **solo lectura** (consulta sin cambios) |
 | `abogado@sjlegalsuite.local` | abogado | Solo casos donde figura como abogado asignado |
-| `planeacion@sjlegalsuite.local` | planeacion | Listado «Informes»: sólo casos en etapa **Informe** con mensaje del abogado en hilo de agenda; **assign-date**; sin dashboard ni formatos |
+| `planeacion@sjlegalsuite.local` | planeacion | Listado disciplinarios: sólo casos en **citación/reprogramación** con mensaje del titular en hilo FO-GJ-03 ↔ planeación; **assign-date**; sin dashboard ni formatos |
 | `administrativa@sjlegalsuite.local` | administrativa | Crear informes y cargar evidencias |
 | `auditor@sjlegalsuite.local` | auditor | Consulta + exportación disciplinaria |
 | `operaciones@sjlegalsuite.local` | operaciones | Crear casos + subir evidencias |
@@ -411,7 +413,7 @@ La autorización se evalúa en 3 capas:
 2. **FormRequests** — `authorize()` delega al Policy.
 3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar y del sub-nav disciplinario).
 
-**Planeación (`planeacion`):** además de lo anterior, el alcance de expedientes en listados y KPIs usa `DisciplinaryCase::forPlaneacionInbox()` (etapa **Informe**, abogado asignado y mensaje del titular en el hilo de agenda). El detalle del caso aplica la misma regla en `DisciplinaryCasePolicy::view`.
+**Planeación (`planeacion`):** el alcance de expedientes en listados usa `DisciplinaryCase::forPlaneacionInbox()` (**citación o reprogramación**, abogado asignado y mensaje inicial del titular en el hilo). El detalle del caso para ese rol usa la misma regla en `DisciplinaryCasePolicy::view`.
 
 ## 📊 Endpoints
 

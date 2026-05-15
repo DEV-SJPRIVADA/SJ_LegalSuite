@@ -9,7 +9,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-/** Nuevo mensaje en el hilo de solicitud de agenda (Etapa A); los clientes suscritos al caso refrescan Livewire. */
+/** Nuevo mensaje en el hilo de coordinación citación (abogado ↔ planeación, FO-GJ-03). */
 class AgendaThreadMessagePosted implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;

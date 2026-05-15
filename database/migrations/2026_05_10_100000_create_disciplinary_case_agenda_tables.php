@@ -5,8 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Hilo de solicitud de agenda (Etapa A): abogado ↔ planeación/programador, con adjuntos.
- * `planning_replied_at` marca la primera respuesta del lado planeación (requisito para pasar a citación).
+ * Hilo de coordinación entre abogado titular y planeación (citación FO-GJ-03 / reprogramación), con adjuntos.
+ * `planning_replied_at` marca la primera respuesta del lado planeación.
  */
 return new class extends Migration
 {

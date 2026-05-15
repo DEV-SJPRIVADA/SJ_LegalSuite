@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 
@@ -15,11 +14,11 @@ use App\Models\User;
  * - abogado → sólo casos asignados (si no está en solo lectura); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
- * - planeacion → sólo listado de casos en etapa Informe con al menos un mensaje del abogado titular en el hilo de agenda;
- *   sin dashboard ni formatos; al salir de Informe el caso deja de mostrarse.
+ * - planeacion → listado «informes»: casos en citación o reprogramación con mensaje inicial del titular en el hilo FO-GJ-03 ↔ planeación;
+ *   sin dashboard ni formatos; al salir de esos estados el caso deja de mostrarse allí (según alcance dinámico).
  * - administrativa / operaciones → informes + evidencias.
  * - Asignar abogado titular: sólo rol `admin` (no solo lectura), vía `assign`.
- * - Hilo agenda Etapa A: `postAgendaLawyer` (abogado asignado), `postAgendaPlanning` (rol planeación o admin explícito).
+ * - Hilo agenda (citación / reprogramación): `postAgendaLawyer` (abogado titular), `postAgendaPlanning` (planeación o admin sin atajo `before`).
  */
 class DisciplinaryCasePolicy
 {
@@ -181,14 +180,14 @@ class DisciplinaryCasePolicy
         return $user->hasPermissionTo('disciplinary.assign-planner');
     }
 
-    /** Solicitud de agenda (Etapa A): mensajes del abogado titular. */
+    /** Coordinación FO-GJ-03 / fechas: mensajes del titular desde citación o reprogramación. */
     public function postAgendaLawyer(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
             return false;
         }
 
-        if ($case->current_status !== CaseStatus::INFORME || $case->assigned_lawyer_id === null) {
+        if (! $case->allowsAgendaThread()) {
             return false;
         }
 
@@ -202,7 +201,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($case->current_status !== CaseStatus::INFORME || $case->assigned_lawyer_id === null) {
+        if (! $case->allowsAgendaThread()) {
             return false;
         }
 

@@ -2,7 +2,6 @@
 
 namespace App\Services\Disciplinary;
 
-use App\Enums\Disciplinary\CaseStatus;
 use App\Events\Disciplinary\AgendaThreadMessagePosted;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
@@ -43,7 +42,7 @@ class DisciplinaryAgendaThreadService
 
     public function canUseAgendaThread(DisciplinaryCase $case): bool
     {
-        return $case->current_status === CaseStatus::INFORME && $case->assigned_lawyer_id !== null;
+        return $case->allowsAgendaThread();
     }
 
     /**
@@ -61,7 +60,7 @@ class DisciplinaryAgendaThreadService
         }
 
         if (! $this->canUseAgendaThread($case)) {
-            throw new \RuntimeException('El hilo de agenda sólo aplica en etapa informe con abogado asignado.');
+            throw new \RuntimeException('El hilo con planeación sólo está disponible en citación o reprogramación, con abogado titular asignado.');
         }
 
         if ($attachments !== []) {
@@ -126,7 +125,7 @@ class DisciplinaryAgendaThreadService
         }
 
         if (! $this->canUseAgendaThread($case)) {
-            throw new \RuntimeException('El hilo de agenda sólo aplica en etapa informe con abogado asignado.');
+            throw new \RuntimeException('El hilo con planeación sólo está disponible en citación o reprogramación, con abogado titular asignado.');
         }
 
         $thread = $case->agendaThread;
