@@ -4,6 +4,9 @@
 @props([
     'workerName' => '',
     'workerDocument' => '',
+    'workerCargo' => '',
+    'employeeId' => '',
+    'enableEmployeeLookup' => true,
     /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, array{code: string, name: string}>> */
     'municipalitiesGrouped' => null,
     'city' => '',
@@ -93,35 +96,19 @@
 
     $faultRightCount = count($faultRight);
     $faultRows = max(count($faultLeft), $faultRightCount + 1);
+
+    $resolvedMetaDate = ucfirst(
+        Carbon::now()->timezone(config('app.timezone', 'America/Bogota'))->locale('es')->translatedFormat('F \d\e Y')
+    );
 @endphp
 
 <style>
-    .fo51-wrap {
-        /* 100% del área útil: evita desborde horizontal vs @page margin Letter + segunda hoja en blanco en Chrome. */
+    /* Cuerpo FO-GJ-51 (encabezado grilla vía official-letter-pdf-shell). */
+    .fo51-body-blocks {
         width: 100%;
         max-width: 100%;
         min-width: 0;
         box-sizing: border-box;
-        margin: 0 auto;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 10px;
-        line-height: 1.25;
-        color: #000;
-        background: #fff;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-    .fo51-page {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.38in 0.44in 0.34in;
-        background: #fff;
-        /*
-          Importante: NO usar min-height: 11in aquí. El PDF ya aplica @page { margin }
-          en Letter; forzar 11in dentro del body supera la altura imprimible y Chromium
-          agrega una segunda página en blanco.
-        */
-        min-height: 0;
     }
     /* Cada bloque = una grilla propia + hueco debajo */
     .fo51-block {
@@ -153,62 +140,6 @@
         font-size: 9px;
         text-align: left;
     }
-    .fo51-logo-cell {
-        width: 102px;
-        max-width: 102px;
-        text-align: center;
-        vertical-align: middle;
-        padding: 6px !important;
-    }
-    /* Marco rectangular: el PNG corporativo no debe recortarse en círculo (overflow + radius). */
-    .fo51-logo-ring {
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #000;
-        padding: 4px;
-        box-sizing: border-box;
-        max-width: 94px;
-    }
-    .fo51-logo-ring img {
-        max-width: 100%;
-        max-height: 72px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        display: block;
-    }
-    .fo51-title {
-        text-align: center;
-        font-size: 13px;
-        font-weight: bold;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        padding: 10px 8px !important;
-        vertical-align: middle !important;
-    }
-    .fo51-meta {
-        width: 112px;
-        padding: 0 !important;
-        vertical-align: top;
-    }
-    .fo51-meta table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 9px;
-    }
-    .fo51-meta td {
-        border: 1px solid #000;
-        padding: 3px 5px;
-        text-align: center;
-        font-weight: normal;
-        text-transform: none;
-    }
-    .fo51-meta td.fo51-code {
-        font-family: ui-monospace, monospace;
-        font-weight: bold;
-    }
     .fo51-in {
         width: 100%;
         border: none !important;
@@ -223,6 +154,14 @@
     .fo51-in:focus {
         outline: 1px dotted #555 !important;
         outline-offset: 1px;
+    }
+    .fo51-static {
+        display: block;
+        min-height: 1.25em;
+        padding: 4px 5px;
+        box-sizing: border-box;
+        color: #000;
+        line-height: 1.3;
     }
     textarea.fo51-in {
         display: block;
@@ -244,6 +183,40 @@
         text-transform: uppercase;
         padding: 5px 5px !important;
         line-height: 1.2;
+    }
+    .fo51-date-grid .fo51-date-lbl {
+        text-align: center;
+        font-weight: bold;
+        font-size: 9px;
+        padding: 5px 6px !important;
+        vertical-align: middle;
+    }
+    .fo51-date-grid .fo51-date-val {
+        padding: 0 !important;
+        vertical-align: middle;
+        text-align: center;
+    }
+    .fo51-date-grid .fo51-date-val .fo51-in {
+        text-align: center;
+        min-height: 1.65em;
+    }
+    .fo51-date-grid .fo51-date-val .fo51-static {
+        text-align: center;
+    }
+    .fo51-date-grid .fo51-lbl-cap {
+        vertical-align: middle;
+    }
+    /* Fecha: 50% ancho, sin marco exterior (solo bordes de celdas). */
+    .fo51-date-wrap {
+        width: 50%;
+        max-width: 50%;
+        margin-bottom: 11px;
+        box-sizing: border-box;
+        border: none;
+        background: transparent;
+    }
+    .fo51-date-wrap .fo51-date-grid {
+        width: 100%;
     }
     .fo51-fault-head {
         font-weight: bold;
@@ -310,7 +283,7 @@
         margin-bottom: 0;
     }
     @media (max-width: 900px) {
-        .fo51-wrap {
+        .fo51-body-blocks {
             min-width: 0;
             width: 100%;
         }
@@ -320,72 +293,118 @@
     }
 </style>
 
-<div class="fo51-wrap">
-    <div class="fo51-page">
-        {{-- 1 · Encabezado --}}
-        <div class="fo51-block">
-            <table class="fo51-tbl" role="presentation">
+<x-disciplinary.forms.official-letter-pdf-shell
+    code="FO-GJ-51"
+    headline="Informe disciplinario"
+    :logo-src="$resolvedLogo"
+    :meta-date="$resolvedMetaDate"
+    meta-version="Versión 04"
+    :meta-page-line="$metaPageLine"
+    :show-micro="false"
+>
+    <div class="fo51-body-blocks">
+        {{-- 1 · Fecha (4 columnas × 2 filas; FECHA: rowspan 2; 50% ancho) --}}
+        <div class="fo51-date-wrap">
+            <table class="fo51-tbl fo51-date-grid" role="presentation">
                 <colgroup>
-                    <col style="width:102px">
-                    <col>
-                    <col style="width:114px">
+                    <col style="width:18%">
+                    <col style="width:27%">
+                    <col style="width:27%">
+                    <col style="width:28%">
                 </colgroup>
-                <tbody>
-                    <tr>
-                        <td class="fo51-logo-cell">
-                            <div class="fo51-logo-ring">
-                                <img src="{{ $resolvedLogo }}" alt="SJ Seguridad">
-                            </div>
-                        </td>
-                        <td class="fo51-title">INFORME DISCIPLINARIO</td>
-                        <td class="fo51-meta">
-                            <table role="presentation">
-                                <tr><td class="fo51-code">FO-GJ-51</td></tr>
-                                <tr><td>Mayo de 2024</td></tr>
-                                <tr><td>Versión 04</td></tr>
-                                <tr><td>{{ $metaPageLine }}</td></tr>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        {{-- 2 · Fecha --}}
-        <div class="fo51-block">
-            <table class="fo51-tbl" role="presentation">
                 <tr>
-                    <td style="width:12%" class="fo51-lbl-cap">FECHA:</td>
-                    <td style="width:88%">
-                        <span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">
-                            <input type="text" class="fo51-in" name="fo51_report_dd" maxlength="2" inputmode="numeric" value="{{ $resolvedReportDay }}" style="width:2.1rem;text-align:center;border:1px solid #000!important;padding:3px">
-                            <span style="font-weight:bold">DD</span>
-                            <input type="text" class="fo51-in" name="fo51_report_mm" maxlength="2" inputmode="numeric" value="{{ $resolvedReportMonth }}" style="width:2.1rem;text-align:center;border:1px solid #000!important;padding:3px">
-                            <span style="font-weight:bold">MM</span>
-                            <input type="text" class="fo51-in" name="fo51_report_yyyy" maxlength="4" inputmode="numeric" value="{{ $resolvedReportYear }}" style="width:3.2rem;text-align:center;border:1px solid #000!important;padding:3px">
-                            <span style="font-weight:bold">AAAA</span>
-                        </span>
+                    <td rowspan="2" class="fo51-lbl-cap">FECHA:</td>
+                    <td class="fo51-date-lbl">DD</td>
+                    <td class="fo51-date-lbl">MM</td>
+                    <td class="fo51-date-lbl">AAAA</td>
+                </tr>
+                <tr>
+                    <td class="fo51-date-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $resolvedReportDay }}</span>
+                        @else
+                            <input type="text" class="fo51-in" name="fo51_report_dd" maxlength="2" inputmode="numeric" value="{{ $resolvedReportDay }}" autocomplete="off">
+                        @endif
+                    </td>
+                    <td class="fo51-date-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $resolvedReportMonth }}</span>
+                        @else
+                            <input type="text" class="fo51-in" name="fo51_report_mm" maxlength="2" inputmode="numeric" value="{{ $resolvedReportMonth }}" autocomplete="off">
+                        @endif
+                    </td>
+                    <td class="fo51-date-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $resolvedReportYear }}</span>
+                        @else
+                            <input type="text" class="fo51-in" name="fo51_report_yyyy" maxlength="4" inputmode="numeric" value="{{ $resolvedReportYear }}" autocomplete="off">
+                        @endif
                     </td>
                 </tr>
             </table>
         </div>
 
-        {{-- 3 · Datos del trabajador --}}
-        <div class="fo51-block">
+        {{-- 2 · Datos del trabajador --}}
+        @php
+            $useEmployeeLookup = ($enableEmployeeLookup ?? true) && ! ($renderAsPdf ?? false) && ! ($blankForDownload ?? false);
+            $employeeSearchUrl = route('api.employees.search');
+        @endphp
+        <div class="fo51-block" @if ($useEmployeeLookup) x-data="window.disciplinaryFo51EmployeeCombo(@js($employeeSearchUrl), @js(old('fo51_worker_document', $workerDocument)), @js(old('fo51_worker_name', $workerName)), @js($workerCargo), @js(old('fo51_employee_id', $employeeId)))" @endif>
             <table class="fo51-tbl" role="presentation">
                 <colgroup>
-                    <col style="width:15%">
-                    <col style="width:35%">
-                    <col style="width:10%">
-                    <col style="width:12%">
-                    <col style="width:13%">
-                    <col style="width:15%">
+                    <col style="width:14%">
+                    <col style="width:19%">
+                    <col style="width:14%">
+                    <col style="width:19%">
+                    <col style="width:14%">
+                    <col style="width:20%">
                 </colgroup>
                 <tr>
-                    <td class="fo51-lbl-cap">NOMBRE DEL TRABAJADOR:</td>
-                    <td colspan="3"><input type="text" name="fo51_worker_name" class="fo51-in" value="{{ $workerName }}" autocomplete="off"></td>
                     <td class="fo51-lbl-cap">CC:</td>
-                    <td><input type="text" name="fo51_worker_document" class="fo51-in" value="{{ $workerDocument }}" autocomplete="off" inputmode="numeric"></td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $workerDocument }}</span>
+                        @elseif ($useEmployeeLookup)
+                            <input type="hidden" name="fo51_employee_id" x-model="employeeId">
+                            <div class="relative" style="width:100%">
+                                <input type="text" name="fo51_worker_document" class="fo51-in" x-model="query" autocomplete="off" inputmode="numeric" pattern="[0-9]*" required
+                                    @focus="openList()" @input="onInput()" @blur="onBlur()" @keydown="onKeydown($event)"
+                                    placeholder="Digite documento…" role="combobox" :aria-expanded="open ? 'true' : 'false'">
+                                <ul x-show="open && filtered.length" x-cloak
+                                    class="absolute left-0 right-0 z-[90] mt-0.5 max-h-48 overflow-auto rounded-md border border-slate-300 bg-white py-1 text-left text-xs text-slate-900 shadow-xl dark:border-white/20 dark:bg-slate-900 dark:text-slate-100"
+                                    role="listbox">
+                                    <template x-for="(it, idx) in filtered" :key="it.id">
+                                        <li role="option" class="cursor-pointer px-2 py-1.5 hover:bg-indigo-50 dark:hover:bg-white/10"
+                                            :class="{ 'bg-indigo-100 dark:bg-white/15': idx === highlightedIndex }"
+                                            @mousedown.prevent="selectItem(it)"
+                                            x-text="it.document_number + ' · ' + it.full_name"></li>
+                                    </template>
+                                </ul>
+                            </div>
+                        @else
+                            <input type="text" name="fo51_worker_document" class="fo51-in" value="{{ $workerDocument }}" autocomplete="off" inputmode="numeric">
+                        @endif
+                    </td>
+                    <td class="fo51-lbl-cap">NOMBRE:</td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $workerName }}</span>
+                        @elseif ($useEmployeeLookup)
+                            <input type="text" name="fo51_worker_name" class="fo51-in bg-slate-50 dark:bg-white/5" x-model="workerName" readonly required tabindex="-1">
+                        @else
+                            <input type="text" name="fo51_worker_name" class="fo51-in" value="{{ $workerName }}" autocomplete="off">
+                        @endif
+                    </td>
+                    <td class="fo51-lbl-cap">CARGO:</td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
+                        @elseif ($useEmployeeLookup)
+                            <span class="fo51-static" x-text="workerCargo || ' '"></span>
+                        @else
+                            <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
+                        @endif
+                    </td>
                 </tr>
                 <tr>
                     <td class="fo51-lbl-cap">CIUDAD:</td>
@@ -400,7 +419,8 @@
                             <div
                                 class="relative"
                                 style="width:100%;max-width:100%;box-sizing:border-box"
-                                x-data="window.disciplinaryFo51MunicipalityCombo(@js($municipalitiesFlat), @js(old('fo51_municipality_code', '')), @js(['required' => true]))">
+                                x-data="window.disciplinaryFo51MunicipalityCombo(@js($municipalitiesFlat), @js(old('fo51_municipality_code', '')), @js(['required' => true]))"
+                                @fo51-employee-selected.window="if ($event.detail.municipalityCode) { code = $event.detail.municipalityCode; const it = items.find(i => i.code === code); if (it) { query = it.name + ' — ' + it.dept; } }">
                                 <input type="hidden" name="fo51_municipality_code" x-model="code" required>
                                 <input
                                     type="text"
@@ -440,14 +460,26 @@
                         @endif
                     </td>
                     <td class="fo51-lbl-cap">TURNO:</td>
-                    <td><input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}"></td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $shift }}</span>
+                        @else
+                            <input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}">
+                        @endif
+                    </td>
                     <td class="fo51-lbl-cap">PUESTO:</td>
-                    <td><input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}"></td>
+                    <td>
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $position }}</span>
+                        @else
+                            <input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}">
+                        @endif
+                    </td>
                 </tr>
             </table>
         </div>
 
-        {{-- 4 · Faltas (texto + casilla a la derecha como en el papel) --}}
+        {{-- 3 · Faltas (texto + casilla a la derecha como en el papel) --}}
         <div class="fo51-block">
             <table class="fo51-tbl" role="presentation">
                 <thead>
@@ -570,7 +602,7 @@
             FO-GJ-51 - Uso interno SJ Seguridad - Reproducción no autorizada prohibida.
         </p>
     </div>
-</div>
+</x-disciplinary.forms.official-letter-pdf-shell>
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
     <p style="font-size:10px;color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">

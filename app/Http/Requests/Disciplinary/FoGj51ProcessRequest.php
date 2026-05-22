@@ -4,6 +4,7 @@ namespace App\Http\Requests\Disciplinary;
 
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
+use App\Models\Employee;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,12 +44,10 @@ class FoGj51ProcessRequest extends FormRequest
                 'string',
                 'max:500',
             ],
-            'fo51_worker_document' => [
-                Rule::requiredIf(fn () => (string) $this->input('fo51_action') === 'enviar'),
-                'nullable',
-                'string',
-                'max:32',
-            ],
+            'fo51_worker_document' => array_merge(
+                [Rule::requiredIf(fn () => (string) $this->input('fo51_action') === 'enviar')],
+                Employee::documentNumberRules(false),
+            ),
 
             /* PDF externo: el sistema no extrae texto; debe capturarse a mano */
             'informe_worker_name' => [
@@ -57,12 +56,10 @@ class FoGj51ProcessRequest extends FormRequest
                 'string',
                 'max:500',
             ],
-            'informe_worker_document' => [
-                Rule::requiredIf(fn () => (string) $this->input('fo51_action') === 'cargar'),
-                'nullable',
-                'string',
-                'max:32',
-            ],
+            'informe_worker_document' => array_merge(
+                [Rule::requiredIf(fn () => (string) $this->input('fo51_action') === 'cargar')],
+                Employee::documentNumberRules(false),
+            ),
 
             'informe_file' => [
                 Rule::requiredIf(fn () => (string) $this->input('fo51_action') === 'cargar'),
@@ -79,9 +76,19 @@ class FoGj51ProcessRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $merge = [
             'fo51_fault_other_chk' => $this->boolean('fo51_fault_other_chk'),
-        ]);
+        ];
+
+        if ($this->has('fo51_worker_document')) {
+            $merge['fo51_worker_document'] = Employee::normalizeDocumentNumber((string) $this->input('fo51_worker_document'));
+        }
+
+        if ($this->has('informe_worker_document')) {
+            $merge['informe_worker_document'] = Employee::normalizeDocumentNumber((string) $this->input('informe_worker_document'));
+        }
+
+        $this->merge($merge);
     }
 
     public function withValidator(Validator $validator): void

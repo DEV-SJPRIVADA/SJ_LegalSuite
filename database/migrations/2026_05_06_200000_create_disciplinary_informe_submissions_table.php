@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('disciplinary_informe_submissions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('submitted_by')->constrained('users')->restrictOnDelete();
-            $table->foreignId('personnel_id')->constrained('personnel')->restrictOnDelete();
+            $table->foreignId('employee_id')->constrained('employees')->restrictOnDelete();
             $table->string('status', 40);
             $table->string('storage_disk', 32)->default('local');
             $table->string('storage_path', 2048);

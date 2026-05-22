@@ -37,7 +37,10 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 | 11 | 🛡️ Pólizas | 🚧 Próximamente |
 | 12 | 📊 Auditoría | 🚧 Próximamente |
 
-Además del catálogo jurídico, existe el módulo de **administración de usuarios** en el sidebar (permisos `users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
+Además del catálogo jurídico, existen en el sidebar:
+
+- **Empleados** (`employees.view` / `employees.manage`): **BD DE EMPLEADOS SJ** — alta/edición, carga masiva Excel (`.xlsx`) con plantilla descargable, loader con icono de mazo (`public/images/Mazo_juez.jpg`) y contador de tiempo. Tabla `employees` (sustituye el antiguo `personnel`).
+- **Usuarios** (`users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
 
 Quienes tengan **`settings.manage-territory`** ven **Ajustes** en el sidebar: pantalla **`/settings/territorio`** para importar el listado **DIVIPOLA** (municipios con código oficial y coordenadas). Ese catálogo alimenta los **pins del mapa** en el dashboard disciplinario y la vinculación por municipio en los expedientes.
 
@@ -110,12 +113,27 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 | Vista | Contenido |
 |---|---|
 | **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. ApexCharts se expone desde **Vite** (`resources/js/app.js` → `window.ApexCharts`) para compatibilidad con **`wire:navigate`**; el montaje en Blade **espera ancho de contenedor** antes de `render()` para evitar errores SVG (`NaN`). Entre páginas, **`resources/js/apex-charts-lifecycle.js`** destruye/recicla las instancias al navegar para no duplicar morfos en el DOM. Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
-| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** ve casos en **citación o reprogramación** con al menos un **mensaje inicial del abogado titular** en el hilo de coordinación con planeación (FO-GJ-03). **Etapa A (Informe):** el titular **no** chatea con planeación; tras revisar el caso pasa a citación o archiva. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). En **CIUDAD** (FO-GJ-51) el municipio DIVIPOLA se elige con **búsqueda al escribir** (Alpine + `resources/js/fo51-municipality-combobox.js`); el catálogo proviene de **Ajustes → Territorio**. |
+| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** ve casos en **citación o reprogramación** con al menos un **mensaje inicial del abogado titular** en el hilo de coordinación con planeación (FO-GJ-03). **Etapa A (Informe):** el titular **no** chatea con planeación; tras revisar el caso pasa a citación o archiva. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `cedula` opcional). **FO-GJ-51:** búsqueda de trabajador por **cédula** (solo dígitos) contra la BD de empleados (`resources/js/fo51-employee-combobox.js`); al elegir, se autocompletan **nombre** y **cargo**; **turno** y **puesto** se diligencian manualmente. Grilla de **fecha** del informe: 4×2 (FECHA + DD/MM/AAAA). En **CIUDAD**, municipio DIVIPOLA con **búsqueda al escribir** (`fo51-municipality-combobox.js`); catálogo desde **Ajustes → Territorio**. Encabezado del PDF FO-GJ-51 alineado con cartas oficiales (`official-letter-pdf-shell`). |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición. **Tarjeta «Etapa A»** (Información, estado **Informe** y titular asignado): fila 1 **Etapa A** + botón **Ver informe (PDF)**; fila 2 trazabilidad del envío a revisión e incorporación del PDF con **fecha/hora Colombia** (`America/Bogota`); fila 3 **Autorización y creación del caso** — cargo y nombre de quien **autoriza** el FO-GJ-51 y genera el expediente (`InformeSubmission` vía `DisciplinaryCase::informeSubmission()`); fila 4 **Revisión y asignación** — cargo y nombre de quien registra la asignación del titular (última actuación **`CASO_ASIGNADO`** en `disciplinary_actions`), abogado asignado y fecha Colombia. En ese escenario no se duplica el recuadro índigo del PDF. **Hilo agenda / planeación (FO-GJ-03):** activo solo en **citación** o **reprogramación** (`allowsAgendaThread()`); en Informe, mensajes antiguos del hilo en solo lectura. |
 | **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Para códigos registrados en `OfficialFormsCatalog::htmlBlankPdfRegistry()` (**FO-GJ-51**, **FO-GJ-03**, **FO-GJ-44**, **FO-GJ-54**, **FO-GJ-42**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**; esa fuente tiene **prioridad** sobre un PDF estático en `public/formatos/disciplinarios/`. Las cartas oficiales comparten encabezado grilla (`official-letter-pdf-shell`) y campos en blanco con guías grises. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
 
 **Disciplinario — agenda Etapa B:** `DisciplinaryCase::statusesAllowingAgendaCoordination()` limita el chat abogado ↔ planeación a **citación** y **reprogramación**; `DisciplinaryWorkflowService` no exige respuesta de planeación para pasar de **Informe** a **citación**. Políticas y `DisciplinaryAgendaThreadService` usan `allowsAgendaThread()`.
+
+### Módulo Empleados
+
+Ruta: **`GET /employees`** · permisos `employees.view` / `employees.manage`
+
+| Vista / acción | Contenido |
+|---|---|
+| **Listado** | Encabezado **BD DE EMPLEADOS SJ**; búsqueda y filtro activo/inactivo; tabla con documento, nombre, cargo, ciudad, estado |
+| **Crear / Editar** | Modal en 4 bloques: datos personales (**nombre completo**), contacto, laboral (fecha fin de contrato solo si tipo = término fijo), emergencias |
+| **Carga masiva** | Excel `.xlsx` fila 1 = encabezados; plantilla en **`GET /employees/plantilla`**. Columnas esperadas: nombre completo, tipo/número documento (solo dígitos), fechas, género, dirección, municipio (código DIVIPOLA o nombre), teléfono, correo, contrato, cargo, área, salario, terminación, contacto emergencia. Import vía `EmployeeBulkImportService` (PhpSpreadsheet). Overlay de carga con mazo + punto girando + **Cargando…** y tiempo (`bulk-import-elapsed-timer.js`) |
+| **API búsqueda** | `GET /api/employees/search?q=` — autocompletado FO-GJ-51 y otros consumidores |
+
+Los expedientes disciplinarios referencian **`employee_id`** (antes `personnel_id`). Resolver: `App\Services\Employees\EmployeeResolver`.
+
+> Tras este cambio de esquema, en entornos de desarrollo conviene **`php artisan migrate:fresh --seed`** (destruye datos locales).
 
 ### Módulo Usuarios
 
@@ -201,7 +219,7 @@ app/
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
   Models/
-    User.php / Personnel.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
+    User.php / Employee.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
     Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51); `DisciplinaryCase::informeSubmission()` enlaza el envío autorizado al expediente
   Services/
@@ -209,12 +227,14 @@ app/
     UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
     Disciplinary/              CaseService / WorkflowService / DashboardService / DocumentService / DisciplinaryInformeSubmissionService (cola FO-GJ-51)
     Settings/                  ColombianMunicipalityImportService (Excel/CSV DIVIPOLA)
-    Personnel/                 Resolución de personal desde identidad del informe
-  Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, PersonnelPolicy
+    Employees/                 EmployeeBulkImportService, EmployeeResolver
+  Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, EmployeePolicy
   Livewire/
+    Employees/                 EmployeesIndex (CRUD + carga masiva)
     Home.php                   Componente del dashboard global
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail, OrganizationCatalog
+    Employees/                 EmployeesIndex
     Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
     Settings/                  TerritoryImport (importación DIVIPOLA / municipios)
     Ui/                        ThemeToggle (preferencia tema usuario)
@@ -417,12 +437,12 @@ disciplinary.update               disciplinary.upload-document
 disciplinary.delete               disciplinary.export
 disciplinary.review-inform
 settings.manage-territory
-personnel.view / .manage          users.view / .manage
+employees.view / .manage          users.view / .manage
 ```
 
 La autorización se evalúa en 3 capas:
 
-1. **Policies** (`DisciplinaryCasePolicy`, `UserPolicy`, `InformeSubmissionPolicy`, `PersonnelPolicy`) — rol, permisos Spatie y flag **`read_only`** del usuario.
+1. **Policies** (`DisciplinaryCasePolicy`, `UserPolicy`, `InformeSubmissionPolicy`, `EmployeePolicy`) — rol, permisos Spatie y flag **`read_only`** del usuario.
 2. **FormRequests** — `authorize()` delega al Policy.
 3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar y del sub-nav disciplinario).
 
@@ -446,6 +466,9 @@ La autorización se evalúa en 3 capas:
 | `POST /disciplinary/forms/informe-fo-gj-51` | Procesa el informe (`FoGj51ProcessRequest`): acción `pdf` (descarga Letter), `enviar` (cola de revisión) o `cargar` (PDF externo). |
 | `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes de autorización; permiso `disciplinary.review-inform`. |
 | `GET /disciplinary/informes-pendientes/{submission}/pdf` | Descarga el PDF almacenado o, con **`?inline=1`**, lo sirve **inline** para iframe (vista previa en modal). |
+| `GET /employees` | **BD de empleados** (Livewire); permiso `employees.view` |
+| `GET /employees/plantilla` | Descarga plantilla Excel carga masiva; `employees.manage` |
+| `GET /api/employees/search` | Autocompletado por documento/nombre (JSON) |
 | `GET /users` | Listado de usuarios (Livewire) |
 | `GET /users/organizacion` | Catálogo **Organización**: áreas y cargos (`permission_role_name`) |
 | `GET /users/{user}` | Detalle de usuario |
@@ -495,7 +518,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 
 ### Módulo Disciplinario — siguientes fases
 
-- [ ] Wizard de creación de caso (formulario con autocompletado de personal)
+- [ ] Wizard de creación de caso (autocompletado desde BD de empleados)
 - [ ] Subida de documentos desde la UI (`DocumentService` ya listo en backend)
 - [ ] Notificaciones por email cuando un plazo está próximo a vencer
 - [ ] Exportación PDF de actuaciones con plantillas FO-GJ (FO-GJ-03, FO-GJ-44, FO-GJ-54 y FO-GJ-42 ya tienen plantilla HTML en blanco; falta diligenciamiento desde el caso)
@@ -508,7 +531,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - [ ] Negociación colectiva, Investigaciones
 - [ ] Cartera, Requisitos legales
 - [ ] Contratos, Pólizas, Auditoría
-- [ ] Integración con SJ_Armory vía `personnel.external_id`
+- [ ] Integración con SJ_Armory vía `employees.external_id`
 
 ## 📄 Licencia
 

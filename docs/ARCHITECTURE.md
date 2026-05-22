@@ -68,7 +68,7 @@ database/
   migrations/
     2026_04_30_154730_create_permission_tables.php
     2026_04_30_160000_extend_users_for_legalsuite.php
-    2026_04_30_160100_create_personnel_table.php
+    2026_04_30_160100_create_employees_table.php
     2026_04_30_160200_create_faults_table.php
     2026_04_30_160300_create_disciplinary_cases_table.php
     2026_04_30_160400_create_disciplinary_case_fault_table.php
@@ -109,7 +109,7 @@ database/
                                │ assigned_lawyer_id / reporter_id
                                ▼
        ┌─────────────┐  ┌─────────────────────┐  ┌────────────────────┐
-       │  personnel  │◄─┤  disciplinary_cases │─►│ disciplinary_stages │
+       │  employees  │◄─┤  disciplinary_cases │─►│ disciplinary_stages │
        └─────────────┘  └─────────┬───────────┘  └────────────────────┘
                                   │ 1                       ▲
                                   │                         │
@@ -139,7 +139,7 @@ database/
 3. **Audit log particionable**: `disciplinary_actions` está indexado por
    `(disciplinary_case_id, performed_at)`. Cuando crezca a millones de filas, se
    puede particionar por `YEAR(performed_at)` sin tocar la lógica.
-4. **Soft deletes** en `users`, `personnel`, `disciplinary_cases` y
+4. **Soft deletes** en `users`, `employees`, `disciplinary_cases` y
    `disciplinary_documents` para conservar historial legal.
 5. **Faltas vía pivote** (`disciplinary_case_fault`) con `unique(case_id, fault_id)`
    y `extra_info` para el caso especial "Otros".
@@ -250,8 +250,8 @@ disciplinary.assign
 disciplinary.assign-date
 disciplinary.upload-document
 disciplinary.export
-personnel.view
-personnel.manage
+employees.view
+employees.manage
 users.view
 users.manage
 ```
@@ -363,4 +363,4 @@ Usuarios demo (password `SJseguridad2026`):
 4. **Exportar** PDF de actuaciones (compatible con FO-GJ-XX) usando `barryvdh/laravel-dompdf`.
 5. **Tests Feature** del workflow (reemplazar `WorkflowSmokeTest` por tests Pest reales).
 6. **Indexes adicionales** según patrones reales de uso (medir con `EXPLAIN`).
-7. **Integración con SJ_Armory** vía `personnel.external_id` cuando se decida.
+7. **Integración con SJ_Armory** vía `employees.external_id` cuando se decida.

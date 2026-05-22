@@ -31,6 +31,15 @@
         ];
 
         $modules[] = [
+            'key' => 'employees',
+            'label' => 'Empleados',
+            'route' => route('employees.index'),
+            'active' => request()->routeIs('employees.*'),
+            'icon' => 'user-group',
+            'available' => $u->can('viewAny', \App\Models\Employee::class),
+        ];
+
+        $modules[] = [
             'key' => 'settings-territory',
             'label' => 'Ajustes',
             'route' => route('settings.territory-import'),

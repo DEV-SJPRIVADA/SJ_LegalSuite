@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('case_number', 32)->unique()
                 ->comment('Consecutivo legible: DISC-2026-000001');
 
-            $table->foreignId('personnel_id')
-                ->constrained('personnel')->restrictOnDelete();
+            $table->foreignId('employee_id')
+                ->constrained('employees')->restrictOnDelete();
 
             $table->foreignId('reporter_id')->nullable()
                 ->comment('Usuario que creó el informe (área administrativa/operaciones)')

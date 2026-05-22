@@ -41,7 +41,7 @@ class AlertsService
     private function vencidos(int $limit, ?User $user): array
     {
         $stages = DisciplinaryStage::query()
-            ->with(['case:id,case_number,personnel_id', 'case.personnel:id,first_name,last_name'])
+            ->with(['case:id,case_number,employee_id', 'case.employee:id,first_name,last_name'])
             ->whereHas('case', fn ($q) => $q->when($user, fn ($qq) => $qq->forDisciplinaryActor($user)))
             ->whereIn('status', [StageStatus::PENDIENTE->value, StageStatus::EN_CURSO->value])
             ->whereNotNull('deadline_at')
@@ -53,7 +53,7 @@ class AlertsService
             'count' => $stages->count(),
             'items' => $stages->take($limit)->map(fn ($s) => [
                 'id' => $s->case->id,
-                'label' => "{$s->case->case_number} · {$s->case->personnel?->first_name} {$s->case->personnel?->last_name}",
+                'label' => "{$s->case->case_number} · {$s->case->employee?->first_name} {$s->case->employee?->last_name}",
                 'module' => 'Disciplinario',
                 'route' => route('disciplinary.cases.show', $s->case),
                 'due_at' => $s->deadline_at?->format('Y-m-d'),
@@ -67,7 +67,7 @@ class AlertsService
     private function proximos(int $limit, ?User $user): array
     {
         $stages = DisciplinaryStage::query()
-            ->with(['case:id,case_number,personnel_id', 'case.personnel:id,first_name,last_name'])
+            ->with(['case:id,case_number,employee_id', 'case.employee:id,first_name,last_name'])
             ->whereHas('case', fn ($q) => $q->when($user, fn ($qq) => $qq->forDisciplinaryActor($user)))
             ->whereIn('status', [StageStatus::PENDIENTE->value, StageStatus::EN_CURSO->value])
             ->whereNotNull('deadline_at')
@@ -80,7 +80,7 @@ class AlertsService
             'count' => $stages->count(),
             'items' => $stages->take($limit)->map(fn ($s) => [
                 'id' => $s->case->id,
-                'label' => "{$s->case->case_number} · {$s->case->personnel?->first_name} {$s->case->personnel?->last_name}",
+                'label' => "{$s->case->case_number} · {$s->case->employee?->first_name} {$s->case->employee?->last_name}",
                 'module' => 'Disciplinario',
                 'route' => route('disciplinary.cases.show', $s->case),
                 'due_at' => $s->deadline_at?->format('Y-m-d'),
@@ -106,7 +106,7 @@ class AlertsService
         }
 
         $cases = DisciplinaryCase::query()
-            ->with('personnel:id,first_name,last_name')
+            ->with('employee:id,first_name,last_name')
             ->when($user, fn ($q) => $q->forDisciplinaryActor($user))
             ->whereNull('assigned_lawyer_id')
             ->whereNotIn('current_status', ['finalizado', 'archivado'])
@@ -117,7 +117,7 @@ class AlertsService
             'count' => $cases->count(),
             'items' => $cases->take($limit)->map(fn ($c) => [
                 'id' => $c->id,
-                'label' => "{$c->case_number} · {$c->personnel?->first_name} {$c->personnel?->last_name}",
+                'label' => "{$c->case_number} · {$c->employee?->first_name} {$c->employee?->last_name}",
                 'module' => 'Disciplinario',
                 'route' => route('disciplinary.cases.show', $c),
             ])->all(),
@@ -130,7 +130,7 @@ class AlertsService
     private function pendientesDecision(int $limit, ?User $user): array
     {
         $cases = DisciplinaryCase::query()
-            ->with('personnel:id,first_name,last_name')
+            ->with('employee:id,first_name,last_name')
             ->when($user, fn ($q) => $q->forDisciplinaryActor($user))
             ->whereIn('current_status', ['decision', 'comite_disciplinario'])
             ->orderByDesc('opened_at')
@@ -140,7 +140,7 @@ class AlertsService
             'count' => $cases->count(),
             'items' => $cases->take($limit)->map(fn ($c) => [
                 'id' => $c->id,
-                'label' => "{$c->case_number} · {$c->personnel?->first_name} {$c->personnel?->last_name}",
+                'label' => "{$c->case_number} · {$c->employee?->first_name} {$c->employee?->last_name}",
                 'module' => 'Disciplinario',
                 'route' => route('disciplinary.cases.show', $c),
             ])->all(),

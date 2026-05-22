@@ -36,15 +36,15 @@ class DisciplinaryInformeSubmissionService
     public function storePending(
         UploadedFile $file,
         User $submitter,
-        int $personnelId,
+        int $employeeId,
         array $formSnapshot = [],
         ?string $summary = null,
         array $evidenceImages = [],
     ): InformeSubmission {
-        return DB::transaction(function () use ($file, $submitter, $personnelId, $formSnapshot, $summary, $evidenceImages) {
+        return DB::transaction(function () use ($file, $submitter, $employeeId, $formSnapshot, $summary, $evidenceImages) {
             $submission = InformeSubmission::create([
                 'submitted_by' => $submitter->id,
-                'personnel_id' => $personnelId,
+                'employee_id' => $employeeId,
                 'status' => InformeSubmissionStatus::PENDIENTE_REVISION,
                 'storage_disk' => 'local',
                 'storage_path' => '',
@@ -77,7 +77,7 @@ class DisciplinaryInformeSubmissionService
                 $submission->forceFill(['evidence_paths' => $evidencePaths])->save();
             }
 
-            $submission = $submission->fresh(['personnel', 'submitter']);
+            $submission = $submission->fresh(['employee', 'submitter']);
 
             $reviewers = User::query()
                 ->where('is_active', true)
@@ -112,7 +112,7 @@ class DisciplinaryInformeSubmissionService
             ])->save();
 
             if ($submitter instanceof User) {
-                Notification::send($submitter, new InformeRejectedNotification($submission->fresh(['personnel']), $notes));
+                Notification::send($submitter, new InformeRejectedNotification($submission->fresh(['employee']), $notes));
             }
 
             $submission->delete();
@@ -150,7 +150,7 @@ class DisciplinaryInformeSubmissionService
             $case = $this->cases->create(
                 $submission->submitter,
                 [
-                    'personnel_id' => $submission->personnel_id,
+                    'employee_id' => $submission->employee_id,
                     'assigned_lawyer_id' => null,
                     'city' => $cityLabel,
                     'municipality_code' => $municipalityCode,
@@ -241,10 +241,10 @@ class DisciplinaryInformeSubmissionService
 
             $submitterModel = User::query()->find($submission->submitted_by);
             if ($submitterModel instanceof User) {
-                Notification::send($submitterModel, new InformeAuthorizedNotification($case->fresh(['personnel'])));
+                Notification::send($submitterModel, new InformeAuthorizedNotification($case->fresh(['employee'])));
             }
 
-            return $case->fresh(['personnel']);
+            return $case->fresh(['employee']);
         });
     }
 

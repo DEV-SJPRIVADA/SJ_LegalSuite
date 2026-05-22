@@ -7,8 +7,9 @@ use App\Http\Requests\Disciplinary\FoGj51ProcessRequest;
 use App\Models\ColombianMunicipality;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
+use App\Models\Employee;
 use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
-use App\Services\Personnel\PersonnelFromInformIdentity;
+use App\Services\Employees\EmployeeResolver;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\RedirectResponse;
@@ -98,10 +99,10 @@ class FoGj51InformeController
     private function submitToRevisionQueue(FoGj51ProcessRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        $resolver = app(PersonnelFromInformIdentity::class);
+        $resolver = app(EmployeeResolver::class);
         try {
-            $personnel = $resolver->resolve(
-                (string) ($validated['fo51_worker_name'] ?? ''),
+            $employee = $resolver->resolveById(
+                isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
                 (string) ($validated['fo51_worker_document'] ?? ''),
             );
         } catch (\InvalidArgumentException $e) {
@@ -132,7 +133,7 @@ class FoGj51InformeController
             app(DisciplinaryInformeSubmissionService::class)->storePending(
                 $uploaded,
                 $request->user(),
-                $personnel->id,
+                $employee->id,
                 $v,
                 isset($v['fo51_observations']) ? mb_substr((string) $v['fo51_observations'], 0, 5000) : null,
                 collect($request->file('evidence_images', []))
@@ -160,12 +161,9 @@ class FoGj51InformeController
         }
 
         $validated = $request->validated();
-        $resolver = app(PersonnelFromInformIdentity::class);
+        $resolver = app(EmployeeResolver::class);
         try {
-            $personnel = $resolver->resolve(
-                (string) ($validated['informe_worker_name'] ?? ''),
-                (string) ($validated['informe_worker_document'] ?? ''),
-            );
+            $employee = $resolver->resolveByDocument((string) ($validated['informe_worker_document'] ?? ''));
         } catch (\InvalidArgumentException $e) {
             return redirect()
                 ->route('disciplinary.cases.index', ['informe_modal' => 1, 'cargar_pdf' => 1])
@@ -175,13 +173,13 @@ class FoGj51InformeController
 
         $v = array_merge($this->onlyFo51FormFields($validated), [
             'informe_declared_worker_name' => trim((string) ($validated['informe_worker_name'] ?? '')),
-            'informe_declared_worker_document' => $resolver->normalizeDocument((string) ($validated['informe_worker_document'] ?? '')),
+            'informe_declared_worker_document' => Employee::normalizeDocumentNumber((string) ($validated['informe_worker_document'] ?? '')),
         ]);
 
         app(DisciplinaryInformeSubmissionService::class)->storePending(
             $file,
             $request->user(),
-            $personnel->id,
+            $employee->id,
             $v,
             isset($validated['informe_worker_name'])
                 ? mb_substr(trim((string) $validated['informe_worker_name']), 0, 120)
@@ -230,10 +228,16 @@ class FoGj51InformeController
             ? (string) (ColombianMunicipality::query()->where('municipality_code', $code)->value('municipality_name') ?? '')
             : '';
 
+        $employeeId = isset($v['fo51_employee_id']) ? (int) $v['fo51_employee_id'] : 0;
+        $workerCargo = $employeeId > 0
+            ? (string) (Employee::query()->whereKey($employeeId)->value('job_title') ?? '')
+            : '';
+
         return HtmlLetterPdfGenerator::fromView('disciplinary.forms.fo-gj-51-filled-download', [
             'embeddedLogoSrc' => $embeddedLogo,
             'workerName' => $v['fo51_worker_name'] ?? '',
             'workerDocument' => $v['fo51_worker_document'] ?? '',
+            'workerCargo' => $workerCargo,
             'city' => $cityLabel,
             'shift' => $v['fo51_shift'] ?? '',
             'position' => $v['fo51_position'] ?? '',

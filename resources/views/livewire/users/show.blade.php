@@ -177,7 +177,7 @@
                                     <tr class="hover:bg-slate-50 dark:hover:bg-white/5">
                                         <td class="px-4 py-3 font-mono text-xs text-slate-900 dark:text-white">{{ $c->case_number }}</td>
                                         <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                            {{ $c->personnel?->first_name }} {{ $c->personnel?->last_name }}
+                                            {{ $c->employee?->first_name }} {{ $c->employee?->last_name }}
                                         </td>
                                         <td class="px-4 py-3">
                                             <x-disciplinary.status-badge :status="$c->current_status" />

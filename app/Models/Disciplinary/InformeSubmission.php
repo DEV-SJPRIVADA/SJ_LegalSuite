@@ -3,7 +3,7 @@
 namespace App\Models\Disciplinary;
 
 use App\Enums\Disciplinary\InformeSubmissionStatus;
-use App\Models\Personnel;
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +17,7 @@ class InformeSubmission extends Model
 
     protected $fillable = [
         'submitted_by',
-        'personnel_id',
+        'employee_id',
         'status',
         'storage_disk',
         'storage_path',
@@ -55,9 +55,9 @@ class InformeSubmission extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
-    public function personnel(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(Personnel::class);
+        return $this->belongsTo(Employee::class);
     }
 
     public function disciplinaryCase(): BelongsTo

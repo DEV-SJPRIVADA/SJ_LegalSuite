@@ -56,9 +56,9 @@
                                     Envío {{ $row->created_at->format('d/m/Y H:i') }}
                                 </p>
                                 <p class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                                    {{ $row->personnel?->full_name ?? 'Sin nombre' }}
-                                    @if ($row->personnel?->document_number)
-                                        <span class="text-sm font-normal text-slate-500 dark:text-slate-400">· {{ $row->personnel->document_number }}</span>
+                                    {{ $row->employee?->full_name ?? 'Sin nombre' }}
+                                    @if ($row->employee?->document_number)
+                                        <span class="text-sm font-normal text-slate-500 dark:text-slate-400">· {{ $row->employee->document_number }}</span>
                                     @endif
                                 </p>
                                 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">

@@ -191,7 +191,7 @@ class CasesIndex extends Component
     {
         $cases = DisciplinaryCase::query()
             ->forDisciplinaryActor(auth()->user())
-            ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
+            ->with(['employee:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
             ->withCount('faults')
             ->when($this->search !== '', fn ($q) => $q->search($this->search))
             ->when($this->bucket !== '', fn ($q) => $q->bucket(CaseBucket::from($this->bucket)))

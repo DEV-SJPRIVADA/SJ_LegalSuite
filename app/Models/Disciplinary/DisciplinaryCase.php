@@ -8,7 +8,7 @@ use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\ColombianMunicipality;
-use App\Models\Personnel;
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,7 +37,7 @@ class DisciplinaryCase extends Model
 
     protected $fillable = [
         'case_number',
-        'personnel_id',
+        'employee_id',
         'reporter_id',
         'assigned_lawyer_id',
         'assigned_operator_id',
@@ -71,9 +71,9 @@ class DisciplinaryCase extends Model
 
     // ---------- Relaciones ----------
 
-    public function personnel(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->belongsTo(Personnel::class);
+        return $this->belongsTo(Employee::class);
     }
 
     public function reporter(): BelongsTo
@@ -220,7 +220,7 @@ class DisciplinaryCase extends Model
         return $query->where(function (Builder $q) use ($like) {
             $q->where('case_number', 'like', $like)
                 ->orWhere('summary', 'like', $like)
-                ->orWhereHas('personnel', fn (Builder $p) => $p->search(trim((string) $like, '%')));
+                ->orWhereHas('employee', fn (Builder $p) => $p->search(trim((string) $like, '%')));
         });
     }
 

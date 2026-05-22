@@ -25,11 +25,11 @@ class DisciplinaryAgendaPlanningMessageNotification extends Notification impleme
      */
     public function toDatabase(object $notifiable): array
     {
-        $this->case->loadMissing('personnel');
+        $this->case->loadMissing('employee');
         $snippet = Str::limit(trim((string) $this->message->body), 140);
 
-        $who = $this->case->personnel
-            ? ' · '.$this->case->personnel->first_name.' '.$this->case->personnel->last_name
+        $who = $this->case->employee
+            ? ' · '.$this->case->employee->first_name.' '.$this->case->employee->last_name
             : '';
 
         return [

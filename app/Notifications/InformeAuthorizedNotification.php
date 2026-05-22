@@ -22,12 +22,12 @@ class InformeAuthorizedNotification extends Notification implements ShouldBroadc
      */
     public function toDatabase(object $notifiable): array
     {
-        $this->case->loadMissing('personnel');
+        $this->case->loadMissing('employee');
 
         return [
             'title' => 'Informe autorizado · expediente creado',
-            'body' => 'El FO-GJ-51 fue autorizado.'.($this->case->personnel
-                ? ' Caso disciplinario n.º '.$this->case->case_number.' · '.$this->case->personnel->first_name.' '.$this->case->personnel->last_name.'.'
+            'body' => 'El FO-GJ-51 fue autorizado.'.($this->case->employee
+                ? ' Caso disciplinario n.º '.$this->case->case_number.' · '.$this->case->employee->first_name.' '.$this->case->employee->last_name.'.'
                 : ' Caso n.º '.$this->case->case_number.'.'),
             'action_url' => route('disciplinary.cases.show', $this->case),
             'disciplinary_case_id' => $this->case->getKey(),

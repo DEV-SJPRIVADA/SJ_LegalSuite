@@ -24,12 +24,12 @@ class InformePendingReviewNotification extends Notification implements ShouldBro
      */
     public function toDatabase(object $notifiable): array
     {
-        $this->submission->loadMissing('personnel');
+        $this->submission->loadMissing('employee');
 
         return [
             'title' => 'Informe pendiente de revisión',
-            'body' => 'Se envió un FO-GJ-51 a revisión.'.($this->submission->personnel
-                ? ' Disciplinado: '.$this->submission->personnel->first_name.' '.$this->submission->personnel->last_name.'.'
+            'body' => 'Se envió un FO-GJ-51 a revisión.'.($this->submission->employee
+                ? ' Disciplinado: '.$this->submission->employee->first_name.' '.$this->submission->employee->last_name.'.'
                 : ''),
             'action_url' => route('disciplinary.informes-pendientes.index'),
             'submission_id' => $this->submission->getKey(),

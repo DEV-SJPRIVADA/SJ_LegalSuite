@@ -130,7 +130,7 @@ class InformesPendientes extends Component
             ->pendingReview()
             ->with([
                 'submitter:id,name,email',
-                'personnel:id,first_name,last_name,document_number',
+                'employee:id,first_name,last_name,document_number',
             ])
             ->orderByDesc('created_at')
             ->get();

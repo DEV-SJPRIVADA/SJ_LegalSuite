@@ -30,8 +30,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
 
-            'personnel.view',
-            'personnel.manage',
+            'employees.view',
+            'employees.manage',
 
             'users.view',
             'users.manage',
@@ -62,7 +62,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $planeacion->syncPermissions([
             'disciplinary.view',
             'disciplinary.assign-date',
-            'personnel.view',
+            'employees.view',
             'disciplinary.download-pdf',
         ]);
 
@@ -73,7 +73,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.create',
             'disciplinary.upload-document',
             'disciplinary.review-inform',
-            'personnel.view',
+            'employees.view',
+            'employees.manage',
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
         ]);
@@ -83,7 +84,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.view',
             'disciplinary.view-dashboard',
             'disciplinary.export',
-            'personnel.view',
+            'employees.view',
             'users.view',
             'disciplinary.download-pdf',
         ]);
@@ -96,7 +97,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
             'disciplinary.generate-inform',
             'disciplinary.review-inform',
-            'personnel.view',
+            'employees.view',
+            'employees.manage',
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
         ]);
@@ -106,7 +108,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $supervisor->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
-            'personnel.view',
+            'employees.view',
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
         ]);
@@ -116,7 +118,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $operador->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
-            'personnel.view',
+            'employees.view',
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
         ]);

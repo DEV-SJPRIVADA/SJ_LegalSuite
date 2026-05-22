@@ -172,9 +172,9 @@
                                     <td class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{{ $case->case_number }}</td>
                                     <td class="px-4 py-3">
                                         <div class="font-medium text-slate-900 dark:text-slate-100">
-                                            {{ $case->personnel?->first_name }} {{ $case->personnel?->last_name }}
+                                            {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
                                         </div>
-                                        <div class="text-xs text-slate-500 dark:text-slate-400">CC {{ $case->personnel?->document_number }}</div>
+                                        <div class="text-xs text-slate-500 dark:text-slate-400">CC {{ $case->employee?->document_number }}</div>
                                     </td>
                                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $case->city ?? '—' }}</td>
                                     <td class="px-4 py-3">

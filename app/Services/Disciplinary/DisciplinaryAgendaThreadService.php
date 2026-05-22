@@ -98,7 +98,7 @@ class DisciplinaryAgendaThreadService
             ]);
 
             $this->notifyPlanningUsersOfLawyerMessage(
-                $case->fresh(['personnel']),
+                $case->fresh(['employee']),
                 $thread,
                 $message,
                 $lawyer,
@@ -158,7 +158,7 @@ class DisciplinaryAgendaThreadService
 
             $message = $message->fresh(['attachments']);
 
-            $this->notifyLawyerOfPlanningMessage($case->fresh(['personnel']), $message, $actor);
+            $this->notifyLawyerOfPlanningMessage($case->fresh(['employee']), $message, $actor);
 
             $caseKey = (int) $case->getKey();
             DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));

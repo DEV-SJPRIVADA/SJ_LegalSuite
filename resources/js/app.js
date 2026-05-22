@@ -9,6 +9,8 @@ import './bootstrap';
 import './echo-notification-bell';
 import './notification-bell-sound';
 import './fo51-municipality-combobox';
+import './fo51-employee-combobox';
+import './bulk-import-elapsed-timer';
 import './disciplinary-planning-composer';
 import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';

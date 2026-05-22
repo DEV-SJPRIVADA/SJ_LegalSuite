@@ -14,22 +14,26 @@
                         Caso <span class="font-mono">{{ $case->case_number }}</span>
                     </h1>
                     <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">
-                        {{ $case->personnel?->first_name }} {{ $case->personnel?->last_name }}
-                        @if ($case->personnel?->document_number)
-                            · CC {{ $case->personnel->document_number }}
+                        {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
+                        @if ($case->employee?->document_number)
+                            · CC {{ $case->employee->document_number }}
                         @endif
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
                     <x-disciplinary.status-badge :status="$case->current_status" class="text-sm px-3 py-1" />
-                    @can('transition', $case)
-                        @if (count($allowedTransitions) > 0)
-                            <button wire:click="openTransition"
+                    @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME)
+                        @can('transition', $case)
+                            <button type="button" wire:click="openAdvanceStageConfirm"
                                 class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                                Gestionar →
+                                Cambiar de etapa
                             </button>
-                        @endif
-                    @endcan
+                            <button type="button" wire:click="openArchiveConfirm"
+                                class="inline-flex items-center px-4 py-2 bg-white text-slate-700 text-sm font-semibold rounded-md ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/15">
+                                Archivar
+                            </button>
+                        @endcan
+                    @endif
                 </div>
             </div>
         </div>
@@ -78,16 +82,16 @@
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Disciplinado</dt>
                                     <dd class="text-gray-900 dark:text-white font-medium">
-                                        {{ $case->personnel?->first_name }} {{ $case->personnel?->last_name }}
+                                        {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
                                     </dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Documento</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->personnel?->document_type }} {{ $case->personnel?->document_number }}</dd>
+                                    <dd class="text-gray-900 dark:text-white">{{ $case->employee?->document_type }} {{ $case->employee?->document_number }}</dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Cargo / Sede</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->personnel?->position ?? '—' }} · {{ $case->sede ?? '—' }}</dd>
+                                    <dd class="text-gray-900 dark:text-white">{{ $case->employee?->job_title ?? '—' }} · {{ $case->sede ?? '—' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Ciudad</dt>
@@ -197,7 +201,7 @@
                                                         <p class="text-xs text-red-600 dark:text-red-400 sm:text-right">{{ $message }}</p>
                                                     @enderror
                                                 @elseif ($canGenerateFo51EtapaA)
-                                                    <a href="{{ $case->personnel ? route('disciplinary.cases.index', ['informe_modal' => 1, 'nombre' => trim($case->personnel->first_name.' '.$case->personnel->last_name), 'cedula' => $case->personnel->document_number]) : route('disciplinary.cases.index', ['informe_modal' => 1]) }}" wire:navigate
+                                                    <a href="{{ $case->employee ? route('disciplinary.cases.index', ['informe_modal' => 1, 'nombre' => trim($case->employee->first_name.' '.$case->employee->last_name), 'cedula' => $case->employee->document_number]) : route('disciplinary.cases.index', ['informe_modal' => 1]) }}" wire:navigate
                                                         class="inline-flex items-center justify-center px-4 py-2 bg-white text-emerald-800 text-sm font-semibold rounded-md ring-1 ring-emerald-300/90 hover:bg-emerald-100/80 dark:bg-white/10 dark:text-emerald-200 dark:ring-emerald-400/40 dark:hover:bg-white/15">
                                                         Abrir formulario FO-GJ-51
                                                     </a>
@@ -492,7 +496,7 @@
                                     @elseif ($canGenerateFo51)
                                         <p class="text-xs text-indigo-800/90 mt-1 dark:text-slate-300">
                                             Antes de existir expediente, el informe pasa por la cola «Revisión informes». Si el caso ya existe, puede generar de nuevo el PDF o cargar un anexo cuando corresponda.</p>
-                                        <a href="{{ $case->personnel ? route('disciplinary.cases.index', ['informe_modal' => 1, 'nombre' => trim($case->personnel->first_name.' '.$case->personnel->last_name), 'cedula' => $case->personnel->document_number]) : route('disciplinary.cases.index', ['informe_modal' => 1]) }}" wire:navigate
+                                        <a href="{{ $case->employee ? route('disciplinary.cases.index', ['informe_modal' => 1, 'nombre' => trim($case->employee->first_name.' '.$case->employee->last_name), 'cedula' => $case->employee->document_number]) : route('disciplinary.cases.index', ['informe_modal' => 1]) }}" wire:navigate
                                             class="mt-3 inline-flex items-center px-4 py-2 bg-white text-indigo-700 text-sm font-semibold rounded-md ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-white/10 dark:text-cyan-200 dark:ring-cyan-400/35 dark:hover:bg-white/15">
                                             Abrir formulario FO-GJ-51
                                         </a>
@@ -506,13 +510,13 @@
                         <div class="space-y-4">
                             <p class="text-sm text-gray-700 dark:text-slate-300 max-w-3xl">
                                 Procesos <span class="font-semibold">distintos a este caso</span> que el sistema encuentra por el mismo
-                                número de documento del trabajador ({{ $case->personnel?->document_number ?? '—' }}), según su perfil en el listado disciplinario.
+                                número de documento del trabajador ({{ $case->employee?->document_number ?? '—' }}), según la BD de empleados.
                             </p>
                             @php
                                 /** @var \Illuminate\Support\Collection|null $relatedCases */
                                 $__related = $relatedCases ?? collect();
                             @endphp
-                            @if ($case->personnel === null || ! filled($case->personnel->document_number ?? null))
+                            @if ($case->employee === null || ! filled($case->employee->document_number ?? null))
                                 <p class="text-sm text-gray-500 dark:text-slate-400">Este caso no tiene trabajador vinculado; no puede armarse historial por cédula.</p>
                             @elseif ($__related->isEmpty())
                                 <p class="text-sm text-gray-500 dark:text-slate-400">No aparecen otros expedientes registrados para esta cédula con su usuario actual.</p>
@@ -664,60 +668,65 @@
         </div>
     </div>
 
-    {{-- Modal de transición --}}
-    @if ($showTransition)
+    {{-- Confirmación A → B (etapa Informe) --}}
+    @if ($showAdvanceStageConfirm)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            x-data x-on:keydown.escape.window="$wire.closeTransition()">
-            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full dark:bg-dash-ink dark:ring-1 dark:ring-white/15" x-on:click.outside="$wire.closeTransition()">
+            x-data x-on:keydown.escape.window="$wire.closeAdvanceStageConfirm()">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full dark:bg-dash-ink dark:ring-1 dark:ring-white/15" x-on:click.outside="$wire.closeAdvanceStageConfirm()">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">Mover el caso</h3>
-                    <button wire:click="closeTransition" class="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Cambiar de etapa</h3>
+                    <button type="button" wire:click="closeAdvanceStageConfirm" class="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
                 </div>
-                <form wire:submit="saveTransition" class="p-6 space-y-4">
-                    <div class="text-sm text-gray-600 dark:text-slate-400">
-                        Estado actual: <x-disciplinary.status-badge :status="$case->current_status" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Nuevo estado</label>
-                        <select wire:model="newStatus"
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                            <option value="">— Seleccionar —</option>
-                            @foreach ($allowedTransitions as $t)
-                                <option value="{{ $t->value }}">{{ $t->label() }}</option>
-                            @endforeach
-                        </select>
-                        @error('newStatus') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Programado para (opcional)</label>
-                            <input type="datetime-local" wire:model="scheduledAt"
-                                class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Plazo (opcional)</label>
-                            <input type="date" wire:model="deadlineAt"
-                                class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">Nota</label>
-                        <textarea wire:model="note" rows="3"
-                            class="w-full rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100 placeholder:dark:text-slate-500"
-                            placeholder="Detalles, observaciones, motivo..."></textarea>
-                    </div>
-
+                <div class="p-6 space-y-4">
+                    <p class="text-sm text-gray-700 dark:text-slate-200 leading-relaxed">
+                        Pasarás el caso a la etapa <strong class="text-gray-900 dark:text-white">{{ $advanceStageLabel }}</strong>.
+                        Podrás coordinar fechas con planeación en la pestaña Información.
+                    </p>
+                    @error('advanceStage')
+                        <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
                     <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" wire:click="closeTransition"
+                        <button type="button" wire:click="closeAdvanceStageConfirm"
                             class="px-4 py-2 bg-gray-100 text-gray-700 dark:text-slate-300 rounded-md text-sm hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15">
                             Cancelar
                         </button>
-                        <button type="submit"
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                            Aplicar transición
+                        <button type="button" wire:click="confirmAdvanceStage" wire:loading.attr="disabled"
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-60">
+                            Confirmar
                         </button>
                     </div>
-                </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Confirmación archivar (etapa Informe) --}}
+    @if ($showArchiveConfirm)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            x-data x-on:keydown.escape.window="$wire.closeArchiveConfirm()">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full dark:bg-dash-ink dark:ring-1 dark:ring-white/15" x-on:click.outside="$wire.closeArchiveConfirm()">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Archivar expediente</h3>
+                    <button type="button" wire:click="closeArchiveConfirm" class="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <p class="text-sm text-gray-700 dark:text-slate-200 leading-relaxed">
+                        ¿Archivar este expediente? El caso quedará en estado <strong class="text-gray-900 dark:text-white">archivado</strong> y no continuará el flujo disciplinario.
+                    </p>
+                    @error('archiveCase')
+                        <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" wire:click="closeArchiveConfirm"
+                            class="px-4 py-2 bg-gray-100 text-gray-700 dark:text-slate-300 rounded-md text-sm hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15">
+                            Cancelar
+                        </button>
+                        <button type="button" wire:click="confirmArchive" wire:loading.attr="disabled"
+                            class="px-4 py-2 bg-amber-700 text-white text-sm font-semibold rounded-md hover:bg-amber-800 disabled:opacity-60">
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     @endif

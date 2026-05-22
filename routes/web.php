@@ -10,12 +10,15 @@ use App\Http\Controllers\Disciplinary\FoGj51InformeController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
+use App\Http\Controllers\Employees\EmployeeSearchController;
+use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
 use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
+use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
 use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
@@ -72,6 +75,10 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.documents.file');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
+
+    Route::get('employees', EmployeesIndex::class)->name('employees.index');
+    Route::get('employees/plantilla', EmployeeTemplateDownloadController::class)->name('employees.template');
+    Route::get('api/employees/search', EmployeeSearchController::class)->name('api.employees.search');
 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', UsersIndex::class)->name('index');

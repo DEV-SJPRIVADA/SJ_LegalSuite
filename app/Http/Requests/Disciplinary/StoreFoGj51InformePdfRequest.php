@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Disciplinary;
 
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\Employee;
 use App\Support\Disciplinary\FoGj51Catalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -42,7 +43,8 @@ class StoreFoGj51InformePdfRequest extends FormRequest
             'fo51_report_mm' => ['nullable', 'string', 'max:2'],
             'fo51_report_yyyy' => ['nullable', 'string', 'max:4'],
             'fo51_worker_name' => ['nullable', 'string', 'max:500'],
-            'fo51_worker_document' => ['nullable', 'string', 'max:32'],
+            'fo51_worker_document' => Employee::documentNumberRules(false),
+            'fo51_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'fo51_municipality_code' => ['nullable', 'string', 'size:5', Rule::exists('colombian_municipalities', 'municipality_code')],
             'fo51_shift' => ['nullable', 'string', 'max:120'],
             'fo51_position' => ['nullable', 'string', 'max:120'],
@@ -66,8 +68,14 @@ class StoreFoGj51InformePdfRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $merge = [
             'fo51_fault_other_chk' => $this->boolean('fo51_fault_other_chk'),
-        ]);
+        ];
+
+        if ($this->has('fo51_worker_document')) {
+            $merge['fo51_worker_document'] = Employee::normalizeDocumentNumber((string) $this->input('fo51_worker_document'));
+        }
+
+        $this->merge($merge);
     }
 }

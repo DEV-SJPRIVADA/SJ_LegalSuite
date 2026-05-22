@@ -4,6 +4,7 @@ namespace App\Livewire\Disciplinary\Cases;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\StageType;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
 use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -13,9 +14,7 @@ use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCaseService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
-use App\Workflow\Disciplinary\TransitionMap;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -35,16 +34,11 @@ class CaseDetail extends Component
 
     public string $activeTab = 'overview';
 
-    /* Modal de transición */
-    public bool $showTransition = false;
+    /** Confirmación A → B (citación) desde etapa Informe. */
+    public bool $showAdvanceStageConfirm = false;
 
-    public string $newStatus = '';
-
-    public string $note = '';
-
-    public string $scheduledAt = '';
-
-    public string $deadlineAt = '';
+    /** Confirmación archivar desde etapa Informe. */
+    public bool $showArchiveConfirm = false;
 
     /* Modal programación de fechas (Planeación / Jurídico) */
     public bool $showScheduleModal = false;
@@ -105,45 +99,65 @@ class CaseDetail extends Component
         $this->activeTab = $tab;
     }
 
-    public function openTransition(): void
+    public function openAdvanceStageConfirm(): void
     {
         Gate::authorize('transition', $this->case);
-        $this->reset(['newStatus', 'note', 'scheduledAt', 'deadlineAt']);
-        $this->showTransition = true;
+        $this->ensureInformeStageForTransition();
+        $this->showArchiveConfirm = false;
+        $this->showAdvanceStageConfirm = true;
     }
 
-    public function closeTransition(): void
+    public function closeAdvanceStageConfirm(): void
     {
-        $this->showTransition = false;
+        $this->showAdvanceStageConfirm = false;
     }
 
-    public function saveTransition(DisciplinaryWorkflowService $workflow): void
+    public function confirmAdvanceStage(DisciplinaryWorkflowService $workflow): void
     {
         Gate::authorize('transition', $this->case);
-
-        $this->validate([
-            'newStatus' => ['required', 'string'],
-            'note' => ['nullable', 'string', 'max:2000'],
-            'scheduledAt' => ['nullable', 'date'],
-            'deadlineAt' => ['nullable', 'date'],
-        ]);
+        $this->ensureInformeStageForTransition();
 
         try {
-            $to = CaseStatus::from($this->newStatus);
-            $this->case = $workflow->transition(
-                $this->case->fresh(),
-                $to,
-                auth()->user(),
-                $this->note ?: null,
-                [],
-                scheduledAt: $this->scheduledAt ? Carbon::parse($this->scheduledAt) : null,
-                deadlineAt: $this->deadlineAt ? Carbon::parse($this->deadlineAt) : null,
+            $this->applyCaseTransition(
+                $workflow,
+                CaseStatus::CITACION_PROGRAMADA,
+                'Avance a etapa B (citación) por decisión del titular.',
             );
-
-            $this->showTransition = false;
-            session()->flash('success', "Caso transicionado a: {$to->label()}");
+            $this->showAdvanceStageConfirm = false;
+            session()->flash('success', 'El caso pasó a etapa B: citación a diligencia disciplinaria.');
         } catch (InvalidStateTransitionException $e) {
-            $this->addError('newStatus', $e->getMessage());
+            $this->addError('advanceStage', $e->getMessage());
+        }
+    }
+
+    public function openArchiveConfirm(): void
+    {
+        Gate::authorize('transition', $this->case);
+        $this->ensureInformeStageForTransition();
+        $this->showAdvanceStageConfirm = false;
+        $this->showArchiveConfirm = true;
+    }
+
+    public function closeArchiveConfirm(): void
+    {
+        $this->showArchiveConfirm = false;
+    }
+
+    public function confirmArchive(DisciplinaryWorkflowService $workflow): void
+    {
+        Gate::authorize('transition', $this->case);
+        $this->ensureInformeStageForTransition();
+
+        try {
+            $this->applyCaseTransition(
+                $workflow,
+                CaseStatus::ARCHIVADO,
+                'Expediente archivado desde etapa de informe.',
+            );
+            $this->showArchiveConfirm = false;
+            session()->flash('success', 'El expediente fue archivado.');
+        } catch (InvalidStateTransitionException $e) {
+            $this->addError('archiveCase', $e->getMessage());
         }
     }
 
@@ -409,7 +423,7 @@ class CaseDetail extends Component
     private function syncCaseFromDb(): void
     {
         $this->case = $this->case->fresh([
-            'personnel',
+            'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
             'assignedLawyer:id,name',
@@ -443,7 +457,7 @@ class CaseDetail extends Component
         }
 
         $this->case->load([
-            'personnel',
+            'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
             'assignedLawyer:id,name',
@@ -463,8 +477,6 @@ class CaseDetail extends Component
             'agendaThread.messages.attachments',
         ]);
 
-        $allowed = TransitionMap::allowedFrom($this->case->current_status);
-
         $agendaAreas = OrganizationalArea::query()
             ->where('is_active', true)
             ->where('slug', 'planeacion')
@@ -481,7 +493,7 @@ class CaseDetail extends Component
         }
 
         return view('livewire.disciplinary.cases.show', [
-            'allowedTransitions' => $allowed,
+            'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
                 ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
@@ -495,19 +507,40 @@ class CaseDetail extends Component
      *
      * @return Collection<int, DisciplinaryCase>
      */
+    private function ensureInformeStageForTransition(): void
+    {
+        if ($this->case->current_status !== CaseStatus::INFORME) {
+            throw new InvalidStateTransitionException('Esta acción solo está disponible en etapa A (informe disciplinario).');
+        }
+    }
+
+    private function applyCaseTransition(
+        DisciplinaryWorkflowService $workflow,
+        CaseStatus $to,
+        ?string $note = null,
+    ): void {
+        $this->case = $workflow->transition(
+            $this->case->fresh(),
+            $to,
+            auth()->user(),
+            $note,
+        );
+        $this->syncCaseFromDb();
+    }
+
     private function relatedCasesSameDocument()
     {
-        $this->case->loadMissing('personnel');
-        $doc = $this->case->personnel?->document_number;
+        $this->case->loadMissing('employee');
+        $doc = $this->case->employee?->document_number;
         if (! filled($doc)) {
             return collect();
         }
 
         return DisciplinaryCase::query()
             ->forDisciplinaryActor(auth()->user())
-            ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
+            ->with(['employee:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
             ->where('disciplinary_cases.id', '!=', $this->case->getKey())
-            ->whereHas('personnel', fn ($q) => $q->where('document_number', $doc))
+            ->whereHas('employee', fn ($q) => $q->where('document_number', $doc))
             ->orderByDesc('opened_at')
             ->limit(50)
             ->get();

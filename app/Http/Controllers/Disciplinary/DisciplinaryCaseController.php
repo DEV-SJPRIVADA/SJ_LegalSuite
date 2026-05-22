@@ -30,7 +30,7 @@ class DisciplinaryCaseController extends Controller
 
         $query = DisciplinaryCase::query()
             ->forDisciplinaryActor($request->user())
-            ->with(['personnel:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
+            ->with(['employee:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
             ->when($request->filled('q'), fn ($q) => $q->search($request->string('q')))
             ->when($request->filled('status'), fn ($q) => $q->withStatus(CaseStatus::from($request->string('status'))))
             ->when(
@@ -54,11 +54,11 @@ class DisciplinaryCaseController extends Controller
     {
         $case = $this->cases->create(
             $request->user(),
-            $request->only(['personnel_id', 'assigned_lawyer_id', 'city', 'municipality_code', 'sede', 'opened_at', 'summary']),
+            $request->only(['employee_id', 'assigned_lawyer_id', 'city', 'municipality_code', 'sede', 'opened_at', 'summary']),
             $request->input('faults', []),
         );
 
-        return response()->json($case->load(['faults', 'personnel']), 201);
+        return response()->json($case->load(['faults', 'employee']), 201);
     }
 
     public function show(DisciplinaryCase $case): JsonResponse
@@ -67,7 +67,7 @@ class DisciplinaryCaseController extends Controller
 
         return response()->json(
             $case->load([
-                'personnel',
+                'employee',
                 'reporter:id,name',
                 'assignedLawyer:id,name',
                 'faults',
