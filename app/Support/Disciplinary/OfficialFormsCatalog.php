@@ -14,7 +14,7 @@ namespace App\Support\Disciplinary;
  * 1. Añadir el código en `htmlBlankPdfCodes()` y en `htmlBlankPdfRegistry()` (vista Blade + nombres de archivo).
  * 2. Crear `resources/views/disciplinary/forms/{slug}-blank-download.blade.php` (documento HTML que incluye el layout Letter).
  * 3. Opcional: pantalla de diligenciamiento + `FormRequest` + ruta `POST` (solo FO-GJ-51 tiene flujo completo hoy).
- * 4. Si existe PDF estático con el mismo código, tiene prioridad sobre HTML (ver `OfficialFormPreviewController`).
+ * 4. Si el código tiene plantilla HTML registrada, esa fuente tiene prioridad sobre PDF estático (ver controladores preview/descarga).
  */
 final class OfficialFormsCatalog
 {
@@ -39,11 +39,11 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-03-citacion.pdf'),
             ],
             [
-                'code' => null,
-                'title' => 'Constancia de inasistencia a citación',
+                'code' => 'FO-GJ-44',
+                'title' => 'Constancia de inasistencia a diligencia disciplinaria',
                 'phase' => 'B · Tras no asistencia',
                 'summary' => 'Documento que acredita la inasistencia; el trabajador dispone de 2 días calendario para justificar.',
-                'pdf' => null,
+                'pdf' => self::pdfIfExists('FO-GJ-44-constancia-inasistencia.pdf'),
             ],
             [
                 'code' => 'FO-GJ-54',
@@ -130,6 +130,11 @@ final class OfficialFormsCatalog
                 'inline' => 'FO-GJ-54-reprogramacion-en-blanco.pdf',
                 'download' => 'FO-GJ-54-reprogramacion-en-blanco.pdf',
             ],
+            'FO-GJ-44' => [
+                'view' => 'disciplinary.forms.fo-gj-44-blank-download',
+                'inline' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
+                'download' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
+            ],
             'FO-GJ-42' => [
                 'view' => 'disciplinary.forms.fo-gj-42-blank-download',
                 'inline' => 'FO-GJ-42-acta-en-blanco.pdf',
@@ -164,6 +169,34 @@ final class OfficialFormsCatalog
     public static function isHtmlBlankPdf(string $normalizedCode): bool
     {
         return isset(self::htmlBlankPdfRegistry()[strtoupper($normalizedCode)]);
+    }
+
+    /** Marca de revisión para invalidar caché del iframe (mtime de la vista Blade). */
+    public static function htmlBlankPdfRevision(string $normalizedCode): int
+    {
+        $view = self::htmlBlankPdfView($normalizedCode);
+        if ($view === null) {
+            return 0;
+        }
+
+        $mtime = (int) (@filemtime(view($view)->getPath()) ?: 0);
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-03') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-03-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-54') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-54-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-44') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-44-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        return $mtime;
     }
 
     /**

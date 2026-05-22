@@ -20,15 +20,15 @@ class OfficialFormPreviewController
 
         $normalized = strtoupper($code);
 
+        if (OfficialFormsCatalog::isHtmlBlankPdf($normalized)) {
+            return OfficialFormHtmlBlankPdfFactory::toResponse($normalized, true);
+        }
+
         $path = OfficialFormsCatalog::staticBlankPdfAbsolutePath($normalized);
         if ($path !== null) {
             return response()->file($path, array_merge([
                 'Content-Disposition' => 'inline; filename="'.basename($path).'"',
-            ], ['Cache-Control' => 'private, max-age=600']));
-        }
-
-        if (OfficialFormsCatalog::isHtmlBlankPdf($normalized)) {
-            return OfficialFormHtmlBlankPdfFactory::toResponse($normalized, true);
+            ], ['Cache-Control' => 'private, no-cache, must-revalidate']));
         }
 
         abort(404);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FO-GJ-03 · Citación a diligencia (en blanco)</title>
+    <title>FO-GJ-44 · Constancia de inasistencia (en blanco)</title>
     <style>
         @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
@@ -11,14 +11,14 @@
 </head>
 <body>
     <x-disciplinary.forms.official-letter-pdf-shell
-        code="FO-GJ-03"
-        headline="Citación a diligencia disciplinaria"
+        code="FO-GJ-44"
+        headline="Constancia de inasistencia"
         :logo-src="$embeddedLogoSrc"
-        meta-date="Octubre de 2023"
-        meta-version="Versión 03"
+        meta-date="Noviembre de 2023"
+        meta-version="Versión 02"
         :show-micro="false"
     >
-        @include('disciplinary.forms.partials.fo-gj-03-body', ['blankForDownload' => true])
+        @include('disciplinary.forms.partials.fo-gj-44-body', ['blankForDownload' => true])
     </x-disciplinary.forms.official-letter-pdf-shell>
 </body>
 </html>

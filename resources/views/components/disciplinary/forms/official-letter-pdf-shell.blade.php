@@ -5,6 +5,9 @@
     /** Data URI o URL del logo (PDF embebido). */
     'logoSrc' => '',
     'metaPageLine' => 'Página 1 de 1',
+    'metaDate' => 'Mayo de 2024',
+    'metaVersion' => 'Versión 04',
+    'showMicro' => true,
 ])
 
 @php
@@ -15,33 +18,29 @@
 
 <div class="ogj-wrap">
     <div class="ogj-page">
-        <div class="ogj-block">
-            <table class="ogj-tbl ogj-head-tbl" role="presentation">
-                <colgroup>
-                    <col style="width:102px">
-                    <col>
-                    <col style="width:114px">
-                </colgroup>
-                <tbody>
-                    <tr>
-                        <td class="ogj-logo-cell">
-                            <div class="ogj-logo-ring">
-                                <img src="{{ $logoSrc }}" alt="SJ Seguridad">
-                            </div>
-                        </td>
-                        <td class="ogj-title">{{ Str::upper($headline) }}</td>
-                        <td class="ogj-meta">
-                            <table role="presentation">
-                                <tr><td><div class="ogj-code">{{ $code }}</div></td></tr>
-                                <tr><td>Mayo de 2024</td></tr>
-                                <tr><td>Versión 04</td></tr>
-                                <tr><td>{{ $metaPageLine }}</td></tr>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <table class="ogj-tbl ogj-head-grid" role="presentation">
+            <colgroup>
+                <col style="width:102px">
+                <col>
+                <col style="width:114px">
+            </colgroup>
+            <tbody>
+                <tr>
+                    <td class="ogj-logo-cell">
+                        <img src="{{ $logoSrc }}" alt="SJ Seguridad">
+                    </td>
+                    <td class="ogj-title">{{ Str::upper($headline) }}</td>
+                    <td class="ogj-meta">
+                        <table class="ogj-meta-grid" role="presentation">
+                            <tr><td class="ogj-meta-code">{{ $code }}</td></tr>
+                            <tr><td>{{ $metaDate }}</td></tr>
+                            <tr><td>{{ $metaVersion }}</td></tr>
+                            <tr><td>{{ $metaPageLine }}</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
         @if (filled($phase))
             <p class="ogj-phase">{{ $phase }}</p>
@@ -49,6 +48,8 @@
 
         {{ $slot }}
 
-        <p class="ogj-micro">{{ $code }} — Uso interno SJ Seguridad — Plantilla en blanco (completar según normativa interna).</p>
+        @if ($showMicro)
+            <p class="ogj-micro">{{ $code }} — Uso interno SJ Seguridad — Plantilla en blanco (completar según normativa interna).</p>
+        @endif
     </div>
 </div>

@@ -113,7 +113,7 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 | **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion`:** ve casos en **citación o reprogramación** con al menos un **mensaje inicial del abogado titular** en el hilo de coordinación con planeación (FO-GJ-03). **Etapa A (Informe):** el titular **no** chatea con planeación; tras revisar el caso pasa a citación o archiva. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `nombre`/`cedula` opcionales). En **CIUDAD** (FO-GJ-51) el municipio DIVIPOLA se elige con **búsqueda al escribir** (Alpine + `resources/js/fo51-municipality-combobox.js`); el catálogo proviene de **Ajustes → Territorio**. |
 | **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
 | **Detalle del caso** | 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición. **Tarjeta «Etapa A»** (Información, estado **Informe** y titular asignado): fila 1 **Etapa A** + botón **Ver informe (PDF)**; fila 2 trazabilidad del envío a revisión e incorporación del PDF con **fecha/hora Colombia** (`America/Bogota`); fila 3 **Autorización y creación del caso** — cargo y nombre de quien **autoriza** el FO-GJ-51 y genera el expediente (`InformeSubmission` vía `DisciplinaryCase::informeSubmission()`); fila 4 **Revisión y asignación** — cargo y nombre de quien registra la asignación del titular (última actuación **`CASO_ASIGNADO`** en `disciplinary_actions`), abogado asignado y fecha Colombia. En ese escenario no se duplica el recuadro índigo del PDF. **Hilo agenda / planeación (FO-GJ-03):** activo solo en **citación** o **reprogramación** (`allowsAgendaThread()`); en Informe, mensajes antiguos del hilo en solo lectura. |
-| **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Si existe archivo estático en `public/formatos/disciplinarios/{código}.pdf`, tiene prioridad; si no (p. ej. **FO-GJ-51**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
+| **Formatos** | Catálogo FO-GJ por etapa A–F; **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Para códigos registrados en `OfficialFormsCatalog::htmlBlankPdfRegistry()` (**FO-GJ-51**, **FO-GJ-03**, **FO-GJ-44**, **FO-GJ-54**, **FO-GJ-42**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**; esa fuente tiene **prioridad** sobre un PDF estático en `public/formatos/disciplinarios/`. Las cartas oficiales comparten encabezado grilla (`official-letter-pdf-shell`) y campos en blanco con guías grises. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`. |
 
 **Disciplinario — agenda Etapa B:** `DisciplinaryCase::statusesAllowingAgendaCoordination()` limita el chat abogado ↔ planeación a **citación** y **reprogramación**; `DisciplinaryWorkflowService` no exige respuesta de planeación para pasar de **Informe** a **citación**. Políticas y `DisciplinaryAgendaThreadService` usan `allowsAgendaThread()`.
 
@@ -136,7 +136,7 @@ Etapas normativas SJ (referencia):
 | Etapa | Contenido |
 | --- | --- |
 | **A** | Falta e informe disciplinario — **FO-GJ-51**. La coordinación de fechas con planeación (**FO-GJ-03**, chat e imágenes) corresponde a la **Etapa B** (citación / reprogramación), no al estado Informe. |
-| **B** | Citación a diligencia disciplinaria por escrito — **FO-GJ-03**. Si no asiste: constancia de inasistencia y **2 días calendario** para justificar; si justifica → reprogramación (**FO-GJ-54**); si no → comité disciplinario para decisión |
+| **B** | Citación a diligencia disciplinaria por escrito — **FO-GJ-03**. Si no asiste: **FO-GJ-44** (constancia de inasistencia) y **2 días calendario** para justificar; si justifica → reprogramación (**FO-GJ-54**); si no → comité disciplinario para decisión |
 | **C** | Diligencia disciplinaria y acta — **FO-GJ-42** |
 | **D** | Comunicado de la decisión de sanción o cierre del proceso |
 | **E** | Recurso de apelación contra la decisión disciplinaria |
@@ -149,7 +149,7 @@ INFORME (FO-GJ-51) ────────────────► ARCHIVADO
    ↓
 CITACION_PROGRAMADA (FO-GJ-03) ─┐
    │   │   │                    │
-   │   │   └─► CITACION_NO_ASISTIO
+   │   │   └─► CITACION_NO_ASISTIO (FO-GJ-44)
    │   │             ↓
    │   │      JUSTIFICACION_PENDIENTE (deadline 2 días calendario)
    │   │           │            │
@@ -240,7 +240,9 @@ resources/views/
     users/                     Listado, detalle y catálogo de organización (áreas/cargos)
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (p. ej. selector de tema)
-  disciplinary/forms/        FO-GJ-51: plantilla en blanco/rellena para PDF; parciales reutilizados en modal y pantalla `vista_completa`
+  disciplinary/forms/        FO-GJ-51 (informe); FO-GJ-03/44/54/42: plantillas carta Letter en blanco
+                               (`fo-gj-*-blank-download.blade.php` + parciales `fo-gj-*-body.blade.php`);
+                               shell compartido `official-letter-pdf-shell` y estilos `official-letter-pdf-styles`
   components/
     app-sidebar.blade.php      Sidebar de módulos (con catálogo de los 12)
     app-sidebar-icon.blade.php Heroicons inlineados (sin dependencia externa)
@@ -301,11 +303,22 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 ### PDF disciplinarios (HTML → tamaño carta / Letter)
 
-Las plantillas que no tienen archivo estático en `public/formatos/disciplinarios/` (p. ej. **FO-GJ-51**) se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter**.
+Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
+
+| Código | Documento | Vista en blanco |
+|--------|-----------|-----------------|
+| **FO-GJ-51** | Informe disciplinario | `fo-gj-51-blank-download` (+ flujo de diligenciamiento) |
+| **FO-GJ-03** | Citación a diligencia disciplinaria | `fo-gj-03-blank-download` |
+| **FO-GJ-44** | Constancia de inasistencia a diligencia | `fo-gj-44-blank-download` |
+| **FO-GJ-54** | Reprogramación a diligencia disciplinaria | `fo-gj-54-blank-download` |
+| **FO-GJ-42** | Acta de diligencia disciplinaria | `fo-gj-42-blank-download` |
+
+Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático homónimo en `public/formatos/disciplinarios/`. El iframe de vista previa usa query `rev=` (mtime de la vista) para invalidar caché al editar plantillas.
 
 1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
 2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
 3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT` (detalle en `.env.example`). En Windows suele bastar la detección automática (Laragon en `C:\laragon\bin\nodejs\…`, Chrome en Program Files).
+4. Tras cambiar vistas Blade o CSS de formatos, ejecute **`npm run build`** y, si la vista previa no refleja cambios, **`php artisan view:clear`**.
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
 
@@ -365,7 +378,7 @@ En el **mismo PC Laragon**, **SJ_Armory** atiende el **puerto 80** y **SJ_LegalS
 
 En el mismo Laragon suelen existir otros proyectos en **8080** y **8081**; el tiempo casi real con **Pusher** no requiere abrir un puerto WebSocket adicional en el PC (el navegador se conecta a la nube de Pusher).
 
-La IP (`172.16.16.90` en el ejemplo) es la del **equipo donde corre Laragon**; si DHCP asigna otra, use esa IP con **`:8082`**. El `.env` de LegalSuite usa **`APP_URL=http://172.16.16.90:8082`**, paralelo a Armory (`APP_URL=http://172.16.16.90`). Con **`APP_USE_REQUEST_URL=true`**, si entran con otro host/IP válido, Laravel genera enlaces con esa misma base.
+La IP (`172.16.16.90` en el ejemplo) es la del **equipo donde corre Laragon**; si DHCP asigna otra, use esa IP con **`:8082`**. El `.env` de LegalSuite usa **`APP_URL=http://172.16.16.90:8082`**, paralelo a Armory (`APP_URL=http://172.16.16.90`). Con **`APP_USE_REQUEST_URL=true`**, si entran con otro host/IP válido, Laravel genera enlaces con esa misma base. Zona horaria recomendada en Colombia: **`APP_TIMEZONE=America/Bogota`** (usada en trazabilidad de fechas del módulo disciplinario).
 
 **Importante:** incluya **`http://`** y **`:8082`** para LegalSuite. En **Android**, el nombre `SJPCANAOPE1` puede **no resolverse**; use la **IP** como cuando abren Armory.
 
@@ -427,8 +440,8 @@ La autorización se evalúa en 3 capas:
 | `GET /settings/territorio` | **Ajustes · Territorio**: importación listado DIVIPOLA; permiso `settings.manage-territory` |
 | `GET /disciplinary/cases` | Listado de casos con filtros |
 | `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
-| `GET /disciplinary/formats/preview/{code}` | Vista previa inline del PDF en blanco (misma fuente que la descarga): archivo en disco o **HTML→PDF Letter** (Browsershot) para códigos como FO-GJ-51; Gate `viewOfficialForms`. |
-| `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco en PDF Letter; si existe PDF estático en `public/formatos/disciplinarios/`, ese archivo tiene prioridad sobre la plantilla HTML; Gate `viewOfficialForms`. |
+| `GET /disciplinary/formats/preview/{code}` | Vista previa inline del PDF en blanco (misma fuente que la descarga): **HTML→PDF Letter** (Browsershot) si el código está en el registro HTML; si no, PDF estático en `public/formatos/disciplinarios/`; Gate `viewOfficialForms`. |
+| `GET /disciplinary/formats/descarga-en-blanco/{code}` | Descarga plantilla en blanco en PDF Letter; misma prioridad HTML que la vista previa; Gate `viewOfficialForms`. |
 | `GET /disciplinary/forms/informe-fo-gj-51` | Por defecto **redirige** al listado de casos con query (`informe_modal`, opc. `cargar_pdf`, `nombre`, `cedula`). Con **`?vista_completa=1`** devuelve la pantalla completa de diligenciamiento FO-GJ-51. |
 | `POST /disciplinary/forms/informe-fo-gj-51` | Procesa el informe (`FoGj51ProcessRequest`): acción `pdf` (descarga Letter), `enviar` (cola de revisión) o `cargar` (PDF externo). |
 | `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes de autorización; permiso `disciplinary.review-inform`. |
@@ -485,7 +498,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - [ ] Wizard de creación de caso (formulario con autocompletado de personal)
 - [ ] Subida de documentos desde la UI (`DocumentService` ya listo en backend)
 - [ ] Notificaciones por email cuando un plazo está próximo a vencer
-- [ ] Exportación PDF de actuaciones con plantillas FO-GJ
+- [ ] Exportación PDF de actuaciones con plantillas FO-GJ (FO-GJ-03, FO-GJ-44, FO-GJ-54 y FO-GJ-42 ya tienen plantilla HTML en blanco; falta diligenciamiento desde el caso)
 - [ ] Vista Kanban "Mi pipeline" por abogado
 - [ ] Tests Pest reemplazando el `WorkflowSmokeTest`
 

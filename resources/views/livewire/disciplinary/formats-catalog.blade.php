@@ -7,18 +7,6 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Disciplinarios · Formatos</p>
             <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Formatos oficiales del proceso</h1>
-            <p class="mt-2 text-sm text-slate-600 max-w-3xl dark:text-slate-300">
-                Referencia de plantillas alineadas con las etapas <strong>A–F</strong> del proceso disciplinario SJ (informe, citación, reprogramación, diligencia, decisión, apelación y segunda instancia).
-                Use <strong>Plantilla</strong> para abrir el <strong>PDF en un modal</strong> (misma plantilla en blanco que la descarga).
-                En <strong>Descarga</strong> guarda el archivo PDF en su equipo.
-                @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
-                    Para diligenciar el informe en pantalla y generar PDF en tamaño carta:
-                    <a href="{{ route('disciplinary.cases.index', ['informe_modal' => 1]) }}" class="font-semibold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">Abrir FO-GJ-51 para diligenciar</a>.
-                @endcan
-                Las plantillas <strong class="text-slate-800 dark:text-slate-200">FO-GJ-03, FO-GJ-54 y FO-GJ-42</strong> tienen por ahora <strong>PDF en blanco</strong> desde HTML (misma mecánica que la plantilla FO-GJ-51); el diligenciamiento en pantalla y el vínculo al expediente se irán conectando por formato.
-                Los PDF opcionales van en
-                <code class="text-xs bg-slate-100 px-1 py-0.5 rounded dark:bg-white/10 dark:text-slate-200">public/formatos/disciplinarios/</code>.
-            </p>
         </div>
     </div>
 
@@ -101,7 +89,10 @@
         @php
             $previewLabels = collect($forms)->keyBy(fn ($r) => (string) ($r['code'] ?? ''));
             $previewRow = $previewLabels[$activeFormPreview] ?? null;
-            $previewIframeSrc = route('disciplinary.formats.preview', ['code' => $activeFormPreview]);
+            $previewIframeSrc = route('disciplinary.formats.preview', [
+                'code' => $activeFormPreview,
+                'rev' => \App\Support\Disciplinary\OfficialFormsCatalog::htmlBlankPdfRevision($activeFormPreview),
+            ]);
         @endphp
 
         {{-- Margen lateral real: el ancho NO debe usar 100vw (ignora el padding). w-full dentro del padding del overlay. --}}

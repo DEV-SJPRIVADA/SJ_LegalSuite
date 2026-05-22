@@ -11,7 +11,10 @@ use Illuminate\Http\Response;
  */
 final class OfficialFormHtmlBlankPdfFactory
 {
-    private const INLINE_CACHE_CONTROL = ['Cache-Control' => 'private, max-age=600'];
+    private const INLINE_CACHE_CONTROL = [
+        'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
+        'Pragma' => 'no-cache',
+    ];
 
     public static function binary(string $normalizedCode): string
     {

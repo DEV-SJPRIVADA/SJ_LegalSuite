@@ -17,13 +17,13 @@ class OfficialFormBlankDownloadController
 
         $normalized = strtoupper($code);
 
+        if (OfficialFormsCatalog::isHtmlBlankPdf($normalized)) {
+            return OfficialFormHtmlBlankPdfFactory::toResponse($normalized, false);
+        }
+
         $path = OfficialFormsCatalog::staticBlankPdfAbsolutePath($normalized);
         if ($path !== null) {
             return response()->download($path, basename($path));
-        }
-
-        if (OfficialFormsCatalog::isHtmlBlankPdf($normalized)) {
-            return OfficialFormHtmlBlankPdfFactory::toResponse($normalized, false);
         }
 
         abort(404);
