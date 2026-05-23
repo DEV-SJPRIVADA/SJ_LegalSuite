@@ -225,7 +225,7 @@ para enviar recordatorios o pasar al comité.
 | --- | --- | --- |
 | `admin` | Todos los permisos (si `read_only` en BD = false) | `admin@sjlegalsuite.local` |
 | `admin` + **solo lectura** | Consulta disciplinarios, dashboard y usuarios; sin mutaciones | `admin.consulta@sjlegalsuite.local` |
-| `abogado` | Solo casos donde es abogado asignado | `abogado@sjlegalsuite.local` |
+| `abogado` | Casos asignados + bandeja INFORME sin titular (`claim` / `inInformePool`) | `abogado@sjlegalsuite.local` |
 | `planeacion` | Ver + programar fechas en etapas | `planeacion@sjlegalsuite.local` |
 | `administrativa` | Informes + evidencias | `administrativa@sjlegalsuite.local` |
 | `auditor` | Consulta + export disciplinario | `auditor@sjlegalsuite.local` |

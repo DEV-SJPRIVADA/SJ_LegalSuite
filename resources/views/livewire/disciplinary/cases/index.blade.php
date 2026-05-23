@@ -46,6 +46,11 @@
 
     <div class="py-6 sm:py-8">
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            @if (session('error'))
+                <div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-900 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-100 dark:ring-red-500/30">
+                    {{ session('error') }}
+                </div>
+            @endif
             @if (session('success'))
                 <div class="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/30">
                     {{ session('success') }}
@@ -182,20 +187,33 @@
                                     </td>
                                     @unless (auth()->user()->isMinimalDisciplinaryPortalUser())
                                         <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                            {{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}
+                                            @if ($case->isInInformePool())
+                                                <span class="text-amber-700 dark:text-amber-300 font-medium">Bandeja compartida</span>
+                                            @else
+                                                {{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}
+                                            @endif
                                         </td>
                                     @endunless
                                     <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">{{ $case->faults_count }}</td>
                                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $case->opened_at?->format('Y-m-d') }}</td>
                                     <td class="px-4 py-3 text-right">
-                                        <a href="{{ route('disciplinary.cases.show', $case) }}" wire:navigate
-                                            class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
-                                            @if (auth()->user()->isDisciplinaryProgramador())
-                                                Programar
-                                            @else
+                                        @can('claim', $case)
+                                            <button type="button" wire:click="openClaimConfirm({{ $case->id }})"
+                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
                                                 Gestionar
-                                            @endif
-                                        </a>
+                                            </button>
+                                        @else
+                                            <a href="{{ route('disciplinary.cases.show', $case) }}" wire:navigate
+                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
+                                                @if (auth()->user()->isDisciplinaryProgramador())
+                                                    Programar
+                                                @elseif ($case->isInInformePool() && auth()->user()->hasRole('auditor'))
+                                                    Ver
+                                                @else
+                                                    Gestionar
+                                                @endif
+                                            </a>
+                                        @endcan
                                     </td>
                                 </tr>
                             @empty
@@ -215,6 +233,33 @@
             </div>
         </div>
     </div>
+
+    @if ($showClaimConfirm)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" wire:key="claim-confirm-{{ $claimCaseId }}">
+            <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10"
+                role="dialog" aria-modal="true" aria-labelledby="claim-confirm-title">
+                <h2 id="claim-confirm-title" class="text-lg font-bold text-slate-900 dark:text-white">
+                    Confirmar gestión del caso
+                </h2>
+                <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                    ¿Confirma que tomará la gestión del expediente
+                    <strong class="text-slate-900 dark:text-white font-mono">{{ $claimCaseNumber }}</strong>?
+                    Se le asignará como abogado titular y dejará de estar disponible en la bandeja compartida para otros abogados.
+                </p>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button type="button" wire:click="cancelClaimConfirm"
+                        class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/10">
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="confirmClaimCase" wire:loading.attr="disabled"
+                        class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-60">
+                        <span wire:loading.remove wire:target="confirmClaimCase">Sí, gestionar caso</span>
+                        <span wire:loading wire:target="confirmClaimCase">Asignando…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if ($showFo51Modal)
         @include('disciplinary.forms.partials.fo-gj-51-informe-modal-shell', [

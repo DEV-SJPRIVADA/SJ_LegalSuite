@@ -47,6 +47,26 @@
                     {{ session('success') }}
                 </div>
             @endif
+            @if (session('error'))
+                <div class="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950/35 dark:text-red-300 dark:ring-red-500/25">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @can('claim', $case)
+                <div class="rounded-lg bg-amber-50 px-4 py-4 ring-1 ring-amber-200 flex flex-wrap items-center justify-between gap-3 dark:bg-amber-950/30 dark:ring-amber-500/30">
+                    <div>
+                        <p class="text-sm font-semibold text-amber-900 dark:text-amber-100">Bandeja compartida (etapa informe)</p>
+                        <p class="text-xs text-amber-800/90 mt-1 dark:text-amber-100/80">
+                            Este expediente aún no tiene abogado titular. Confirme la gestión para asignárselo y continuar el trámite.
+                        </p>
+                    </div>
+                    <button type="button" wire:click="openClaimConfirm"
+                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shrink-0">
+                        Gestionar caso
+                    </button>
+                </div>
+            @endcan
 
             {{-- Tabs --}}
             @php
@@ -936,4 +956,37 @@
             </div>
         @endif
     @endcan
+
+    @if ($showClaimConfirm)
+        <div class="fixed inset-0 z-[88] flex items-center justify-center p-4"
+            x-data
+            x-on:keydown.escape.window="$wire.cancelClaimConfirm()"
+            wire:key="claim-confirm-{{ $case->id }}">
+            <div class="absolute inset-0 bg-black/55 dark:bg-black/65" wire:click="cancelClaimConfirm" aria-hidden="true"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15"
+                role="dialog" aria-modal="true" aria-labelledby="claim-confirm-detail-title">
+                <div class="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+                    <h2 id="claim-confirm-detail-title" class="text-lg font-bold text-slate-900 dark:text-white">
+                        Confirmar gestión del caso
+                    </h2>
+                    <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                        ¿Confirma que tomará la gestión del expediente
+                        <strong class="font-mono text-slate-900 dark:text-white">{{ $case->case_number }}</strong>?
+                        Se le asignará como abogado titular.
+                    </p>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-dash-ink/80">
+                    <button type="button" wire:click="cancelClaimConfirm"
+                        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="confirmClaimCase" wire:loading.attr="disabled"
+                        class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                        <span wire:loading.remove wire:target="confirmClaimCase">Sí, gestionar caso</span>
+                        <span wire:loading wire:target="confirmClaimCase">Asignando…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

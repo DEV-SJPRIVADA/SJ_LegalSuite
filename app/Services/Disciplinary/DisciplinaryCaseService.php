@@ -4,11 +4,11 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\User;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -63,6 +63,39 @@ class DisciplinaryCaseService
                 'action_type' => ActionType::CASO_ASIGNADO,
                 'description' => "Asignado a {$lawyer->name}",
                 'metadata' => ['lawyer_id' => $lawyer->id],
+                'performed_at' => now(),
+            ]);
+
+            return $case->fresh();
+        });
+    }
+
+    /**
+     * El abogado toma un caso de la bandeja compartida (INFORME sin titular).
+     * Actualización atómica: sólo si sigue sin asignar.
+     */
+    public function claimByLawyer(DisciplinaryCase $case, User $lawyer): DisciplinaryCase
+    {
+        if (! $lawyer->hasRole('abogado')) {
+            throw new \InvalidArgumentException('Solo usuarios con rol abogado pueden reclamar casos del pool.');
+        }
+
+        return DB::transaction(function () use ($case, $lawyer) {
+            $updated = DisciplinaryCase::query()
+                ->whereKey($case->id)
+                ->inInformePool()
+                ->update(['assigned_lawyer_id' => $lawyer->id]);
+
+            if ($updated === 0) {
+                throw new CaseAlreadyClaimedException('El expediente ya fue asignado a otro abogado.');
+            }
+
+            DisciplinaryAction::create([
+                'disciplinary_case_id' => $case->id,
+                'user_id' => $lawyer->id,
+                'action_type' => ActionType::CASO_ASIGNADO,
+                'description' => "{$lawyer->name} tomó la gestión del expediente (bandeja informe)",
+                'metadata' => ['lawyer_id' => $lawyer->id, 'source' => 'informe_pool_claim'],
                 'performed_at' => now(),
             ]);
 

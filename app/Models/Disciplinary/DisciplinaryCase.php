@@ -189,6 +189,20 @@ class DisciplinaryCase extends Model
         return $query->where('assigned_lawyer_id', $userId);
     }
 
+    /** Etapa informe sin abogado titular (bandeja compartida de abogados). */
+    public function scopeInInformePool(Builder $query): Builder
+    {
+        return $query
+            ->where('current_status', CaseStatus::INFORME->value)
+            ->whereNull('assigned_lawyer_id');
+    }
+
+    public function isInInformePool(): bool
+    {
+        return $this->current_status === CaseStatus::INFORME
+            && $this->assigned_lawyer_id === null;
+    }
+
     public function municipality(): BelongsTo
     {
         return $this->belongsTo(ColombianMunicipality::class, 'municipality_code', 'municipality_code');
@@ -263,7 +277,10 @@ class DisciplinaryCase extends Model
         }
 
         if ($user->hasRole('abogado')) {
-            return $query->where('assigned_lawyer_id', $user->id);
+            return $query->where(function (Builder $q) use ($user) {
+                $q->where('assigned_lawyer_id', $user->id)
+                    ->orWhere(fn (Builder $pool) => $pool->inInformePool());
+            });
         }
 
         if ($user->hasAnyRole(['supervisor', 'operador'])) {

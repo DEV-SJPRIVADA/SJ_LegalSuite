@@ -5,6 +5,7 @@ namespace App\Livewire\Disciplinary\Cases;
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\StageType;
+use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
 use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -63,6 +64,9 @@ class CaseDetail extends Component
 
     public string $lawyerConfirmTargetName = '';
 
+    /** Confirmación al tomar caso de bandeja INFORME. */
+    public bool $showClaimConfirm = false;
+
     /** Coordinación citación FO-GJ-03 — solicitud abogado ↔ planeación */
     public string $agendaLawyerBody = '';
 
@@ -97,6 +101,39 @@ class CaseDetail extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    public function openClaimConfirm(): void
+    {
+        Gate::authorize('claim', $this->case);
+        $this->showClaimConfirm = true;
+    }
+
+    public function cancelClaimConfirm(): void
+    {
+        $this->showClaimConfirm = false;
+    }
+
+    public function confirmClaimCase(DisciplinaryCaseService $cases): void
+    {
+        Gate::authorize('claim', $this->case);
+        if (! $this->showClaimConfirm) {
+            return;
+        }
+
+        try {
+            $this->case = $cases->claimByLawyer($this->case->fresh(), auth()->user());
+        } catch (CaseAlreadyClaimedException) {
+            $this->showClaimConfirm = false;
+            $this->case = $this->case->fresh();
+            session()->flash('error', 'Otro abogado ya tomó este expediente.');
+
+            return;
+        }
+
+        $this->showClaimConfirm = false;
+        $this->assignedLawyerId = $this->case->assigned_lawyer_id;
+        session()->flash('success', 'Expediente asignado. Ya puede gestionarlo con normalidad.');
     }
 
     public function openAdvanceStageConfirm(): void

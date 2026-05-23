@@ -4,9 +4,11 @@ namespace App\Livewire\Disciplinary\Cases;
 
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\User;
+use App\Services\Disciplinary\DisciplinaryCaseService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
@@ -58,6 +60,13 @@ class CasesIndex extends Component
 
     public ?string $fo51PrefillDocument = null;
 
+    /** Confirmación «Gestionar» para casos en bandeja INFORME (pool). */
+    public bool $showClaimConfirm = false;
+
+    public ?int $claimCaseId = null;
+
+    public string $claimCaseNumber = '';
+
     public function mount(): void
     {
         Gate::authorize('viewAny', DisciplinaryCase::class);
@@ -107,6 +116,46 @@ class CasesIndex extends Component
     {
         $this->reset(['search', 'bucket', 'status', 'lawyerId', 'city', 'faultId', 'from', 'to']);
         $this->resetPage();
+    }
+
+    public function openClaimConfirm(int $caseId): void
+    {
+        $case = DisciplinaryCase::query()->findOrFail($caseId);
+        Gate::authorize('claim', $case);
+        $this->claimCaseId = $case->id;
+        $this->claimCaseNumber = $case->case_number;
+        $this->showClaimConfirm = true;
+    }
+
+    public function cancelClaimConfirm(): void
+    {
+        $this->showClaimConfirm = false;
+        $this->claimCaseId = null;
+        $this->claimCaseNumber = '';
+    }
+
+    public function confirmClaimCase(DisciplinaryCaseService $cases): void
+    {
+        if (! $this->showClaimConfirm || $this->claimCaseId === null) {
+            return;
+        }
+
+        $case = DisciplinaryCase::query()->findOrFail($this->claimCaseId);
+        Gate::authorize('claim', $case);
+
+        try {
+            $cases->claimByLawyer($case, auth()->user());
+        } catch (CaseAlreadyClaimedException) {
+            $this->cancelClaimConfirm();
+            session()->flash('error', 'Otro abogado ya tomó este expediente. Actualice el listado.');
+
+            return;
+        }
+
+        $caseId = $case->id;
+        $this->cancelClaimConfirm();
+        session()->flash('success', 'Expediente asignado. Ya puede gestionarlo con normalidad.');
+        $this->redirectRoute('disciplinary.cases.show', ['case' => $caseId], navigate: true);
     }
 
     #[Computed]

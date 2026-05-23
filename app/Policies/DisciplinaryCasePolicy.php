@@ -11,13 +11,13 @@ use App\Models\User;
  * - admin (sin modo solo lectura) → control total vía `before`.
  * - admin en modo solo lectura → sólo consulta (listados, detalle, dashboard).
  * - Otros usuarios con `read_only` → igual: consulta sin mutaciones.
- * - abogado → sólo casos asignados (si no está en solo lectura); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
+ * - abogado → casos asignados + bandeja INFORME sin titular (`claim`); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
  * - planeacion → listado «informes»: casos en citación o reprogramación con mensaje inicial del titular en el hilo FO-GJ-03 ↔ planeación;
  *   sin dashboard ni formatos; al salir de esos estados el caso deja de mostrarse allí (según alcance dinámico).
  * - administrativa / operaciones → informes + evidencias.
- * - Asignar abogado titular: sólo rol `admin` (no solo lectura), vía `assign`.
+ * - Asignar / reasignar abogado titular: `admin` o permiso `disciplinary.assign` (no solo lectura), vía `assign`.
  * - Hilo agenda (citación / reprogramación): `postAgendaLawyer` (abogado titular), `postAgendaPlanning` (planeación o admin sin atajo `before`).
  */
 class DisciplinaryCasePolicy
@@ -31,7 +31,7 @@ class DisciplinaryCasePolicy
      *
      * @var list<string>
      */
-    private const ADMIN_DO_NOT_SHORT_CIRCUIT = ['postAgendaLawyer', 'postAgendaPlanning', 'assign'];
+    private const ADMIN_DO_NOT_SHORT_CIRCUIT = ['postAgendaLawyer', 'postAgendaPlanning', 'assign', 'claim'];
 
     public function before(User $user, string $ability): ?bool
     {
@@ -79,7 +79,8 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasRole('abogado')) {
-            return $case->assigned_lawyer_id === $user->id;
+            return (int) $case->assigned_lawyer_id === (int) $user->id
+                || $case->isInInformePool();
         }
 
         if ($user->hasRole('planeacion')) {
@@ -168,7 +169,22 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasRole('admin');
+        return $user->hasRole('admin')
+            || $user->hasPermissionTo('disciplinary.assign');
+    }
+
+    /** Tomar gestión de un expediente en bandeja INFORME (sin titular). */
+    public function claim(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('abogado')) {
+            return false;
+        }
+
+        return $case->isInInformePool();
     }
 
     public function assignPlanner(User $user, DisciplinaryCase $case): bool
