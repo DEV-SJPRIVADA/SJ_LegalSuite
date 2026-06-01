@@ -126,14 +126,20 @@ class InformesPendientes extends Component
 
     public function render(): View
     {
-        $pending = InformeSubmission::query()
+        $query = InformeSubmission::query()
             ->pendingReview()
             ->with([
                 'submitter:id,name,email',
+                'assignedReviewer:id,name',
                 'employee:id,first_name,last_name,document_number',
-            ])
-            ->orderByDesc('created_at')
-            ->get();
+            ]);
+
+        $user = auth()->user();
+        if (! $user->hasRole('admin') && ! $user->can('disciplinary.review-inform-all')) {
+            $query->where('assigned_reviewer_id', $user->id);
+        }
+
+        $pending = $query->orderByDesc('created_at')->get();
 
         return view('livewire.disciplinary.informes-pendientes', [
             'pending' => $pending,

@@ -16,12 +16,13 @@ class InformeSubmissionPolicy
             return true;
         }
 
-        return $this->hasReviewInformPermission($user);
+        return $this->hasReviewInformPermission($user)
+            || $this->hasReviewInformAllPermission($user);
     }
 
     public function view(User $user, InformeSubmission $informeSubmission): bool
     {
-        if ($this->viewAny($user)) {
+        if ($this->canReviewSubmission($user, $informeSubmission)) {
             return true;
         }
 
@@ -42,14 +43,36 @@ class InformeSubmissionPolicy
             return true;
         }
 
+        if ($informeSubmission->status !== InformeSubmissionStatus::PENDIENTE_REVISION) {
+            return false;
+        }
+
+        return $this->canReviewSubmission($user, $informeSubmission);
+    }
+
+    private function canReviewSubmission(User $user, InformeSubmission $informeSubmission): bool
+    {
+        if ($this->hasReviewInformAllPermission($user)) {
+            return true;
+        }
+
         return $this->hasReviewInformPermission($user)
-            && $informeSubmission->status === InformeSubmissionStatus::PENDIENTE_REVISION;
+            && (int) $informeSubmission->assigned_reviewer_id === (int) $user->id;
     }
 
     private function hasReviewInformPermission(User $user): bool
     {
         try {
             return $user->hasPermissionTo('disciplinary.review-inform');
+        } catch (PermissionDoesNotExist) {
+            return false;
+        }
+    }
+
+    private function hasReviewInformAllPermission(User $user): bool
+    {
+        try {
+            return $user->hasPermissionTo('disciplinary.review-inform-all');
         } catch (PermissionDoesNotExist) {
             return false;
         }

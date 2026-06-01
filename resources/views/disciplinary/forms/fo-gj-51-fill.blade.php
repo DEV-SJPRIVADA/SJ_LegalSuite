@@ -31,6 +31,7 @@
                 'prefillWorkerDocument' => $prefillWorkerDocument,
                 'openPdfUploadModal' => $openPdfUploadModal,
                 'pdfIframeName' => $pdfIframeName,
+                'operacionesReviewers' => $operacionesReviewers ?? collect(),
             ])
         </div>
     </div>

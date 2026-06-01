@@ -9,8 +9,18 @@ namespace App\Enums\Disciplinary;
  */
 enum ActionType: string
 {
+    case INFORME_ENVIADO = 'informe_enviado';
+    case INFORME_APROBADO = 'informe_aprobado';
+    case INFORME_CANCELADO = 'informe_cancelado';
     case CASO_CREADO = 'caso_creado';
     case CASO_ASIGNADO = 'caso_asignado';
+    case CASO_ACEPTADO_ABOGADO = 'caso_aceptado_abogado';
+    case CASO_REASIGNADO = 'caso_reasignado';
+    case COORDINACION_INICIADA = 'coordinacion_iniciada';
+    case PLANEACION_RESPONDIO = 'planeacion_respondio';
+    case FECHA_CITACION_SELECCIONADA = 'fecha_citacion_seleccionada';
+    case FO_GJ_03_GENERADO = 'fo_gj_03_generado';
+    case EVIDENCIA_CITACION_CARGADA = 'evidencia_citacion_cargada';
     case ESTADO_TRANSICIONADO = 'estado_transicionado';
     case ETAPA_INICIADA = 'etapa_iniciada';
     case ETAPA_COMPLETADA = 'etapa_completada';

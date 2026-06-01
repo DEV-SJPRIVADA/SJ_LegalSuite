@@ -266,6 +266,7 @@
             'prefillWorkerName' => $fo51PrefillName,
             'prefillWorkerDocument' => $fo51PrefillDocument,
             'openPdfUploadModal' => $fo51OpenPdfFirst,
+            'operacionesReviewers' => $operacionesReviewers,
         ])
     @endif
 </div>

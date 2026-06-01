@@ -46,6 +46,7 @@
                     'openPdfUploadModal' => $openPdfUploadModal,
                     'pdfIframeName' => $pdfIframeName,
                     'embedInModal' => true,
+                    'operacionesReviewers' => $operacionesReviewers ?? collect(),
                 ])
             </div>
         </div>

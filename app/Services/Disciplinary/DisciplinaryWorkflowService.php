@@ -27,6 +27,10 @@ use Illuminate\Support\Facades\DB;
  */
 class DisciplinaryWorkflowService
 {
+    public function __construct(
+        private readonly DisciplinaryCitationWorkflowService $citationWorkflow,
+    ) {}
+
     /**
      * Aplica una transición de estado al caso.
      *
@@ -50,6 +54,10 @@ class DisciplinaryWorkflowService
 
         if (! TransitionMap::canTransition($from, $to)) {
             throw InvalidStateTransitionException::notAllowed($from, $to);
+        }
+
+        if ($from === CaseStatus::CITACION_PROGRAMADA) {
+            $this->citationWorkflow->assertCanLeaveCitacionStage($case);
         }
 
         return DB::transaction(function () use (

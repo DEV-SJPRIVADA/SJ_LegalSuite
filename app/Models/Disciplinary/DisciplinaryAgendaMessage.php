@@ -2,6 +2,7 @@
 
 namespace App\Models\Disciplinary;
 
+use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,8 +13,26 @@ class DisciplinaryAgendaMessage extends Model
     protected $fillable = [
         'thread_id',
         'user_id',
+        'message_kind',
         'body',
+        'proposed_slots',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'message_kind' => AgendaMessageKind::class,
+            'proposed_slots' => 'array',
+        ];
+    }
+
+    /** @return list<array{date: string, time?: string|null, notes?: string|null}> */
+    public function normalizedProposedSlots(): array
+    {
+        $slots = $this->proposed_slots ?? [];
+
+        return is_array($slots) ? array_values($slots) : [];
+    }
 
     public function thread(): BelongsTo
     {

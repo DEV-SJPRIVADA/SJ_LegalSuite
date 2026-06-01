@@ -2,6 +2,7 @@
 
 namespace App\Services\Disciplinary;
 
+use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\InformeSubmissionStatus;
@@ -15,6 +16,7 @@ use App\Notifications\InformeAuthorizedNotification;
 use App\Notifications\InformePendingReviewNotification;
 use App\Notifications\InformeRejectedNotification;
 use App\Support\Disciplinary\FoGj51SnapshotFaultMapper;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -27,6 +29,7 @@ class DisciplinaryInformeSubmissionService
         private readonly DisciplinaryCaseService $cases,
         private readonly DisciplinaryWorkflowService $workflow,
         private readonly DisciplinaryDocumentService $documents,
+        private readonly DisciplinaryAuditService $audit,
     ) {}
 
     /**
@@ -37,13 +40,20 @@ class DisciplinaryInformeSubmissionService
         UploadedFile $file,
         User $submitter,
         int $employeeId,
+        int $assignedReviewerId,
         array $formSnapshot = [],
         ?string $summary = null,
         array $evidenceImages = [],
     ): InformeSubmission {
-        return DB::transaction(function () use ($file, $submitter, $employeeId, $formSnapshot, $summary, $evidenceImages) {
+        $reviewer = User::query()->whereKey($assignedReviewerId)->where('is_active', true)->first();
+        if (! $reviewer || ! $reviewer->hasRole('operaciones')) {
+            throw new \InvalidArgumentException('Seleccione un revisor de operaciones válido.');
+        }
+
+        return DB::transaction(function () use ($file, $submitter, $employeeId, $assignedReviewerId, $formSnapshot, $summary, $evidenceImages, $reviewer) {
             $submission = InformeSubmission::create([
                 'submitted_by' => $submitter->id,
+                'assigned_reviewer_id' => $assignedReviewerId,
                 'employee_id' => $employeeId,
                 'status' => InformeSubmissionStatus::PENDIENTE_REVISION,
                 'storage_disk' => 'local',
@@ -77,15 +87,29 @@ class DisciplinaryInformeSubmissionService
                 $submission->forceFill(['evidence_paths' => $evidencePaths])->save();
             }
 
-            $submission = $submission->fresh(['employee', 'submitter']);
+            $submission = $submission->fresh(['employee', 'submitter', 'assignedReviewer']);
 
-            $reviewers = User::query()
-                ->where('is_active', true)
-                ->permission('disciplinary.review-inform')
+            $this->audit->logInforme(
+                $submission,
+                $submitter,
+                ActionType::INFORME_ENVIADO,
+                "Informe enviado a revisión de {$reviewer->name}.",
+                ['assigned_reviewer_id' => $assignedReviewerId],
+            );
+
+            Notification::send(
+                collect([$reviewer])->filter(),
+                new InformePendingReviewNotification($submission),
+            );
+
+            $directors = $this->usersWithInformDirectoryVisibility()
+                ->whereKeyNot($reviewer->id)
                 ->whereKeyNot($submitter->id)
                 ->get();
 
-            Notification::send($reviewers, new InformePendingReviewNotification($submission));
+            if ($directors->isNotEmpty()) {
+                Notification::send($directors, new InformePendingReviewNotification($submission));
+            }
 
             return $submission;
         });
@@ -110,6 +134,14 @@ class DisciplinaryInformeSubmissionService
                 'storage_path' => '',
                 'evidence_paths' => null,
             ])->save();
+
+            $this->audit->logInforme(
+                $submission,
+                $reviewer,
+                ActionType::INFORME_CANCELADO,
+                'Informe cancelado en revisión de operaciones.',
+                ['notes' => $notes],
+            );
 
             if ($submitter instanceof User) {
                 Notification::send($submitter, new InformeRejectedNotification($submission->fresh(['employee']), $notes));
@@ -239,6 +271,14 @@ class DisciplinaryInformeSubmissionService
                 'evidence_paths' => null,
             ])->save();
 
+            $this->audit->logInforme(
+                $submission->fresh(),
+                $reviewer,
+                ActionType::INFORME_APROBADO,
+                'Informe aprobado; expediente creado en etapa Informe.',
+                ['disciplinary_case_id' => $case->id],
+            );
+
             $submitterModel = User::query()->find($submission->submitted_by);
             if ($submitterModel instanceof User) {
                 Notification::send($submitterModel, new InformeAuthorizedNotification($case->fresh(['employee'])));
@@ -246,6 +286,27 @@ class DisciplinaryInformeSubmissionService
 
             return $case->fresh(['employee']);
         });
+    }
+
+    /**
+     * Usuarios de dirección que ven todos los informes (copia informativa al enviar FO-GJ-51).
+     * No usa {@see Builder::permission()} para evitar 500 si el permiso aún no está en BD.
+     *
+     * @return Builder<User>
+     */
+    private function usersWithInformDirectoryVisibility(): Builder
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->where(function (Builder $q): void {
+                $q->whereHas('roles', fn (Builder $r) => $r->where('name', 'admin'))
+                    ->orWhereHas('roles.permissions', fn (Builder $p) => $p
+                        ->where('name', 'disciplinary.review-inform-all')
+                        ->where('guard_name', 'web'))
+                    ->orWhereHas('permissions', fn (Builder $p) => $p
+                        ->where('name', 'disciplinary.review-inform-all')
+                        ->where('guard_name', 'web'));
+            });
     }
 
     private function deleteStoredFile(InformeSubmission $submission): void

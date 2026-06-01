@@ -18,6 +18,7 @@ class DisciplinaryAction extends Model
 
     protected $fillable = [
         'disciplinary_case_id',
+        'informe_submission_id',
         'disciplinary_stage_id',
         'user_id',
         'action_type',
@@ -42,6 +43,11 @@ class DisciplinaryAction extends Model
     public function case(): BelongsTo
     {
         return $this->belongsTo(DisciplinaryCase::class, 'disciplinary_case_id');
+    }
+
+    public function informeSubmission(): BelongsTo
+    {
+        return $this->belongsTo(InformeSubmission::class, 'informe_submission_id');
     }
 
     public function stage(): BelongsTo

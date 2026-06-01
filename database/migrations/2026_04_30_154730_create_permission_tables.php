@@ -1,8 +1,10 @@
 <?php
 
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
 
 return new class extends Migration
 {
@@ -114,6 +116,42 @@ return new class extends Migration
         app('cache')
             ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
             ->forget(config('permission.cache.key'));
+
+        foreach (self::baselinePermissionNames() as $perm) {
+            Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+        }
+    }
+
+    /**
+     * Catálogo base de permisos (roles y asignaciones: {@see RolesAndPermissionsSeeder}).
+     *
+     * @return list<string>
+     */
+    private static function baselinePermissionNames(): array
+    {
+        return [
+            'disciplinary.view',
+            'disciplinary.view-dashboard',
+            'disciplinary.create',
+            'disciplinary.update',
+            'disciplinary.delete',
+            'disciplinary.transition',
+            'disciplinary.assign',
+            'disciplinary.assign-date',
+            'disciplinary.upload-document',
+            'disciplinary.export',
+            'disciplinary.generate-inform',
+            'disciplinary.review-inform',
+            'disciplinary.review-inform-all',
+            'disciplinary.assign-planner',
+            'disciplinary.upload-notification',
+            'disciplinary.download-pdf',
+            'employees.view',
+            'employees.manage',
+            'users.view',
+            'users.manage',
+            'settings.manage-territory',
+        ];
     }
 
     /**

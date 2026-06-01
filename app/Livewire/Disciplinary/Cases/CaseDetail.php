@@ -4,6 +4,8 @@ namespace App\Livewire\Disciplinary\Cases;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\CitationEvidenceType;
+use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
@@ -13,11 +15,16 @@ use App\Models\Disciplinary\DisciplinaryStage;
 use App\Models\OrganizationalArea;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
+use App\Services\Disciplinary\DisciplinaryAuditService;
 use App\Services\Disciplinary\DisciplinaryCaseService;
+use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
+use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
+use App\Services\Disciplinary\FoGj03CitationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -70,13 +77,27 @@ class CaseDetail extends Component
     /** Coordinación citación FO-GJ-03 — solicitud abogado ↔ planeación */
     public string $agendaLawyerBody = '';
 
-    public ?int $agendaOrganizationalAreaId = null;
-
     /** Respuesta planeación (campo aparte para no chocar con admin que ve ambos formularios) */
     public string $agendaPlanningBody = '';
 
+    /** @var array<int, array{date: string, time: string, notes: string}> */
+    public array $planningSlots = [
+        ['date' => '', 'time' => '', 'notes' => ''],
+    ];
+
     /** @var array<int, mixed> */
     public array $agendaPlanningUploads = [];
+
+    /** Clave compuesta messageId-slotIndex para selección visual de fecha. */
+    public string $selectedCitationSlotKey = '';
+
+    public bool $showCitationAdvanceValidation = false;
+
+    public bool $showCitationAdvanceConfirm = false;
+
+    public string $citationEvidenceType = '';
+
+    public $citationEvidenceFile = null;
 
     /** Vista previa del PDF FO-GJ-51 ya incorporado al expediente. */
     public ?int $fo51PdfPreviewDocumentId = null;
@@ -350,25 +371,35 @@ class CaseDetail extends Component
         return (int) $value;
     }
 
+    public function startCoordination(DisciplinaryAgendaThreadService $agenda): void
+    {
+        Gate::authorize('startCoordination', $this->case);
+
+        try {
+            $this->case = $agenda->startCoordination($this->case->fresh(['agendaThread']), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('coordination', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Coordinación iniciada. Planeación fue notificada.');
+    }
+
     public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
     {
         Gate::authorize('postAgendaLawyer', $this->case);
 
-        $rules = [
+        $this->validate([
             'agendaLawyerBody' => ['required', 'string', 'max:8000'],
-        ];
-        if ($this->case->agendaThread === null) {
-            $rules['agendaOrganizationalAreaId'] = ['required', 'integer', 'exists:organizational_areas,id'];
-        }
-
-        $this->validate($rules);
+        ]);
 
         try {
             $agenda->postLawyerMessage(
                 $this->case->fresh(['agendaThread']),
                 auth()->user(),
                 $this->agendaLawyerBody,
-                $this->case->agendaThread ? null : $this->agendaOrganizationalAreaId,
                 [],
             );
         } catch (\Throwable $e) {
@@ -377,9 +408,17 @@ class CaseDetail extends Component
             return;
         }
 
-        $this->reset('agendaLawyerBody', 'agendaOrganizationalAreaId');
+        $this->reset('agendaLawyerBody');
         $this->syncCaseFromDb();
-        session()->flash('success', 'Solicitud enviada a planeación (hilo de citación FO-GJ-03).');
+        session()->flash('success', 'Mensaje enviado a planeación.');
+    }
+
+    public function addPlanningSlotRow(): void
+    {
+        if (count($this->planningSlots) >= 5) {
+            return;
+        }
+        $this->planningSlots[] = ['date' => '', 'time' => '', 'notes' => ''];
     }
 
     public function postAgendaPlanning(DisciplinaryAgendaThreadService $agenda): void
@@ -388,24 +427,23 @@ class CaseDetail extends Component
 
         $this->validate([
             'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
+            'planningSlots' => ['nullable', 'array', 'max:5'],
+            'planningSlots.*.date' => ['nullable', 'date'],
+            'planningSlots.*.time' => ['nullable', 'date_format:H:i'],
+            'planningSlots.*.notes' => ['nullable', 'string', 'max:500'],
             'agendaPlanningUploads' => ['nullable', 'array', 'max:6'],
-            'agendaPlanningUploads.*' => ['nullable', 'file', 'max:5120', 'mimes:jpeg,jpg,png,gif,webp'],
+            'agendaPlanningUploads.*' => ['nullable', 'file', 'max:10240', 'mimes:jpeg,jpg,png,gif,webp,pdf'],
         ]);
 
         $body = trim($this->agendaPlanningBody);
         $files = array_values(array_filter($this->agendaPlanningUploads));
-
-        if ($body === '' && $files === []) {
-            $this->addError('agendaPlanningBody', 'Escriba un mensaje o adjunte al menos una imagen.');
-
-            return;
-        }
 
         try {
             $agenda->postPlanningMessage(
                 $this->case->fresh(['agendaThread']),
                 auth()->user(),
                 $body,
+                $this->planningSlots,
                 $files,
             );
         } catch (\Throwable $e) {
@@ -415,8 +453,160 @@ class CaseDetail extends Component
         }
 
         $this->reset('agendaPlanningBody', 'agendaPlanningUploads');
+        $this->planningSlots = [['date' => '', 'time' => '', 'notes' => '']];
         $this->syncCaseFromDb();
         session()->flash('success', 'Respuesta publicada en el hilo de agenda.');
+    }
+
+    public function confirmCitationSlot(DisciplinaryAgendaThreadService $agenda): void
+    {
+        Gate::authorize('postAgendaLawyer', $this->case);
+
+        $this->validate([
+            'selectedCitationSlotKey' => ['required', 'string', 'regex:/^\d+-\d+$/'],
+        ]);
+
+        [$messageId, $slotIndex] = $this->parseCitationSlotKey($this->selectedCitationSlotKey);
+
+        try {
+            $this->case = $agenda->confirmCitationSlot(
+                $this->case->fresh(),
+                auth()->user(),
+                $messageId,
+                $slotIndex,
+            );
+        } catch (\Throwable $e) {
+            $this->addError('selectedCitationSlotKey', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Fecha definitiva de citación registrada. Ya puede generar el FO-GJ-03.');
+    }
+
+    public function requestAdvanceFromCitacion(DisciplinaryCitationWorkflowService $citation): void
+    {
+        Gate::authorize('transition', $this->case);
+
+        if ($this->case->current_status !== CaseStatus::CITACION_PROGRAMADA) {
+            $this->addError('citationAdvance', 'Esta acción solo está disponible en etapa de citación.');
+
+            return;
+        }
+
+        $this->showCitationAdvanceConfirm = false;
+
+        if (! $citation->allRequirementsMet($this->case->fresh())) {
+            $this->showCitationAdvanceValidation = true;
+
+            return;
+        }
+
+        $this->showCitationAdvanceValidation = false;
+        $this->showCitationAdvanceConfirm = true;
+    }
+
+    public function closeCitationAdvanceValidation(): void
+    {
+        $this->showCitationAdvanceValidation = false;
+    }
+
+    public function closeCitationAdvanceConfirm(): void
+    {
+        $this->showCitationAdvanceConfirm = false;
+    }
+
+    public function confirmAdvanceFromCitacion(
+        DisciplinaryWorkflowService $workflow,
+        DisciplinaryCitationWorkflowService $citation,
+    ): void {
+        Gate::authorize('transition', $this->case);
+        $this->showCitationAdvanceConfirm = false;
+
+        try {
+            $citation->assertCanLeaveCitacionStage($this->case->fresh());
+            $this->applyCaseTransition(
+                $workflow,
+                CaseStatus::DILIGENCIA,
+                'Avance a diligencia disciplinaria tras completar la etapa de citación.',
+            );
+            session()->flash('success', 'El expediente pasó a etapa C: diligencia disciplinaria.');
+        } catch (InvalidStateTransitionException $e) {
+            $this->addError('citationAdvance', $e->getMessage());
+        } catch (ValidationException) {
+            $this->showCitationAdvanceValidation = true;
+        }
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function parseCitationSlotKey(string $key): array
+    {
+        if (! preg_match('/^(\d+)-(\d+)$/', $key, $m)) {
+            throw new \InvalidArgumentException('Seleccione una fecha propuesta válida.');
+        }
+
+        return [(int) $m[1], (int) $m[2]];
+    }
+
+    public function generateFoGj03(FoGj03CitationService $fo03): void
+    {
+        Gate::authorize('generateFoGj03', $this->case);
+
+        try {
+            $this->case = $fo03->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_03', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-03 generado y almacenado en el expediente.');
+    }
+
+    public function uploadCitationEvidence(
+        DisciplinaryDocumentService $documents,
+        DisciplinaryCitationWorkflowService $citationWorkflow,
+        DisciplinaryAuditService $audit,
+    ): void {
+        Gate::authorize('uploadCitationEvidence', $this->case);
+
+        $this->validate([
+            'citationEvidenceType' => ['required', 'in:signed,refused_witnesses'],
+            'citationEvidenceFile' => ['required', 'file', 'mimes:pdf', 'max:15360'],
+        ]);
+
+        $type = CitationEvidenceType::from($this->citationEvidenceType);
+        $stage = $this->case->stages()
+            ->where('stage_type', StageType::CITACION)
+            ->orderByDesc('sequence')
+            ->first();
+
+        $documents->upload(
+            $this->case,
+            $this->citationEvidenceFile,
+            DocumentType::CITACION,
+            auth()->user(),
+            $stage,
+            'Evidencia notificación citación — '.$type->label(),
+        );
+
+        $this->case = $citationWorkflow->markEvidenceUploaded($this->case->fresh(), $type);
+
+        $audit->logCase(
+            $this->case,
+            auth()->user(),
+            ActionType::EVIDENCIA_CITACION_CARGADA,
+            'Evidencia PDF de citación cargada.',
+            ['evidence_type' => $type->value],
+        );
+
+        $this->reset('citationEvidenceFile', 'citationEvidenceType');
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Evidencia de citación cargada correctamente.');
     }
 
     public function removeAgendaPlanningUploadAt(int $index): void
@@ -529,6 +719,9 @@ class CaseDetail extends Component
                 ->get(['id', 'name', 'slug']);
         }
 
+        $citationWorkflow = app(DisciplinaryCitationWorkflowService::class);
+        $citationSlotChoices = $this->buildCitationSlotChoices();
+
         return view('livewire.disciplinary.cases.show', [
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
@@ -536,7 +729,44 @@ class CaseDetail extends Component
                 ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
             'organizationalAreasForAgenda' => $agendaAreas,
+            'citationReadiness' => $citationWorkflow->readinessChecklist($this->case),
+            'citationMissing' => $citationWorkflow->missingRequirements($this->case),
+            'citationRequirementLabels' => DisciplinaryCitationWorkflowService::requirementLabels(),
+            'citationSlotChoices' => $citationSlotChoices,
+            'citationAdvanceTargetLabel' => StageType::DILIGENCIA->label(),
         ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{key: string, label: string, notes: string|null}>
+     */
+    private function buildCitationSlotChoices(): \Illuminate\Support\Collection
+    {
+        $this->case->loadMissing('agendaThread.messages');
+        $choices = collect();
+
+        foreach ($this->case->agendaThread?->messages ?? [] as $message) {
+            foreach ($message->normalizedProposedSlots() as $index => $slot) {
+                $date = (string) ($slot['date'] ?? '');
+                if ($date === '') {
+                    continue;
+                }
+                $time = isset($slot['time']) && $slot['time'] !== '' ? (string) $slot['time'] : '09:00';
+                try {
+                    $dt = \Illuminate\Support\Carbon::parse($date.' '.$time);
+                    $label = $dt->format('d/m/Y').' - '.$dt->format('h:i A');
+                } catch (\Throwable) {
+                    $label = trim($date.' '.$time);
+                }
+                $choices->push([
+                    'key' => $message->id.'-'.$index,
+                    'label' => $label,
+                    'notes' => isset($slot['notes']) && $slot['notes'] !== '' ? (string) $slot['notes'] : null,
+                ]);
+            }
+        }
+
+        return $choices;
     }
 
     /**

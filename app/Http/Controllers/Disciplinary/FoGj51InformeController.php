@@ -8,6 +8,7 @@ use App\Models\ColombianMunicipality;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
+use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
 use App\Services\Employees\EmployeeResolver;
 use App\Support\Pdf\EmbeddedPublicAsset;
@@ -36,6 +37,11 @@ class FoGj51InformeController
                 'prefillWorkerName' => $request->string('nombre')->trim()->toString() ?: null,
                 'prefillWorkerDocument' => $request->string('cedula')->trim()->toString() ?: null,
                 'openPdfUploadModal' => $request->boolean('cargar_pdf'),
+                'operacionesReviewers' => User::query()
+                    ->role('operaciones')
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name']),
             ]);
         }
 
@@ -134,6 +140,7 @@ class FoGj51InformeController
                 $uploaded,
                 $request->user(),
                 $employee->id,
+                (int) $validated['fo51_assigned_reviewer_id'],
                 $v,
                 isset($v['fo51_observations']) ? mb_substr((string) $v['fo51_observations'], 0, 5000) : null,
                 collect($request->file('evidence_images', []))
@@ -180,6 +187,7 @@ class FoGj51InformeController
             $file,
             $request->user(),
             $employee->id,
+            (int) $validated['fo51_assigned_reviewer_id'],
             $v,
             isset($validated['informe_worker_name'])
                 ? mb_substr(trim((string) $validated['informe_worker_name']), 0, 120)

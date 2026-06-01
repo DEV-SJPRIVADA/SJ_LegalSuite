@@ -59,6 +59,26 @@
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
 
+            @php
+                $operacionesReviewers = $operacionesReviewers ?? collect();
+            @endphp
+            <div class="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                <label for="fo51_assigned_reviewer_id" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Revisor de operaciones <span class="text-red-600">*</span>
+                </label>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 mb-2">El informe quedará asignado a esta persona; dirección de operaciones podrá ver todos los informes.</p>
+                <select id="fo51_assigned_reviewer_id" name="fo51_assigned_reviewer_id" required
+                    class="w-full max-w-md rounded-md border-slate-300 text-sm shadow-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                    <option value="">— Seleccione revisor —</option>
+                    @foreach ($operacionesReviewers as $rev)
+                        <option value="{{ $rev->id }}" @selected((int) old('fo51_assigned_reviewer_id') === (int) $rev->id)>{{ $rev->name }}</option>
+                    @endforeach
+                </select>
+                @error('fo51_assigned_reviewer_id')
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button type="submit" name="fo51_action" value="pdf" formtarget="{{ $pdfIframeName }}"
                     class="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90">
@@ -216,6 +236,23 @@
             <form method="post" action="{{ route('disciplinary.forms.informe.process') }}" enctype="multipart/form-data" class="mt-6 space-y-4">
                 @csrf
                 <input type="hidden" name="fo51_action" value="cargar">
+
+                <div class="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                    <label for="modal_fo51_assigned_reviewer_id" class="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-dash-muted">
+                        Revisor de operaciones <span class="text-red-600">*</span>
+                    </label>
+                    <p class="mt-1 mb-2 text-xs text-slate-500 dark:text-slate-400">El informe quedará asignado a esta persona.</p>
+                    <select id="modal_fo51_assigned_reviewer_id" name="fo51_assigned_reviewer_id" required
+                        class="block w-full rounded-md border-slate-300 bg-white text-sm shadow-sm dark:border-white/15 dark:bg-dash-lift dark:text-white focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">— Seleccione revisor —</option>
+                        @foreach ($operacionesReviewers ?? [] as $rev)
+                            <option value="{{ $rev->id }}" @selected((int) old('fo51_assigned_reviewer_id') === (int) $rev->id)>{{ $rev->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('fo51_assigned_reviewer_id')
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 <div>
                     <label for="modal_informe_worker_name" class="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-dash-muted">

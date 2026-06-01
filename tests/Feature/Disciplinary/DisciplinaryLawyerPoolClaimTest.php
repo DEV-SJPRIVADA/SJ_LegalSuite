@@ -38,7 +38,7 @@ class DisciplinaryLawyerPoolClaimTest extends TestCase
         $this->assertDatabaseHas('disciplinary_actions', [
             'disciplinary_case_id' => $case->id,
             'user_id' => $lawyer->id,
-            'action_type' => ActionType::CASO_ASIGNADO->value,
+            'action_type' => ActionType::CASO_ACEPTADO_ABOGADO->value,
         ]);
         $this->assertTrue($lawyer->fresh()->can('update', $claimed));
         $this->assertFalse($lawyer->can('claim', $claimed));

@@ -238,6 +238,12 @@ class CasesIndex extends Component
 
     public function render()
     {
+        $operacionesReviewers = User::query()
+            ->role('operaciones')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $cases = DisciplinaryCase::query()
             ->forDisciplinaryActor(auth()->user())
             ->with(['employee:id,first_name,last_name,document_number', 'assignedLawyer:id,name'])
@@ -255,6 +261,11 @@ class CasesIndex extends Component
         return view('livewire.disciplinary.cases.index', [
             'cases' => $cases,
             'statuses' => CaseStatus::cases(),
+            'operacionesReviewers' => User::query()
+                ->role('operaciones')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 }

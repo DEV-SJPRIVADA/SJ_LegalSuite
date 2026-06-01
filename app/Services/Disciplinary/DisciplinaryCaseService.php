@@ -19,6 +19,7 @@ class DisciplinaryCaseService
 {
     public function __construct(
         private readonly DisciplinaryWorkflowService $workflow,
+        private readonly DisciplinaryAuditService $audit,
     ) {}
 
     /**
@@ -55,16 +56,18 @@ class DisciplinaryCaseService
     public function assignLawyer(DisciplinaryCase $case, User $lawyer, User $actor): DisciplinaryCase
     {
         return DB::transaction(function () use ($case, $lawyer, $actor) {
+            $hadLawyer = $case->assigned_lawyer_id !== null;
             $case->forceFill(['assigned_lawyer_id' => $lawyer->id])->save();
 
-            DisciplinaryAction::create([
-                'disciplinary_case_id' => $case->id,
-                'user_id' => $actor->id,
-                'action_type' => ActionType::CASO_ASIGNADO,
-                'description' => "Asignado a {$lawyer->name}",
-                'metadata' => ['lawyer_id' => $lawyer->id],
-                'performed_at' => now(),
-            ]);
+            $this->audit->logCase(
+                $case->fresh(),
+                $actor,
+                $hadLawyer ? ActionType::CASO_REASIGNADO : ActionType::CASO_ASIGNADO,
+                $hadLawyer
+                    ? "Reasignado a {$lawyer->name}"
+                    : "Asignado a {$lawyer->name}",
+                ['lawyer_id' => $lawyer->id],
+            );
 
             return $case->fresh();
         });
@@ -90,14 +93,13 @@ class DisciplinaryCaseService
                 throw new CaseAlreadyClaimedException('El expediente ya fue asignado a otro abogado.');
             }
 
-            DisciplinaryAction::create([
-                'disciplinary_case_id' => $case->id,
-                'user_id' => $lawyer->id,
-                'action_type' => ActionType::CASO_ASIGNADO,
-                'description' => "{$lawyer->name} tomó la gestión del expediente (bandeja informe)",
-                'metadata' => ['lawyer_id' => $lawyer->id, 'source' => 'informe_pool_claim'],
-                'performed_at' => now(),
-            ]);
+            $this->audit->logCase(
+                $case->fresh(),
+                $lawyer,
+                ActionType::CASO_ACEPTADO_ABOGADO,
+                "{$lawyer->name} aceptó la gestión del expediente (bandeja informe)",
+                ['lawyer_id' => $lawyer->id, 'source' => 'informe_pool_claim'],
+            );
 
             return $case->fresh();
         });

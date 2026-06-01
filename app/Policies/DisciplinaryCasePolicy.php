@@ -196,6 +196,36 @@ class DisciplinaryCasePolicy
         return $user->hasPermissionTo('disciplinary.assign-planner');
     }
 
+    public function startCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return (int) $case->assigned_lawyer_id === (int) $user->id
+            && $case->canStartCoordination();
+    }
+
+    public function generateFoGj03(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return (int) $case->assigned_lawyer_id === (int) $user->id
+            && $case->citation_confirmed_date !== null;
+    }
+
+    public function uploadCitationEvidence(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return (int) $case->assigned_lawyer_id === (int) $user->id
+            && $case->fo_gj_03_generated_at !== null;
+    }
+
     /** Coordinación FO-GJ-03 / fechas: mensajes del titular desde citación o reprogramación. */
     public function postAgendaLawyer(User $user, DisciplinaryCase $case): bool
     {

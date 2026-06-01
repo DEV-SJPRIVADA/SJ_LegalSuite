@@ -14,12 +14,14 @@ class DisciplinaryAgendaThread extends Model
         'disciplinary_case_id',
         'organizational_area_id',
         'opened_by',
+        'coordination_started_at',
         'planning_replied_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'coordination_started_at' => 'datetime',
             'planning_replied_at' => 'datetime',
         ];
     }

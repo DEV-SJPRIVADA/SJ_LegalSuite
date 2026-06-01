@@ -17,6 +17,7 @@ class InformeSubmission extends Model
 
     protected $fillable = [
         'submitted_by',
+        'assigned_reviewer_id',
         'employee_id',
         'status',
         'storage_disk',
@@ -48,6 +49,11 @@ class InformeSubmission extends Model
     public function submitter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function assignedReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_reviewer_id');
     }
 
     public function reviewer(): BelongsTo

@@ -2,17 +2,21 @@
 
 namespace App\Services\Disciplinary;
 
+use App\Enums\Disciplinary\ActionType;
+use App\Enums\Disciplinary\AgendaMessageKind;
+use App\Enums\Disciplinary\StageType;
 use App\Events\Disciplinary\AgendaThreadMessagePosted;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
-use App\Models\OrganizationalArea;
 use App\Models\User;
 use App\Notifications\DisciplinaryAgendaLawyerMessageNotification;
 use App\Notifications\DisciplinaryAgendaPlanningMessageNotification;
+use App\Notifications\DisciplinaryCoordinationStartedNotification;
 use App\Support\Broadcasting\PusherBroadcasting;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +25,10 @@ class DisciplinaryAgendaThreadService
 {
     private const AGENDA_ATTACHMENT_DIR = 'disciplinary/agenda-attachments';
 
-    /** Roles que pueden intervenir como “lado planeación” en el hilo (sin ser el abogado titular). */
+    public function __construct(
+        private readonly DisciplinaryAuditService $audit,
+    ) {}
+
     public function userIsPlanningSide(User $user, DisciplinaryCase $case): bool
     {
         if ($user->read_only) {
@@ -37,12 +44,61 @@ class DisciplinaryAgendaThreadService
 
     public function userIsCaseLawyer(User $user, DisciplinaryCase $case): bool
     {
-        return ! $user->read_only && $case->assigned_lawyer_id === $user->id;
+        return ! $user->read_only && (int) $case->assigned_lawyer_id === (int) $user->id;
     }
 
     public function canUseAgendaThread(DisciplinaryCase $case): bool
     {
         return $case->allowsAgendaThread();
+    }
+
+    public function startCoordination(DisciplinaryCase $case, User $lawyer): DisciplinaryCase
+    {
+        if (! $this->userIsCaseLawyer($lawyer, $case)) {
+            throw new \InvalidArgumentException('Sólo el abogado titular puede iniciar la coordinación.');
+        }
+
+        if (! $case->canStartCoordination()) {
+            throw new \RuntimeException('La coordinación ya fue iniciada o el caso no está en etapa de citación.');
+        }
+
+        return DB::transaction(function () use ($case, $lawyer) {
+            $now = now();
+
+            DisciplinaryAgendaThread::create([
+                'disciplinary_case_id' => $case->id,
+                'organizational_area_id' => null,
+                'opened_by' => $lawyer->id,
+                'coordination_started_at' => $now,
+            ]);
+
+            $case->forceFill(['coordination_started_at' => $now])->save();
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $lawyer,
+                ActionType::COORDINACION_INICIADA,
+                'Coordinación de citación (FO-GJ-03) iniciada con planeación.',
+            );
+
+            $recipients = User::query()
+                ->where('is_active', true)
+                ->where('read_only', false)
+                ->role('planeacion')
+                ->get();
+
+            if ($recipients->isNotEmpty()) {
+                Notification::send(
+                    $recipients,
+                    new DisciplinaryCoordinationStartedNotification($case->fresh(['employee']), $lawyer),
+                );
+            }
+
+            $caseKey = (int) $case->getKey();
+            DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));
+
+            return $case->fresh(['agendaThread']);
+        });
     }
 
     /**
@@ -52,7 +108,6 @@ class DisciplinaryAgendaThreadService
         DisciplinaryCase $case,
         User $lawyer,
         string $body,
-        ?int $organizationalAreaId,
         array $attachments = [],
     ): DisciplinaryAgendaMessage {
         if (! $this->userIsCaseLawyer($lawyer, $case)) {
@@ -60,11 +115,7 @@ class DisciplinaryAgendaThreadService
         }
 
         if (! $this->canUseAgendaThread($case)) {
-            throw new \RuntimeException('El hilo con planeación sólo está disponible en citación o reprogramación, con abogado titular asignado.');
-        }
-
-        if ($attachments !== []) {
-            throw new \InvalidArgumentException('El abogado no puede adjuntar archivos en la solicitud de agenda.');
+            throw new \RuntimeException('Inicie la coordinación antes de enviar mensajes a planeación.');
         }
 
         $body = trim($body);
@@ -72,30 +123,24 @@ class DisciplinaryAgendaThreadService
             throw new \InvalidArgumentException('Escriba el contenido del mensaje.');
         }
 
-        return DB::transaction(function () use ($case, $lawyer, $body, $organizationalAreaId) {
+        return DB::transaction(function () use ($case, $lawyer, $body, $attachments) {
             $thread = $case->agendaThread;
-
             if ($thread === null) {
-                if ($organizationalAreaId === null) {
-                    throw new \InvalidArgumentException('Seleccione el área de planeación para la primera solicitud.');
-                }
-
-                if (! OrganizationalArea::query()->whereKey($organizationalAreaId)->where('is_active', true)->exists()) {
-                    throw new \InvalidArgumentException('Área de planeación no válida.');
-                }
-
-                $thread = DisciplinaryAgendaThread::create([
-                    'disciplinary_case_id' => $case->id,
-                    'organizational_area_id' => $organizationalAreaId,
-                    'opened_by' => $lawyer->id,
-                ]);
+                throw new \RuntimeException('No existe hilo de coordinación.');
             }
 
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $lawyer->id,
+                'message_kind' => AgendaMessageKind::LAWYER_REQUEST,
                 'body' => $body,
             ]);
+
+            foreach ($attachments as $file) {
+                if ($file instanceof UploadedFile && $file->isValid()) {
+                    $this->storeAttachment($message, $file);
+                }
+            }
 
             $this->notifyPlanningUsersOfLawyerMessage(
                 $case->fresh(['employee']),
@@ -112,12 +157,14 @@ class DisciplinaryAgendaThreadService
     }
 
     /**
+     * @param  list<array{date: string, time?: string|null, notes?: string|null}>  $proposedSlots
      * @param  list<UploadedFile>  $attachments
      */
     public function postPlanningMessage(
         DisciplinaryCase $case,
         User $actor,
         string $body,
+        array $proposedSlots = [],
         array $attachments = [],
     ): DisciplinaryAgendaMessage {
         if (! $this->userIsPlanningSide($actor, $case)) {
@@ -125,31 +172,34 @@ class DisciplinaryAgendaThreadService
         }
 
         if (! $this->canUseAgendaThread($case)) {
-            throw new \RuntimeException('El hilo con planeación sólo está disponible en citación o reprogramación, con abogado titular asignado.');
+            throw new \RuntimeException('La coordinación no está activa para este expediente.');
         }
 
         $thread = $case->agendaThread;
         if ($thread === null) {
-            throw new \RuntimeException('Aún no hay solicitud del abogado.');
+            throw new \RuntimeException('Aún no se ha iniciado la coordinación.');
         }
 
         $body = trim($body);
-        if ($body === '' && $attachments === []) {
-            throw new \InvalidArgumentException('Escriba un mensaje o adjunte al menos un archivo.');
+        $slots = $this->normalizeSlots($proposedSlots);
+
+        if ($body === '' && $slots === [] && $attachments === []) {
+            throw new \InvalidArgumentException('Escriba un mensaje, proponga fechas o adjunte archivos.');
         }
 
-        return DB::transaction(function () use ($case, $actor, $body, $attachments, $thread) {
+        return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread) {
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $actor->id,
-                'body' => $body !== '' ? $body : '(Adjuntos)',
+                'message_kind' => AgendaMessageKind::PLANNING_RESPONSE,
+                'body' => $body !== '' ? $body : 'Propuesta de fechas de citación.',
+                'proposed_slots' => $slots !== [] ? $slots : null,
             ]);
 
             foreach ($attachments as $file) {
-                if (! $file instanceof UploadedFile || ! $file->isValid()) {
-                    continue;
+                if ($file instanceof UploadedFile && $file->isValid()) {
+                    $this->storeAttachment($message, $file);
                 }
-                $this->storeAttachment($message, $file);
             }
 
             if (! $thread->hasPlanningReply()) {
@@ -158,6 +208,14 @@ class DisciplinaryAgendaThreadService
 
             $message = $message->fresh(['attachments']);
 
+            $this->audit->logCase(
+                $case->fresh(),
+                $actor,
+                ActionType::PLANEACION_RESPONDIO,
+                'Planeación respondió en el hilo de coordinación de citación.',
+                ['message_id' => $message->id, 'slots' => $slots],
+            );
+
             $this->notifyLawyerOfPlanningMessage($case->fresh(['employee']), $message, $actor);
 
             $caseKey = (int) $case->getKey();
@@ -165,6 +223,90 @@ class DisciplinaryAgendaThreadService
 
             return $message;
         });
+    }
+
+    public function confirmCitationSlot(
+        DisciplinaryCase $case,
+        User $lawyer,
+        int $messageId,
+        int $slotIndex,
+    ): DisciplinaryCase {
+        if (! $this->userIsCaseLawyer($lawyer, $case)) {
+            throw new \InvalidArgumentException('Sólo el abogado titular puede confirmar la fecha.');
+        }
+
+        $message = DisciplinaryAgendaMessage::query()
+            ->whereKey($messageId)
+            ->whereHas('thread', fn ($q) => $q->where('disciplinary_case_id', $case->id))
+            ->firstOrFail();
+
+        $slots = $message->normalizedProposedSlots();
+        if (! isset($slots[$slotIndex])) {
+            throw new \InvalidArgumentException('Propuesta de fecha no válida.');
+        }
+
+        $slot = $slots[$slotIndex];
+        $date = $slot['date'] ?? null;
+        if (! is_string($date) || $date === '') {
+            throw new \InvalidArgumentException('La propuesta no incluye fecha válida.');
+        }
+
+        return DB::transaction(function () use ($case, $lawyer, $message, $slot, $date, $slotIndex) {
+            $case->forceFill([
+                'citation_confirmed_date' => $date,
+                'citation_confirmed_time' => isset($slot['time']) && $slot['time'] !== '' ? $slot['time'] : null,
+                'citation_confirmed_by' => $lawyer->id,
+                'citation_selected_message_id' => $message->id,
+            ])->save();
+
+            $stage = $case->stages()
+                ->where('stage_type', StageType::CITACION)
+                ->orderByDesc('sequence')
+                ->first();
+
+            if ($stage) {
+                $scheduled = Carbon::parse($date.' '.($slot['time'] ?? '09:00'));
+                $stage->forceFill([
+                    'scheduled_at' => $scheduled,
+                    'deadline_at' => $scheduled->copy()->subDay(),
+                ])->save();
+            }
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $lawyer,
+                ActionType::FECHA_CITACION_SELECCIONADA,
+                'Fecha definitiva de citación seleccionada.',
+                ['message_id' => $message->id, 'slot_index' => $slotIndex, 'slot' => $slot],
+            );
+
+            return $case->fresh();
+        });
+    }
+
+    /**
+     * @param  list<array{date?: mixed, time?: mixed, notes?: mixed}>  $raw
+     * @return list<array{date: string, time?: string|null, notes?: string|null}>
+     */
+    private function normalizeSlots(array $raw): array
+    {
+        $out = [];
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $date = trim((string) ($row['date'] ?? ''));
+            if ($date === '') {
+                continue;
+            }
+            $out[] = [
+                'date' => $date,
+                'time' => isset($row['time']) && $row['time'] !== '' ? substr((string) $row['time'], 0, 5) : null,
+                'notes' => isset($row['notes']) && $row['notes'] !== '' ? (string) $row['notes'] : null,
+            ];
+        }
+
+        return $out;
     }
 
     private function notifyPlanningUsersOfLawyerMessage(
@@ -177,18 +319,8 @@ class DisciplinaryAgendaThreadService
             ->where('is_active', true)
             ->where('read_only', false)
             ->role('planeacion')
-            ->where('organizational_area_id', $thread->organizational_area_id)
             ->whereKeyNot($lawyer->id)
             ->get();
-
-        if ($recipients->isEmpty()) {
-            $recipients = User::query()
-                ->where('is_active', true)
-                ->where('read_only', false)
-                ->role('planeacion')
-                ->whereKeyNot($lawyer->id)
-                ->get();
-        }
 
         if ($recipients->isEmpty()) {
             return;

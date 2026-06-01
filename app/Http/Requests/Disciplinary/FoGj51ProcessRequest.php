@@ -36,6 +36,12 @@ class FoGj51ProcessRequest extends FormRequest
     {
         return array_merge(StoreFoGj51InformePdfRequest::fieldRules(), [
             'fo51_action' => ['required', Rule::in(['pdf', 'enviar', 'cargar'])],
+            'fo51_assigned_reviewer_id' => [
+                Rule::requiredIf(fn () => in_array((string) $this->input('fo51_action'), ['enviar', 'cargar'], true)),
+                'nullable',
+                'integer',
+                'exists:users,id',
+            ],
 
             /* Informe digitado desde pantalla: identidad debe coincidir con el PDF generado */
             'fo51_worker_name' => [

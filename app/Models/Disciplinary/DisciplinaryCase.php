@@ -4,6 +4,7 @@ namespace App\Models\Disciplinary;
 
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
@@ -19,7 +20,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Caso disciplinario. Es la raíz del agregado.
@@ -54,6 +54,15 @@ class DisciplinaryCase extends Model
         'closed_at',
         'summary',
         'metadata',
+        'coordination_started_at',
+        'citation_confirmed_date',
+        'citation_confirmed_time',
+        'citation_confirmed_by',
+        'citation_selected_message_id',
+        'fo_gj_03_generated_at',
+        'fo_gj_03_generated_by',
+        'citation_evidence_type',
+        'citation_evidence_uploaded_at',
     ];
 
     protected function casts(): array
@@ -66,6 +75,11 @@ class DisciplinaryCase extends Model
             'closed_at' => 'date',
             'decided_at' => 'date',
             'metadata' => 'array',
+            'coordination_started_at' => 'datetime',
+            'citation_confirmed_date' => 'date',
+            'citation_evidence_type' => CitationEvidenceType::class,
+            'fo_gj_03_generated_at' => 'datetime',
+            'citation_evidence_uploaded_at' => 'datetime',
         ];
     }
 
@@ -151,7 +165,23 @@ class DisciplinaryCase extends Model
             return false;
         }
 
+        if ($this->coordination_started_at === null) {
+            return false;
+        }
+
         return in_array($this->current_status, self::statusesAllowingAgendaCoordination(), true);
+    }
+
+    public function hasCoordinationStarted(): bool
+    {
+        return $this->coordination_started_at !== null;
+    }
+
+    public function canStartCoordination(): bool
+    {
+        return $this->current_status === CaseStatus::CITACION_PROGRAMADA
+            && $this->assigned_lawyer_id !== null
+            && ! $this->hasCoordinationStarted();
     }
 
     /** Indica si planeación ya intervino en el hilo (métricas / UX). */
@@ -248,13 +278,7 @@ class DisciplinaryCase extends Model
         return $query
             ->whereIn('disciplinary_cases.current_status', $statuses)
             ->whereNotNull('disciplinary_cases.assigned_lawyer_id')
-            ->whereExists(function ($sub) {
-                $sub->select(DB::raw('1'))
-                    ->from('disciplinary_agenda_messages as dam')
-                    ->join('disciplinary_agenda_threads as dat', 'dam.thread_id', '=', 'dat.id')
-                    ->whereColumn('dat.disciplinary_case_id', 'disciplinary_cases.id')
-                    ->whereColumn('dam.user_id', 'disciplinary_cases.assigned_lawyer_id');
-            });
+            ->whereNotNull('disciplinary_cases.coordination_started_at');
     }
 
     public function isVisibleToPlaneacionUser(): bool
