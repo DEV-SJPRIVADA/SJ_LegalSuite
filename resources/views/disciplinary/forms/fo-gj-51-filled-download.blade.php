@@ -14,6 +14,7 @@
     :render-as-pdf="true"
     :worker-name="$workerName"
     :worker-document="$workerDocument"
+    :worker-cargo="$workerCargo"
     :city="$city"
     :shift="$shift"
     :position="$position"

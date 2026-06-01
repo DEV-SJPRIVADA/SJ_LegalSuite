@@ -119,7 +119,7 @@ class FoGj51InformeController
         }
 
         $v = $this->onlyFo51FormFields($validated);
-        $binary = $this->buildFilledPdfBinary($v);
+        $binary = $this->buildFilledPdfBinary($v, $employee);
 
         $path = tempnam(sys_get_temp_dir(), 'fo51_');
         if ($path === false) {
@@ -201,8 +201,10 @@ class FoGj51InformeController
 
     private function respondPdfDownload(FoGj51ProcessRequest $request): Response
     {
-        $v = $this->onlyFo51FormFields($request->validated());
-        $binary = $this->buildFilledPdfBinary($v);
+        $validated = $request->validated();
+        $v = $this->onlyFo51FormFields($validated);
+        $employee = $this->tryResolveEmployeeForFo51($validated);
+        $binary = $this->buildFilledPdfBinary($v, $employee);
 
         return response($binary, 200, [
             'Content-Type' => 'application/pdf',
@@ -225,9 +227,24 @@ class FoGj51InformeController
     }
 
     /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function tryResolveEmployeeForFo51(array $validated): ?Employee
+    {
+        try {
+            return app(EmployeeResolver::class)->resolveById(
+                isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
+                (string) ($validated['fo51_worker_document'] ?? ''),
+            );
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $v
      */
-    private function buildFilledPdfBinary(array $v): string
+    private function buildFilledPdfBinary(array $v, ?Employee $employee = null): string
     {
         $embeddedLogo = EmbeddedPublicAsset::disciplinaryLogoDataUri();
 
@@ -236,10 +253,7 @@ class FoGj51InformeController
             ? (string) (ColombianMunicipality::query()->where('municipality_code', $code)->value('municipality_name') ?? '')
             : '';
 
-        $employeeId = isset($v['fo51_employee_id']) ? (int) $v['fo51_employee_id'] : 0;
-        $workerCargo = $employeeId > 0
-            ? (string) (Employee::query()->whereKey($employeeId)->value('job_title') ?? '')
-            : '';
+        $workerCargo = $this->resolveWorkerCargoForPdf($v, $employee);
 
         return HtmlLetterPdfGenerator::fromView('disciplinary.forms.fo-gj-51-filled-download', [
             'embeddedLogoSrc' => $embeddedLogo,
@@ -266,5 +280,31 @@ class FoGj51InformeController
             'jurMm' => $v['fo51_jur_mm'] ?? '',
             'jurYyyy' => $v['fo51_jur_yyyy'] ?? '',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $v
+     */
+    private function resolveWorkerCargoForPdf(array $v, ?Employee $employee): string
+    {
+        if ($employee !== null) {
+            return trim((string) ($employee->job_title ?? ''));
+        }
+
+        $employeeId = isset($v['fo51_employee_id']) ? (int) $v['fo51_employee_id'] : 0;
+        if ($employeeId > 0) {
+            return trim((string) (Employee::query()->whereKey($employeeId)->value('job_title') ?? ''));
+        }
+
+        $document = trim((string) ($v['fo51_worker_document'] ?? ''));
+        if ($document === '') {
+            return '';
+        }
+
+        try {
+            return trim((string) (app(EmployeeResolver::class)->resolveByDocument($document)->job_title ?? ''));
+        } catch (\InvalidArgumentException) {
+            return '';
+        }
     }
 }
