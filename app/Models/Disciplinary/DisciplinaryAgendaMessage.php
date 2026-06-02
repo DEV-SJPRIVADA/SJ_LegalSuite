@@ -16,6 +16,7 @@ class DisciplinaryAgendaMessage extends Model
         'message_kind',
         'body',
         'proposed_slots',
+        'notification_payload',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class DisciplinaryAgendaMessage extends Model
         return [
             'message_kind' => AgendaMessageKind::class,
             'proposed_slots' => 'array',
+            'notification_payload' => 'array',
         ];
     }
 
@@ -32,6 +34,14 @@ class DisciplinaryAgendaMessage extends Model
         $slots = $this->proposed_slots ?? [];
 
         return is_array($slots) ? array_values($slots) : [];
+    }
+
+    /** @return array<string, mixed> */
+    public function normalizedNotificationPayload(): array
+    {
+        $payload = $this->notification_payload ?? [];
+
+        return is_array($payload) ? $payload : [];
     }
 
     public function thread(): BelongsTo

@@ -314,6 +314,11 @@
                                 'citationRequirementLabels' => $citationRequirementLabels,
                                 'citationSlotChoices' => $citationSlotChoices,
                                 'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel,
+                                'foGj03GenerationChecklist' => $foGj03GenerationChecklist,
+                                'foGj03GenerationLabels' => $foGj03GenerationLabels,
+                                'notificationPending' => $notificationPending,
+                                'notificationCompleted' => $notificationCompleted,
+                                'supervisorCandidates' => $supervisorCandidates,
                             ])
 
                             @can('viewFo51InformePdf', $case)

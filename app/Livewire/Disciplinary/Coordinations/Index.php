@@ -3,7 +3,9 @@
 namespace App\Livewire\Disciplinary\Coordinations;
 
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
+use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
+use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -31,6 +33,16 @@ class Index extends Component
 
     /** @var array<int, mixed> */
     public array $agendaPlanningUploads = [];
+
+    public string $notificationDate = '';
+
+    public string $notificationShift = '';
+
+    public string $notificationZone = '';
+
+    public ?int $notificationSupervisorUserId = null;
+
+    public string $notificationNotes = '';
 
     public function mount(): void
     {
@@ -119,6 +131,44 @@ class Index extends Component
         session()->flash('success', 'Respuesta publicada en la coordinación.');
     }
 
+    public function postNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
+    {
+        $thread = $this->selectedThreadModel();
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            $this->addError('notificationDate', 'Seleccione una coordinación abierta.');
+
+            return;
+        }
+
+        $case = $thread->case()->firstOrFail();
+        Gate::authorize('postNotificationCoordination', $case);
+
+        $this->validate([
+            'notificationDate' => ['required', 'date'],
+            'notificationShift' => ['required', 'string', 'max:80'],
+            'notificationZone' => ['required', 'string', 'max:120'],
+            'notificationSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'notificationNotes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $notification->completeNotificationInformation($case->fresh(['agendaThread']), auth()->user(), [
+                'notification_date' => $this->notificationDate,
+                'notification_shift' => $this->notificationShift,
+                'notification_zone' => $this->notificationZone,
+                'notification_supervisor_user_id' => (int) $this->notificationSupervisorUserId,
+                'notification_notes' => $this->notificationNotes !== '' ? $this->notificationNotes : null,
+            ]);
+        } catch (\Throwable $e) {
+            $this->addError('notificationDate', $e->getMessage());
+
+            return;
+        }
+
+        $this->resetNotificationForm();
+        session()->flash('success', 'Información de notificación registrada.');
+    }
+
     public function render()
     {
         $threads = $this->openThreads();
@@ -128,10 +178,16 @@ class Index extends Component
         }
 
         $selectedThreadModel = $this->selectedThreadModel();
+        $notificationService = app(DisciplinaryCitationNotificationService::class);
+        $pendingNotificationCase = $selectedThreadModel?->case;
+        $hasPendingNotification = $pendingNotificationCase
+            && $notificationService->hasPendingNotificationRequest($pendingNotificationCase);
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
             'selectedThreadModel' => $selectedThreadModel,
+            'hasPendingNotification' => $hasPendingNotification,
+            'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -139,6 +195,18 @@ class Index extends Component
     {
         $this->reset('agendaPlanningBody', 'agendaPlanningUploads');
         $this->planningSlots = [['date' => '', 'time' => '', 'notes' => '']];
+        $this->resetNotificationForm();
+    }
+
+    private function resetNotificationForm(): void
+    {
+        $this->reset(
+            'notificationDate',
+            'notificationShift',
+            'notificationZone',
+            'notificationSupervisorUserId',
+            'notificationNotes',
+        );
     }
 
     private function openThreads()
@@ -146,7 +214,7 @@ class Index extends Component
         return DisciplinaryAgendaThread::query()
             ->where('coordination_status', 'open')
             ->with([
-                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id',
+                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date',
                 'case.employee:id,first_name,last_name,document_number',
                 'case.municipality:municipality_code,municipality_name',
                 'messages.author:id,name',

@@ -63,6 +63,18 @@ class DisciplinaryCase extends Model
         'fo_gj_03_generated_by',
         'citation_evidence_type',
         'citation_evidence_uploaded_at',
+        'notification_requested_at',
+        'notification_requested_by',
+        'notification_information_completed_at',
+        'notification_information_message_id',
+        'notification_date',
+        'notification_shift',
+        'notification_zone',
+        'notification_supervisor_user_id',
+        'notification_supervisor_name',
+        'notification_notes',
+        'notification_supervisor_assigned_at',
+        'notification_supervisor_assigned_by',
     ];
 
     protected function casts(): array
@@ -80,6 +92,10 @@ class DisciplinaryCase extends Model
             'citation_evidence_type' => CitationEvidenceType::class,
             'fo_gj_03_generated_at' => 'datetime',
             'citation_evidence_uploaded_at' => 'datetime',
+            'notification_requested_at' => 'datetime',
+            'notification_information_completed_at' => 'datetime',
+            'notification_date' => 'date',
+            'notification_supervisor_assigned_at' => 'datetime',
         ];
     }
 
@@ -108,6 +124,16 @@ class DisciplinaryCase extends Model
     public function assignedPlanner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_planner_id');
+    }
+
+    public function notificationSupervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'notification_supervisor_user_id');
+    }
+
+    public function notificationRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'notification_requested_by');
     }
 
     public function faults(): BelongsToMany
@@ -490,16 +516,23 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ($user->hasRole('supervisor')) {
-            if ($informe && (int) $informe->submitted_by === (int) $user->id) {
-                return true;
-            }
+        if ($this->hasReviewInformAllPermission($user)) {
+            return true;
+        }
 
-            if ((int) $this->reporter_id === (int) $user->id) {
-                return true;
-            }
+        if ((int) $this->notification_supervisor_user_id === (int) $user->id) {
+            return true;
         }
 
         return false;
+    }
+
+    private function hasReviewInformAllPermission(User $user): bool
+    {
+        try {
+            return $user->hasPermissionTo('disciplinary.review-inform-all');
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
     }
 }

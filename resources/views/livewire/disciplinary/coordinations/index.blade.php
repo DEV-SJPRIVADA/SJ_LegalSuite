@@ -81,6 +81,18 @@
                                                     @endforeach
                                                 </ul>
                                             @endif
+                                            @if ($msg->normalizedNotificationPayload() !== [])
+                                                @php $payload = $msg->normalizedNotificationPayload(); @endphp
+                                                <dl class="mt-2 grid gap-1 text-xs text-emerald-800 dark:text-emerald-200">
+                                                    <div><span class="font-semibold">Fecha ingreso:</span> {{ $payload['notification_date'] ?? '—' }}</div>
+                                                    <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>
+                                                    <div><span class="font-semibold">Zona:</span> {{ $payload['notification_zone'] ?? '—' }}</div>
+                                                    <div><span class="font-semibold">Supervisor:</span> {{ $payload['notification_supervisor_name'] ?? '—' }}</div>
+                                                    @if (!empty($payload['notification_notes']))
+                                                        <div><span class="font-semibold">Observaciones:</span> {{ $payload['notification_notes'] }}</div>
+                                                    @endif
+                                                </dl>
+                                            @endif
                                             @if ($msg->attachments->isNotEmpty())
                                                 <div class="mt-2 flex flex-wrap gap-2">
                                                     @foreach ($msg->attachments as $att)
@@ -96,8 +108,58 @@
                                 </ul>
                             </div>
 
+                            @if ($hasPendingNotification)
+                                <div class="rounded-md border border-amber-300 bg-amber-50 px-4 py-4 space-y-3 dark:border-amber-500/40 dark:bg-amber-950/30">
+                                    <p class="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-100">Coordinación de notificación física</p>
+                                    <p class="text-xs text-amber-900/90 dark:text-amber-100/80">El abogado solicitó información para la notificación. Complete los campos obligatorios.</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Fecha ingreso trabajador</label>
+                                            <input type="date" wire:model="notificationDate" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Turno</label>
+                                            <input type="text" wire:model="notificationShift" placeholder="Ej. Mañana" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Zona</label>
+                                            <input type="text" wire:model="notificationZone" placeholder="Zona operativa" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Supervisor asignado</label>
+                                            <select wire:model="notificationSupervisorUserId" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                <option value="">— Seleccione —</option>
+                                                @foreach ($supervisorCandidates as $supervisor)
+                                                    <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Observaciones (opcional)</label>
+                                            <textarea wire:model="notificationNotes" rows="2" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
+                                        </div>
+                                    </div>
+                                    @error('notificationDate')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    @error('notificationShift')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    @error('notificationZone')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    @error('notificationSupervisorUserId')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    <button type="button" wire:click="postNotificationCoordination"
+                                        class="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded-md hover:bg-amber-700">
+                                        Registrar información de notificación
+                                    </button>
+                                </div>
+                            @endif
+
                             <div class="border-t border-slate-200 pt-4 space-y-3 dark:border-white/10">
-                                <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Responder coordinación</p>
+                                <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Programación de diligencia — responder coordinación</p>
                                 <textarea wire:model="agendaPlanningBody" rows="2"
                                     class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
                                     placeholder="Observaciones para el abogado..."></textarea>

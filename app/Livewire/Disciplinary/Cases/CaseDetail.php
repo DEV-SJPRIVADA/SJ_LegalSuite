@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryAuditService;
 use App\Services\Disciplinary\DisciplinaryCaseService;
+use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
@@ -100,6 +101,12 @@ class CaseDetail extends Component
     public string $citationEvidenceType = '';
 
     public $citationEvidenceFile = null;
+
+    public bool $showReassignSupervisorModal = false;
+
+    public ?int $reassignSupervisorUserId = null;
+
+    public string $reassignSupervisorReason = '';
 
     /** Vista previa del PDF FO-GJ-51 ya incorporado al expediente. */
     public ?int $fo51PdfPreviewDocumentId = null;
@@ -512,7 +519,67 @@ class CaseDetail extends Component
         }
 
         $this->syncCaseFromDb();
-        session()->flash('success', 'Fecha definitiva de citación registrada. Ya puede generar el FO-GJ-03.');
+        session()->flash('success', 'Fecha definitiva de citación registrada. Complete la coordinación de notificación física antes de generar el FO-GJ-03.');
+    }
+
+    public function requestNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
+    {
+        Gate::authorize('requestNotificationCoordination', $this->case);
+
+        try {
+            $notification->requestNotificationInformation(
+                $this->case->fresh(['agendaThread']),
+                auth()->user(),
+            );
+        } catch (\Throwable $e) {
+            $this->addError('notification', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Solicitud de información de notificación enviada a Planeación.');
+    }
+
+    public function openReassignSupervisorModal(): void
+    {
+        Gate::authorize('reassignNotificationSupervisor', $this->case);
+        $this->reassignSupervisorUserId = null;
+        $this->reassignSupervisorReason = '';
+        $this->showReassignSupervisorModal = true;
+    }
+
+    public function closeReassignSupervisorModal(): void
+    {
+        $this->showReassignSupervisorModal = false;
+    }
+
+    public function confirmReassignNotificationSupervisor(DisciplinaryCitationNotificationService $notification): void
+    {
+        Gate::authorize('reassignNotificationSupervisor', $this->case);
+
+        $this->validate([
+            'reassignSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'reassignSupervisorReason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $this->case = $notification->reassignNotificationSupervisor(
+                $this->case->fresh(),
+                auth()->user(),
+                (int) $this->reassignSupervisorUserId,
+                $this->reassignSupervisorReason,
+            );
+        } catch (\Throwable $e) {
+            $this->addError('reassignSupervisor', $e->getMessage());
+
+            return;
+        }
+
+        $this->showReassignSupervisorModal = false;
+        $this->reset('reassignSupervisorUserId', 'reassignSupervisorReason');
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Supervisor de notificación reasignado correctamente.');
     }
 
     public function requestAdvanceFromCitacion(DisciplinaryCitationWorkflowService $citation): void
@@ -706,6 +773,7 @@ class CaseDetail extends Component
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
             'agendaThread.messages.attachments',
+            'notificationSupervisor:id,name',
         ]) ?? $this->case;
 
         $this->assignedLawyerId = $this->case->assigned_lawyer_id;
@@ -740,6 +808,7 @@ class CaseDetail extends Component
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
             'agendaThread.messages.attachments',
+            'notificationSupervisor:id,name',
         ]);
 
         $agendaAreas = OrganizationalArea::query()
@@ -758,6 +827,7 @@ class CaseDetail extends Component
         }
 
         $citationWorkflow = app(DisciplinaryCitationWorkflowService::class);
+        $notificationService = app(DisciplinaryCitationNotificationService::class);
         $citationSlotChoices = $this->buildCitationSlotChoices();
 
         return view('livewire.disciplinary.cases.show', [
@@ -766,12 +836,17 @@ class CaseDetail extends Component
             'lawyerCandidates' => Gate::allows('assign', $this->case)
                 ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
+            'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
             'organizationalAreasForAgenda' => $agendaAreas,
             'citationReadiness' => $citationWorkflow->readinessChecklist($this->case),
             'citationMissing' => $citationWorkflow->missingRequirements($this->case),
             'citationRequirementLabels' => DisciplinaryCitationWorkflowService::requirementLabels(),
             'citationSlotChoices' => $citationSlotChoices,
             'citationAdvanceTargetLabel' => StageType::DILIGENCIA->label(),
+            'foGj03GenerationChecklist' => $notificationService->foGj03GenerationChecklist($this->case),
+            'foGj03GenerationLabels' => DisciplinaryCitationNotificationService::foGj03GenerationLabels(),
+            'notificationPending' => $notificationService->hasPendingNotificationRequest($this->case),
+            'notificationCompleted' => $notificationService->hasNotificationInformationCompleted($this->case),
         ]);
     }
 

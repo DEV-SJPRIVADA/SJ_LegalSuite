@@ -45,7 +45,7 @@ class PendingEvidenceIndex extends Component
         $case = DisciplinaryCase::query()
             ->with(['documents', 'informeSubmission'])
             ->whereKey($caseId)
-            ->where('reporter_id', auth()->id())
+            ->where('notification_supervisor_user_id', auth()->id())
             ->firstOrFail();
 
         Gate::authorize('uploadCitationEvidence', $case);
@@ -97,7 +97,7 @@ class PendingEvidenceIndex extends Component
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
 
         $tasks = DisciplinaryCase::query()
-            ->where('reporter_id', auth()->id())
+            ->where('notification_supervisor_user_id', auth()->id())
             ->whereNotNull('fo_gj_03_generated_at')
             ->whereNull('citation_evidence_uploaded_at')
             ->whereHas('documents', fn ($q) => $q

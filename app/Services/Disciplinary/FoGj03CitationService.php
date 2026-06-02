@@ -12,18 +12,21 @@ use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class FoGj03CitationService
 {
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
         private readonly DisciplinaryDocumentService $documents,
+        private readonly DisciplinaryCitationNotificationService $notification,
     ) {}
 
     public function canGenerate(DisciplinaryCase $case): bool
     {
         return $case->citation_confirmed_date !== null
-            && $case->assigned_lawyer_id !== null;
+            && $case->assigned_lawyer_id !== null
+            && $this->notification->canGenerateFoGj03($case);
     }
 
     public function buildViewData(DisciplinaryCase $case): array
@@ -64,7 +67,12 @@ class FoGj03CitationService
     public function generateAndStore(DisciplinaryCase $case, User $actor): DisciplinaryCase
     {
         if (! $this->canGenerate($case)) {
-            throw new \RuntimeException('Seleccione la fecha definitiva de citación antes de generar el FO-GJ-03.');
+            $missing = $this->notification->missingFoGj03GenerationRequirements($case);
+            throw ValidationException::withMessages([
+                'fo_gj_03' => $missing !== []
+                    ? 'No es posible generar FO-GJ-03. Falta: '.implode(', ', $missing)
+                    : 'Seleccione la fecha definitiva de citación antes de generar el FO-GJ-03.',
+            ]);
         }
 
         return DB::transaction(function () use ($case, $actor) {
@@ -112,7 +120,10 @@ class FoGj03CitationService
                 'FO-GJ-03 generado y almacenado en el expediente.',
             );
 
-            return $case->fresh();
+            $freshCase = $case->fresh(['employee', 'assignedLawyer', 'informeSubmission']);
+            $this->notification->notifyEvidenceUploadEnabled($freshCase);
+
+            return $freshCase;
         });
     }
 }

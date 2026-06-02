@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 
 /**
  * Autorización del módulo disciplinario:
@@ -219,8 +220,63 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return (int) $case->assigned_lawyer_id === (int) $user->id
-            && $case->citation_confirmed_date !== null;
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        return app(DisciplinaryCitationNotificationService::class)->canGenerateFoGj03($case);
+    }
+
+    public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        $notification = app(DisciplinaryCitationNotificationService::class);
+
+        return $case->hasCoordinationStarted()
+            && ! $notification->hasPendingNotificationRequest($case)
+            && ! $notification->hasNotificationInformationCompleted($case);
+    }
+
+    public function postNotificationCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin')) {
+            return false;
+        }
+
+        if ($case->agendaThread?->isClosed()) {
+            return false;
+        }
+
+        return app(DisciplinaryCitationNotificationService::class)->hasPendingNotificationRequest($case);
+    }
+
+    public function reassignNotificationSupervisor(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return app(DisciplinaryCitationNotificationService::class)
+            ->userCanReassignNotificationSupervisor($user, $case);
     }
 
     public function viewCitationEvidence(User $user, DisciplinaryCase $case): bool

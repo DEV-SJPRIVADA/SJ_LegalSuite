@@ -1,10 +1,19 @@
 @php
+    use App\Enums\Disciplinary\AgendaMessageKind;
     use App\Enums\Disciplinary\CaseStatus;
     use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
     $isCitacion = $case->current_status === CaseStatus::CITACION_PROGRAMADA;
     $requirementLabels = $citationRequirementLabels ?? DisciplinaryCitationWorkflowService::requirementLabels();
     $agendaThread = $case->agendaThread;
     $coordinationIsClosed = $agendaThread?->isClosed() ?? false;
+    $foGj03Labels = $foGj03GenerationLabels ?? [];
+    $foGj03Checklist = $foGj03GenerationChecklist ?? collect();
+    $notificationStatus = match (true) {
+        ($notificationCompleted ?? false) => 'Completada',
+        ($notificationPending ?? false) => 'Pendiente de respuesta de Planeación',
+        $case->notification_requested_at !== null => 'Solicitada',
+        default => 'Sin solicitar',
+    };
 @endphp
 
 @if ($isCitacion)
@@ -61,6 +70,8 @@
         @endcan
 
         @if ($case->hasCoordinationStarted())
+            <div class="border-t border-indigo-200 pt-4 dark:border-white/10">
+                <h5 class="text-xs uppercase tracking-wider font-bold text-indigo-900 dark:text-indigo-200 mb-3">1. Programación de diligencia</h5>
             <div class="rounded-lg border border-emerald-200 bg-white/80 p-4 space-y-4 dark:border-emerald-500/30 dark:bg-white/5"
                 x-data="window.sjAgendaAttachmentLightbox()">
                 <div class="flex flex-wrap items-start justify-between gap-2">
@@ -86,6 +97,18 @@
                                     <span>{{ $msg->created_at->format('Y-m-d H:i') }}</span>
                                 </div>
                                 <p class="mt-1 whitespace-pre-wrap">{{ $msg->body }}</p>
+                                @if ($msg->message_kind === AgendaMessageKind::NOTIFICATION_COORDINATION)
+                                    @php $payload = $msg->normalizedNotificationPayload(); @endphp
+                                    <dl class="mt-2 grid gap-1 text-xs text-indigo-800 dark:text-indigo-200">
+                                        <div><span class="font-semibold">Fecha ingreso:</span> {{ $payload['notification_date'] ?? '—' }}</div>
+                                        <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>
+                                        <div><span class="font-semibold">Zona:</span> {{ $payload['notification_zone'] ?? '—' }}</div>
+                                        <div><span class="font-semibold">Supervisor:</span> {{ $payload['notification_supervisor_name'] ?? '—' }}</div>
+                                        @if (!empty($payload['notification_notes']))
+                                            <div><span class="font-semibold">Observaciones:</span> {{ $payload['notification_notes'] }}</div>
+                                        @endif
+                                    </dl>
+                                @endif
                             </li>
                         @endforeach
                     </ul>
@@ -170,20 +193,111 @@
                     @endif
                 @endcan
             </div>
+            </div>
         @endif
 
-        @can('generateFoGj03', $case)
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('disciplinary.cases.fo-gj-03.pdf', $case) }}" target="_blank"
-                    class="inline-flex px-4 py-2 bg-white text-indigo-800 text-sm font-semibold rounded-md ring-1 ring-indigo-300 dark:bg-white/10 dark:text-indigo-200">
-                    Vista previa PDF
-                </a>
-                <button type="button" wire:click="generateFoGj03"
-                    class="inline-flex px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                    Generar y guardar FO-GJ-03
-                </button>
+        @if ($case->citation_confirmed_date)
+            <div class="border-t border-indigo-200 pt-4 space-y-4 dark:border-white/10">
+                <h5 class="text-xs uppercase tracking-wider font-bold text-indigo-900 dark:text-indigo-200">2. Notificación física</h5>
+
+                @error('notification')
+                    <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                @enderror
+
+                <dl class="grid gap-3 text-sm sm:grid-cols-2 rounded-lg border border-slate-200 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                    <div>
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Estado solicitud</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ $notificationStatus }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Fecha ingreso trabajador</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ $case->notification_date?->format('d/m/Y') ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Turno</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ $case->notification_shift ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Zona</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ $case->notification_zone ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Supervisor asignado</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white">{{ $case->notification_supervisor_name ?? '—' }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">Observaciones</dt>
+                        <dd class="font-medium text-slate-900 dark:text-white whitespace-pre-wrap">{{ $case->notification_notes ?? '—' }}</dd>
+                    </div>
+                </dl>
+
+                @can('requestNotificationCoordination', $case)
+                    <button type="button" wire:click="requestNotificationCoordination"
+                        class="inline-flex items-center px-4 py-2 bg-white text-indigo-800 text-sm font-semibold rounded-md ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-200 dark:ring-indigo-400/40">
+                        Solicitar información de notificación
+                    </button>
+                @endcan
+
+                @can('reassignNotificationSupervisor', $case)
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" wire:click="openReassignSupervisorModal"
+                            class="inline-flex items-center px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">
+                            Reasignar supervisor
+                        </button>
+                    </div>
+                    @error('reassignSupervisor')
+                        <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                @endcan
             </div>
-        @endcan
+        @endif
+
+        @if ($case->citation_confirmed_date && (int) $case->assigned_lawyer_id === (int) auth()->id())
+            @php $canGenerateFoGj03 = auth()->user()->can('generateFoGj03', $case); @endphp
+            <div class="border-t border-indigo-200 pt-4 space-y-3 dark:border-white/10">
+                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-900 dark:text-indigo-200">Generación FO-GJ-03</p>
+                @if (! $canGenerateFoGj03)
+                    <div class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-4 dark:border-amber-500/40 dark:bg-amber-950/40">
+                        <p class="text-sm font-semibold text-amber-950 dark:text-amber-100">No es posible generar FO-GJ-03.</p>
+                        <p class="mt-1 text-xs text-amber-900/90 dark:text-amber-100/80">Falta:</p>
+                        <ul class="mt-3 space-y-2 text-sm">
+                            @foreach ($foGj03Checklist as $key => $done)
+                                <li class="flex items-center gap-2 {{ $done ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-950 dark:text-amber-100' }}">
+                                    <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ $done ? 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200' : 'bg-amber-200 text-amber-950 dark:bg-amber-900/60 dark:text-amber-100' }}">
+                                        {{ $done ? '✓' : '✗' }}
+                                    </span>
+                                    {{ $foGj03Labels[$key] ?? $key }}
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                @can('generateFoGj03', $case)
+                    <div class="flex flex-wrap gap-2">
+                        <a href="{{ route('disciplinary.cases.fo-gj-03.pdf', $case) }}" target="_blank"
+                            class="inline-flex px-4 py-2 bg-white text-indigo-800 text-sm font-semibold rounded-md ring-1 ring-indigo-300 dark:bg-white/10 dark:text-indigo-200">
+                            Vista previa PDF
+                        </a>
+                        <button type="button" wire:click="generateFoGj03"
+                            class="inline-flex px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                            Generar y guardar FO-GJ-03
+                        </button>
+                    </div>
+                    @error('fo_gj_03')
+                        <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                @endcan
+            </div>
+        @elseif ($case->fo_gj_03_generated_at)
+            @can('generateFoGj03', $case)
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('disciplinary.cases.fo-gj-03.pdf', $case) }}" target="_blank"
+                        class="inline-flex px-4 py-2 bg-white text-indigo-800 text-sm font-semibold rounded-md ring-1 ring-indigo-300 dark:bg-white/10 dark:text-indigo-200">
+                        Vista previa PDF
+                    </a>
+                </div>
+            @endcan
+        @endif
 
         @can('viewCitationEvidence', $case)
             @php
@@ -246,6 +360,49 @@
             </div>
         @endcan
     </div>
+
+    @if ($showReassignSupervisorModal)
+        <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="reassign-supervisor-modal">
+            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Reasignar supervisor de notificación</h2>
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Supervisor nuevo</label>
+                        <select wire:model="reassignSupervisorUserId"
+                            class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <option value="">— Seleccione —</option>
+                            @foreach ($supervisorCandidates ?? [] as $supervisor)
+                                @if ((int) $supervisor->id !== (int) $case->notification_supervisor_user_id)
+                                    <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        @error('reassignSupervisorUserId')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Motivo (obligatorio)</label>
+                        <textarea wire:model="reassignSupervisorReason" rows="3"
+                            class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
+                        @error('reassignSupervisorReason')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button type="button" wire:click="closeReassignSupervisorModal"
+                        class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="confirmReassignNotificationSupervisor"
+                        class="px-4 py-2 text-sm font-semibold text-white bg-amber-600 rounded-md hover:bg-amber-700">
+                        Confirmar reasignación
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if ($showCitationAdvanceConfirm)
         <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="citation-advance-confirm">
