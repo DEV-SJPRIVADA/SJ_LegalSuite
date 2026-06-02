@@ -473,6 +473,7 @@ La autorización se evalúa en 3 capas:
 | Ruta | Descripción |
 |---|---|
 | `GET /dashboard` | **Inicio** (dashboard global con alertas) |
+| `GET /disciplinary` | Redirige al portal disciplinario según rol (dashboard, casos, coordinaciones o evidencias pendientes) |
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario; Gate `viewDashboard` sobre `DisciplinaryCase` (roles **`planeacion`** y **`supervisor`** sin acceso). |
 | `GET /disciplinary/map-geo/{file}` | Sirve GeoJSON GADM (`gadm41_COL_1.json` \| `gadm41_COL_2.json`); sesión iniciada y (`viewDashboard` **o** `viewAny` sobre casos disciplinarios). |
 | `GET /settings/territorio` | **Ajustes · Territorio**: importación listado DIVIPOLA; permiso `settings.manage-territory` |

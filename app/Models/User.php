@@ -119,6 +119,38 @@ class User extends Authenticatable
         return 'Informes';
     }
 
+    /** Punto de entrada del módulo disciplinario según rol y permisos. */
+    public function disciplinaryPortalUrl(): string
+    {
+        if ($this->hasRole('planeacion')) {
+            return route('disciplinary.coordinations.index');
+        }
+
+        if ($this->hasRole('supervisor')) {
+            return route('disciplinary.evidences-pending.index');
+        }
+
+        if ($this->can('viewDashboard', DisciplinaryCase::class)) {
+            return route('disciplinary.dashboard');
+        }
+
+        if ($this->can('viewAny', DisciplinaryCase::class)) {
+            return route('disciplinary.cases.index');
+        }
+
+        return route('dashboard');
+    }
+
+    public function hasDisciplinaryPortalAccess(): bool
+    {
+        if ($this->hasAnyRole(['planeacion', 'supervisor'])) {
+            return true;
+        }
+
+        return $this->can('viewDashboard', DisciplinaryCase::class)
+            || $this->can('viewAny', DisciplinaryCase::class);
+    }
+
     /**
      * Sidebar global del suite: gerencia (admin), dirección jurídica (abogado) y auditoría ven todos los módulos.
      */

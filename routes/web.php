@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentDownloadController;
@@ -47,6 +48,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
     Route::get('settings/territorio', TerritoryImport::class)->name('settings.territory-import');
 
     Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
+        Route::get('/', DisciplinaryPortalController::class)->name('index');
         Route::get('dashboard', Dashboard::class)->name('dashboard');
         Route::get('map-geo/{file}', DisciplinaryGeoJsonController::class)
             ->where('file', 'gadm41_COL_1\.json|gadm41_COL_2\.json')

@@ -6,13 +6,8 @@
      * - Resto → un ítem según rol: **Informes**, o **Diciplinarios** para **director** / **operaciones** (sidebar reducido).
      */
     $u = auth()->user();
-    $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
-    $canDisciplinaryDashboard = $u->can('viewDashboard', $disciplinaryCaseModel);
-    $canDisciplinaryCases = $u->can('viewAny', $disciplinaryCaseModel);
-    $disciplinaryAvailable = $canDisciplinaryDashboard || $canDisciplinaryCases;
-    $disciplinaryRoute = $canDisciplinaryDashboard
-        ? route('disciplinary.dashboard')
-        : ($canDisciplinaryCases ? route('disciplinary.cases.index') : route('dashboard'));
+    $disciplinaryAvailable = $u->hasDisciplinaryPortalAccess();
+    $disciplinaryRoute = $u->disciplinaryPortalUrl();
 
     $fullAppSidebar = $u->canSeeFullAppSidebar();
 

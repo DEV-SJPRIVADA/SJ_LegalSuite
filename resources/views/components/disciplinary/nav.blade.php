@@ -12,17 +12,12 @@
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
+    $casesRoute = auth()->user()->disciplinaryPortalUrl();
     $casesNavLabel = auth()->user()->isDisciplinaryProgramador()
         ? 'Mis solicitudes'
         : (auth()->user()->canSeeFullAppSidebar()
             ? 'Disciplinarios'
             : auth()->user()->minimalDisciplinarySidebarLabel());
-
-    $casesRoute = auth()->user()->hasRole('planeacion')
-        ? route('disciplinary.coordinations.index')
-        : (auth()->user()->hasRole('supervisor')
-            ? route('disciplinary.evidences-pending.index')
-            : route('disciplinary.cases.index'));
 
     $links[] = [
         'key' => 'cases',
