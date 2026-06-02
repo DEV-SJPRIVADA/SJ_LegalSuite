@@ -93,12 +93,15 @@ class Index extends Component
 
     public function postPlanningReply(DisciplinaryAgendaThreadService $agenda): void
     {
-        $thread = $this->selectedThreadModel();
+        $thread = $this->resolveSelectedThread();
         if (! $thread instanceof DisciplinaryAgendaThread) {
             $this->addError('agendaPlanningBody', 'Seleccione una coordinación abierta.');
 
             return;
         }
+
+        $case = $thread->case()->firstOrFail();
+        Gate::authorize('postAgendaPlanning', $case);
 
         $this->validate([
             'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
@@ -133,7 +136,7 @@ class Index extends Component
 
     public function postNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
     {
-        $thread = $this->selectedThreadModel();
+        $thread = $this->resolveSelectedThread();
         if (! $thread instanceof DisciplinaryAgendaThread) {
             $this->addError('notificationDate', 'Seleccione una coordinación abierta.');
 
@@ -177,16 +180,19 @@ class Index extends Component
             $this->selectedThread = (string) $threads->first()->id;
         }
 
-        $selectedThreadModel = $this->selectedThreadModel();
+        $selectedThreadModel = $this->resolveSelectedThread();
         $notificationService = app(DisciplinaryCitationNotificationService::class);
         $pendingNotificationCase = $selectedThreadModel?->case;
         $hasPendingNotification = $pendingNotificationCase
             && $notificationService->hasPendingNotificationRequest($pendingNotificationCase);
+        $canPostPlanning = $pendingNotificationCase
+            && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
             'selectedThreadModel' => $selectedThreadModel,
             'hasPendingNotification' => $hasPendingNotification,
+            'canPostPlanning' => $canPostPlanning,
             'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -224,7 +230,7 @@ class Index extends Component
             ->get();
     }
 
-    private function selectedThreadModel(): ?DisciplinaryAgendaThread
+    private function resolveSelectedThread(): ?DisciplinaryAgendaThread
     {
         $threadId = (int) $this->selectedThread;
         if ($threadId <= 0) {
@@ -236,12 +242,6 @@ class Index extends Component
             return null;
         }
 
-        $case = $thread->case;
-        if (! $case) {
-            return null;
-        }
-        Gate::authorize('postAgendaPlanning', $case);
-
-        return $thread;
+        return $thread->case ? $thread : null;
     }
 }

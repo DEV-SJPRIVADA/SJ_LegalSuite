@@ -158,6 +158,7 @@
                                 </div>
                             @endif
 
+                            @if ($canPostPlanning ?? false)
                             <div class="border-t border-slate-200 pt-4 space-y-3 dark:border-white/10">
                                 <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Programación de diligencia — responder coordinación</p>
                                 <textarea wire:model="agendaPlanningBody" rows="2"
@@ -177,6 +178,7 @@
                                 @enderror
                                 <button type="button" wire:click="postPlanningReply" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md">Publicar respuesta</button>
                             </div>
+                            @endif
                         </div>
                     @else
                         <p class="text-sm text-slate-500 dark:text-slate-400">Seleccione una coordinación abierta para responder.</p>
