@@ -146,7 +146,7 @@ class DisciplinaryAgendaThreadService
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $lawyer->id,
-                'message_kind' => AgendaMessageKind::LAWYER_REQUEST,
+                'message_kind' => AgendaMessageKind::GENERAL,
                 'body' => $body,
             ]);
 
@@ -168,29 +168,6 @@ class DisciplinaryAgendaThreadService
 
             return $message;
         });
-    }
-
-    /**
-     * Solicitud formal de programación de fechas de diligencia (Etapa B.1).
-     */
-    public function requestDiligenceDateProgramming(
-        DisciplinaryCase $case,
-        User $lawyer,
-        ?string $additionalNotes = null,
-    ): DisciplinaryAgendaMessage {
-        if ($case->hasLawyerDiligenceDateRequest()) {
-            throw new \InvalidArgumentException('Ya existe una solicitud de fechas pendiente o registrada en este hilo.');
-        }
-
-        $body = 'Solicitud de programación de fechas para la diligencia disciplinaria (citación FO-GJ-03). '
-            .'Planeación debe proponer opciones de fecha y hora disponibles para la diligencia.';
-
-        $notes = trim((string) $additionalNotes);
-        if ($notes !== '') {
-            $body .= "\n\nObservaciones del abogado:\n".$notes;
-        }
-
-        return $this->postLawyerMessage($case, $lawyer, $body, []);
     }
 
     /**
@@ -227,13 +204,39 @@ class DisciplinaryAgendaThreadService
             throw new \InvalidArgumentException('Escriba un mensaje, proponga fechas o adjunte archivos.');
         }
 
-        return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread) {
+        $hasStructuredSlots = $slots !== [];
+
+        if ($hasStructuredSlots) {
+            $hasDate = false;
+            foreach ($slots as $slot) {
+                if (filled($slot['date'] ?? null)) {
+                    $hasDate = true;
+                    break;
+                }
+            }
+            if (! $hasDate) {
+                throw new \InvalidArgumentException('Indique al menos una fecha de diligencia disponible.');
+            }
+        }
+
+        return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots) {
+            $messageKind = $hasStructuredSlots
+                ? AgendaMessageKind::PLANNING_RESPONSE
+                : AgendaMessageKind::GENERAL;
+
+            $displayBody = $body;
+            if ($hasStructuredSlots) {
+                $displayBody = $body !== ''
+                    ? $body
+                    : 'Planeación propone fechas de diligencia disponibles.';
+            }
+
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $actor->id,
-                'message_kind' => AgendaMessageKind::PLANNING_RESPONSE,
-                'body' => $body !== '' ? $body : 'Propuesta de fechas de citación.',
-                'proposed_slots' => $slots !== [] ? $slots : null,
+                'message_kind' => $messageKind,
+                'body' => $displayBody,
+                'proposed_slots' => $hasStructuredSlots ? $slots : null,
             ]);
 
             foreach ($attachments as $file) {
@@ -242,21 +245,23 @@ class DisciplinaryAgendaThreadService
                 }
             }
 
-            if (! $thread->hasPlanningReply()) {
+            if ($hasStructuredSlots && ! $thread->hasPlanningReply()) {
                 $thread->forceFill(['planning_replied_at' => now()])->save();
             }
 
             $message = $message->fresh(['attachments']);
 
-            $this->audit->logCase(
-                $case->fresh(),
-                $actor,
-                ActionType::PLANEACION_RESPONDIO,
-                'Planeación respondió en el hilo de coordinación de citación.',
-                ['message_id' => $message->id, 'slots' => $slots],
-            );
+            if ($hasStructuredSlots) {
+                $this->audit->logCase(
+                    $case->fresh(),
+                    $actor,
+                    ActionType::PLANEACION_RESPONDIO,
+                    'Planeación propuso fechas de diligencia en coordinación.',
+                    ['message_id' => $message->id, 'slots' => $slots],
+                );
 
-            $this->notifyLawyerOfPlanningMessage($case->fresh(['employee']), $message, $actor);
+                $this->notifyLawyerOfPlanningMessage($case->fresh(['employee']), $message, $actor);
+            }
 
             $caseKey = (int) $case->getKey();
             DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));

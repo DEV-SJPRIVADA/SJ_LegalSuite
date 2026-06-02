@@ -12,7 +12,7 @@
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
-    $casesRoute = auth()->user()->disciplinaryPortalUrl();
+    $casesRoute = auth()->user()->disciplinaryCasesNavUrl();
     $casesNavLabel = auth()->user()->isDisciplinaryProgramador()
         ? 'Mis solicitudes'
         : (auth()->user()->canSeeFullAppSidebar()

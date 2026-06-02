@@ -44,6 +44,10 @@ class Index extends Component
 
     public string $notificationNotes = '';
 
+    public bool $showDiligenceModal = false;
+
+    public bool $showNotificationModal = false;
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -65,6 +69,30 @@ class Index extends Component
     {
         $this->selectedThread = (string) $threadId;
         $this->resetComposer();
+        $this->showDiligenceModal = false;
+        $this->showNotificationModal = false;
+    }
+
+    public function openDiligenceModal(): void
+    {
+        $this->showDiligenceModal = true;
+        $this->showNotificationModal = false;
+    }
+
+    public function closeDiligenceModal(): void
+    {
+        $this->showDiligenceModal = false;
+    }
+
+    public function openNotificationModal(): void
+    {
+        $this->showNotificationModal = true;
+        $this->showDiligenceModal = false;
+    }
+
+    public function closeNotificationModal(): void
+    {
+        $this->showNotificationModal = false;
     }
 
     public function addPlanningSlotRow(): void
@@ -91,7 +119,7 @@ class Index extends Component
         $this->agendaPlanningUploads = array_values($files);
     }
 
-    public function postPlanningReply(DisciplinaryAgendaThreadService $agenda): void
+    public function postPlanningChat(DisciplinaryAgendaThreadService $agenda): void
     {
         $thread = $this->resolveSelectedThread();
         if (! $thread instanceof DisciplinaryAgendaThread) {
@@ -104,13 +132,49 @@ class Index extends Component
         Gate::authorize('postAgendaPlanning', $case);
 
         $this->validate([
+            'agendaPlanningBody' => ['required', 'string', 'max:8000'],
+        ]);
+
+        try {
+            $agenda->postPlanningMessage(
+                $thread->case()->firstOrFail(),
+                auth()->user(),
+                trim($this->agendaPlanningBody),
+                [],
+                [],
+            );
+        } catch (\Throwable $e) {
+            $this->addError('agendaPlanningBody', $e->getMessage());
+
+            return;
+        }
+
+        $this->reset('agendaPlanningBody');
+        session()->flash('success', 'Mensaje publicado en el chat.');
+    }
+
+    public function submitDiligenceModal(DisciplinaryAgendaThreadService $agenda): void
+    {
+        $thread = $this->resolveSelectedThread();
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            $this->addError('diligenceModal', 'Seleccione una coordinación abierta.');
+
+            return;
+        }
+
+        $case = $thread->case()->firstOrFail();
+        Gate::authorize('postAgendaPlanning', $case);
+
+        $this->validate([
             'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
-            'planningSlots' => ['nullable', 'array', 'max:5'],
-            'planningSlots.*.date' => ['nullable', 'date'],
+            'planningSlots' => ['required', 'array', 'min:1', 'max:5'],
+            'planningSlots.*.date' => ['required', 'date'],
             'planningSlots.*.time' => ['nullable', 'date_format:H:i'],
             'planningSlots.*.notes' => ['nullable', 'string', 'max:500'],
             'agendaPlanningUploads' => ['nullable', 'array', 'max:6'],
             'agendaPlanningUploads.*' => ['nullable', 'file', 'max:10240', 'mimes:jpeg,jpg,png,gif,webp,pdf'],
+        ], [], [
+            'planningSlots.*.date' => 'fecha de diligencia',
         ]);
 
         $body = trim($this->agendaPlanningBody);
@@ -125,16 +189,17 @@ class Index extends Component
                 $files,
             );
         } catch (\Throwable $e) {
-            $this->addError('agendaPlanningBody', $e->getMessage());
+            $this->addError('diligenceModal', $e->getMessage());
 
             return;
         }
 
+        $this->showDiligenceModal = false;
         $this->resetComposer();
-        session()->flash('success', 'Respuesta publicada en la coordinación.');
+        session()->flash('success', 'Fechas de diligencia publicadas en el chat.');
     }
 
-    public function postNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
+    public function submitNotificationModal(DisciplinaryCitationNotificationService $notification): void
     {
         $thread = $this->resolveSelectedThread();
         if (! $thread instanceof DisciplinaryAgendaThread) {
@@ -168,8 +233,9 @@ class Index extends Component
             return;
         }
 
+        $this->showNotificationModal = false;
         $this->resetNotificationForm();
-        session()->flash('success', 'Información de notificación registrada.');
+        session()->flash('success', 'Información de notificación registrada en el chat y en el expediente.');
     }
 
     public function render()
@@ -188,9 +254,11 @@ class Index extends Component
         $canPostPlanning = $pendingNotificationCase
             && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
         $awaitingDiligenceDates = $pendingNotificationCase
-            && $pendingNotificationCase->hasLawyerDiligenceDateRequest()
-            && ! $pendingNotificationCase->hasAgendaPlanningReply()
-            && $pendingNotificationCase->citation_confirmed_date === null;
+            && $pendingNotificationCase->awaitingPlanningDiligenceSlots();
+        $canRegisterNotification = $pendingNotificationCase
+            && $hasPendingNotification
+            && auth()->user()->can('postNotificationCoordination', $pendingNotificationCase);
+        $liveCaseId = $pendingNotificationCase?->getKey();
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
@@ -198,6 +266,8 @@ class Index extends Component
             'hasPendingNotification' => $hasPendingNotification,
             'canPostPlanning' => $canPostPlanning,
             'awaitingDiligenceDates' => $awaitingDiligenceDates,
+            'canRegisterNotification' => $canRegisterNotification,
+            'liveCaseId' => $liveCaseId,
             'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -206,7 +276,6 @@ class Index extends Component
     {
         $this->reset('agendaPlanningBody', 'agendaPlanningUploads');
         $this->planningSlots = [['date' => '', 'time' => '', 'notes' => '']];
-        $this->resetNotificationForm();
     }
 
     private function resetNotificationForm(): void
@@ -225,12 +294,11 @@ class Index extends Component
         return DisciplinaryAgendaThread::query()
             ->where('coordination_status', 'open')
             ->with([
-                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at',
+                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at,current_status',
                 'case.employee:id,first_name,last_name,document_number',
                 'case.municipality:municipality_code,municipality_name',
                 'messages.author:id,name',
                 'messages.attachments',
-                'case.agendaThread.messages:id,thread_id,message_kind',
             ])
             ->orderByDesc('coordination_started_at')
             ->get();

@@ -27,13 +27,11 @@ final class CitationStageProgress
     public function steps(DisciplinaryCase $case): Collection
     {
         $case = $case->fresh(['agendaThread.messages']);
-        $notification = $this->notification;
 
         $coordinationStarted = $case->hasCoordinationStarted();
-        $lawyerRequested = $case->hasLawyerDiligenceDateRequest();
-        $planningReplied = $case->hasAgendaPlanningReply();
+        $planningSlots = $case->hasPlanningProposedSlots();
         $dateConfirmed = $case->citation_confirmed_date !== null;
-        $notificationDone = $notification->hasNotificationInformationCompleted($case);
+        $notificationDone = $this->notification->hasNotificationInformationCompleted($case);
         $foGj03 = $case->fo_gj_03_generated_at !== null;
         $evidence = $case->citation_evidence_uploaded_at !== null;
 
@@ -45,16 +43,10 @@ final class CitationStageProgress
                 'hint' => 'Inicie el hilo con Planeación desde este expediente.',
             ],
             [
-                'key' => 'date_request',
-                'label' => 'Solicitud de fechas de diligencia',
-                'done' => $lawyerRequested,
-                'hint' => 'Envíe la solicitud formal a Planeación.',
-            ],
-            [
                 'key' => 'planning_slots',
                 'label' => 'Fechas propuestas por Planeación',
-                'done' => $planningReplied,
-                'hint' => 'Planeación responde en Coordinaciones con fechas disponibles.',
+                'done' => $planningSlots,
+                'hint' => 'Planeación registra fechas en Coordinaciones.',
             ],
             [
                 'key' => 'definitive_date',
@@ -110,16 +102,12 @@ final class CitationStageProgress
             return 'Fecha de diligencia confirmada';
         }
 
-        if ($case->hasAgendaPlanningReply()) {
-            return 'Planeación respondió — seleccione fecha definitiva';
-        }
-
-        if ($case->hasLawyerDiligenceDateRequest()) {
-            return 'Solicitud enviada — pendiente de Planeación';
+        if ($case->hasPlanningProposedSlots()) {
+            return 'Planeación propuso fechas — seleccione la definitiva';
         }
 
         if ($case->hasCoordinationStarted()) {
-            return 'Pendiente de solicitar fechas';
+            return 'En coordinación — espere fechas de Planeación';
         }
 
         return 'Coordinación no iniciada';
@@ -138,8 +126,8 @@ final class CitationStageProgress
             $blockers[] = 'Aún no se ha confirmado la fecha definitiva de diligencia.';
         }
 
-        if (! $case->hasLawyerDiligenceDateRequest()) {
-            $blockers[] = 'Debe enviar la solicitud formal de programación de fechas a Planeación.';
+        if (! $case->hasPlanningProposedSlots()) {
+            $blockers[] = 'Planeación debe publicar fechas de diligencia en el hilo.';
         }
 
         if ($case->citation_confirmed_date !== null

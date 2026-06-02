@@ -101,9 +101,10 @@
         @endcan
 
         @if ($case->hasCoordinationStarted())
-            {{-- Hilo compartido --}}
+            {{-- Chat abogado ↔ planeación --}}
             <div class="rounded-lg border border-slate-200 bg-white/80 p-4 space-y-4 dark:border-white/10 dark:bg-white/5"
-                x-data="window.sjAgendaAttachmentLightbox()">
+                x-data="window.sjAgendaAttachmentLightbox()"
+                wire:poll.visible.10s>
                 <div class="flex flex-wrap items-start justify-between gap-2">
                     <p class="text-xs text-slate-600 dark:text-slate-300">
                         @if ($coordinationIsClosed)
@@ -131,112 +132,80 @@
                 @else
                     <p class="text-xs text-slate-500 dark:text-slate-400 italic">Aún no hay mensajes en el hilo.</p>
                 @endif
-            </div>
-
-            {{-- B.1 Programación de diligencia --}}
-            <section class="rounded-xl border border-emerald-200 bg-white/90 p-4 space-y-4 dark:border-emerald-500/30 dark:bg-white/5">
-                <header class="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/60 pb-3 dark:border-white/10">
-                    <div>
-                        <h5 class="text-sm font-bold text-emerald-900 dark:text-emerald-100">Paso 2 · Programación de fechas de diligencia</h5>
-                        <p class="mt-0.5 text-xs text-emerald-800/90 dark:text-emerald-200/80">Estado: <span class="font-semibold">{{ $diligenceStatus }}</span></p>
-                    </div>
-                </header>
 
                 @can('postAgendaLawyer', $case)
-                    @if (! $coordinationIsClosed && $case->canRequestDiligenceDateProgramming())
-                        <div class="rounded-lg border border-emerald-300 bg-emerald-50/80 px-4 py-4 space-y-3 dark:border-emerald-500/40 dark:bg-emerald-950/25">
-                            <p class="text-sm font-semibold text-emerald-950 dark:text-emerald-100">Solicitar programación de fechas</p>
-                            <p class="text-xs text-emerald-900/80 dark:text-emerald-100/70">
-                                Envíe la solicitud formal a Planeación. Ellos propondrán fechas disponibles en la bandeja de coordinaciones.
-                            </p>
-                            <textarea wire:model="diligenceDateRequestNotes" rows="2"
-                                placeholder="Observaciones opcionales (preferencias de horario, sede, etc.)"
+                    @if (! $coordinationIsClosed)
+                        <div class="border-t border-slate-200 pt-3 space-y-2 dark:border-white/10">
+                            <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Escribir en el chat</label>
+                            <textarea wire:model="agendaLawyerBody" rows="3"
+                                placeholder="Mensaje para Planeación..."
                                 class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
-                            @error('diligenceDateRequest')
-                                <p class="text-xs text-red-600">{{ $message }}</p>
-                            @enderror
-                            <button type="button" wire:click="requestDiligenceDateProgramming"
-                                class="inline-flex px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
-                                Enviar solicitud a Planeación
-                            </button>
-                        </div>
-                    @elseif ($case->citation_confirmed_date)
-                        <div class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:ring-emerald-500/30">
-                            <span class="font-semibold">Fecha de diligencia confirmada:</span>
-                            {{ $case->citation_confirmed_date->format('d/m/Y') }}
-                            @if ($case->citation_confirmed_time)
-                                — {{ \Illuminate\Support\Carbon::parse($case->citation_confirmed_time)->format('h:i A') }}
-                            @endif
-                        </div>
-                    @elseif ($case->hasLawyerDiligenceDateRequest() && ! $case->hasAgendaPlanningReply())
-                        <p class="text-sm text-amber-800 dark:text-amber-200">
-                            Solicitud enviada. Espere a que Planeación proponga fechas en coordinaciones.
-                        </p>
-                    @endif
-
-                    {{-- Selección fecha definitiva --}}
-                    <div class="border-t border-emerald-200/60 pt-4 space-y-3 dark:border-white/10">
-                        <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Seleccionar fecha definitiva de citación</p>
-
-                        @if ($case->citation_confirmed_date)
-                            <p class="text-xs text-slate-500">Ya confirmó la fecha en el paso anterior.</p>
-                        @elseif ($citationSlotChoices->isNotEmpty())
-                            <fieldset class="space-y-2">
-                                @foreach ($citationSlotChoices as $choice)
-                                    <label wire:key="slot-{{ $choice['key'] }}"
-                                        class="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition
-                                            {{ $selectedCitationSlotKey === $choice['key'] ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/30 dark:border-indigo-400 dark:bg-indigo-950/40' : 'border-slate-200 bg-white hover:border-indigo-300 dark:border-white/15 dark:bg-white/5' }}">
-                                        <input type="radio" name="citation_slot_choice" value="{{ $choice['key'] }}"
-                                            wire:model.live="selectedCitationSlotKey"
-                                            class="mt-1 border-slate-300 text-indigo-600 focus:ring-indigo-500">
-                                        <span class="min-w-0 flex-1">
-                                            <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ $choice['label'] }}</span>
-                                            @if ($choice['notes'])
-                                                <span class="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">{{ $choice['notes'] }}</span>
-                                            @endif
-                                        </span>
-                                    </label>
-                                @endforeach
-                            </fieldset>
-                            @error('selectedCitationSlotKey')
-                                <p class="text-xs text-red-600">{{ $message }}</p>
-                            @enderror
-                            <button type="button" wire:click="confirmCitationSlot"
-                                @disabled($selectedCitationSlotKey === '' || $coordinationIsClosed)
-                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                Confirmar fecha de diligencia
-                            </button>
-                        @elseif ($case->hasLawyerDiligenceDateRequest())
-                            <p class="text-xs text-slate-600 dark:text-slate-400">
-                                Planeación aún no ha publicado fechas estructuradas. Revise el hilo cuando respondan.
-                            </p>
-                        @else
-                            <p class="text-xs text-slate-500 dark:text-slate-400 italic">
-                                Envíe primero la solicitud formal de programación de fechas.
-                            </p>
-                        @endif
-                    </div>
-
-                    @if ($case->hasLawyerDiligenceDateRequest() && ! $case->citation_confirmed_date && ! $coordinationIsClosed)
-                        <div class="border-t border-emerald-200/60 pt-3 space-y-2 dark:border-white/10">
-                            <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Comentario adicional al hilo (opcional)</p>
-                            <textarea wire:model="agendaLawyerBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
                             @error('agendaLawyerBody')
                                 <p class="text-xs text-red-600">{{ $message }}</p>
                             @enderror
-                            <button type="button" wire:click="postAgendaLawyer" class="px-3 py-1.5 bg-slate-600 text-white text-xs font-semibold rounded-md hover:bg-slate-700">Enviar comentario</button>
+                            <button type="button" wire:click="postAgendaLawyer"
+                                class="inline-flex px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                                Enviar mensaje
+                            </button>
                         </div>
                     @endif
                 @endcan
+            </div>
 
-                @can('postAgendaPlanning', $case)
-                    @if (auth()->user()->hasRole('admin'))
-                        <div class="border-t border-dashed border-slate-300 pt-3 text-xs text-slate-500 dark:border-white/15">
-                            <p class="font-semibold text-slate-600 dark:text-slate-300">Vista administrador — respuesta planeación</p>
-                            <p class="mt-1">Planeación opera en <a href="{{ route('disciplinary.coordinations.index') }}" class="text-indigo-700 underline dark:text-cyan-300" wire:navigate>Coordinaciones</a>.</p>
+            {{-- Fechas de diligencia (confirmación abogado) --}}
+            <section class="rounded-xl border border-emerald-200 bg-white/90 p-4 space-y-4 dark:border-emerald-500/30 dark:bg-white/5">
+                <header class="border-b border-emerald-200/60 pb-3 dark:border-white/10">
+                    <h5 class="text-sm font-bold text-emerald-900 dark:text-emerald-100">Fechas de diligencia</h5>
+                    <p class="mt-0.5 text-xs text-emerald-800/90 dark:text-emerald-200/80">Estado: <span class="font-semibold">{{ $diligenceStatus }}</span></p>
+                </header>
+
+                @if ($case->citation_confirmed_date)
+                    <div class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:ring-emerald-500/30">
+                        <span class="font-semibold">Fecha de diligencia confirmada:</span>
+                        {{ $case->citation_confirmed_date->format('d/m/Y') }}
+                        @if ($case->citation_confirmed_time)
+                            — {{ \Illuminate\Support\Carbon::parse($case->citation_confirmed_time)->format('h:i A') }}
+                        @endif
+                    </div>
+                @else
+                    @can('postAgendaLawyer', $case)
+                        <div class="space-y-3">
+                            <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">Seleccionar fecha definitiva de citación</p>
+
+                            @if ($citationSlotChoices->isNotEmpty())
+                                <fieldset class="space-y-2">
+                                    @foreach ($citationSlotChoices as $choice)
+                                        <label wire:key="slot-{{ $choice['key'] }}"
+                                            class="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition
+                                                {{ $selectedCitationSlotKey === $choice['key'] ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/30 dark:border-indigo-400 dark:bg-indigo-950/40' : 'border-slate-200 bg-white hover:border-indigo-300 dark:border-white/15 dark:bg-white/5' }}">
+                                            <input type="radio" name="citation_slot_choice" value="{{ $choice['key'] }}"
+                                                wire:model.live="selectedCitationSlotKey"
+                                                class="mt-1 border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                            <span class="min-w-0 flex-1">
+                                                <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ $choice['label'] }}</span>
+                                                @if ($choice['notes'])
+                                                    <span class="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">{{ $choice['notes'] }}</span>
+                                                @endif
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </fieldset>
+                                @error('selectedCitationSlotKey')
+                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                @enderror
+                                <button type="button" wire:click="confirmCitationSlot"
+                                    @disabled($selectedCitationSlotKey === '' || $coordinationIsClosed)
+                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Confirmar fecha de diligencia
+                                </button>
+                            @else
+                                <p class="text-xs text-slate-600 dark:text-slate-400">
+                                    Cuando Planeación publique fechas en Coordinaciones, aparecerán aquí para confirmar.
+                                </p>
+                            @endif
                         </div>
-                    @endif
-                @endcan
+                    @endcan
+                @endif
             </section>
 
             {{-- B.2 Notificación física --}}

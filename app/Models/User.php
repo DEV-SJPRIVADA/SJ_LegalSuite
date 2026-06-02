@@ -141,6 +141,23 @@ class User extends Authenticatable
         return route('dashboard');
     }
 
+    /**
+     * Enlace del menú «Disciplinarios» / listado de expedientes (no el tablero).
+     * Abogado y auditor: listado; el tablero sigue en {@see disciplinaryPortalUrl()} al ingresar.
+     */
+    public function disciplinaryCasesNavUrl(): string
+    {
+        if ($this->hasAnyRole(['abogado', 'auditor'])) {
+            return route('disciplinary.cases.index');
+        }
+
+        if ($this->can('viewAny', DisciplinaryCase::class) && ! $this->hasRole('planeacion')) {
+            return route('disciplinary.cases.index');
+        }
+
+        return $this->disciplinaryPortalUrl();
+    }
+
     public function hasDisciplinaryPortalAccess(): bool
     {
         if ($this->hasAnyRole(['planeacion', 'supervisor'])) {

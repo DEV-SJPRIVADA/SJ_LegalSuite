@@ -30,6 +30,17 @@ class DisciplinaryPortalRouteTest extends TestCase
             ->assertRedirect(route('disciplinary.dashboard'));
     }
 
+    public function test_abogado_cases_nav_url_is_cases_index(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('abogado');
+
+        $this->assertSame(route('disciplinary.cases.index'), $user->disciplinaryCasesNavUrl());
+    }
+
     public function test_disciplinary_index_redirects_planeacion_to_coordinations(): void
     {
         $user = User::factory()->create([

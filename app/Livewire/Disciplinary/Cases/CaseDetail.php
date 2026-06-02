@@ -76,8 +76,6 @@ class CaseDetail extends Component
     public bool $showClaimConfirm = false;
 
     /** Coordinación citación FO-GJ-03 — solicitud abogado ↔ planeación */
-    public string $diligenceDateRequestNotes = '';
-
     public string $agendaLawyerBody = '';
 
     /** Respuesta planeación (campo aparte para no chocar con admin que ve ambos formularios) */
@@ -442,40 +440,9 @@ class CaseDetail extends Component
         session()->flash('success', 'Coordinación cerrada. Planeación ya no verá este caso en su bandeja.');
     }
 
-    public function requestDiligenceDateProgramming(DisciplinaryAgendaThreadService $agenda): void
-    {
-        Gate::authorize('postAgendaLawyer', $this->case);
-
-        $this->validate([
-            'diligenceDateRequestNotes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        try {
-            $agenda->requestDiligenceDateProgramming(
-                $this->case->fresh(['agendaThread']),
-                auth()->user(),
-                $this->diligenceDateRequestNotes !== '' ? $this->diligenceDateRequestNotes : null,
-            );
-        } catch (\Throwable $e) {
-            $this->addError('diligenceDateRequest', $e->getMessage());
-
-            return;
-        }
-
-        $this->reset('diligenceDateRequestNotes');
-        $this->syncCaseFromDb();
-        session()->flash('success', 'Solicitud de programación de fechas enviada a Planeación.');
-    }
-
     public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
     {
         Gate::authorize('postAgendaLawyer', $this->case);
-
-        if (! $this->case->hasLawyerDiligenceDateRequest()) {
-            $this->addError('agendaLawyerBody', 'Primero envíe la solicitud formal de programación de fechas.');
-
-            return;
-        }
 
         $this->validate([
             'agendaLawyerBody' => ['required', 'string', 'max:8000'],
@@ -496,7 +463,7 @@ class CaseDetail extends Component
 
         $this->reset('agendaLawyerBody');
         $this->syncCaseFromDb();
-        session()->flash('success', 'Comentario adicional enviado a planeación.');
+        session()->flash('success', 'Mensaje enviado a Planeación.');
     }
 
     public function addPlanningSlotRow(): void

@@ -217,13 +217,16 @@ class DisciplinaryCase extends Model
         return $this->agendaThread?->hasPlanningReply() ?? false;
     }
 
-    /** El abogado envió al menos una solicitud formal de programación de fechas (Etapa B.1). */
-    public function hasLawyerDiligenceDateRequest(): bool
+    /** Planeación publicó al menos un mensaje con fechas de diligencia estructuradas. */
+    public function hasPlanningProposedSlots(): bool
     {
         $this->loadMissing('agendaThread.messages');
 
         foreach ($this->agendaThread?->messages ?? [] as $message) {
-            if ($message->message_kind === AgendaMessageKind::LAWYER_REQUEST) {
+            if ($message->message_kind !== AgendaMessageKind::PLANNING_RESPONSE) {
+                continue;
+            }
+            if ($message->normalizedProposedSlots() !== []) {
                 return true;
             }
         }
@@ -231,21 +234,11 @@ class DisciplinaryCase extends Model
         return false;
     }
 
-    public function canRequestDiligenceDateProgramming(): bool
+    public function awaitingPlanningDiligenceSlots(): bool
     {
-        if ($this->agendaThread?->isClosed()) {
-            return false;
-        }
-
-        if (! $this->hasCoordinationStarted()) {
-            return false;
-        }
-
-        if ($this->citation_confirmed_date !== null) {
-            return false;
-        }
-
-        return ! $this->hasLawyerDiligenceDateRequest();
+        return $this->hasCoordinationStarted()
+            && $this->citation_confirmed_date === null
+            && ! $this->hasPlanningProposedSlots();
     }
 
     public function currentStage(): HasMany

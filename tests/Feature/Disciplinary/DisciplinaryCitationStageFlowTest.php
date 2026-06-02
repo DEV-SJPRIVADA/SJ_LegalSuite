@@ -4,12 +4,8 @@ namespace Tests\Feature\Disciplinary;
 
 use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
-use App\Enums\Disciplinary\DocumentType;
-use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
-use App\Models\Disciplinary\DisciplinaryDocument;
-use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
@@ -31,17 +27,14 @@ class DisciplinaryCitationStageFlowTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_full_b1_flow_request_dates_planning_confirm(): void
+    public function test_full_b1_flow_chat_planning_slots_confirm(): void
     {
         $lawyer = $this->user('abogado', 'flow-lawyer@test.local');
         $planner = $this->user('planeacion', 'flow-planner@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $agenda = app(DisciplinaryAgendaThreadService::class);
-        $agenda->requestDiligenceDateProgramming($case->fresh(['agendaThread']), $lawyer);
-
-        $case->refresh();
-        $this->assertTrue($case->hasLawyerDiligenceDateRequest());
+        $agenda->postLawyerMessage($case->fresh(['agendaThread']), $lawyer, 'Necesito fechas para diligencia');
 
         $case = $agenda->postPlanningMessage(
             $case->fresh(['agendaThread']),
@@ -51,7 +44,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
             [],
         )->thread->case()->first();
 
-        $this->assertTrue($case->hasAgendaPlanningReply());
+        $this->assertTrue($case->hasPlanningProposedSlots());
 
         $message = $case->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
         $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
@@ -59,28 +52,40 @@ class DisciplinaryCitationStageFlowTest extends TestCase
         $this->assertNotNull($case->citation_confirmed_date);
     }
 
-    public function test_lawyer_case_detail_shows_diligence_request_action(): void
+    public function test_lawyer_case_detail_shows_chat_composer(): void
     {
         $lawyer = $this->user('abogado', 'lw-ui@test.local');
         $case = $this->caseWithThread($lawyer);
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
-            ->assertSee('Solicitar programación de fechas')
-            ->call('requestDiligenceDateProgramming')
+            ->assertSee('Escribir en el chat')
+            ->set('agendaLawyerBody', 'Hola planeación')
+            ->call('postAgendaLawyer')
             ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('disciplinary_agenda_messages', [
+            'body' => 'Hola planeación',
+            'message_kind' => AgendaMessageKind::GENERAL->value,
+        ]);
     }
 
-    public function test_cannot_request_dates_twice_before_planning_replies(): void
+    public function test_planning_chat_without_slots_is_general(): void
     {
-        $lawyer = $this->user('abogado', 'dup@test.local');
+        $lawyer = $this->user('abogado', 'chat-lawyer@test.local');
+        $planner = $this->user('planeacion', 'chat-planner@test.local');
         $case = $this->caseWithThread($lawyer);
-        $agenda = app(DisciplinaryAgendaThreadService::class);
 
-        $agenda->requestDiligenceDateProgramming($case->fresh(['agendaThread']), $lawyer);
+        $msg = app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
+            $case->fresh(['agendaThread']),
+            $planner,
+            'Recibido, reviso disponibilidad',
+            [],
+            [],
+        );
 
-        $this->expectException(\InvalidArgumentException::class);
-        $agenda->requestDiligenceDateProgramming($case->fresh(['agendaThread']), $lawyer);
+        $this->assertSame(AgendaMessageKind::GENERAL, $msg->message_kind);
+        $this->assertFalse($case->fresh()->hasPlanningProposedSlots());
     }
 
     public function test_close_coordination_blocked_with_pending_notification(): void
@@ -90,7 +95,6 @@ class DisciplinaryCitationStageFlowTest extends TestCase
         $agenda = app(DisciplinaryAgendaThreadService::class);
         $notification = app(DisciplinaryCitationNotificationService::class);
 
-        $agenda->requestDiligenceDateProgramming($case->fresh(['agendaThread']), $lawyer);
         $planner = $this->user('planeacion', 'close-planner@test.local');
         $agenda->postPlanningMessage(
             $case->fresh(['agendaThread']),
@@ -118,6 +122,14 @@ class DisciplinaryCitationStageFlowTest extends TestCase
         ])->save();
 
         $this->assertFalse(app(FoGj03CitationService::class)->canGenerate($case->fresh()));
+    }
+
+    public function test_abogado_disciplinarios_nav_url_points_to_cases_index(): void
+    {
+        $lawyer = $this->user('abogado', 'nav-lawyer@test.local');
+
+        $this->assertSame(route('disciplinary.cases.index'), $lawyer->disciplinaryCasesNavUrl());
+        $this->assertSame(route('disciplinary.dashboard'), $lawyer->disciplinaryPortalUrl());
     }
 
     private function user(string $role, string $email): User

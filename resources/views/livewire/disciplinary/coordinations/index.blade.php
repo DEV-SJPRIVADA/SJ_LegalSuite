@@ -8,7 +8,7 @@
             <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Disciplinarios · Planeación</p>
             <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Coordinaciones abiertas</h1>
             <p class="mt-2 text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
-                Solo coordinaciones abiertas remitidas por abogados. Responda fechas de diligencia y, cuando corresponda, la información de notificación física. Sin acceso a expedientes disciplinarios.
+                Chat con abogados y registro de fechas de diligencia y notificación. Sin acceso al expediente completo.
             </p>
         </div>
     </div>
@@ -42,7 +42,7 @@
                                     $tc = $thread->case;
                                     $badge = $tc?->notification_requested_at && ! $tc?->notification_information_completed_at
                                         ? 'Notificación pendiente'
-                                        : ($tc && $tc->hasLawyerDiligenceDateRequest() && ! $tc->hasAgendaPlanningReply() ? 'Fechas pendientes' : null);
+                                        : ($tc && $tc->awaitingPlanningDiligenceSlots() ? 'Fechas pendientes' : null);
                                 @endphp
                                 @if ($badge)
                                     <span class="mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase {{ str_contains($badge, 'Notificación') ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900' }}">{{ $badge }}</span>
@@ -56,7 +56,8 @@
                     </div>
                 </aside>
 
-                <section class="lg:col-span-8 bg-white rounded-lg ring-1 ring-slate-200 p-4 sm:p-5 dark:bg-white/[0.04] dark:ring-white/10">
+                <section class="lg:col-span-8 bg-white rounded-lg ring-1 ring-slate-200 p-4 sm:p-5 dark:bg-white/[0.04] dark:ring-white/10"
+                    @if ($liveCaseId) data-live-case-id="{{ $liveCaseId }}" @endif>
                     @if ($selectedThreadModel)
                         @php
                             $case = $selectedThreadModel->case;
@@ -75,24 +76,55 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-md border border-slate-200 px-3 py-3 max-h-72 overflow-y-auto dark:border-white/10">
+                            <div class="rounded-md border border-slate-200 px-3 py-3 dark:border-white/10" wire:poll.visible.10s>
                                 <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Historial del chat</p>
-                                <ul class="space-y-3">
+                                <ul class="space-y-3 max-h-72 overflow-y-auto">
                                     @foreach ($selectedThreadModel->messages as $msg)
                                         <x-disciplinary.agenda-message :message="$msg" :thread="$selectedThreadModel" wire:key="coord-msg-{{ $msg->id }}" />
                                     @endforeach
                                 </ul>
                             </div>
 
-                            @if ($awaitingDiligenceDates && ($canPostPlanning ?? false))
-                                <div class="rounded-md border-2 border-emerald-400 bg-emerald-50 px-4 py-4 space-y-3 dark:border-emerald-500/50 dark:bg-emerald-950/30">
-                                    <p class="text-sm font-bold text-emerald-950 dark:text-emerald-100">Responder: programación de fechas de diligencia</p>
-                                    <p class="text-xs text-emerald-900/90 dark:text-emerald-100/80">
-                                        El abogado envió una solicitud formal. Proponga al menos una fecha y hora disponibles (obligatorio).
-                                    </p>
+                            @if ($canPostPlanning ?? false)
+                                <div class="rounded-md border border-slate-200 px-3 py-3 space-y-3 dark:border-white/10">
+                                    <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Escribir en el chat</label>
                                     <textarea wire:model="agendaPlanningBody" rows="2"
                                         class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
-                                        placeholder="Mensaje para el abogado (opcional si solo envía fechas)..."></textarea>
+                                        placeholder="Mensaje para el abogado..."></textarea>
+                                    @error('agendaPlanningBody')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" wire:click="postPlanningChat"
+                                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                                            Enviar mensaje
+                                        </button>
+                                        @if ($awaitingDiligenceDates)
+                                            <button type="button" wire:click="openDiligenceModal"
+                                                class="px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
+                                                Proponer fechas de diligencia
+                                            </button>
+                                        @endif
+                                        @if ($canRegisterNotification ?? false)
+                                            <button type="button" wire:click="openNotificationModal"
+                                                class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">
+                                                Registrar notificación y supervisor
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- Modal fechas diligencia --}}
+                        @if ($showDiligenceModal)
+                            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDiligenceModal">
+                                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
+                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Fechas de diligencia</h3>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400">Se publicará en el chat y el abogado podrá confirmar una opción.</p>
+                                    <textarea wire:model="agendaPlanningBody" rows="2"
+                                        class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
+                                        placeholder="Comentario opcional..."></textarea>
                                     <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Fechas propuestas</p>
                                     @foreach ($planningSlots as $i => $slot)
                                         <div class="grid grid-cols-3 gap-2">
@@ -101,35 +133,25 @@
                                             <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
                                         </div>
                                     @endforeach
-                                    <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha propuesta</button>
-                                    <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs block">
-                                    @error('agendaPlanningBody')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <button type="button" wire:click="postPlanningReply" class="px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
-                                        Publicar fechas al abogado
-                                    </button>
-                                </div>
-                            @elseif ($canPostPlanning ?? false)
-                                <div class="rounded-md border border-indigo-200 bg-indigo-50/50 px-4 py-3 space-y-3 dark:border-indigo-500/30 dark:bg-indigo-950/20">
-                                    <p class="text-xs font-semibold text-indigo-900 dark:text-indigo-100">Actualizar fechas u observaciones (opcional)</p>
-                                    <textarea wire:model="agendaPlanningBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Observaciones..."></textarea>
-                                    @foreach ($planningSlots as $i => $slot)
-                                        <div class="grid grid-cols-3 gap-2">
-                                            <input type="date" wire:model="planningSlots.{{ $i }}.date" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                            <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                            <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                        </div>
-                                    @endforeach
                                     <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha</button>
-                                    <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs">
-                                    @error('agendaPlanningBody')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <button type="button" wire:click="postPlanningReply" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md">Publicar respuesta</button>
+                                    <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs block">
+                                    @error('diligenceModal')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    <div class="flex justify-end gap-2 pt-2">
+                                        <button type="button" wire:click="closeDiligenceModal" class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">Cancelar</button>
+                                        <button type="button" wire:click="submitDiligenceModal" class="px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">Aceptar y publicar</button>
+                                    </div>
                                 </div>
-                            @endif
+                            </div>
+                        @endif
 
-                            @if ($hasPendingNotification)
-                                <div class="rounded-md border border-amber-300 bg-amber-50 px-4 py-4 space-y-3 dark:border-amber-500/40 dark:bg-amber-950/30">
-                                    <p class="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-100">Paso 3 · Notificación física del trabajador</p>
-                                    <p class="text-xs text-amber-900/90 dark:text-amber-100/80">El abogado solicitó información para la notificación. Complete los campos obligatorios.</p>
+                        {{-- Modal notificación --}}
+                        @if ($showNotificationModal)
+                            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeNotificationModal">
+                                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
+                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Notificación física y supervisor</h3>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400">Datos para FO-GJ-03 y asignación al supervisor que notificará.</p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Fecha ingreso trabajador</label>
@@ -169,13 +191,13 @@
                                     @error('notificationSupervisorUserId')
                                         <p class="text-xs text-red-600">{{ $message }}</p>
                                     @enderror
-                                    <button type="button" wire:click="postNotificationCoordination"
-                                        class="px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded-md hover:bg-amber-700">
-                                        Registrar información de notificación
-                                    </button>
+                                    <div class="flex justify-end gap-2 pt-2">
+                                        <button type="button" wire:click="closeNotificationModal" class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">Cancelar</button>
+                                        <button type="button" wire:click="submitNotificationModal" class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">Aceptar y publicar</button>
+                                    </div>
                                 </div>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
                     @else
                         <p class="text-sm text-slate-500 dark:text-slate-400">Seleccione una coordinación abierta para responder.</p>
                     @endif

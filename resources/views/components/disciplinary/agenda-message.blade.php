@@ -12,6 +12,16 @@
     };
     $slots = $message->normalizedProposedSlots();
     $payload = $message->normalizedNotificationPayload();
+    $bodyForDisplay = trim((string) $message->body);
+    if ($slots !== []) {
+        $commentLines = collect(preg_split('/\r\n|\n/', $bodyForDisplay) ?: [])
+            ->map(fn (string $line) => trim($line))
+            ->filter(fn (string $line) => $line !== ''
+                && ! str_starts_with($line, '•')
+                && $line !== 'Planeación propone fechas de diligencia disponibles:'
+                && $line !== 'Planeación propone fechas de diligencia disponibles.');
+        $bodyForDisplay = $commentLines->implode("\n");
+    }
 @endphp
 
 <li {{ $attributes->merge(['class' => 'rounded-md border border-slate-200 px-3 py-2 dark:border-white/10']) }}>
@@ -22,7 +32,9 @@
         </div>
         <span>{{ $message->created_at?->format('d/m/Y H:i') }}</span>
     </div>
-    <p class="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{{ $message->body }}</p>
+    @if ($bodyForDisplay !== '')
+        <p class="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{{ $bodyForDisplay }}</p>
+    @endif
 
     @if ($slots !== [])
         <div class="mt-3 rounded-md bg-indigo-50/80 px-3 py-2 ring-1 ring-indigo-200/80 dark:bg-indigo-950/30 dark:ring-indigo-500/30">

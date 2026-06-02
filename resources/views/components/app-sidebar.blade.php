@@ -8,6 +8,7 @@
     $u = auth()->user();
     $disciplinaryAvailable = $u->hasDisciplinaryPortalAccess();
     $disciplinaryRoute = $u->disciplinaryPortalUrl();
+    $disciplinaryCasesNavRoute = $u->disciplinaryCasesNavUrl();
 
     $fullAppSidebar = $u->canSeeFullAppSidebar();
 
@@ -46,7 +47,7 @@
         $modules[] = [
             'key' => 'disciplinary',
             'label' => $u->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
-            'route' => $disciplinaryRoute,
+            'route' => $disciplinaryCasesNavRoute,
             'active' => request()->routeIs('disciplinary.*'),
             'icon' => 'scale',
             'available' => $disciplinaryAvailable,
