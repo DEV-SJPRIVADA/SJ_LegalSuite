@@ -35,9 +35,10 @@ class DisciplinaryAgendaLawyerMessageNotification extends Notification implement
         return [
             'title' => 'Nueva solicitud a planeación (citación FO-GJ-03)',
             'body' => 'El abogado titular escribió en el hilo de coordinación con planeación'.$who.'. '.$snippet,
-            'action_url' => route('disciplinary.cases.show', $this->case),
+            'action_url' => route('disciplinary.coordinations.index', ['thread' => $this->message->thread_id]),
             'disciplinary_case_id' => $this->case->getKey(),
             'agenda_message_id' => $this->message->getKey(),
+            'agenda_thread_id' => $this->message->thread_id,
         ];
     }
 

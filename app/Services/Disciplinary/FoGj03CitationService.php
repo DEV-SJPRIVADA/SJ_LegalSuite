@@ -92,7 +92,7 @@ class FoGj03CitationService
                     DocumentType::CITACION,
                     $actor,
                     $stage,
-                    'FO-GJ-03 generado desde expediente',
+                    DisciplinaryCase::NOTE_FO_GJ_03_GENERATED,
                 );
             } finally {
                 if (is_file($path)) {

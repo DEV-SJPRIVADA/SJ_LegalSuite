@@ -3,6 +3,8 @@
     use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
     $isCitacion = $case->current_status === CaseStatus::CITACION_PROGRAMADA;
     $requirementLabels = $citationRequirementLabels ?? DisciplinaryCitationWorkflowService::requirementLabels();
+    $agendaThread = $case->agendaThread;
+    $coordinationIsClosed = $agendaThread?->isClosed() ?? false;
 @endphp
 
 @if ($isCitacion)
@@ -61,7 +63,19 @@
         @if ($case->hasCoordinationStarted())
             <div class="rounded-lg border border-emerald-200 bg-white/80 p-4 space-y-4 dark:border-emerald-500/30 dark:bg-white/5"
                 x-data="window.sjAgendaAttachmentLightbox()">
-                <p class="text-xs text-emerald-800 dark:text-emerald-200">Hilo activo con planeación. Proponga fechas estructuradas y adjunte imágenes o PDF.</p>
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                    <p class="text-xs {{ $coordinationIsClosed ? 'text-slate-600 dark:text-slate-300' : 'text-emerald-800 dark:text-emerald-200' }}">
+                        {{ $coordinationIsClosed
+                            ? 'Coordinación cerrada. Se conserva para auditoría y consulta.'
+                            : 'Hilo activo con planeación. Proponga fechas estructuradas y adjunte imágenes o PDF.' }}
+                    </p>
+                    @can('closeCoordination', $case)
+                        <button type="button" wire:click="openCloseCoordinationConfirm"
+                            class="inline-flex items-center px-3 py-1.5 bg-slate-700 text-white text-xs font-semibold rounded-md hover:bg-slate-800">
+                            Cerrar coordinación
+                        </button>
+                    @endcan
+                </div>
 
                 @if ($case->agendaThread && $case->agendaThread->messages->isNotEmpty())
                     <ul class="space-y-3 max-h-72 overflow-y-auto text-sm">
@@ -134,7 +148,7 @@
                 @endcan
 
                 @can('postAgendaPlanning', $case)
-                    @if ($case->agendaThread)
+                    @if ($case->agendaThread && ! $coordinationIsClosed)
                         <div class="space-y-2 border-t pt-3 dark:border-white/10">
                             <p class="text-xs font-semibold">Responder (planeación)</p>
                             <textarea wire:model="agendaPlanningBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Observaciones…"></textarea>
@@ -148,6 +162,10 @@
                             <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha propuesta</button>
                             <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs">
                             <button type="button" wire:click="postAgendaPlanning" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md">Publicar respuesta</button>
+                        </div>
+                    @elseif ($case->agendaThread && $coordinationIsClosed)
+                        <div class="border-t pt-3 dark:border-white/10">
+                            <p class="text-xs text-slate-600 dark:text-slate-300">La coordinación está cerrada; Planeación ya no puede responder.</p>
                         </div>
                     @endif
                 @endcan
@@ -167,19 +185,64 @@
             </div>
         @endcan
 
-        @can('uploadCitationEvidence', $case)
+        @can('viewCitationEvidence', $case)
+            @php
+                $citationEvidenceDoc = $case->latestCitationEvidenceDocument();
+            @endphp
             <div class="border-t border-indigo-200 pt-4 space-y-3 dark:border-white/10">
-                <p class="text-xs font-semibold">Evidencia de notificación (PDF)</p>
-                <select wire:model="citationEvidenceType" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                    <option value="">— Tipo —</option>
-                    <option value="signed">Firmada por el trabajador</option>
-                    <option value="refused_witnesses">Rechazo de firma (jefe + 2 testigos)</option>
-                </select>
-                <input type="file" wire:model="citationEvidenceFile" accept="application/pdf" class="text-sm">
-                <button type="button" wire:click="uploadCitationEvidence"
-                    class="inline-flex px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md">
-                    Cargar evidencia
-                </button>
+                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-900 dark:text-indigo-200">Evidencia de citación</p>
+
+                @if ($case->citation_evidence_uploaded_at)
+                    <dl class="grid gap-2 text-sm sm:grid-cols-2 rounded-lg border border-slate-200 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <div>
+                            <dt class="text-xs text-slate-500 dark:text-slate-400">Tipo</dt>
+                            <dd class="font-medium text-slate-900 dark:text-white">{{ $case->citation_evidence_type?->label() ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-slate-500 dark:text-slate-400">Cargada</dt>
+                            <dd class="font-medium text-slate-900 dark:text-white">{{ $case->citation_evidence_uploaded_at->format('d/m/Y H:i') }}</dd>
+                        </div>
+                        @if ($citationEvidenceDoc)
+                            <div class="sm:col-span-2">
+                                <dt class="text-xs text-slate-500 dark:text-slate-400">Documento</dt>
+                                <dd class="mt-0.5">
+                                    <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $citationEvidenceDoc, 'download' => 1]) }}"
+                                        class="text-sm font-semibold text-indigo-700 underline dark:text-indigo-300"
+                                        target="_blank" rel="noopener">
+                                        {{ $citationEvidenceDoc->original_name }}
+                                    </a>
+                                </dd>
+                            </div>
+                        @endif
+                    </dl>
+                @else
+                    <p class="text-xs text-slate-600 dark:text-slate-400">
+                        Adjunte el PDF de la citación firmada o del acta de rechazo con testigos (solo después de generar el FO-GJ-03).
+                    </p>
+                @endif
+
+                @can('uploadCitationEvidence', $case)
+                    <div class="space-y-3">
+                        <select wire:model="citationEvidenceType" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <option value="">— Tipo —</option>
+                            <option value="signed">Citación firmada</option>
+                            <option value="refused_witnesses">Rechazo de citación con testigos</option>
+                        </select>
+                        @error('citationEvidenceType')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                        <input type="file" wire:model="citationEvidenceFile" accept="application/pdf" class="text-sm">
+                        @error('citationEvidenceFile')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                        <button type="button" wire:click="uploadCitationEvidence"
+                            class="inline-flex px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
+                            Cargar evidencia PDF
+                        </button>
+                    </div>
+                @elseif (! $case->citation_evidence_uploaded_at)
+                    <p class="text-xs text-slate-500 dark:text-slate-400 italic">Solo lectura: no tiene permiso para cargar evidencia en este expediente.</p>
+                @endif
             </div>
         @endcan
     </div>
@@ -200,6 +263,27 @@
                     <button type="button" wire:click="confirmAdvanceFromCitacion"
                         class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
                         Confirmar y avanzar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showCloseCoordinationConfirm)
+        <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="coordination-close-confirm">
+            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Cerrar coordinación</h2>
+                <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                    Al cerrar, Planeación dejará de verla en su bandeja y no podrá responder más.
+                </p>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button type="button" wire:click="closeCloseCoordinationConfirm"
+                        class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="confirmCloseCoordination"
+                        class="px-4 py-2 text-sm font-semibold text-white bg-slate-700 rounded-md hover:bg-slate-800">
+                        Confirmar cierre
                     </button>
                 </div>
             </div>

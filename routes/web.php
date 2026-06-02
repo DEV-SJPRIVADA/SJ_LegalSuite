@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
+use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentDownloadController;
+use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
 use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
+use App\Livewire\Disciplinary\Coordinations\Index as CoordinationsIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
@@ -68,6 +71,11 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('informes-pendientes.evidence');
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
+        Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
+        Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)
+            ->name('coordinations.attachments.inline');
+        Route::get('coordinations/{thread}/attachments/{attachment}', DisciplinaryAgendaThreadAttachmentDownloadController::class)
+            ->name('coordinations.attachments.download');
         Route::get('cases/{case}/agenda-attachments/{attachment}/inline', DisciplinaryAgendaAttachmentInlineController::class)
             ->name('cases.agenda-attachment.inline');
         Route::get('cases/{case}/agenda-attachments/{attachment}', DisciplinaryAgendaAttachmentDownloadController::class)

@@ -95,6 +95,8 @@ class CaseDetail extends Component
 
     public bool $showCitationAdvanceConfirm = false;
 
+    public bool $showCloseCoordinationConfirm = false;
+
     public string $citationEvidenceType = '';
 
     public $citationEvidenceFile = null;
@@ -387,6 +389,34 @@ class CaseDetail extends Component
         session()->flash('success', 'Coordinación iniciada. Planeación fue notificada.');
     }
 
+    public function openCloseCoordinationConfirm(): void
+    {
+        Gate::authorize('closeCoordination', $this->case);
+        $this->showCloseCoordinationConfirm = true;
+    }
+
+    public function closeCloseCoordinationConfirm(): void
+    {
+        $this->showCloseCoordinationConfirm = false;
+    }
+
+    public function confirmCloseCoordination(DisciplinaryAgendaThreadService $agenda): void
+    {
+        Gate::authorize('closeCoordination', $this->case);
+
+        try {
+            $this->case = $agenda->closeCoordination($this->case->fresh(['agendaThread']), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('coordination', $e->getMessage());
+
+            return;
+        }
+
+        $this->showCloseCoordinationConfirm = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Coordinación cerrada correctamente.');
+    }
+
     public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
     {
         Gate::authorize('postAgendaLawyer', $this->case);
@@ -573,6 +603,7 @@ class CaseDetail extends Component
         DisciplinaryAuditService $audit,
     ): void {
         Gate::authorize('uploadCitationEvidence', $this->case);
+        $citationWorkflow->assertCitationEvidenceUploadAllowed($this->case->fresh(['documents', 'informeSubmission']), auth()->user());
 
         $this->validate([
             'citationEvidenceType' => ['required', 'in:signed,refused_witnesses'],
@@ -585,23 +616,30 @@ class CaseDetail extends Component
             ->orderByDesc('sequence')
             ->first();
 
-        $documents->upload(
+        $uploader = auth()->user();
+        $doc = $documents->upload(
             $this->case,
             $this->citationEvidenceFile,
             DocumentType::CITACION,
-            auth()->user(),
+            $uploader,
             $stage,
-            'Evidencia notificación citación — '.$type->label(),
+            DisciplinaryCase::NOTE_CITATION_EVIDENCE_PREFIX.' — '.$type->label(),
         );
 
         $this->case = $citationWorkflow->markEvidenceUploaded($this->case->fresh(), $type);
 
         $audit->logCase(
             $this->case,
-            auth()->user(),
+            $uploader,
             ActionType::EVIDENCIA_CITACION_CARGADA,
             'Evidencia PDF de citación cargada.',
-            ['evidence_type' => $type->value],
+            [
+                'evidence_type' => $type->value,
+                'document_id' => $doc->id,
+                'uploaded_by' => $uploader->id,
+                'uploaded_at' => now()->toIso8601String(),
+                'fo_gj_03_document_id' => $this->case->primaryFoGj03CitationDocument()?->id,
+            ],
         );
 
         $this->reset('citationEvidenceFile', 'citationEvidenceType');

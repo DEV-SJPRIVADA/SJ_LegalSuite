@@ -17,6 +17,7 @@ enum ActionType: string
     case CASO_ACEPTADO_ABOGADO = 'caso_aceptado_abogado';
     case CASO_REASIGNADO = 'caso_reasignado';
     case COORDINACION_INICIADA = 'coordinacion_iniciada';
+    case COORDINACION_CERRADA = 'coordinacion_cerrada';
     case PLANEACION_RESPONDIO = 'planeacion_respondio';
     case FECHA_CITACION_SELECCIONADA = 'fecha_citacion_seleccionada';
     case FO_GJ_03_GENERADO = 'fo_gj_03_generado';

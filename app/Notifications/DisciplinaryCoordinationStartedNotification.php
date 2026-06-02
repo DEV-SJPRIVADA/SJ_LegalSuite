@@ -25,11 +25,16 @@ class DisciplinaryCoordinationStartedNotification extends Notification
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
+        $threadId = $this->case->agendaThread?->id;
+
         return [
             'title' => 'Nueva coordinación de citación (FO-GJ-03)',
             'body' => "El abogado {$this->lawyer->name} inició coordinación para el caso {$this->case->case_number}.",
-            'url' => route('disciplinary.cases.show', $this->case),
+            'url' => $threadId
+                ? route('disciplinary.coordinations.index', ['thread' => $threadId])
+                : route('disciplinary.coordinations.index'),
             'case_id' => $this->case->id,
+            'agenda_thread_id' => $threadId,
         ];
     }
 }

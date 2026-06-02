@@ -42,6 +42,19 @@ class DisciplinaryAgendaThreadService
         return $user->hasRole('planeacion');
     }
 
+    public function userCanCloseCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($user->read_only) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign');
+    }
+
     public function userIsCaseLawyer(User $user, DisciplinaryCase $case): bool
     {
         return ! $user->read_only && (int) $case->assigned_lawyer_id === (int) $user->id;
@@ -70,6 +83,7 @@ class DisciplinaryAgendaThreadService
                 'organizational_area_id' => null,
                 'opened_by' => $lawyer->id,
                 'coordination_started_at' => $now,
+                'coordination_status' => 'open',
             ]);
 
             $case->forceFill(['coordination_started_at' => $now])->save();
@@ -90,7 +104,7 @@ class DisciplinaryAgendaThreadService
             if ($recipients->isNotEmpty()) {
                 Notification::send(
                     $recipients,
-                    new DisciplinaryCoordinationStartedNotification($case->fresh(['employee']), $lawyer),
+                    new DisciplinaryCoordinationStartedNotification($case->fresh(['employee', 'agendaThread']), $lawyer),
                 );
             }
 
@@ -178,6 +192,9 @@ class DisciplinaryAgendaThreadService
         $thread = $case->agendaThread;
         if ($thread === null) {
             throw new \RuntimeException('Aún no se ha iniciado la coordinación.');
+        }
+        if (! $thread->isOpen()) {
+            throw new \RuntimeException('La coordinación ya está cerrada.');
         }
 
         $body = trim($body);
@@ -281,6 +298,42 @@ class DisciplinaryAgendaThreadService
             );
 
             return $case->fresh();
+        });
+    }
+
+    public function closeCoordination(DisciplinaryCase $case, User $actor): DisciplinaryCase
+    {
+        if (! $this->userCanCloseCoordination($actor, $case)) {
+            throw new \InvalidArgumentException('No tiene permisos para cerrar esta coordinación.');
+        }
+
+        $thread = $case->agendaThread;
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            throw new \RuntimeException('No existe una coordinación activa para este expediente.');
+        }
+        if ($thread->isClosed()) {
+            throw new \RuntimeException('La coordinación ya se encuentra cerrada.');
+        }
+
+        return DB::transaction(function () use ($case, $actor, $thread) {
+            $thread->forceFill([
+                'coordination_status' => 'closed',
+                'closed_at' => now(),
+                'closed_by' => $actor->id,
+            ])->save();
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $actor,
+                ActionType::COORDINACION_CERRADA,
+                'Coordinación de citación cerrada.',
+                ['agenda_thread_id' => $thread->id],
+            );
+
+            $caseKey = (int) $case->getKey();
+            DB::afterCommit(fn () => $this->broadcastCaseAgendaIfEnabled($caseKey));
+
+            return $case->fresh(['agendaThread']);
         });
     }
 

@@ -18,11 +18,15 @@
             ? 'Disciplinarios'
             : auth()->user()->minimalDisciplinarySidebarLabel());
 
+    $casesRoute = auth()->user()->hasRole('planeacion')
+        ? route('disciplinary.coordinations.index')
+        : route('disciplinary.cases.index');
+
     $links[] = [
         'key' => 'cases',
         'label' => $casesNavLabel,
-        'route' => route('disciplinary.cases.index'),
-        'active' => request()->routeIs('disciplinary.cases.*'),
+        'route' => $casesRoute,
+        'active' => request()->routeIs('disciplinary.cases.*') || request()->routeIs('disciplinary.coordinations.*'),
     ];
 
     $informeSubmissionModel = \App\Models\Disciplinary\InformeSubmission::class;

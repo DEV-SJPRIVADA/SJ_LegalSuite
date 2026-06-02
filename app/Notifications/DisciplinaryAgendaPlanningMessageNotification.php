@@ -38,6 +38,7 @@ class DisciplinaryAgendaPlanningMessageNotification extends Notification impleme
             'action_url' => route('disciplinary.cases.show', $this->case),
             'disciplinary_case_id' => $this->case->getKey(),
             'agenda_message_id' => $this->message->getKey(),
+            'agenda_thread_id' => $this->message->thread_id,
         ];
     }
 

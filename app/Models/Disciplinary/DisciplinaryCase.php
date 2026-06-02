@@ -283,10 +283,7 @@ class DisciplinaryCase extends Model
 
     public function isVisibleToPlaneacionUser(): bool
     {
-        return static::query()
-            ->whereKey($this->getKey())
-            ->forPlaneacionInbox()
-            ->exists();
+        return false;
     }
 
     /**
@@ -316,7 +313,7 @@ class DisciplinaryCase extends Model
         }
 
         if ($user->hasRole('planeacion')) {
-            return $query->forPlaneacionInbox();
+            return $query->whereRaw('1=0');
         }
 
         return $query;
@@ -410,5 +407,95 @@ class DisciplinaryCase extends Model
         }
 
         return $byNote->concat($byStage)->unique('id')->sortBy('id')->values();
+    }
+
+    public const NOTE_FO_GJ_03_GENERATED = 'FO-GJ-03 generado desde expediente';
+
+    public const NOTE_CITATION_EVIDENCE_PREFIX = 'Evidencia notificación citación';
+
+    /**
+     * PDF de citación FO-GJ-03 generado desde el expediente (no evidencia de notificación).
+     */
+    public function primaryFoGj03CitationDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderBy('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CITACION
+                && str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_03_GENERATED)
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /**
+     * Evidencia PDF de notificación de citación cargada en el expediente.
+     */
+    public function latestCitationEvidenceDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CITACION
+                && str_contains((string) ($d->notes ?? ''), self::NOTE_CITATION_EVIDENCE_PREFIX)
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** FO-GJ-03 generado y documento de citación asociado al expediente. */
+    public function canReceiveCitationEvidence(): bool
+    {
+        if ($this->fo_gj_03_generated_at === null) {
+            return false;
+        }
+
+        return $this->primaryFoGj03CitationDocument() !== null;
+    }
+
+    /**
+     * Usuarios autorizados para cargar evidencia de citación (Etapa B).
+     * Excluye planeación, abogados no titulares y operaciones/supervisores ajenos al caso.
+     */
+    public function canUserUploadCitationEvidence(User $user): bool
+    {
+        if (! $this->canReceiveCitationEvidence()) {
+            return false;
+        }
+
+        if ($user->hasRole('planeacion')) {
+            return false;
+        }
+
+        if ((int) $this->assigned_lawyer_id === (int) $user->id) {
+            return true;
+        }
+
+        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+            return true;
+        }
+
+        $this->loadMissing('informeSubmission');
+        $informe = $this->informeSubmission;
+
+        if ($informe && (int) $informe->reviewed_by === (int) $user->id) {
+            return true;
+        }
+
+        if ($user->hasRole('supervisor')) {
+            if ($informe && (int) $informe->submitted_by === (int) $user->id) {
+                return true;
+            }
+
+            if ((int) $this->reporter_id === (int) $user->id) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

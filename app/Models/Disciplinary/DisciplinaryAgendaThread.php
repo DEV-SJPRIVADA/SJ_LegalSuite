@@ -16,6 +16,9 @@ class DisciplinaryAgendaThread extends Model
         'opened_by',
         'coordination_started_at',
         'planning_replied_at',
+        'coordination_status',
+        'closed_at',
+        'closed_by',
     ];
 
     protected function casts(): array
@@ -23,6 +26,7 @@ class DisciplinaryAgendaThread extends Model
         return [
             'coordination_started_at' => 'datetime',
             'planning_replied_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -41,6 +45,11 @@ class DisciplinaryAgendaThread extends Model
         return $this->belongsTo(User::class, 'opened_by');
     }
 
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
     public function messages(): HasMany
     {
         return $this->hasMany(DisciplinaryAgendaMessage::class, 'thread_id')
@@ -50,5 +59,15 @@ class DisciplinaryAgendaThread extends Model
     public function hasPlanningReply(): bool
     {
         return $this->planning_replied_at !== null;
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->coordination_status !== 'closed';
+    }
+
+    public function isClosed(): bool
+    {
+        return ! $this->isOpen();
     }
 }

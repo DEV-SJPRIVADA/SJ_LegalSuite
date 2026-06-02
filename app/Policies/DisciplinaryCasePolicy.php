@@ -14,8 +14,7 @@ use App\Models\User;
  * - abogado → casos asignados + bandeja INFORME sin titular (`claim`); puede ver PDF FO-GJ-51 del expediente si existe (`viewFo51InformePdf`).
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
- * - planeacion → listado «informes»: casos en citación o reprogramación con mensaje inicial del titular en el hilo FO-GJ-03 ↔ planeación;
- *   sin dashboard ni formatos; al salir de esos estados el caso deja de mostrarse allí (según alcance dinámico).
+ * - planeacion → no gestiona expedientes; trabaja solo en bandeja de coordinaciones abiertas.
  * - administrativa / operaciones → informes + evidencias.
  * - Asignar / reasignar abogado titular: `admin` o permiso `disciplinary.assign` (no solo lectura), vía `assign`.
  * - Hilo agenda (citación / reprogramación): `postAgendaLawyer` (abogado titular), `postAgendaPlanning` (planeación o admin sin atajo `before`).
@@ -58,7 +57,7 @@ class DisciplinaryCasePolicy
     public function viewAny(User $user): bool
     {
         return $user->hasAnyRole([
-            'auditor', 'abogado', 'planeacion', 'administrativa', 'operaciones',
+            'auditor', 'abogado', 'administrativa', 'operaciones',
             'supervisor', 'operador', 'programador',
         ])
             || $user->hasPermissionTo('disciplinary.view');
@@ -84,7 +83,7 @@ class DisciplinaryCasePolicy
         }
 
         if ($user->hasRole('planeacion')) {
-            return $case->isVisibleToPlaneacionUser();
+            return false;
         }
 
         if ($user->hasPermissionTo('disciplinary.view')) {
@@ -216,14 +215,22 @@ class DisciplinaryCasePolicy
             && $case->citation_confirmed_date !== null;
     }
 
+    public function viewCitationEvidence(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $case->canReceiveCitationEvidence()) {
+            return false;
+        }
+
+        return $this->view($user, $case);
+    }
+
     public function uploadCitationEvidence(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
             return false;
         }
 
-        return (int) $case->assigned_lawyer_id === (int) $user->id
-            && $case->fo_gj_03_generated_at !== null;
+        return $case->canUserUploadCitationEvidence($user);
     }
 
     /** Coordinación FO-GJ-03 / fechas: mensajes del titular desde citación o reprogramación. */
@@ -250,12 +257,29 @@ class DisciplinaryCasePolicy
         if (! $case->allowsAgendaThread()) {
             return false;
         }
+        if ($case->agendaThread && $case->agendaThread->isClosed()) {
+            return false;
+        }
 
         if ($user->hasRole('admin')) {
             return true;
         }
 
         return $user->hasRole('planeacion');
+    }
+
+    public function closeCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) $user->id;
+        $isJuridicalDirection = $user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign');
+
+        return $case->agendaThread !== null
+            && $case->agendaThread->isOpen()
+            && ($isAssignedLawyer || $isJuridicalDirection);
     }
 
     /** Plantilla FO-GJ-51 (PDF): operaciones crean casos; campo sólo con permiso dedicado. */

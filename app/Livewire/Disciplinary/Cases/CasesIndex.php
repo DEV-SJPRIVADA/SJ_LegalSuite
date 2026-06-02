@@ -71,6 +71,10 @@ class CasesIndex extends Component
     {
         Gate::authorize('viewAny', DisciplinaryCase::class);
 
+        if (auth()->user()->hasRole('planeacion')) {
+            abort(403);
+        }
+
         if (request()->boolean('informe_modal')) {
             Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
 

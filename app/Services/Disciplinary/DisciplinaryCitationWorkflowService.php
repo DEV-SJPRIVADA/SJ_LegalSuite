@@ -4,8 +4,9 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\CitationEvidenceType;
-use App\Enums\Disciplinary\DocumentType;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -40,7 +41,7 @@ class DisciplinaryCitationWorkflowService
             $missing[] = 'No se ha seleccionado la fecha definitiva de citación.';
         }
 
-        if ($case->fo_gj_03_generated_at === null) {
+        if (! $case->canReceiveCitationEvidence()) {
             $missing[] = 'No se ha generado el FO-GJ-03 desde el expediente.';
         }
 
@@ -69,7 +70,7 @@ class DisciplinaryCitationWorkflowService
             'coordination_started' => $case->coordination_started_at !== null,
             'planning_replied' => (bool) $case->agendaThread?->planning_replied_at,
             'definitive_date' => $case->citation_confirmed_date !== null,
-            'fo_gj_03_generated' => $case->fo_gj_03_generated_at !== null,
+            'fo_gj_03_generated' => $case->canReceiveCitationEvidence(),
             'evidence_uploaded' => $case->citation_evidence_uploaded_at !== null,
         ]);
     }
@@ -93,10 +94,20 @@ class DisciplinaryCitationWorkflowService
 
     public function hasCitationEvidenceDocument(DisciplinaryCase $case): bool
     {
-        return $case->documents()
-            ->where('document_type', DocumentType::CITACION)
-            ->where('notes', 'like', '%evidencia notificación%')
-            ->exists();
+        return $case->latestCitationEvidenceDocument() !== null;
+    }
+
+    public function assertCitationEvidenceUploadAllowed(DisciplinaryCase $case, User $user): void
+    {
+        if (! $case->canReceiveCitationEvidence()) {
+            throw ValidationException::withMessages([
+                'citationEvidenceFile' => 'La carga de evidencia está disponible solo después de generar el FO-GJ-03 en el expediente.',
+            ]);
+        }
+
+        if (! $case->canUserUploadCitationEvidence($user)) {
+            throw new AuthorizationException('No está autorizado para cargar evidencia de citación en este expediente.');
+        }
     }
 
     public function markEvidenceUploaded(
