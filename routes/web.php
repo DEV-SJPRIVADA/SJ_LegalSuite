@@ -22,6 +22,7 @@ use App\Livewire\Disciplinary\Coordinations\Index as CoordinationsIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
+use App\Livewire\Disciplinary\Supervisor\PendingEvidenceIndex;
 use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
 use App\Livewire\Settings\TerritoryImport;
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('informes-pendientes.evidence');
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
+        Route::get('evidences-pending', PendingEvidenceIndex::class)->name('evidences-pending.index');
         Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
         Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)
             ->name('coordinations.attachments.inline');

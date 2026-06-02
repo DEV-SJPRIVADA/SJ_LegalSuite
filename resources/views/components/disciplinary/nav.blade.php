@@ -20,13 +20,17 @@
 
     $casesRoute = auth()->user()->hasRole('planeacion')
         ? route('disciplinary.coordinations.index')
-        : route('disciplinary.cases.index');
+        : (auth()->user()->hasRole('supervisor')
+            ? route('disciplinary.evidences-pending.index')
+            : route('disciplinary.cases.index'));
 
     $links[] = [
         'key' => 'cases',
         'label' => $casesNavLabel,
         'route' => $casesRoute,
-        'active' => request()->routeIs('disciplinary.cases.*') || request()->routeIs('disciplinary.coordinations.*'),
+        'active' => request()->routeIs('disciplinary.cases.*')
+            || request()->routeIs('disciplinary.coordinations.*')
+            || request()->routeIs('disciplinary.evidences-pending.*'),
     ];
 
     $informeSubmissionModel = \App\Models\Disciplinary\InformeSubmission::class;

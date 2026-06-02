@@ -32,7 +32,7 @@ class FoGj51InformeController
             abort(403);
         }
 
-        if ($request->boolean('vista_completa')) {
+        if ($request->boolean('vista_completa') || ! Gate::allows('viewAny', DisciplinaryCase::class)) {
             return view('disciplinary.forms.fo-gj-51-fill', [
                 'prefillWorkerName' => $request->string('nombre')->trim()->toString() ?: null,
                 'prefillWorkerDocument' => $request->string('cedula')->trim()->toString() ?: null,
@@ -112,6 +112,13 @@ class FoGj51InformeController
                 (string) ($validated['fo51_worker_document'] ?? ''),
             );
         } catch (\InvalidArgumentException $e) {
+            if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
+                return redirect()
+                    ->route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1])
+                    ->withInput()
+                    ->withErrors(['fo51_worker_document' => $e->getMessage()]);
+            }
+
             return redirect()
                 ->route('disciplinary.cases.index', ['informe_modal' => 1])
                 ->withInput()
@@ -156,7 +163,7 @@ class FoGj51InformeController
         }
 
         return redirect()
-            ->route('disciplinary.cases.index')
+            ->route($this->postSubmitRouteName())
             ->with('success', 'Su informe quedó en cola para revisión de dirección. Cuando sea autorizado se creará el expediente.');
     }
 
@@ -172,6 +179,13 @@ class FoGj51InformeController
         try {
             $employee = $resolver->resolveByDocument((string) ($validated['informe_worker_document'] ?? ''));
         } catch (\InvalidArgumentException $e) {
+            if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
+                return redirect()
+                    ->route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1, 'cargar_pdf' => 1])
+                    ->withInput()
+                    ->withErrors(['informe_worker_document' => $e->getMessage()]);
+            }
+
             return redirect()
                 ->route('disciplinary.cases.index', ['informe_modal' => 1, 'cargar_pdf' => 1])
                 ->withInput()
@@ -195,7 +209,7 @@ class FoGj51InformeController
         );
 
         return redirect()
-            ->route('disciplinary.cases.index')
+            ->route($this->postSubmitRouteName())
             ->with('success', 'El PDF se envió a revisión de dirección. Cuando sea autorizado se creará el expediente.');
     }
 
@@ -306,5 +320,12 @@ class FoGj51InformeController
         } catch (\InvalidArgumentException) {
             return '';
         }
+    }
+
+    private function postSubmitRouteName(): string
+    {
+        return Gate::allows('viewAny', DisciplinaryCase::class)
+            ? 'disciplinary.cases.index'
+            : 'disciplinary.evidences-pending.index';
     }
 }

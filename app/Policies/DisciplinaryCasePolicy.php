@@ -56,9 +56,13 @@ class DisciplinaryCasePolicy
 
     public function viewAny(User $user): bool
     {
+        if ($user->hasRole('supervisor')) {
+            return false;
+        }
+
         return $user->hasAnyRole([
             'auditor', 'abogado', 'administrativa', 'operaciones',
-            'supervisor', 'operador', 'programador',
+            'operador', 'programador',
         ])
             || $user->hasPermissionTo('disciplinary.view');
     }
@@ -69,7 +73,11 @@ class DisciplinaryCasePolicy
             return true;
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+        if ($user->hasRole('supervisor')) {
+            return false;
+        }
+
+        if ($user->hasRole('operador')) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
@@ -340,7 +348,7 @@ class DisciplinaryCasePolicy
 
     public function viewDashboard(User $user): bool
     {
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasAnyRole(['planeacion', 'supervisor'])) {
             return false;
         }
 

@@ -304,8 +304,12 @@ class DisciplinaryCase extends Model
             });
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+        if ($user->hasRole('operador')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
+        }
+
+        if ($user->hasRole('supervisor')) {
+            return $query->whereRaw('1=0');
         }
 
         if ($user->hasRole('programador')) {
@@ -327,7 +331,7 @@ class DisciplinaryCase extends Model
     }
 
     /**
-     * Pool de campo (supervisor / operador por turno): no hay titular fijo; se excluye borrador interno.
+     * Pool de campo operativo: no hay titular fijo; se excluye borrador interno.
      */
     public function isVisibleToDisciplinaryFieldPool(): bool
     {
