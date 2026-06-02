@@ -187,12 +187,17 @@ class Index extends Component
             && $notificationService->hasPendingNotificationRequest($pendingNotificationCase);
         $canPostPlanning = $pendingNotificationCase
             && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
+        $awaitingDiligenceDates = $pendingNotificationCase
+            && $pendingNotificationCase->hasLawyerDiligenceDateRequest()
+            && ! $pendingNotificationCase->hasAgendaPlanningReply()
+            && $pendingNotificationCase->citation_confirmed_date === null;
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
             'selectedThreadModel' => $selectedThreadModel,
             'hasPendingNotification' => $hasPendingNotification,
             'canPostPlanning' => $canPostPlanning,
+            'awaitingDiligenceDates' => $awaitingDiligenceDates,
             'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -220,11 +225,12 @@ class Index extends Component
         return DisciplinaryAgendaThread::query()
             ->where('coordination_status', 'open')
             ->with([
-                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date',
+                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at',
                 'case.employee:id,first_name,last_name,document_number',
                 'case.municipality:municipality_code,municipality_name',
                 'messages.author:id,name',
                 'messages.attachments',
+                'case.agendaThread.messages:id,thread_id,message_kind',
             ])
             ->orderByDesc('coordination_started_at')
             ->get();

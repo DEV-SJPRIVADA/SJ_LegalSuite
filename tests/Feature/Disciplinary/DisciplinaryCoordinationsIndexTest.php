@@ -35,7 +35,7 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
         Livewire::actingAs($planner)
             ->test(\App\Livewire\Disciplinary\Coordinations\Index::class)
             ->assertOk()
-            ->assertSee('Coordinación de notificación física');
+            ->assertSee('Paso 3 · Notificación física del trabajador');
     }
 
     public function test_planeacion_can_view_coordinations_when_case_left_citacion_stage(): void

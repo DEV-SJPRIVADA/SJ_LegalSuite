@@ -171,6 +171,29 @@ class DisciplinaryAgendaThreadService
     }
 
     /**
+     * Solicitud formal de programación de fechas de diligencia (Etapa B.1).
+     */
+    public function requestDiligenceDateProgramming(
+        DisciplinaryCase $case,
+        User $lawyer,
+        ?string $additionalNotes = null,
+    ): DisciplinaryAgendaMessage {
+        if ($case->hasLawyerDiligenceDateRequest()) {
+            throw new \InvalidArgumentException('Ya existe una solicitud de fechas pendiente o registrada en este hilo.');
+        }
+
+        $body = 'Solicitud de programación de fechas para la diligencia disciplinaria (citación FO-GJ-03). '
+            .'Planeación debe proponer opciones de fecha y hora disponibles para la diligencia.';
+
+        $notes = trim((string) $additionalNotes);
+        if ($notes !== '') {
+            $body .= "\n\nObservaciones del abogado:\n".$notes;
+        }
+
+        return $this->postLawyerMessage($case, $lawyer, $body, []);
+    }
+
+    /**
      * @param  list<array{date: string, time?: string|null, notes?: string|null}>  $proposedSlots
      * @param  list<UploadedFile>  $attachments
      */

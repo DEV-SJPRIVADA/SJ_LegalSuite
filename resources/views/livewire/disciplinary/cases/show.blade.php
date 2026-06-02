@@ -319,6 +319,8 @@
                                 'notificationPending' => $notificationPending,
                                 'notificationCompleted' => $notificationCompleted,
                                 'supervisorCandidates' => $supervisorCandidates,
+                                'citationStageSteps' => $citationStageSteps,
+                                'diligenceDateRequestStatus' => $diligenceDateRequestStatus,
                             ])
 
                             @can('viewFo51InformePdf', $case)

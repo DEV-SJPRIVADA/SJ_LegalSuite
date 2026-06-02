@@ -7,7 +7,9 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Disciplinarios · Planeación</p>
             <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Coordinaciones abiertas</h1>
-            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Este panel muestra solo coordinaciones activas para programación de citación.</p>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
+                Solo coordinaciones abiertas remitidas por abogados. Responda fechas de diligencia y, cuando corresponda, la información de notificación física. Sin acceso a expedientes disciplinarios.
+            </p>
         </div>
     </div>
 
@@ -35,7 +37,16 @@
                                 class="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/[0.04] {{ (int) $selectedThread === (int) $thread->id ? 'bg-indigo-50 dark:bg-indigo-500/10' : '' }}">
                                 <p class="text-xs font-mono text-slate-600 dark:text-slate-300">{{ $case?->case_number }}</p>
                                 <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $workerName !== '' ? $workerName : 'Sin trabajador' }}</p>
-                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $cityLabel }} · Abierta {{ optional($thread->coordination_started_at)->diffForHumans() }}</p>
+                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $cityLabel }} · {{ optional($thread->coordination_started_at)->diffForHumans() }}</p>
+                                @php
+                                    $tc = $thread->case;
+                                    $badge = $tc?->notification_requested_at && ! $tc?->notification_information_completed_at
+                                        ? 'Notificación pendiente'
+                                        : ($tc && $tc->hasLawyerDiligenceDateRequest() && ! $tc->hasAgendaPlanningReply() ? 'Fechas pendientes' : null);
+                                @endphp
+                                @if ($badge)
+                                    <span class="mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase {{ str_contains($badge, 'Notificación') ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900' }}">{{ $badge }}</span>
+                                @endif
                             </button>
                         @empty
                             <div class="px-4 py-8 text-sm text-slate-500 dark:text-slate-400">
@@ -64,53 +75,60 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-md border border-slate-200 px-3 py-3 max-h-80 overflow-y-auto dark:border-white/10">
-                                <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Conversación</p>
+                            <div class="rounded-md border border-slate-200 px-3 py-3 max-h-72 overflow-y-auto dark:border-white/10">
+                                <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Historial del chat</p>
                                 <ul class="space-y-3">
                                     @foreach ($selectedThreadModel->messages as $msg)
-                                        <li class="rounded-md border border-slate-200 px-3 py-2 dark:border-white/10">
-                                            <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-                                                <span class="font-semibold text-slate-800 dark:text-slate-200">{{ $msg->author?->name }}</span>
-                                                <span>{{ $msg->created_at?->format('Y-m-d H:i') }}</span>
-                                            </div>
-                                            <p class="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{{ $msg->body }}</p>
-                                            @if ($msg->normalizedProposedSlots() !== [])
-                                                <ul class="mt-2 space-y-1 text-xs text-indigo-700 dark:text-indigo-300">
-                                                    @foreach ($msg->normalizedProposedSlots() as $slot)
-                                                        <li>• {{ $slot['date'] ?? '—' }} {{ $slot['time'] ?? '' }}{{ !empty($slot['notes']) ? ' · '.$slot['notes'] : '' }}</li>
-                                                    @endforeach
-                                                </ul>
-                                            @endif
-                                            @if ($msg->normalizedNotificationPayload() !== [])
-                                                @php $payload = $msg->normalizedNotificationPayload(); @endphp
-                                                <dl class="mt-2 grid gap-1 text-xs text-emerald-800 dark:text-emerald-200">
-                                                    <div><span class="font-semibold">Fecha ingreso:</span> {{ $payload['notification_date'] ?? '—' }}</div>
-                                                    <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>
-                                                    <div><span class="font-semibold">Zona:</span> {{ $payload['notification_zone'] ?? '—' }}</div>
-                                                    <div><span class="font-semibold">Supervisor:</span> {{ $payload['notification_supervisor_name'] ?? '—' }}</div>
-                                                    @if (!empty($payload['notification_notes']))
-                                                        <div><span class="font-semibold">Observaciones:</span> {{ $payload['notification_notes'] }}</div>
-                                                    @endif
-                                                </dl>
-                                            @endif
-                                            @if ($msg->attachments->isNotEmpty())
-                                                <div class="mt-2 flex flex-wrap gap-2">
-                                                    @foreach ($msg->attachments as $att)
-                                                        <a href="{{ route('disciplinary.coordinations.attachments.download', [$selectedThreadModel, $att]) }}"
-                                                            class="text-xs font-semibold text-indigo-700 hover:underline dark:text-cyan-300">
-                                                            {{ $att->original_name }}
-                                                        </a>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </li>
+                                        <x-disciplinary.agenda-message :message="$msg" :thread="$selectedThreadModel" wire:key="coord-msg-{{ $msg->id }}" />
                                     @endforeach
                                 </ul>
                             </div>
 
+                            @if ($awaitingDiligenceDates && ($canPostPlanning ?? false))
+                                <div class="rounded-md border-2 border-emerald-400 bg-emerald-50 px-4 py-4 space-y-3 dark:border-emerald-500/50 dark:bg-emerald-950/30">
+                                    <p class="text-sm font-bold text-emerald-950 dark:text-emerald-100">Responder: programación de fechas de diligencia</p>
+                                    <p class="text-xs text-emerald-900/90 dark:text-emerald-100/80">
+                                        El abogado envió una solicitud formal. Proponga al menos una fecha y hora disponibles (obligatorio).
+                                    </p>
+                                    <textarea wire:model="agendaPlanningBody" rows="2"
+                                        class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
+                                        placeholder="Mensaje para el abogado (opcional si solo envía fechas)..."></textarea>
+                                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Fechas propuestas</p>
+                                    @foreach ($planningSlots as $i => $slot)
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <input type="date" wire:model="planningSlots.{{ $i }}.date" required class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                    @endforeach
+                                    <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha propuesta</button>
+                                    <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs block">
+                                    @error('agendaPlanningBody')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                    <button type="button" wire:click="postPlanningReply" class="px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
+                                        Publicar fechas al abogado
+                                    </button>
+                                </div>
+                            @elseif ($canPostPlanning ?? false)
+                                <div class="rounded-md border border-indigo-200 bg-indigo-50/50 px-4 py-3 space-y-3 dark:border-indigo-500/30 dark:bg-indigo-950/20">
+                                    <p class="text-xs font-semibold text-indigo-900 dark:text-indigo-100">Actualizar fechas u observaciones (opcional)</p>
+                                    <textarea wire:model="agendaPlanningBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Observaciones..."></textarea>
+                                    @foreach ($planningSlots as $i => $slot)
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <input type="date" wire:model="planningSlots.{{ $i }}.date" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                    @endforeach
+                                    <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha</button>
+                                    <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs">
+                                    @error('agendaPlanningBody')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                    <button type="button" wire:click="postPlanningReply" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md">Publicar respuesta</button>
+                                </div>
+                            @endif
+
                             @if ($hasPendingNotification)
                                 <div class="rounded-md border border-amber-300 bg-amber-50 px-4 py-4 space-y-3 dark:border-amber-500/40 dark:bg-amber-950/30">
-                                    <p class="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-100">Coordinación de notificación física</p>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-100">Paso 3 · Notificación física del trabajador</p>
                                     <p class="text-xs text-amber-900/90 dark:text-amber-100/80">El abogado solicitó información para la notificación. Complete los campos obligatorios.</p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
@@ -156,28 +174,6 @@
                                         Registrar información de notificación
                                     </button>
                                 </div>
-                            @endif
-
-                            @if ($canPostPlanning ?? false)
-                            <div class="border-t border-slate-200 pt-4 space-y-3 dark:border-white/10">
-                                <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Programación de diligencia — responder coordinación</p>
-                                <textarea wire:model="agendaPlanningBody" rows="2"
-                                    class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
-                                    placeholder="Observaciones para el abogado..."></textarea>
-                                @foreach ($planningSlots as $i => $slot)
-                                    <div class="grid grid-cols-3 gap-2">
-                                        <input type="date" wire:model="planningSlots.{{ $i }}.date" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                        <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                        <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                    </div>
-                                @endforeach
-                                <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">+ Otra fecha propuesta</button>
-                                <input type="file" wire:model="agendaPlanningUploads" multiple accept="image/*,application/pdf" class="text-xs">
-                                @error('agendaPlanningBody')
-                                    <p class="text-xs text-red-600">{{ $message }}</p>
-                                @enderror
-                                <button type="button" wire:click="postPlanningReply" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md">Publicar respuesta</button>
-                            </div>
                             @endif
                         </div>
                     @else

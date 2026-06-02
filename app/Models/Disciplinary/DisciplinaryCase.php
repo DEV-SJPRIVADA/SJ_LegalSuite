@@ -2,6 +2,7 @@
 
 namespace App\Models\Disciplinary;
 
+use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\CitationEvidenceType;
@@ -214,6 +215,37 @@ class DisciplinaryCase extends Model
     public function hasAgendaPlanningReply(): bool
     {
         return $this->agendaThread?->hasPlanningReply() ?? false;
+    }
+
+    /** El abogado envió al menos una solicitud formal de programación de fechas (Etapa B.1). */
+    public function hasLawyerDiligenceDateRequest(): bool
+    {
+        $this->loadMissing('agendaThread.messages');
+
+        foreach ($this->agendaThread?->messages ?? [] as $message) {
+            if ($message->message_kind === AgendaMessageKind::LAWYER_REQUEST) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canRequestDiligenceDateProgramming(): bool
+    {
+        if ($this->agendaThread?->isClosed()) {
+            return false;
+        }
+
+        if (! $this->hasCoordinationStarted()) {
+            return false;
+        }
+
+        if ($this->citation_confirmed_date !== null) {
+            return false;
+        }
+
+        return ! $this->hasLawyerDiligenceDateRequest();
     }
 
     public function currentStage(): HasMany
