@@ -7,6 +7,7 @@ use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,14 +24,19 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_planeacion_can_open_coordinations_with_pending_notification(): void
+    public function test_planeacion_sees_register_notification_after_posting_diligence_slots(): void
     {
         $planner = $this->makeUser('planeacion', 'planner-coord@test.local');
         $lawyer = $this->makeUser('abogado', 'lawyer-coord@test.local');
         $case = $this->makeCaseWithOpenThread($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
-        app(DisciplinaryCitationNotificationService::class)
-            ->requestNotificationInformation($case->fresh(['agendaThread']), $lawyer);
+        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
+            $case->fresh(['agendaThread']),
+            $planner,
+            'Fechas disponibles',
+            [['date' => now()->addDays(5)->toDateString(), 'time' => '10:00', 'notes' => null]],
+            [],
+        );
 
         Livewire::actingAs($planner)
             ->test(\App\Livewire\Disciplinary\Coordinations\Index::class)

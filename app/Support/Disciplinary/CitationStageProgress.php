@@ -118,8 +118,8 @@ final class CitationStageProgress
     {
         $blockers = [];
 
-        if ($this->notification->hasPendingNotificationRequest($case)) {
-            $blockers[] = 'Hay una solicitud de notificación física pendiente de respuesta de Planeación.';
+        if ($this->notification->canPlanningRegisterNotification($case)) {
+            $blockers[] = 'Planeación debe registrar la notificación física (ingreso, turno, zona y supervisor) en Coordinaciones.';
         }
 
         if ($case->citation_confirmed_date === null) {
@@ -141,5 +141,60 @@ final class CitationStageProgress
     public function canSafelyCloseCoordination(DisciplinaryCase $case): bool
     {
         return $this->blockersBeforeClosingCoordination($case) === [];
+    }
+
+    /** @return array{key: string, label: string, status: string, hint: string} */
+    public function currentStep(DisciplinaryCase $case): array
+    {
+        $steps = $this->steps($case);
+        $current = $steps->firstWhere('status', self::STATUS_CURRENT);
+
+        if ($current !== null) {
+            return $current;
+        }
+
+        $pending = $steps->firstWhere('status', self::STATUS_PENDING);
+
+        return $pending ?? [
+            'key' => 'evidence',
+            'label' => 'Evidencia PDF cargada',
+            'status' => self::STATUS_DONE,
+            'hint' => '',
+        ];
+    }
+
+    public function currentStepNumber(DisciplinaryCase $case): int
+    {
+        $steps = $this->steps($case);
+        $current = $this->currentStep($case);
+        $index = $steps->search(fn (array $step): bool => $step['key'] === $current['key']);
+
+        return $index === false ? 1 : (int) $index + 1;
+    }
+
+    public function totalSteps(): int
+    {
+        return 6;
+    }
+
+    public function actionBarTitle(string $stepKey): string
+    {
+        return match ($stepKey) {
+            'coordination' => 'Coordinación con Planeación',
+            'planning_slots' => 'Fechas propuestas por Planeación',
+            'definitive_date' => 'Confirmar fecha de citación',
+            'notification' => 'Notificación física del trabajador',
+            'fo_gj_03' => 'Generar FO-GJ-03',
+            'evidence' => 'Evidencia de notificación (PDF)',
+            default => 'Citación a diligencia',
+        };
+    }
+
+    /**
+     * @deprecated La visibilidad del chat la controla el abogado (toggle) mientras el caso permite agenda.
+     */
+    public function chatIsPrimaryForStep(string $stepKey): bool
+    {
+        return in_array($stepKey, ['coordination', 'planning_slots', 'definitive_date', 'notification', 'fo_gj_03', 'evidence'], true);
     }
 }

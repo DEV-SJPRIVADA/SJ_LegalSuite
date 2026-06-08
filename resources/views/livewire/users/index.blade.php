@@ -308,12 +308,11 @@
                             <div class="md:col-span-2 rounded-lg ring-1 ring-slate-200 dark:ring-white/10 p-4 space-y-3 dark:bg-white/[0.03]">
                                 <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Permisos directos adicionales (Operaciones)</p>
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Los interruptores solo muestran o modifican permisos concedidos <strong>directamente</strong> al usuario. Si ya los tiene por rol, el acceso sigue activo aunque el interruptor esté apagado.</p>
-                                @foreach ($operationsPermissionLabels as $perm => $label)
+                                @foreach ($operationsPermissionLabels as $toggleKey => $label)
                                     <label class="flex items-center justify-between gap-4 cursor-pointer rounded-md px-2 py-2 hover:bg-slate-50 dark:hover:bg-white/[0.05]">
                                         <span class="text-sm text-slate-700 dark:text-slate-300">{{ $label }}</span>
-                                        <input type="checkbox" wire:key="op-{{ $perm }}"
-                                            @checked($directPermissionToggles[$perm] ?? false)
-                                            wire:click.prevent="toggleOperationsPerm('{{ $perm }}')"
+                                        <input type="checkbox" wire:key="op-{{ $toggleKey }}"
+                                            wire:model.live="directPermissionToggles.{{ $toggleKey }}"
                                             class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
                                     </label>
                                 @endforeach

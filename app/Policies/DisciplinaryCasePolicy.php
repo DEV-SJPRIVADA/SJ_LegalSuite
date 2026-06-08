@@ -16,7 +16,8 @@ use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
  * - supervisor / operador → pool por turno (casos fuera de borrador); informe FO-GJ-51 + evidencias.
  * - programador → expedientes ya formalizados (no borrador); programar fechas de etapa.
  * - planeacion → no gestiona expedientes; trabaja solo en bandeja de coordinaciones abiertas.
- * - administrativa / operaciones → informes + evidencias.
+ * - administrativa → consulta amplia vía `disciplinary.view`.
+ * - operaciones → expedientes con revisor FO-GJ-51 asignado (`assigned_reviewer_id`), reportó o todos con `review-inform-all`.
  * - Asignar / reasignar abogado titular: `admin` o permiso `disciplinary.assign` (no solo lectura), vía `assign`.
  * - Hilo agenda (citación / reprogramación): `postAgendaLawyer` (abogado titular), `postAgendaPlanning` (planeación o admin sin atajo `before`).
  */
@@ -93,6 +94,10 @@ class DisciplinaryCasePolicy
 
         if ($user->hasRole('planeacion')) {
             return false;
+        }
+
+        if ($user->hasRole('operaciones')) {
+            return $case->isVisibleToOperacionesReviewer($user);
         }
 
         if ($user->hasPermissionTo('disciplinary.view')) {
@@ -233,23 +238,7 @@ class DisciplinaryCasePolicy
 
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool
     {
-        if ($this->deniesMutation($user)) {
-            return false;
-        }
-
-        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
-            return false;
-        }
-
-        if ($case->citation_confirmed_date === null) {
-            return false;
-        }
-
-        $notification = app(DisciplinaryCitationNotificationService::class);
-
-        return $case->hasCoordinationStarted()
-            && ! $notification->hasPendingNotificationRequest($case)
-            && ! $notification->hasNotificationInformationCompleted($case);
+        return false;
     }
 
     public function postNotificationCoordination(User $user, DisciplinaryCase $case): bool
@@ -266,7 +255,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(DisciplinaryCitationNotificationService::class)->hasPendingNotificationRequest($case);
+        return app(DisciplinaryCitationNotificationService::class)->canPlanningRegisterNotification($case);
     }
 
     public function reassignNotificationSupervisor(User $user, DisciplinaryCase $case): bool
@@ -387,6 +376,10 @@ class DisciplinaryCasePolicy
 
         if ($user->hasAnyRole(['supervisor', 'operador'])) {
             return $case->isVisibleToDisciplinaryFieldPool();
+        }
+
+        if ($user->hasRole('operaciones')) {
+            return $case->isVisibleToOperacionesReviewer($user);
         }
 
         return true;

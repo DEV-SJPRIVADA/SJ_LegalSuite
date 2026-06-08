@@ -23,11 +23,16 @@ class UsersIndex extends Component
 {
     use WithPagination;
 
-    /** Permisos que el administrador puede conceder/revocar en forma directa para el área Operaciones. */
-    private const OPERATIONS_TOGGLE_PERMISSIONS = [
-        'disciplinary.generate-inform',
-        'disciplinary.upload-notification',
-        'disciplinary.download-pdf',
+    /**
+     * Claves del estado Livewire (sin puntos) => permiso Spatie.
+     * Livewire interpreta los puntos en claves de array como rutas anidadas; por eso no se usan los nombres de permiso como clave.
+     *
+     * @var array<string, string>
+     */
+    private const OPERATIONS_TOGGLE_KEYS = [
+        'generate_inform' => 'disciplinary.generate-inform',
+        'upload_notification' => 'disciplinary.upload-notification',
+        'download_pdf' => 'disciplinary.download-pdf',
     ];
 
     /* ---------- Filtros (sincronizados con URL) ---------- */
@@ -104,20 +109,8 @@ class UsersIndex extends Component
     {
         $this->jobPositionId = null;
         if (! $this->shouldShowOperationsPermissionToggles()) {
-            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
-                $this->directPermissionToggles[$perm] = false;
-            }
+            $this->resetOperationsPermissionToggles();
         }
-    }
-
-    public function toggleOperationsPerm(string $perm): void
-    {
-        if (! in_array($perm, self::OPERATIONS_TOGGLE_PERMISSIONS, true)) {
-            return;
-        }
-
-        $current = (bool) ($this->directPermissionToggles[$perm] ?? false);
-        $this->directPermissionToggles[$perm] = ! $current;
     }
 
     public function updatedAssignPlatformAdmin(bool $value): void
@@ -125,9 +118,7 @@ class UsersIndex extends Component
         if ($value) {
             $this->organizationalAreaId = null;
             $this->jobPositionId = null;
-            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
-                $this->directPermissionToggles[$perm] = false;
-            }
+            $this->resetOperationsPermissionToggles();
         }
     }
 
@@ -166,9 +157,9 @@ class UsersIndex extends Component
     public function operationsPermissionLabels(): array
     {
         return [
-            'disciplinary.generate-inform' => 'Crear informes (FO-GJ-51)',
-            'disciplinary.upload-notification' => 'Cargar notificaciones / avisos al equipo de revisión',
-            'disciplinary.download-pdf' => 'Descargar PDF del informe',
+            'generate_inform' => 'Crear informes (FO-GJ-51)',
+            'upload_notification' => 'Cargar notificaciones / avisos al equipo de revisión',
+            'download_pdf' => 'Descargar PDF del informe',
         ];
     }
 
@@ -201,8 +192,8 @@ class UsersIndex extends Component
         $this->organizationalAreaId = $this->assignPlatformAdmin ? null : $user->organizational_area_id;
         $this->jobPositionId = $this->assignPlatformAdmin ? null : $user->job_position_id;
 
-        foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
-            $this->directPermissionToggles[$perm] = $user->hasDirectPermission($perm);
+        foreach (self::OPERATIONS_TOGGLE_KEYS as $key => $perm) {
+            $this->directPermissionToggles[$key] = $user->hasDirectPermission($perm);
         }
 
         $this->resetErrorBag();
@@ -286,8 +277,8 @@ class UsersIndex extends Component
         $directSnapshotUpdate = null;
         if ($this->shouldShowOperationsPermissionToggles()) {
             $directSnapshotUpdate = [];
-            foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
-                $on = (bool) ($this->directPermissionToggles[$perm] ?? false);
+            foreach (self::OPERATIONS_TOGGLE_KEYS as $key => $perm) {
+                $on = (bool) ($this->directPermissionToggles[$key] ?? false);
                 $directSnapshotCreate[$perm] = $on;
                 $directSnapshotUpdate[$perm] = $on;
             }
@@ -322,8 +313,13 @@ class UsersIndex extends Component
 
     private function primeOperationsPermissionDefaults(): void
     {
-        foreach (self::OPERATIONS_TOGGLE_PERMISSIONS as $perm) {
-            $this->directPermissionToggles[$perm] = false;
+        $this->resetOperationsPermissionToggles();
+    }
+
+    private function resetOperationsPermissionToggles(): void
+    {
+        foreach (array_keys(self::OPERATIONS_TOGGLE_KEYS) as $key) {
+            $this->directPermissionToggles[$key] = false;
         }
     }
 

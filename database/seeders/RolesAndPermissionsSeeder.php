@@ -89,7 +89,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Operaciones (dirección / central): gestión completa del frente operativo. */
+        /** Operaciones: revisión FO-GJ-51 y expedientes propios; `review-inform-all` solo por permiso directo (dirección). */
         $admin_op = Role::firstOrCreate(['name' => 'operaciones', 'guard_name' => 'web']);
         $admin_op->syncPermissions([
             'disciplinary.view',
@@ -97,7 +97,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
             'disciplinary.generate-inform',
             'disciplinary.review-inform',
-            'disciplinary.review-inform-all',
             'employees.view',
             'employees.manage',
             'disciplinary.upload-notification',

@@ -371,7 +371,52 @@ class DisciplinaryCase extends Model
             return $query->whereRaw('1=0');
         }
 
+        if ($user->hasRole('operaciones')) {
+            return $query->visibleToOperacionesReviewer($user);
+        }
+
         return $query;
+    }
+
+    /**
+     * Operaciones (GAP A2): solo expedientes con revisor asignado en FO-GJ-51 (`assigned_reviewer_id`),
+     * los que reportó o todos si tiene dirección (`review-inform-all`). La columna Abogado no aplica aquí.
+     */
+    public function scopeVisibleToOperacionesReviewer(Builder $query, User $user): Builder
+    {
+        if (self::userCanReviewAllInformes($user)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('reporter_id', $user->id)
+                ->orWhereHas('informeSubmission', fn (Builder $sub) => $sub->where('assigned_reviewer_id', $user->id));
+        });
+    }
+
+    public function isVisibleToOperacionesReviewer(User $user): bool
+    {
+        if (self::userCanReviewAllInformes($user)) {
+            return true;
+        }
+
+        if ((int) $this->reporter_id === (int) $user->id) {
+            return true;
+        }
+
+        $this->loadMissing('informeSubmission');
+
+        return $this->informeSubmission !== null
+            && (int) $this->informeSubmission->assigned_reviewer_id === (int) $user->id;
+    }
+
+    public static function userCanReviewAllInformes(User $user): bool
+    {
+        try {
+            return $user->hasPermissionTo('disciplinary.review-inform-all');
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
     }
 
     // ---------- Helpers de dominio ----------
@@ -554,10 +599,6 @@ class DisciplinaryCase extends Model
 
     private function hasReviewInformAllPermission(User $user): bool
     {
-        try {
-            return $user->hasPermissionTo('disciplinary.review-inform-all');
-        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
-            return false;
-        }
+        return self::userCanReviewAllInformes($user);
     }
 }

@@ -1,11 +1,13 @@
 /**
- * Lightbox para miniaturas de adjuntos del hilo de agenda (zoom con rueda, Escape / clic fuera cierra).
+ * Lightbox para adjuntos del hilo de agenda (imagen: zoom con rueda; PDF: iframe).
  */
 function agendaAttachmentLightbox() {
     return {
         open: false,
         src: '',
         alt: '',
+        previewKind: 'image',
+        downloadUrl: '',
         scale: 1,
         minScale: 0.25,
         maxScale: 6,
@@ -15,10 +17,25 @@ function agendaAttachmentLightbox() {
         contextY: 0,
         contextDownloadUrl: '',
 
-        openLightbox(src, alt) {
+        openLightbox(src, alt = '', kind = 'image', downloadUrl = '') {
+            this.openAgendaAttachment({
+                src,
+                alt,
+                kind,
+                downloadUrl: downloadUrl || src,
+            });
+        },
+
+        openAgendaAttachment(detail) {
+            if (!detail?.src) {
+                return;
+            }
+
             this.closeImageContextMenu();
-            this.src = src;
-            this.alt = alt || '';
+            this.src = detail.src;
+            this.alt = detail.alt || '';
+            this.previewKind = detail.kind === 'pdf' ? 'pdf' : 'image';
+            this.downloadUrl = detail.downloadUrl || detail.src;
             this.scale = 1;
             this.open = true;
             document.body.classList.add('overflow-hidden');
@@ -28,6 +45,8 @@ function agendaAttachmentLightbox() {
             this.open = false;
             this.src = '';
             this.alt = '';
+            this.previewKind = 'image';
+            this.downloadUrl = '';
             this.scale = 1;
             document.body.classList.remove('overflow-hidden');
             this.closeImageContextMenu();
@@ -70,8 +89,23 @@ function agendaAttachmentLightbox() {
             this.closeImageContextMenu();
         },
 
+        downloadPreview() {
+            if (!this.downloadUrl) {
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = this.downloadUrl;
+            a.rel = 'noopener';
+            if (this.previewKind === 'pdf') {
+                a.target = '_blank';
+            }
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        },
+
         wheelZoom(event) {
-            if (!this.open) {
+            if (!this.open || this.previewKind !== 'image') {
                 return;
             }
             event.preventDefault();

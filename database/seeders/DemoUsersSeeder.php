@@ -57,6 +57,10 @@ class DemoUsersSeeder extends Seeder
                 ],
             );
             $user->syncRoles([$row['role']]);
+
+            if ($row['email'] === 'operaciones@sjlegalsuite.local') {
+                $user->givePermissionTo('disciplinary.review-inform-all');
+            }
         }
     }
 }
