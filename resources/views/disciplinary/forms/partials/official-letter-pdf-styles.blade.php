@@ -23,6 +23,24 @@
         background: #fff;
         min-height: 0;
     }
+    .ogj-letter-screen-scaler {
+        display: flex;
+        justify-content: center;
+        padding: 0.5rem 0 1rem;
+    }
+    .ogj-letter-screen-sheet {
+        width: 8.5in;
+        min-height: 11in;
+        box-sizing: border-box;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+        transform-origin: top center;
+    }
+    .ogj-page--screen-preview {
+        width: 8.5in;
+        min-height: 11in;
+        box-sizing: border-box;
+    }
     .ogj-block {
         border: 1px solid #000;
         margin-bottom: 10px;
@@ -271,5 +289,23 @@
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
         margin: 28px 0 6px;
+    }
+    .ogj-03-refusal-text {
+        margin: 0;
+        padding-top: 18px;
+        font-size: 10px;
+        font-style: italic;
+        text-align: center;
+    }
+    .ogj-03-witnesses {
+        margin-top: 20px;
+    }
+    .ogj-03-witnesses td {
+        vertical-align: top;
+        padding-right: 12px;
+    }
+    .ogj-03-witnesses td:last-child {
+        padding-right: 0;
+        padding-left: 12px;
     }
 </style>

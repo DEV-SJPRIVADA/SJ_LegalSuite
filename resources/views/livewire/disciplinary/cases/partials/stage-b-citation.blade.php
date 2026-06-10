@@ -319,7 +319,7 @@
                                     <select wire:model="citationEvidenceType" class="w-full max-w-md rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                         <option value="">— Tipo de evidencia —</option>
                                         <option value="signed">Citación firmada por el trabajador</option>
-                                        <option value="refused_witnesses">Rechazo con firma de jefe y dos testigos</option>
+                                        <option value="refused_witnesses">Rechazo de firma con dos testigos</option>
                                     </select>
                                     @error('citationEvidenceType')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                     <input type="file" wire:model="citationEvidenceFile" accept="application/pdf" class="text-sm">

@@ -19,6 +19,9 @@
     'signerName' => '',
     'signerRole' => '',
     'signatureDataUri' => null,
+    'workerSignatureDataUri' => null,
+    'evidenceType' => 'signed',
+    'witnesses' => [],
     'conductMonth' => '',
     'conductDays' => '',
 ])
@@ -149,7 +152,13 @@
                     <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
                 @endif
             </td>
-            <td class="ogj-03-signature-slot"></td>
+            <td class="ogj-03-signature-slot">
+                @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+                    <p class="ogj-03-refusal-text">Se niega a firmar</p>
+                @elseif (! $blankForDownload && filled($workerSignatureDataUri))
+                    <img src="{{ $workerSignatureDataUri }}" alt="Firma del trabajador" class="ogj-03-signature-img">
+                @endif
+            </td>
         </tr>
         <tr class="ogj-03-signatures-line-row">
             <td><div class="ogj-03-sign-line"></div></td>
@@ -157,15 +166,46 @@
         </tr>
         <tr>
             <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
-            <td><p>Nombre:</p></td>
+            <td>
+                <p>Nombre:@if (! $blankForDownload && $evidenceType === 'refused_witnesses' && filled($workerName)) {{ e($workerName) }}@endif</p>
+            </td>
         </tr>
         <tr>
             <td><p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p></td>
-            <td><p>Cargo:</p></td>
+            <td><p>Cargo:@if (! $blankForDownload && $evidenceType === 'refused_witnesses' && filled($workerPosition)) {{ e($workerPosition) }}@endif</p></td>
         </tr>
         <tr>
             <td><p>SJ Seguridad Privada Ltda</p></td>
             <td></td>
         </tr>
     </table>
+
+    @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+        <table class="ogj-03-signatures ogj-03-witnesses" role="presentation">
+            <tr>
+                @foreach (array_slice($witnesses, 0, 2) as $witness)
+                    <td>
+                        <p>Testigo</p>
+                        <div class="ogj-03-signature-slot">
+                            @if (filled($witness['signatureDataUri'] ?? null))
+                                <img src="{{ $witness['signatureDataUri'] }}" alt="Firma testigo" class="ogj-03-signature-img">
+                            @endif
+                        </div>
+                        <div class="ogj-03-sign-line"></div>
+                        <p>Nombre:@if (filled($witness['name'] ?? null)) {{ e($witness['name']) }}@endif</p>
+                        <p>Cédula:@if (filled($witness['document'] ?? null)) {{ e($witness['document']) }}@endif</p>
+                    </td>
+                @endforeach
+                @for ($i = count($witnesses); $i < 2; $i++)
+                    <td>
+                        <p>Testigo</p>
+                        <div class="ogj-03-signature-slot"></div>
+                        <div class="ogj-03-sign-line"></div>
+                        <p>Nombre:</p>
+                        <p>Cédula:</p>
+                    </td>
+                @endfor
+            </tr>
+        </table>
+    @endif
 </div>

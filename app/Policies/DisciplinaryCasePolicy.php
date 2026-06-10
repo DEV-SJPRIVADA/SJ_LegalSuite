@@ -311,6 +311,25 @@ class DisciplinaryCasePolicy
         return $this->view($user, $case);
     }
 
+    public function viewFoGj03NotificationForSupervisor(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('supervisor')) {
+            return false;
+        }
+
+        if ((int) $case->notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->fo_gj_03_generated_at !== null
+            && $case->citation_evidence_uploaded_at === null
+            && $case->fo_gj_03_draft_completed_at !== null;
+    }
+
     public function uploadCitationEvidence(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
