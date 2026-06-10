@@ -271,31 +271,45 @@
         margin: 0 0 4px;
         text-align: left;
     }
-    .ogj-03-signature-slot {
-        height: 52px;
+    .ogj-03-signatures-capture-row td {
         vertical-align: bottom;
-        padding-bottom: 2px;
+    }
+    .ogj-03-signature-block {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-height: 52px;
+    }
+    .ogj-03-signature-slot-area {
+        flex: 1 1 auto;
+        min-height: 44px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-start;
+    }
+    .ogj-03-signature-block .ogj-03-sign-line {
+        flex-shrink: 0;
+        border-bottom: 1px solid #000;
+        margin: 0 0 6px;
     }
     .ogj-03-signature-img {
         display: block;
-        max-height: 48px;
+        max-height: 44px;
         max-width: 180px;
+        margin: 0;
         object-fit: contain;
-    }
-    .ogj-03-signatures-line-row .ogj-03-sign-line {
-        border-bottom: 1px solid #000;
-        margin: 0 0 6px;
+        object-position: left bottom;
     }
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
         margin: 28px 0 6px;
     }
     .ogj-03-refusal-text {
-        margin: 0;
-        padding-top: 18px;
+        margin: 0 0 1px;
+        padding: 0;
         font-size: 10px;
         font-style: italic;
-        text-align: center;
+        text-align: left;
     }
     .ogj-03-witnesses {
         margin-top: 20px;

@@ -146,23 +146,29 @@
             <td><p>Cordialmente;</p></td>
             <td><p>Recibido por;</p></td>
         </tr>
-        <tr class="ogj-03-signatures-slot-row">
-            <td class="ogj-03-signature-slot">
-                @if (! $blankForDownload && filled($signatureDataUri))
-                    <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
-                @endif
+        <tr class="ogj-03-signatures-capture-row">
+            <td>
+                <div class="ogj-03-signature-block">
+                    <div class="ogj-03-signature-slot-area">
+                        @if (! $blankForDownload && filled($signatureDataUri))
+                            <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
+                        @endif
+                    </div>
+                    <div class="ogj-03-sign-line"></div>
+                </div>
             </td>
-            <td class="ogj-03-signature-slot">
-                @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
-                    <p class="ogj-03-refusal-text">Se niega a firmar</p>
-                @elseif (! $blankForDownload && filled($workerSignatureDataUri))
-                    <img src="{{ $workerSignatureDataUri }}" alt="Firma del trabajador" class="ogj-03-signature-img">
-                @endif
+            <td>
+                <div class="ogj-03-signature-block">
+                    <div class="ogj-03-signature-slot-area">
+                        @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+                            <p class="ogj-03-refusal-text">Se niega a firmar</p>
+                        @elseif (! $blankForDownload && filled($workerSignatureDataUri))
+                            <img src="{{ $workerSignatureDataUri }}" alt="Firma del trabajador" class="ogj-03-signature-img">
+                        @endif
+                    </div>
+                    <div class="ogj-03-sign-line"></div>
+                </div>
             </td>
-        </tr>
-        <tr class="ogj-03-signatures-line-row">
-            <td><div class="ogj-03-sign-line"></div></td>
-            <td><div class="ogj-03-sign-line"></div></td>
         </tr>
         <tr>
             <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
@@ -186,12 +192,14 @@
                 @foreach (array_slice($witnesses, 0, 2) as $witness)
                     <td>
                         <p>Testigo</p>
-                        <div class="ogj-03-signature-slot">
-                            @if (filled($witness['signatureDataUri'] ?? null))
-                                <img src="{{ $witness['signatureDataUri'] }}" alt="Firma testigo" class="ogj-03-signature-img">
-                            @endif
+                        <div class="ogj-03-signature-block">
+                            <div class="ogj-03-signature-slot-area">
+                                @if (filled($witness['signatureDataUri'] ?? null))
+                                    <img src="{{ $witness['signatureDataUri'] }}" alt="Firma testigo" class="ogj-03-signature-img">
+                                @endif
+                            </div>
+                            <div class="ogj-03-sign-line"></div>
                         </div>
-                        <div class="ogj-03-sign-line"></div>
                         <p>Nombre:@if (filled($witness['name'] ?? null)) {{ e($witness['name']) }}@endif</p>
                         <p>Cédula:@if (filled($witness['document'] ?? null)) {{ e($witness['document']) }}@endif</p>
                     </td>
@@ -199,8 +207,10 @@
                 @for ($i = count($witnesses); $i < 2; $i++)
                     <td>
                         <p>Testigo</p>
-                        <div class="ogj-03-signature-slot"></div>
-                        <div class="ogj-03-sign-line"></div>
+                        <div class="ogj-03-signature-block">
+                            <div class="ogj-03-signature-slot-area"></div>
+                            <div class="ogj-03-sign-line"></div>
+                        </div>
                         <p>Nombre:</p>
                         <p>Cédula:</p>
                     </td>
