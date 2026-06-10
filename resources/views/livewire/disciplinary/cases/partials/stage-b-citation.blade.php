@@ -3,7 +3,9 @@
     use App\Support\Disciplinary\CitationStageProgress;
     use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
 
+    $citationReadOnly = $citationReadOnly ?? false;
     $isCitacion = $case->current_status === CaseStatus::CITACION_PROGRAMADA;
+    $showStageB = $isCitacion || $citationReadOnly;
     $requirementLabels = $citationRequirementLabels ?? DisciplinaryCitationWorkflowService::requirementLabels();
     $agendaThread = $case->agendaThread;
     $coordinationIsClosed = $agendaThread?->isClosed() ?? false;
@@ -35,21 +37,49 @@
         && ($selectedCitationSlotKey ?? '') !== ''
         && in_array($currentStepKey, ['planning_slots', 'definitive_date'], true);
 
-    $showCitationStepPanel = ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $canGenerateFoGj03)
-        || ($currentStepKey === 'evidence' && auth()->user()->can('viewCitationEvidence', $case));
+    if ($citationReadOnly) {
+        $coordinationIsClosed = true;
+        $showChatPanel = false;
+        $canSelectCitationSlot = false;
+        $showConfirmCitationSlot = false;
+        $useDiligenceDateActionBar = $case->hasCoordinationStarted();
+    }
+
+    $showCitationStepPanel = ! $citationReadOnly
+        && (
+            ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $canGenerateFoGj03)
+            || ($currentStepKey === 'evidence' && auth()->user()->can('viewCitationEvidence', $case))
+        );
 @endphp
 
-@if ($isCitacion)
-    <div class="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-sm ring-1 ring-indigo-100 dark:border-indigo-400/25 dark:bg-indigo-950/15 dark:ring-indigo-500/20 dark:shadow-dash-card">
+@if ($showStageB)
+    <div class="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border shadow-sm ring-1 dark:shadow-dash-card
+        {{ $citationReadOnly
+            ? 'border-slate-200 bg-slate-50/80 ring-slate-200/80 dark:border-white/10 dark:bg-slate-900/25 dark:ring-white/10'
+            : 'border-indigo-200 bg-white ring-indigo-100 dark:border-indigo-400/25 dark:bg-indigo-950/15 dark:ring-indigo-500/20' }}">
 
         {{-- Cabecera: título + stepper + avanzar etapa --}}
-        <div class="flex flex-col gap-3 border-b border-indigo-200/80 bg-indigo-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-indigo-950/35">
+        <div class="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10
+            {{ $citationReadOnly
+                ? 'border-slate-200/80 bg-slate-100/60 dark:bg-slate-900/40'
+                : 'border-indigo-200/80 bg-indigo-50/60 dark:bg-indigo-950/35' }}">
             <div class="min-w-0 shrink-0">
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
-                    Etapa B · Citación a diligencia (FO-GJ-03)
-                </h4>
+                <div class="flex flex-wrap items-center gap-2">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider {{ $citationReadOnly ? 'text-slate-700 dark:text-slate-300' : 'text-indigo-900 dark:text-indigo-200' }}">
+                        Etapa B · Citación a diligencia (FO-GJ-03)
+                    </h4>
+                    @if ($citationReadOnly)
+                        <span class="inline-flex items-center rounded-full bg-slate-200/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700 ring-1 ring-slate-300/80 dark:bg-white/10 dark:text-slate-300 dark:ring-white/15">
+                            Completada · Solo lectura
+                        </span>
+                    @endif
+                </div>
                 <p class="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
-                    Paso {{ $stepNumber }} de {{ $totalSteps }}
+                    @if ($citationReadOnly)
+                        Etapa cerrada — {{ $totalSteps }} pasos completados
+                    @else
+                        Paso {{ $stepNumber }} de {{ $totalSteps }}
+                    @endif
                 </p>
             </div>
 
@@ -75,12 +105,14 @@
                 </ol>
             </nav>
 
-            @can('transition', $case)
-                <button type="button" wire:click="requestAdvanceFromCitacion"
-                    class="shrink-0 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40 dark:hover:bg-white/15">
-                    Siguiente etapa →
-                </button>
-            @endcan
+            @if (! $citationReadOnly)
+                @can('transition', $case)
+                    <button type="button" wire:click="requestAdvanceFromCitacion"
+                        class="shrink-0 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40 dark:hover:bg-white/15">
+                        Siguiente etapa →
+                    </button>
+                @endcan
+            @endif
         </div>
 
         {{-- Barra de acción --}}
@@ -110,53 +142,71 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    @can('reassignNotificationSupervisor', $case)
-                        @if ($notificationSlotDisplay['completed'] ?? false)
-                            <button type="button" wire:click="openReassignSupervisorModal"
-                                class="inline-flex rounded-md bg-white px-3 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-400 hover:bg-amber-50 dark:bg-white/10 dark:text-amber-100">
-                                Reasignar supervisor
-                            </button>
-                        @endif
-                    @endcan
-                    @if ($showConfirmCitationSlot)
-                        <button type="button" wire:click="confirmCitationSlot"
-                            class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                            Confirmar fecha
-                        </button>
-                    @endif
-
-                    @if ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $case->fo_gj_03_generated_at)
-                        @if ($canEditFoGj03Draft)
-                            <button type="button" wire:click="openFoGj03DraftModal"
-                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40">
-                                {{ $foGj03DraftCompleted ? 'Editar FO-GJ-03' : 'Diligenciar FO-GJ-03' }}
-                            </button>
-                        @endif
-                        @if ($canPreviewFoGj03)
+                    @if ($citationReadOnly)
+                        @if ($canPreviewFoGj03 && $case->fo_gj_03_generated_at)
                             <button type="button" wire:click="openFoGj03PdfPreview"
-                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40">
-                                Vista previa PDF
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
+                                Consultar FO-GJ-03 (PDF)
                             </button>
                         @endif
-                        @can('generateFoGj03', $case)
-                            <button type="button" wire:click="generateFoGj03"
-                                class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                Generar y guardar
-                            </button>
+                        @can('viewCitationEvidence', $case)
+                            @if ($case->citation_evidence_uploaded_at && ($citationEvidenceDocReadonly = $case->latestCitationEvidenceDocument()))
+                                <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $citationEvidenceDocReadonly, 'download' => 1]) }}"
+                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20"
+                                    target="_blank" rel="noopener">
+                                    Evidencia de citación (PDF)
+                                </a>
+                            @endif
                         @endcan
-                    @endif
+                    @else
+                        @can('reassignNotificationSupervisor', $case)
+                            @if ($notificationSlotDisplay['completed'] ?? false)
+                                <button type="button" wire:click="openReassignSupervisorModal"
+                                    class="inline-flex rounded-md bg-white px-3 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-400 hover:bg-amber-50 dark:bg-white/10 dark:text-amber-100">
+                                    Reasignar supervisor
+                                </button>
+                            @endif
+                        @endcan
+                        @if ($showConfirmCitationSlot)
+                            <button type="button" wire:click="confirmCitationSlot"
+                                class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                Confirmar fecha
+                            </button>
+                        @endif
 
-                    @if ($coordinationChatAvailable && $isAssignedLawyer)
-                        @if ($showChatPanel)
-                            <button type="button" wire:click="hideCoordinationChat"
-                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
-                                Ocultar chat
-                            </button>
-                        @else
-                            <button type="button" wire:click="showCoordinationChat"
-                                class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                Mostrar chat
-                            </button>
+                        @if ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $case->fo_gj_03_generated_at)
+                            @if ($canEditFoGj03Draft)
+                                <button type="button" wire:click="openFoGj03DraftModal"
+                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40">
+                                    {{ $foGj03DraftCompleted ? 'Editar FO-GJ-03' : 'Diligenciar FO-GJ-03' }}
+                                </button>
+                            @endif
+                            @if ($canPreviewFoGj03)
+                                <button type="button" wire:click="openFoGj03PdfPreview"
+                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40">
+                                    Vista previa PDF
+                                </button>
+                            @endif
+                            @can('generateFoGj03', $case)
+                                <button type="button" wire:click="generateFoGj03"
+                                    class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                    Generar y guardar
+                                </button>
+                            @endcan
+                        @endif
+
+                        @if ($coordinationChatAvailable && $isAssignedLawyer)
+                            @if ($showChatPanel)
+                                <button type="button" wire:click="hideCoordinationChat"
+                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
+                                    Ocultar chat
+                                </button>
+                            @else
+                                <button type="button" wire:click="showCoordinationChat"
+                                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                    Mostrar chat
+                                </button>
+                            @endif
                         @endif
                     @endif
                 </div>
@@ -170,7 +220,7 @@
             @error('reassignSupervisor')
                 <p class="px-4 pt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
-        @else
+        @elseif (! $citationReadOnly)
             <div class="flex flex-col gap-3 border-b border-indigo-200/60 bg-indigo-100/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-indigo-950/50">
                 <p class="text-sm font-bold text-slate-900 dark:text-white">Paso {{ $stepNumber }} · {{ $actionTitle }}</p>
                 @can('startCoordination', $case)
@@ -189,7 +239,7 @@
             <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @enderror
 
-        @if ($showCitationAdvanceValidation)
+        @if ($showCitationAdvanceValidation && ! $citationReadOnly)
             <div class="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/40 dark:bg-amber-950/40" role="alert">
                 <p class="text-sm font-semibold text-amber-950 dark:text-amber-100">No es posible avanzar a diligencia.</p>
                 <ul class="mt-2 grid gap-1 text-sm sm:grid-cols-2">
@@ -248,21 +298,27 @@
                     @endcan
 
                 </div>
-            @elseif ($case->hasCoordinationStarted() && ! $showChatPanel)
-                <div class="border-b border-slate-200 px-4 py-2 dark:border-white/10" x-data="{ historyOpen: {{ $coordinationIsClosed ? 'true' : 'false' }} }">
+            @elseif ($case->hasCoordinationStarted() && (! $showChatPanel || $citationReadOnly))
+                <div class="border-b border-slate-200 px-4 py-2 dark:border-white/10" x-data="{ historyOpen: {{ ($coordinationIsClosed || $citationReadOnly) ? 'true' : 'false' }} }">
                     @if ($coordinationIsClosed)
                         <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Coordinación finalizada al avanzar de etapa — historial de solo lectura.</p>
-                    @elseif ($coordinationChatAvailable && $isAssignedLawyer)
+                    @elseif ($coordinationChatAvailable && $isAssignedLawyer && ! $citationReadOnly)
                         <button type="button" wire:click="showCoordinationChat"
                             class="mb-2 text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
                             Mostrar chat con Planeación
                         </button>
                     @endif
+                    @unless ($citationReadOnly)
                     <button type="button" @click="historyOpen = !historyOpen"
                         class="text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
                         <span x-text="historyOpen ? 'Ocultar historial de coordinación' : 'Ver historial de coordinación ({{ $case->agendaThread?->messages->count() ?? 0 }} mensajes)'"></span>
                     </button>
-                    <div x-show="historyOpen" x-cloak class="mt-2 max-h-48 overflow-y-auto" wire:poll.visible.15s>
+                    @else
+                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                            Historial de coordinación ({{ $case->agendaThread?->messages->count() ?? 0 }} mensajes)
+                        </p>
+                    @endunless
+                    <div x-show="historyOpen" x-cloak class="mt-2 max-h-48 overflow-y-auto" @unless($citationReadOnly) wire:poll.visible.15s @endunless>
                         @if ($case->agendaThread && $case->agendaThread->messages->isNotEmpty())
                             <ul class="space-y-2">
                                 @foreach ($case->agendaThread->messages as $msg)
@@ -344,5 +400,6 @@
         'case' => $case,
         'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel ?? null,
         'supervisorCandidates' => $supervisorCandidates ?? collect(),
+        'citationReadOnly' => $citationReadOnly,
     ])
 @endif

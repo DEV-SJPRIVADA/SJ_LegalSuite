@@ -177,6 +177,30 @@ final class CitationStageProgress
         return 6;
     }
 
+    /**
+     * Todos los pasos marcados como completados (Etapa B cerrada en solo lectura).
+     *
+     * @return Collection<int, array{key: string, label: string, status: string, hint: string}>
+     */
+    public function completedSteps(): Collection
+    {
+        $labels = [
+            'coordination' => 'Coordinación iniciada',
+            'planning_slots' => 'Fechas propuestas por Planeación',
+            'definitive_date' => 'Fecha definitiva confirmada',
+            'notification' => 'Información de notificación física',
+            'fo_gj_03' => 'FO-GJ-03 generado',
+            'evidence' => 'Evidencia PDF cargada',
+        ];
+
+        return collect($labels)->map(fn (string $label, string $key) => [
+            'key' => $key,
+            'label' => $label,
+            'status' => self::STATUS_DONE,
+            'hint' => '',
+        ])->values();
+    }
+
     public function actionBarTitle(string $stepKey): string
     {
         return match ($stepKey) {

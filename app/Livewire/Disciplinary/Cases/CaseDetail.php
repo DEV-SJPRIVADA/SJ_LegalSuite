@@ -22,6 +22,8 @@ use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Support\Disciplinary\CitationStageProgress;
+use App\Support\Disciplinary\CaseOverviewStageStack;
+use App\Support\Disciplinary\DiligenceStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Services\Disciplinary\FoGj03DraftService;
 use Illuminate\Database\Eloquent\Collection;
@@ -100,6 +102,8 @@ class CaseDetail extends Component
     public bool $showCitationAdvanceValidation = false;
 
     public bool $showCitationAdvanceConfirm = false;
+
+    public bool $showDiligenceAdvanceConfirm = false;
 
     /** Abogado muestra u oculta el panel de chat (no cierra el hilo; cierre definitivo al cambiar de etapa). */
     public bool $coordinationChatVisible = true;
@@ -660,6 +664,41 @@ class CaseDetail extends Component
         $this->showCitationAdvanceConfirm = false;
     }
 
+    public function requestAdvanceFromDiligencia(): void
+    {
+        Gate::authorize('transition', $this->case);
+
+        if ($this->case->current_status !== CaseStatus::DILIGENCIA) {
+            $this->addError('diligenceAdvance', 'Esta acción solo está disponible en etapa de diligencia.');
+
+            return;
+        }
+
+        $this->showDiligenceAdvanceConfirm = true;
+    }
+
+    public function closeDiligenceAdvanceConfirm(): void
+    {
+        $this->showDiligenceAdvanceConfirm = false;
+    }
+
+    public function confirmAdvanceFromDiligencia(DisciplinaryWorkflowService $workflow): void
+    {
+        Gate::authorize('transition', $this->case);
+        $this->showDiligenceAdvanceConfirm = false;
+
+        try {
+            $this->applyCaseTransition(
+                $workflow,
+                CaseStatus::DECISION,
+                'Avance a comunicado de decisión tras la diligencia disciplinaria.',
+            );
+            session()->flash('success', 'El expediente pasó a etapa D: comunicado de decisión.');
+        } catch (InvalidStateTransitionException $e) {
+            $this->addError('diligenceAdvance', $e->getMessage());
+        }
+    }
+
     public function confirmAdvanceFromCitacion(
         DisciplinaryWorkflowService $workflow,
         DisciplinaryCitationWorkflowService $citation,
@@ -970,9 +1009,25 @@ class CaseDetail extends Component
         $citationWorkflow = app(DisciplinaryCitationWorkflowService::class);
         $notificationService = app(DisciplinaryCitationNotificationService::class);
         $stageProgress = app(CitationStageProgress::class);
+        $diligenceStageProgress = app(DiligenceStageProgress::class);
         $citationSlotChoices = $this->buildCitationSlotChoices();
+        $citationReadOnly = $this->case->showsCitationStageReadOnly();
+        $isDiligenciaActive = $this->case->isDiligenciaStageActive();
+
+        if ($citationReadOnly) {
+            $citationStageSteps = $stageProgress->completedSteps();
+            $citationCurrentStep = $citationStageSteps->last() ?? $stageProgress->currentStep($this->case);
+            $citationCurrentStepNumber = $stageProgress->totalSteps();
+        } else {
+            $citationStageSteps = $stageProgress->steps($this->case);
+            $citationCurrentStep = $stageProgress->currentStep($this->case);
+            $citationCurrentStepNumber = $stageProgress->currentStepNumber($this->case);
+        }
+
+        $overviewStageStack = app(CaseOverviewStageStack::class)->stagesForCase($this->case);
 
         return view('livewire.disciplinary.cases.show', [
+            'overviewStageStack' => $overviewStageStack,
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
@@ -989,10 +1044,17 @@ class CaseDetail extends Component
             'foGj03GenerationLabels' => DisciplinaryCitationNotificationService::foGj03GenerationLabels(),
             'notificationPending' => $notificationService->hasPendingNotificationRequest($this->case),
             'notificationCompleted' => $notificationService->hasNotificationInformationCompleted($this->case),
-            'citationStageSteps' => $stageProgress->steps($this->case),
-            'citationCurrentStep' => $stageProgress->currentStep($this->case),
-            'citationCurrentStepNumber' => $stageProgress->currentStepNumber($this->case),
+            'citationReadOnly' => $citationReadOnly,
+            'citationStageSteps' => $citationStageSteps,
+            'citationCurrentStep' => $citationCurrentStep,
+            'citationCurrentStepNumber' => $citationCurrentStepNumber,
             'citationTotalSteps' => $stageProgress->totalSteps(),
+            'isDiligenciaActive' => $isDiligenciaActive,
+            'diligenceStageSteps' => $isDiligenciaActive ? $diligenceStageProgress->steps($this->case) : collect(),
+            'diligenceCurrentStep' => $isDiligenciaActive ? $diligenceStageProgress->currentStep($this->case) : null,
+            'diligenceCurrentStepNumber' => $isDiligenciaActive ? $diligenceStageProgress->currentStepNumber($this->case) : null,
+            'diligenceTotalSteps' => $diligenceStageProgress->totalSteps(),
+            'diligenceAdvanceTargetLabel' => StageType::DECISION->label(),
             'diligenceSlotDisplay' => $this->resolveDiligenceSlotDisplay(),
             'notificationSlotDisplay' => $this->resolveNotificationSlotDisplay(),
             'diligenceDateRequestStatus' => $stageProgress->diligenceDateRequestStatusLabel($this->case),
@@ -1007,18 +1069,9 @@ class CaseDetail extends Component
     public function resolveDiligenceSlotDisplay(): array
     {
         if ($this->case->citation_confirmed_date) {
-            $timeLabel = '—';
-            if ($this->case->citation_confirmed_time) {
-                try {
-                    $timeLabel = \Illuminate\Support\Carbon::parse($this->case->citation_confirmed_time)->format('h:i A');
-                } catch (\Throwable) {
-                    $timeLabel = (string) $this->case->citation_confirmed_time;
-                }
-            }
-
             return [
                 'date' => $this->case->citation_confirmed_date->format('d/m/Y'),
-                'time' => $timeLabel,
+                'time' => $this->case->resolvedDiligenceHearingTimeLabel() ?? '—',
                 'confirmed' => true,
             ];
         }

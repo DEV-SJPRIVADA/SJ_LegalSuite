@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -207,6 +208,96 @@ class DisciplinaryCase extends Model
     public function hasCoordinationStarted(): bool
     {
         return $this->coordination_started_at !== null;
+    }
+
+    /** Etapa C activa: diligencia disciplinaria y acta FO-GJ-42. */
+    public function isDiligenciaStageActive(): bool
+    {
+        return $this->current_status === CaseStatus::DILIGENCIA;
+    }
+
+    /**
+     * Etapa B visible en solo lectura (coordinación cerrada al avanzar a diligencia).
+     */
+    public function showsCitationStageReadOnly(): bool
+    {
+        if (! $this->isDiligenciaStageActive()) {
+            return false;
+        }
+
+        return $this->hasCoordinationStarted()
+            || $this->fo_gj_03_generated_at !== null
+            || $this->citation_confirmed_date !== null;
+    }
+
+    /**
+     * Hora de diligencia para UI: prioriza FO-GJ-03 diligenciado, luego slot confirmado.
+     */
+    public function resolvedDiligenceHearingTimeLabel(): ?string
+    {
+        $raw = $this->resolveDiligenceHearingTimeRaw();
+
+        return $raw !== null ? self::formatHearingTimeLabel($raw) : null;
+    }
+
+    public static function formatHearingTimeLabel(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '—';
+        }
+
+        foreach (['H:i:s', 'H:i', 'h:i A', 'g:i A'] as $pattern) {
+            try {
+                return Carbon::createFromFormat($pattern, $raw)->format('h:i A');
+            } catch (\Throwable) {
+                // siguiente patrón
+            }
+        }
+
+        try {
+            return Carbon::parse($raw)->format('h:i A');
+        } catch (\Throwable) {
+            try {
+                return Carbon::parse('today '.$raw)->format('h:i A');
+            } catch (\Throwable) {
+                return $raw;
+            }
+        }
+    }
+
+    private function resolveDiligenceHearingTimeRaw(): ?string
+    {
+        $payload = $this->fo_gj_03_payload ?? [];
+        $fromPayload = trim((string) ($payload['hearing_time'] ?? ''));
+        if ($fromPayload !== '') {
+            return $fromPayload;
+        }
+
+        if (filled($this->citation_confirmed_time)) {
+            return (string) $this->citation_confirmed_time;
+        }
+
+        if ($this->citation_confirmed_date !== null && $this->citation_selected_message_id !== null) {
+            $this->loadMissing('agendaThread.messages');
+            $confirmedDate = $this->citation_confirmed_date->format('Y-m-d');
+
+            foreach ($this->agendaThread?->messages ?? [] as $message) {
+                if ((int) $message->id !== (int) $this->citation_selected_message_id) {
+                    continue;
+                }
+
+                foreach ($message->normalizedProposedSlots() as $slot) {
+                    if (($slot['date'] ?? '') === $confirmedDate && filled($slot['time'] ?? null)) {
+                        return (string) $slot['time'];
+                    }
+                }
+
+                break;
+            }
+        }
+
+        return null;
     }
 
     public function canStartCoordination(): bool
@@ -530,6 +621,20 @@ class DisciplinaryCase extends Model
         $match = $docs->first(
             fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CITACION
                 && str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_03_GENERATED)
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Acta de diligencia disciplinaria (FO-GJ-42) más reciente en el expediente. */
+    public function latestActaDiligenciaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::ACTA_DILIGENCIA
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;
