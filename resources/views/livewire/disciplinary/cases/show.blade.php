@@ -455,31 +455,7 @@
                         </ol>
 
                     @elseif ($activeTab === 'documents')
-                        @if (auth()->user()->isDisciplinaryFieldOperator())
-                            <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                                Para diligenciar el <strong class="text-slate-800 dark:text-slate-200">informe disciplinario FO-GJ-51</strong>, use la pestaña
-                                <strong class="text-slate-800 dark:text-slate-200">Información</strong>. Adjunte aquí las evidencias de notificación cuando el sistema lo permita.</p>
-                        @endif
-                        @if ($case->documents->isEmpty())
-                            <p class="text-sm text-gray-500 dark:text-slate-400">No hay documentos cargados todavía.</p>
-                        @else
-                            <ul class="divide-y divide-gray-200 dark:divide-white/10">
-                                @foreach ($case->documents as $doc)
-                                    <li class="py-3 flex items-start justify-between">
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $doc->original_name }}</p>
-                                            <p class="text-xs text-gray-500 dark:text-slate-400">
-                                                {{ $doc->document_type->label() }}
-                                                @if ($doc->form_code) · <span class="font-mono">{{ $doc->form_code }}</span> @endif
-                                                · {{ number_format($doc->size_bytes / 1024, 1) }} KB
-                                                · subido por {{ $doc->uploader?->name ?? '—' }}
-                                                · {{ $doc->created_at->diffForHumans() }}
-                                            </p>
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
+                        @include('livewire.disciplinary.cases.partials.case-documents-tab', ['case' => $case])
 
                     @elseif ($activeTab === 'audit')
                         <div class="overflow-x-auto">
@@ -743,6 +719,11 @@
             </div>
         @endif
     @endif
+
+    @include('livewire.disciplinary.cases.partials.case-document-preview-modal', [
+        'case' => $case,
+        'documentPreviewId' => $documentPreviewId,
+    ])
 
     @can('assign', $case)
         @if ($showLawyerConfirmModal)

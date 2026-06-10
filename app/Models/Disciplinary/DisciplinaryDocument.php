@@ -74,4 +74,53 @@ class DisciplinaryDocument extends Model
 
         return in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
     }
+
+    public function isPdf(): bool
+    {
+        $mime = strtolower((string) ($this->mime_type ?? ''));
+        if ($mime === 'application/pdf') {
+            return true;
+        }
+
+        return strtolower(pathinfo((string) $this->original_name, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    public function supportsInlinePreview(): bool
+    {
+        return $this->isPdf() || $this->isLikelyRasterImage();
+    }
+
+    public function displayName(): string
+    {
+        if ($this->document_type === DocumentType::EVIDENCIA && $this->isLikelyRasterImage()) {
+            return $this->friendlyEvidenceImageName();
+        }
+
+        return (string) ($this->original_name ?: 'documento');
+    }
+
+    public static function friendlyEvidenceImageNameForIndex(int $index, ?string $extension = null): string
+    {
+        $ext = strtolower((string) ($extension ?: 'png'));
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true)) {
+            $ext = 'png';
+        }
+
+        return $index <= 0 ? 'Imagen.'.$ext : 'Imagen-'.($index + 1).'.'.$ext;
+    }
+
+    private function friendlyEvidenceImageName(): string
+    {
+        $original = (string) $this->original_name;
+        if (preg_match('/^Imagen(-\d+)?\.(jpe?g|png|gif|webp|bmp)$/i', $original) === 1) {
+            return $original;
+        }
+
+        $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true)) {
+            $ext = 'png';
+        }
+
+        return 'Imagen.'.$ext;
+    }
 }

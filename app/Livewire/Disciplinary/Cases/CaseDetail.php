@@ -139,6 +139,8 @@ class CaseDetail extends Component
 
     public bool $showFoGj03PdfPreviewModal = false;
 
+    public ?int $documentPreviewId = null;
+
     public function mount(DisciplinaryCase $case): void
     {
         Gate::authorize('view', $case);
@@ -861,6 +863,26 @@ class CaseDetail extends Component
         $this->showFoGj03PdfPreviewModal = false;
     }
 
+    public function openDocumentPreview(int $documentId): void
+    {
+        Gate::authorize('view', $this->case);
+        $this->case->loadMissing('documents');
+        $doc = $this->case->documents->firstWhere('id', $documentId);
+        if (! $doc || $doc->path === '') {
+            $this->addError('documents', 'No se encontró el documento en el expediente.');
+
+            return;
+        }
+
+        $this->resetErrorBag('documents');
+        $this->documentPreviewId = $documentId;
+    }
+
+    public function closeDocumentPreview(): void
+    {
+        $this->documentPreviewId = null;
+    }
+
     private function syncCaseFromDb(): void
     {
         $this->case = $this->case->fresh([
@@ -896,6 +918,14 @@ class CaseDetail extends Component
             $previewDoc = $this->case->documents->firstWhere('id', $this->fo51PdfPreviewDocumentId);
             if (! $previewDoc || $previewDoc->path === '') {
                 $this->fo51PdfPreviewDocumentId = null;
+            }
+        }
+
+        if ($this->documentPreviewId !== null) {
+            $this->case->loadMissing('documents');
+            $previewDoc = $this->case->documents->firstWhere('id', $this->documentPreviewId);
+            if (! $previewDoc || $previewDoc->path === '') {
+                $this->documentPreviewId = null;
             }
         }
 

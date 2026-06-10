@@ -231,7 +231,7 @@ class DisciplinaryInformeSubmissionService
                 'FO-GJ-51 autorizado por dirección',
             );
 
-            foreach ($submission->evidence_paths ?? [] as $rel) {
+            foreach (array_values($submission->evidence_paths ?? []) as $evidenceIndex => $rel) {
                 $rel = (string) $rel;
                 if ($rel === '' || ! Storage::disk($submission->storage_disk)->exists($rel)) {
                     continue;
@@ -241,10 +241,12 @@ class DisciplinaryInformeSubmissionService
                     continue;
                 }
                 $basename = basename($rel) ?: 'evidencia';
+                $extension = pathinfo($basename, PATHINFO_EXTENSION);
+                $friendlyName = DisciplinaryDocument::friendlyEvidenceImageNameForIndex($evidenceIndex, $extension);
                 $mime = Storage::disk($submission->storage_disk)->mimeType($rel) ?? 'application/octet-stream';
                 $evidenceFile = new UploadedFile(
                     $absolute,
-                    $basename,
+                    $friendlyName,
                     $mime,
                     UPLOAD_ERR_OK,
                     true
