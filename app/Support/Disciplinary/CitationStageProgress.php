@@ -64,7 +64,7 @@ final class CitationStageProgress
                 'key' => 'fo_gj_03',
                 'label' => 'FO-GJ-03 generado',
                 'done' => $foGj03,
-                'hint' => 'Genere el formato desde el expediente.',
+                'hint' => 'Diligencie el FO-GJ-03, previsualice y genere el PDF.',
             ],
             [
                 'key' => 'evidence',

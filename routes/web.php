@@ -31,6 +31,7 @@ use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::view('/', 'welcome');
 
@@ -40,6 +41,13 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'must-change-password'])->group(function () {
     Route::view('profile', 'profile')->name('profile');
+
+    Route::get('profile/signature', function () {
+        $user = auth()->user();
+        abort_unless($user && $user->hasSignature(), 404);
+
+        return Storage::disk($user->signature_disk ?? 'local')->response((string) $user->signature_path);
+    })->name('profile.signature');
 });
 
 Route::middleware(['auth', 'must-change-password', 'verified'])->group(function () {

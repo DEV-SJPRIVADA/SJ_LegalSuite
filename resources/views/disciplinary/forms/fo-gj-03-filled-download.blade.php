@@ -6,6 +6,14 @@
     <style>
         @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
+        .ogj-03-location { color: #1d4ed8; }
+        .ogj-03-signature-img {
+            display: block;
+            max-height: 52px;
+            max-width: 180px;
+            margin: 8px 0 6px;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
@@ -20,15 +28,24 @@
         @include('disciplinary.forms.partials.fo-gj-03-body', [
             'blankForDownload' => false,
             'fecha' => $fecha ?? '',
-            'expedienteGj' => $expedienteGj ?? '',
+            'caseNumber' => $caseNumber ?? '',
             'workerName' => $workerName ?? '',
             'workerDocument' => $workerDocument ?? '',
             'workerPosition' => $workerPosition ?? '',
             'hearingDay' => $hearingDay ?? '',
             'hearingTime' => $hearingTime ?? '',
-            'conductMonth' => $conductMonth ?? '',
-            'conductDays' => $conductDays ?? '',
+            'modality' => $modality ?? 'presencial',
+            'locationText' => $locationText ?? '',
+            'informeReportDate' => $informeReportDate ?? '',
+            'breachDate' => $breachDate ?? '',
+            'chargesDescription' => $chargesDescription ?? '',
+            'article66Numerals' => $article66Numerals ?? '',
+            'article68Numerals' => $article68Numerals ?? '',
+            'article76Numerals' => $article76Numerals ?? '',
             'informeSignedBy' => $informeSignedBy ?? '',
+            'signerName' => $signerName ?? '',
+            'signerRole' => $signerRole ?? '',
+            'signatureDataUri' => $signatureDataUri ?? null,
         ])
     </x-disciplinary.forms.official-letter-pdf-shell>
 </body>

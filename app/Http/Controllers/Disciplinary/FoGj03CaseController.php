@@ -11,7 +11,7 @@ class FoGj03CaseController
 {
     public function download(DisciplinaryCase $case, FoGj03CitationService $service): Response
     {
-        Gate::authorize('generateFoGj03', $case);
+        Gate::authorize('previewFoGj03', $case);
 
         $binary = $service->downloadPdf($case, auth()->user());
 

@@ -23,6 +23,7 @@ use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
+use App\Services\Disciplinary\FoGj03DraftService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -115,6 +116,26 @@ class CaseDetail extends Component
 
     /** Vista previa del PDF FO-GJ-51 ya incorporado al expediente. */
     public ?int $fo51PdfPreviewDocumentId = null;
+
+    public bool $showFoGj03DraftModal = false;
+
+    public string $foGj03HearingTime = '';
+
+    public string $foGj03Modality = 'presencial';
+
+    public string $foGj03VirtualLink = '';
+
+    public string $foGj03BreachDate = '';
+
+    public string $foGj03ChargesDescription = '';
+
+    public string $foGj03Article66Numerals = '';
+
+    public string $foGj03Article68Numerals = '';
+
+    public string $foGj03Article76Numerals = '';
+
+    public string $foGj03InformeReportDate = '';
 
     public function mount(DisciplinaryCase $case): void
     {
@@ -671,6 +692,57 @@ class CaseDetail extends Component
         return [(int) $m[1], (int) $m[2]];
     }
 
+    public function openFoGj03DraftModal(FoGj03DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj03Draft', $this->case);
+        $this->syncCaseFromDb();
+
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->foGj03HearingTime = (string) ($defaults['hearing_time'] ?? '');
+        $this->foGj03Modality = (string) ($defaults['modality'] ?? 'presencial');
+        $this->foGj03VirtualLink = (string) ($defaults['virtual_meeting_link'] ?? '');
+        $this->foGj03BreachDate = (string) ($defaults['breach_date'] ?? '');
+        $this->foGj03ChargesDescription = (string) ($defaults['charges_description'] ?? '');
+        $this->foGj03Article66Numerals = (string) ($defaults['article_66_numerals'] ?? '');
+        $this->foGj03Article68Numerals = (string) ($defaults['article_68_numerals'] ?? '');
+        $this->foGj03Article76Numerals = (string) ($defaults['article_76_numerals'] ?? '');
+        $this->foGj03InformeReportDate = (string) ($defaults['informe_report_date'] ?? '');
+        $this->showFoGj03DraftModal = true;
+    }
+
+    public function closeFoGj03DraftModal(): void
+    {
+        $this->showFoGj03DraftModal = false;
+    }
+
+    public function saveFoGj03Draft(FoGj03DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj03Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'hearing_time' => $this->foGj03HearingTime,
+                'modality' => $this->foGj03Modality,
+                'virtual_meeting_link' => $this->foGj03VirtualLink,
+                'breach_date' => $this->foGj03BreachDate,
+                'charges_description' => $this->foGj03ChargesDescription,
+                'article_66_numerals' => $this->foGj03Article66Numerals,
+                'article_68_numerals' => $this->foGj03Article68Numerals,
+                'article_76_numerals' => $this->foGj03Article76Numerals,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj03DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-03 diligenciado. Ya puede previsualizar o generar el documento.');
+    }
+
     public function generateFoGj03(FoGj03CitationService $fo03): void
     {
         Gate::authorize('generateFoGj03', $this->case);
@@ -781,7 +853,8 @@ class CaseDetail extends Component
             'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
-            'assignedLawyer:id,name',
+            'assignedLawyer:id,name,signature_path,signature_disk,job_position_id,position',
+            'assignedLawyer.jobPosition:id,name',
             'informeSubmission.submitter:id,name,job_position_id,position',
             'informeSubmission.submitter.jobPosition:id,name',
             'informeSubmission.reviewer:id,name,job_position_id,position',
@@ -816,7 +889,8 @@ class CaseDetail extends Component
             'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
-            'assignedLawyer:id,name',
+            'assignedLawyer:id,name,signature_path,signature_disk,job_position_id,position',
+            'assignedLawyer.jobPosition:id,name',
             'informeSubmission.submitter:id,name,job_position_id,position',
             'informeSubmission.submitter.jobPosition:id,name',
             'informeSubmission.reviewer:id,name,job_position_id,position',

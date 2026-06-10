@@ -1,18 +1,32 @@
 @props([
     'blankForDownload' => true,
     'fecha' => '',
+    'caseNumber' => '',
     'expedienteGj' => '',
     'workerName' => '',
     'workerDocument' => '',
     'workerPosition' => '',
     'hearingDay' => '',
     'hearingTime' => '',
+    'modality' => 'presencial',
+    'locationText' => '',
+    'informeReportDate' => '',
+    'breachDate' => '',
+    'chargesDescription' => '',
+    'article66Numerals' => '',
+    'article68Numerals' => '',
+    'article76Numerals' => '',
+    'informeSignedBy' => '',
+    'signerName' => '',
+    'signerRole' => '',
+    'signatureDataUri' => null,
     'conductMonth' => '',
     'conductDays' => '',
-    'informeSignedBy' => '',
 ])
 
 @php
+    $displayCaseNumber = filled($caseNumber) ? $caseNumber : (filled($expedienteGj) ? 'GJ-PD:'.$expedienteGj : '');
+
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -33,7 +47,7 @@
 <div class="ogj-03-body">
     <div class="ogj-03-ref">
         <p>Fecha: {!! $blank($fecha, 'lg') !!}</p>
-        <p>GJ- {!! $blank($expedienteGj, 'lg') !!}</p>
+        <p>{!! $blank($displayCaseNumber, 'lg') !!}</p>
     </div>
 
     <div class="ogj-03-recipient">
@@ -49,40 +63,73 @@
         {!! $blank($hearingDay, 'lg') !!}
         a las
         {!! $blank($hearingTime, 'sm') !!}
-        horas, en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
+        horas,
+        @if ($blankForDownload)
+            en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente
+        @else
+            <span class="ogj-03-location">{{ filled($locationText) ? e($locationText) : '—' }}</span>
+        @endif
+        con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
     </p>
 
     <p class="ogj-03-section-title">Formulación de cargos</p>
 
     <p>
-        <span class="ogj-03-underline">Conductas posibles de sanción:</span>
-        los presuntos incumplimientos a consignas, en el mes de
-        @if (filled($conductMonth))
-            {{ $conductMonth }}
+        Con fecha de
+        {!! $blank($informeReportDate, 'sm') !!}
+        se realizó el informe disciplinario. Los hechos objeto de cargo ocurrieron el día
+        {!! $blank($breachDate, 'sm') !!}
+        @if (! $blankForDownload && filled($chargesDescription))
+            . {{ $chargesDescription }}
+        @elseif ($blankForDownload)
+            , fechas en las cuales se configuraron presuntos incumplimientos a las obligaciones del trabajador. Hecho que está comprendido:
         @else
-            <span class="ogj-03-guide ogj-03-guide-sm" aria-hidden="true">{{ $guidePattern('sm') }}</span>
+            .
         @endif
-        , los días
-        @if (filled($conductDays))
-            {{ $conductDays }}
-        @else
-            <span class="ogj-03-guide ogj-03-guide-md" aria-hidden="true">{{ $guidePattern('md') }}</span>
-        @endif
-        del presente año, fechas en las cuales, usted no diligencio en el libro de la minuta por las rondas realizadas al dispositivo durante su jornada laboral de dichas fechas anteriormente indicadas sin autorización alguna. Hecho que está comprendido:
     </p>
 
     <p class="ogj-03-underline">Faltas disciplinarias:</p>
 
     <ul class="ogj-03-list">
-        <li>Artículo 66, numeral 1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42, del Reglamento Interno de Trabajo, referente a las obligaciones especiales de los trabajadores</li>
-        <li>Artículo 68, numerales 10, 34, parágrafo primero numeral 4 y 5 del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.,</li>
-        <li>Artículo 76, numerales 3, 12, 15, 22, 25, 36, 64, 98, 103, 112, del Reglamento Interno de Trabajo, referente a las faltas graves</li>
+        <li>
+            Artículo 66, numeral
+            @if ($blankForDownload)
+                1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42
+            @else
+                {{ filled($article66Numerals) ? e($article66Numerals) : '—' }}
+            @endif
+            , del Reglamento Interno de Trabajo, referente a las obligaciones especiales de los trabajadores
+        </li>
+        <li>
+            Artículo 68, numerales
+            @if ($blankForDownload)
+                10, 34
+            @else
+                {{ filled($article68Numerals) ? e($article68Numerals) : '—' }}
+            @endif
+            , parágrafo primero numeral 4 y 5 del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.
+        </li>
+        <li>
+            Artículo 76, numerales
+            @if ($blankForDownload)
+                3, 12, 15, 22, 25, 36, 64, 98, 103, 112
+            @else
+                {{ filled($article76Numerals) ? e($article76Numerals) : '—' }}
+            @endif
+            , del Reglamento Interno de Trabajo, referente a las faltas graves
+        </li>
     </ul>
 
     <p>Los elementos probatorios que dan lugar al inicio del proceso disciplinario radican en:</p>
 
     <ul class="ogj-03-list">
-        <li>Informes Disciplinarios suscrito por {!! $blank($informeSignedBy, 'md') !!}</li>
+        <li>
+            Informes Disciplinarios
+            @if (filled($informeReportDate))
+                del {{ $informeReportDate }}
+            @endif
+            suscrito por {!! $blank($informeSignedBy, 'md') !!}
+        </li>
     </ul>
 
     <p>
@@ -93,9 +140,13 @@
         <tr>
             <td>
                 <p>Cordialmente;</p>
-                <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Analista de Relaciones Laborales</p>
+                @if (! $blankForDownload && filled($signatureDataUri))
+                    <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
+                @else
+                    <div class="ogj-03-sign-line"></div>
+                @endif
+                <p>{{ filled($signerName) ? e($signerName) : 'Nombre:' }}</p>
+                <p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p>
                 <p>SJ Seguridad Privada Ltda</p>
             </td>
             <td>

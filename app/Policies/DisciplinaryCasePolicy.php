@@ -219,7 +219,7 @@ class DisciplinaryCasePolicy
             && $case->canStartCoordination();
     }
 
-    public function generateFoGj03(User $user, DisciplinaryCase $case): bool
+    public function previewFoGj03(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
             return false;
@@ -233,7 +233,41 @@ class DisciplinaryCasePolicy
             return false;
         }
 
+        $notification = app(DisciplinaryCitationNotificationService::class);
+
+        return $notification->hasNotificationInformationCompleted($case)
+            && app(\App\Services\Disciplinary\FoGj03DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj03(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj03($user, $case)) {
+            return false;
+        }
+
         return app(DisciplinaryCitationNotificationService::class)->canGenerateFoGj03($case);
+    }
+
+    public function editFoGj03Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        if ($case->fo_gj_03_generated_at !== null) {
+            return false;
+        }
+
+        return app(DisciplinaryCitationNotificationService::class)
+            ->hasNotificationInformationCompleted($case);
     }
 
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool

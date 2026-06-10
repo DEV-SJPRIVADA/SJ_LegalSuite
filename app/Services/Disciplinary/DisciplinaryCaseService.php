@@ -136,12 +136,11 @@ class DisciplinaryCaseService
 
     /**
      * Genera el siguiente case_number atómicamente.
-     * Formato: DISC-YYYY-NNNNNN.
+     * Formato: GJ-PD:NNNNNN (consecutivo global).
      */
     private function nextCaseNumber(): string
     {
-        $year = now()->year;
-        $prefix = "DISC-{$year}-";
+        $prefix = 'GJ-PD:';
 
         $last = DisciplinaryCase::withTrashed()
             ->where('case_number', 'like', $prefix.'%')
