@@ -60,11 +60,11 @@ final class OfficialFormsCatalog
                 'pdf' => null,
             ],
             [
-                'code' => 'FO-GJ-42',
+                'code' => 'FO-GJ-04',
                 'title' => 'Acta de diligencia disciplinaria',
                 'phase' => 'C · Diligencia y acta',
                 'summary' => 'Constancia del desarrollo de la diligencia disciplinaria y levantamiento del acta.',
-                'pdf' => self::pdfIfExists('FO-GJ-42-acta-diligencia.pdf'),
+                'pdf' => self::pdfIfExists('FO-GJ-04-acta-diligencia.pdf'),
             ],
             [
                 'code' => null,
@@ -135,10 +135,10 @@ final class OfficialFormsCatalog
                 'inline' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
                 'download' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
             ],
-            'FO-GJ-42' => [
-                'view' => 'disciplinary.forms.fo-gj-42-blank-download',
-                'inline' => 'FO-GJ-42-acta-en-blanco.pdf',
-                'download' => 'FO-GJ-42-acta-en-blanco.pdf',
+            'FO-GJ-04' => [
+                'view' => 'disciplinary.forms.fo-gj-04-blank-download',
+                'inline' => 'FO-GJ-04-acta-en-blanco.pdf',
+                'download' => 'FO-GJ-04-acta-en-blanco.pdf',
             ],
         ];
     }
@@ -193,6 +193,11 @@ final class OfficialFormsCatalog
 
         if (strtoupper($normalizedCode) === 'FO-GJ-44') {
             $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-44-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-04') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-04-body.blade.php');
             $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 

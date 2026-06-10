@@ -21,6 +21,7 @@ enum ActionType: string
     case PLANEACION_RESPONDIO = 'planeacion_respondio';
     case FECHA_CITACION_SELECCIONADA = 'fecha_citacion_seleccionada';
     case FO_GJ_03_GENERADO = 'fo_gj_03_generado';
+    case FO_GJ_04_GENERADO = 'fo_gj_04_generado';
     case NOTIFICACION_COORDINADA = 'notificacion_coordinada';
     case SUPERVISOR_NOTIFICADOR_ASIGNADO = 'supervisor_notificador_asignado';
     case SUPERVISOR_NOTIFICADOR_REASIGNADO = 'supervisor_notificador_reasignado';

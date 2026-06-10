@@ -66,6 +66,11 @@ class DisciplinaryCase extends Model
         'fo_gj_03_payload',
         'fo_gj_03_draft_completed_at',
         'fo_gj_03_draft_completed_by',
+        'fo_gj_04_payload',
+        'fo_gj_04_draft_completed_at',
+        'fo_gj_04_draft_completed_by',
+        'fo_gj_04_generated_at',
+        'fo_gj_04_generated_by',
         'citation_evidence_type',
         'citation_evidence_uploaded_at',
         'notification_requested_at',
@@ -98,6 +103,9 @@ class DisciplinaryCase extends Model
             'fo_gj_03_payload' => 'array',
             'fo_gj_03_draft_completed_at' => 'datetime',
             'fo_gj_03_generated_at' => 'datetime',
+            'fo_gj_04_payload' => 'array',
+            'fo_gj_04_draft_completed_at' => 'datetime',
+            'fo_gj_04_generated_at' => 'datetime',
             'citation_evidence_uploaded_at' => 'datetime',
             'notification_requested_at' => 'datetime',
             'notification_information_completed_at' => 'datetime',
@@ -210,7 +218,7 @@ class DisciplinaryCase extends Model
         return $this->coordination_started_at !== null;
     }
 
-    /** Etapa C activa: diligencia disciplinaria y acta FO-GJ-42. */
+    /** Etapa C activa: diligencia disciplinaria y acta FO-GJ-04. */
     public function isDiligenciaStageActive(): bool
     {
         return $this->current_status === CaseStatus::DILIGENCIA;
@@ -607,6 +615,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_03_GENERATED = 'FO-GJ-03 generado desde expediente';
 
+    public const NOTE_FO_GJ_04_GENERATED = 'FO-GJ-04 generado desde expediente';
+
     public const NOTE_CITATION_EVIDENCE_PREFIX = 'Evidencia notificación citación';
 
     /**
@@ -626,7 +636,7 @@ class DisciplinaryCase extends Model
         return $match instanceof DisciplinaryDocument ? $match : null;
     }
 
-    /** Acta de diligencia disciplinaria (FO-GJ-42) más reciente en el expediente. */
+    /** Acta de diligencia disciplinaria (FO-GJ-04) más reciente en el expediente. */
     public function latestActaDiligenciaDocument(): ?DisciplinaryDocument
     {
         $docs = $this->relationLoaded('documents')

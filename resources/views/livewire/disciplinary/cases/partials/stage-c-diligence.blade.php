@@ -10,9 +10,14 @@
     $stageProgressHelper = app(DiligenceStageProgress::class);
     $actionTitle = $stageProgressHelper->actionBarTitle($currentStepKey);
     $actaDoc = $case->latestActaDiligenciaDocument();
-    $foGj42PreviewUrl = OfficialFormsCatalog::hasBlankPdf('FO-GJ-42')
-        ? route('disciplinary.formats.preview', ['code' => 'FO-GJ-42'])
+    $foGj04PreviewUrl = OfficialFormsCatalog::hasBlankPdf('FO-GJ-04')
+        ? route('disciplinary.formats.preview', ['code' => 'FO-GJ-04'])
         : null;
+    $canEditFoGj04Draft = auth()->user()->can('editFoGj04Draft', $case);
+    $canPreviewFoGj04 = auth()->user()->can('previewFoGj04', $case);
+    $canGenerateFoGj04 = auth()->user()->can('generateFoGj04', $case);
+    $foGj04DraftCompleted = $case->fo_gj_04_draft_completed_at !== null;
+    $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) auth()->id();
 @endphp
 
 @if ($isDiligenciaActive ?? false)
@@ -21,7 +26,7 @@
         <div class="flex flex-col gap-3 border-b border-teal-200/80 bg-teal-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-teal-950/35">
             <div class="min-w-0 shrink-0">
                 <h4 class="text-xs font-semibold uppercase tracking-wider text-teal-900 dark:text-teal-200">
-                    Etapa C · Diligencia disciplinaria (FO-GJ-42)
+                    Etapa C · Diligencia disciplinaria (FO-GJ-04)
                 </h4>
                 <p class="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
                     Paso {{ $stepNumber }} de {{ $totalSteps }}
@@ -74,23 +79,52 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-                @if ($foGj42PreviewUrl)
-                    <a href="{{ $foGj42PreviewUrl }}" target="_blank" rel="noopener"
+                @if ($foGj04PreviewUrl)
+                    <a href="{{ $foGj04PreviewUrl }}" target="_blank" rel="noopener"
                         class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
-                        Plantilla FO-GJ-42
+                        Plantilla FO-GJ-04
                     </a>
+                @endif
+
+                @if ($currentStepKey === 'acta' && $case->citation_confirmed_date && $isAssignedLawyer && ! $case->fo_gj_04_generated_at)
+                    @if ($canEditFoGj04Draft)
+                        <button type="button" wire:click="openFoGj04DraftModal"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            {{ $foGj04DraftCompleted ? 'Editar FO-GJ-04' : 'Diligenciar FO-GJ-04' }}
+                        </button>
+                    @endif
+                    @if ($canPreviewFoGj04)
+                        <button type="button" wire:click="openFoGj04PdfPreview"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            Vista previa PDF
+                        </button>
+                    @endif
+                    @if ($canGenerateFoGj04)
+                        <button type="button" wire:click="generateFoGj04"
+                            class="inline-flex items-center rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+                            Generar y guardar
+                        </button>
+                    @endif
+                @elseif ($case->fo_gj_04_generated_at && $canPreviewFoGj04)
+                    <button type="button" wire:click="openFoGj04PdfPreview"
+                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                        Consultar FO-GJ-04 (PDF)
+                    </button>
                 @endif
             </div>
         </div>
 
+        @error('fo_gj_04')
+            <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+        @enderror
         @error('diligenceAdvance')
             <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @enderror
 
         <div class="space-y-4 px-4 py-4">
-            @if ($currentStepKey === 'acta' || $actaDoc)
+            @if ($currentStepKey === 'acta' || $actaDoc || $case->fo_gj_04_generated_at)
                 <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acta FO-GJ-42</p>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acta FO-GJ-04</p>
                     @if ($actaDoc)
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">
                             Documento en expediente:
@@ -98,11 +132,17 @@
                                 class="font-semibold text-teal-700 underline dark:text-teal-300" target="_blank" rel="noopener">
                                 {{ $actaDoc->original_name }}
                             </a>
+                            @if ($case->fo_gj_04_generated_at)
+                                <span class="text-slate-500 dark:text-slate-400"> · generado {{ $case->fo_gj_04_generated_at->timezone('America/Bogota')->format('d/m/Y H:i') }}</span>
+                            @endif
+                        </p>
+                    @elseif ($foGj04DraftCompleted)
+                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                            Borrador diligenciado. Use <strong>Vista previa PDF</strong> o <strong>Generar y guardar</strong> para incorporar el acta al expediente.
                         </p>
                     @else
                         <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                            Cuando levante el acta de diligencia, incorpórela al expediente desde la pestaña Documentos.
-                            Mientras tanto puede usar la plantilla en blanco FO-GJ-42.
+                            Diligencie el acta con el cuestionario y la manifestación del trabajador. Mientras tanto puede consultar la plantilla en blanco FO-GJ-04.
                         </p>
                     @endif
                 </div>
@@ -118,6 +158,8 @@
             @endif
         </div>
     </div>
+
+    @include('livewire.disciplinary.cases.partials.stage-c-diligence-modals', ['case' => $case])
 
     @if ($showDiligenceAdvanceConfirm ?? false)
         <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="diligence-advance-confirm">

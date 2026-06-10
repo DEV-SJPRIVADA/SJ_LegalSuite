@@ -22,7 +22,7 @@ enum DocumentType: string
             self::CITACION => 'Citación a diligencia disciplinaria por escrito (FO-GJ-03)',
             self::REPROGRAMACION => 'Reprogramación a diligencia disciplinaria (FO-GJ-54)',
             self::JUSTIFICACION => 'Justificación de inasistencia',
-            self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-42)',
+            self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-04)',
             self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
             self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
             self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',

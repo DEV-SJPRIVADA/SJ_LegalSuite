@@ -88,7 +88,7 @@ class DisciplinaryDocumentService
             DocumentType::INFORME => 'FO-GJ-51',
             DocumentType::CITACION => 'FO-GJ-03',
             DocumentType::REPROGRAMACION => 'FO-GJ-54',
-            DocumentType::ACTA_DILIGENCIA => 'FO-GJ-42',
+            DocumentType::ACTA_DILIGENCIA => 'FO-GJ-04',
             default => null,
         };
     }

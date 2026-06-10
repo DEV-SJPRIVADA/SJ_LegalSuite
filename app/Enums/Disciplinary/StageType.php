@@ -25,7 +25,7 @@ enum StageType: string
             self::REPROGRAMACION => 'Reprogramación a diligencia disciplinaria (FO-GJ-54)',
             self::JUSTIFICACION => 'Justificación de inasistencia a citación',
             self::COMITE => 'Comité disciplinario',
-            self::DILIGENCIA => 'Diligencia disciplinaria — acta (FO-GJ-42)',
+            self::DILIGENCIA => 'Diligencia disciplinaria — acta (FO-GJ-04)',
             self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
             self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
             self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',
@@ -41,7 +41,7 @@ enum StageType: string
             self::INFORME => 'FO-GJ-51',
             self::CITACION => 'FO-GJ-03',
             self::REPROGRAMACION => 'FO-GJ-54',
-            self::DILIGENCIA => 'FO-GJ-42',
+            self::DILIGENCIA => 'FO-GJ-04',
             default => null,
         };
     }

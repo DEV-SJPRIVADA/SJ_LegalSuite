@@ -6,7 +6,7 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use Illuminate\Support\Collection;
 
 /**
- * Progreso guiado de Etapa C (diligencia disciplinaria — FO-GJ-42).
+ * Progreso guiado de Etapa C (diligencia disciplinaria — FO-GJ-04).
  */
 final class DiligenceStageProgress
 {
@@ -22,7 +22,8 @@ final class DiligenceStageProgress
         $case = $case->fresh(['documents']);
 
         $hearingScheduled = $case->citation_confirmed_date !== null;
-        $actaUploaded = $case->latestActaDiligenciaDocument() !== null;
+        $actaUploaded = $case->fo_gj_04_generated_at !== null
+            || $case->latestActaDiligenciaDocument() !== null;
 
         $defs = [
             [
@@ -33,7 +34,7 @@ final class DiligenceStageProgress
             ],
             [
                 'key' => 'acta',
-                'label' => 'Acta FO-GJ-42',
+                'label' => 'Acta FO-GJ-04',
                 'done' => $actaUploaded,
                 'hint' => 'Diligencie el acta y incorpórela al expediente cuando esté lista.',
             ],
@@ -105,7 +106,7 @@ final class DiligenceStageProgress
     {
         return match ($stepKey) {
             'hearing' => 'Diligencia programada',
-            'acta' => 'Acta de diligencia (FO-GJ-42)',
+            'acta' => 'Acta de diligencia (FO-GJ-04)',
             'decision' => 'Avance a decisión',
             default => 'Diligencia disciplinaria',
         };

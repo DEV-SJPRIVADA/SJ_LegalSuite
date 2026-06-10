@@ -26,6 +26,8 @@ use App\Support\Disciplinary\CaseOverviewStageStack;
 use App\Support\Disciplinary\DiligenceStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Services\Disciplinary\FoGj03DraftService;
+use App\Services\Disciplinary\FoGj04DiligenceActaService;
+use App\Services\Disciplinary\FoGj04DraftService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -142,6 +144,19 @@ class CaseDetail extends Component
     public string $foGj03InformeReportDate = '';
 
     public bool $showFoGj03PdfPreviewModal = false;
+
+    public bool $showFoGj04DraftModal = false;
+
+    public string $foGj04WorkerManifestation = '';
+
+    public string $foGj04OpeningTime = '';
+
+    public string $foGj04ClosingTime = '';
+
+    /** @var array<int, array{text: string}> */
+    public array $foGj04Questions = [];
+
+    public bool $showFoGj04PdfPreviewModal = false;
 
     public ?int $documentPreviewId = null;
 
@@ -900,6 +915,89 @@ class CaseDetail extends Component
     public function closeFoGj03PdfPreview(): void
     {
         $this->showFoGj03PdfPreviewModal = false;
+    }
+
+    public function openFoGj04DraftModal(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj04Draft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case->fresh(['employee', 'assignedLawyer']));
+        $this->foGj04WorkerManifestation = (string) ($defaults['worker_manifestation'] ?? '');
+        $this->foGj04OpeningTime = (string) ($defaults['opening_time'] ?? '');
+        $this->foGj04ClosingTime = (string) ($defaults['closing_time'] ?? '');
+        $this->foGj04Questions = $defaults['questions'] ?? [];
+        $this->showFoGj04DraftModal = true;
+    }
+
+    public function closeFoGj04DraftModal(): void
+    {
+        $this->showFoGj04DraftModal = false;
+    }
+
+    public function addFoGj04Question(): void
+    {
+        $this->foGj04Questions[] = ['text' => ''];
+    }
+
+    public function removeFoGj04Question(int $index): void
+    {
+        if (! isset($this->foGj04Questions[$index])) {
+            return;
+        }
+
+        unset($this->foGj04Questions[$index]);
+        $this->foGj04Questions = array_values($this->foGj04Questions);
+    }
+
+    public function saveFoGj04Draft(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj04Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'worker_manifestation' => $this->foGj04WorkerManifestation,
+                'opening_time' => $this->foGj04OpeningTime,
+                'closing_time' => $this->foGj04ClosingTime,
+                'questions' => $this->foGj04Questions,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj04DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-04 diligenciado. Ya puede previsualizar o generar el acta.');
+    }
+
+    public function generateFoGj04(FoGj04DiligenceActaService $fo04): void
+    {
+        Gate::authorize('generateFoGj04', $this->case);
+
+        try {
+            $this->case = $fo04->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_04', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-04 generado y almacenado en el expediente.');
+    }
+
+    public function openFoGj04PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj04', $this->case);
+        $this->resetErrorBag('fo_gj_04');
+        $this->showFoGj04PdfPreviewModal = true;
+    }
+
+    public function closeFoGj04PdfPreview(): void
+    {
+        $this->showFoGj04PdfPreviewModal = false;
     }
 
     public function openDocumentPreview(int $documentId): void

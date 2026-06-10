@@ -34,7 +34,7 @@ class CaseDetailStageViewsTest extends TestCase
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
             ->assertDontSee('Completada · Solo lectura')
-            ->assertDontSee('Etapa C · Diligencia disciplinaria (FO-GJ-42)');
+            ->assertDontSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)');
     }
 
     public function test_overview_stage_stack_orders_newest_first_a_last(): void
@@ -96,8 +96,8 @@ class CaseDetailStageViewsTest extends TestCase
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->assertSee('Completada · Solo lectura')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
-            ->assertSee('Etapa C · Diligencia disciplinaria (FO-GJ-42)')
-            ->assertSee('Plantilla FO-GJ-42')
+            ->assertSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)')
+            ->assertSee('Plantilla FO-GJ-04')
             ->assertDontSee('Iniciar coordinación')
             ->assertDontSee('Cargar evidencia PDF')
             ->assertDontSee('FO-GJ-03 · Citación')
@@ -107,7 +107,7 @@ class CaseDetailStageViewsTest extends TestCase
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->html();
 
-        $posC = strpos($html, 'Etapa C · Diligencia disciplinaria (FO-GJ-42)');
+        $posC = strpos($html, 'Etapa C · Diligencia disciplinaria (FO-GJ-04)');
         $posB = strpos($html, 'Etapa B · Citación a diligencia (FO-GJ-03)');
         $posA = strpos($html, 'data-stage-block="a"');
 

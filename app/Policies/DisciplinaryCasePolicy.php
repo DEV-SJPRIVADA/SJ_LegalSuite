@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
@@ -268,6 +269,53 @@ class DisciplinaryCasePolicy
 
         return app(DisciplinaryCitationNotificationService::class)
             ->hasNotificationInformationCompleted($case);
+    }
+
+    public function editFoGj04Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DILIGENCIA) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        return $case->fo_gj_04_generated_at === null;
+    }
+
+    public function previewFoGj04(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj04DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj04(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj04($user, $case)) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj04DiligenceActaService::class)->canGenerate($case);
     }
 
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool

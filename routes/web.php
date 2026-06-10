@@ -10,6 +10,7 @@ use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
 use App\Http\Controllers\Disciplinary\DisciplinaryGeoJsonController;
 use App\Http\Controllers\Disciplinary\FoGj03CaseController;
+use App\Http\Controllers\Disciplinary\FoGj04CaseController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
@@ -98,6 +99,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.fo-gj-03.pdf');
         Route::post('cases/{case}/fo-gj-03/generate', [FoGj03CaseController::class, 'generate'])
             ->name('cases.fo-gj-03.generate');
+        Route::get('cases/{case}/fo-gj-04/pdf', [FoGj04CaseController::class, 'download'])
+            ->name('cases.fo-gj-04.pdf');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
 
