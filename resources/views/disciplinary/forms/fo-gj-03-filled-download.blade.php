@@ -6,14 +6,6 @@
     <style>
         @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
-        .ogj-03-location { color: #1d4ed8; }
-        .ogj-03-signature-img {
-            display: block;
-            max-height: 52px;
-            max-width: 180px;
-            margin: 8px 0 6px;
-            object-fit: contain;
-        }
     </style>
 </head>
 <body>
@@ -42,7 +34,6 @@
             'article66Numerals' => $article66Numerals ?? '',
             'article68Numerals' => $article68Numerals ?? '',
             'article76Numerals' => $article76Numerals ?? '',
-            'informeSignedBy' => $informeSignedBy ?? '',
             'signerName' => $signerName ?? '',
             'signerRole' => $signerRole ?? '',
             'signatureDataUri' => $signatureDataUri ?? null,

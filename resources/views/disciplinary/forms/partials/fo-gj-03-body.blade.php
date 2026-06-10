@@ -16,7 +16,6 @@
     'article66Numerals' => '',
     'article68Numerals' => '',
     'article76Numerals' => '',
-    'informeSignedBy' => '',
     'signerName' => '',
     'signerRole' => '',
     'signatureDataUri' => null,
@@ -67,25 +66,27 @@
         @if ($blankForDownload)
             en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente
         @else
-            <span class="ogj-03-location">{{ filled($locationText) ? e($locationText) : '—' }}</span>
+            {{ filled($locationText) ? e($locationText) : '—' }}
         @endif
         con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
     </p>
 
     <p class="ogj-03-section-title">Formulación de cargos</p>
 
-    <p>
-        Con fecha de
+    <p class="ogj-03-justify">
+        <span class="ogj-03-underline">Conductas posibles de sanción:</span>
+        El presunto incumplimiento de sus obligaciones laborales. Según el informe disciplinario del
         {!! $blank($informeReportDate, 'sm') !!}
-        se realizó el informe disciplinario. Los hechos objeto de cargo ocurrieron el día
-        {!! $blank($breachDate, 'sm') !!}
-        @if (! $blankForDownload && filled($chargesDescription))
-            . {{ $chargesDescription }}
-        @elseif ($blankForDownload)
-            , fechas en las cuales se configuraron presuntos incumplimientos a las obligaciones del trabajador. Hecho que está comprendido:
+        se reporta que el día
+        {!! $blank($breachDate, 'sm') !!}:
+        @if ($blankForDownload)
+            <span class="ogj-03-guide ogj-03-guide-lg" aria-hidden="true">{{ $guidePattern('lg') }}</span>.
+        @elseif (filled($chargesDescription))
+            {{ $chargesDescription }}.
         @else
-            .
+            —.
         @endif
+        Estos hechos de comprobarse podrían constituir faltas graves y grave incumplimiento de las obligaciones contractuales, legales y reglamentarias, vulnerando lo dispuesto en el Reglamento de Trabajo y contrato laboral.
     </p>
 
     <p class="ogj-03-underline">Faltas disciplinarias:</p>
@@ -107,7 +108,7 @@
             @else
                 {{ filled($article68Numerals) ? e($article68Numerals) : '—' }}
             @endif
-            , parágrafo primero numeral 4 y 5 del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.
+            , del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.
         </li>
         <li>
             Artículo 76, numerales
@@ -125,10 +126,11 @@
     <ul class="ogj-03-list">
         <li>
             Informes Disciplinarios
-            @if (filled($informeReportDate))
+            @if ($blankForDownload)
+                del {!! $blank($informeReportDate, 'sm') !!}
+            @elseif (filled($informeReportDate))
                 del {{ $informeReportDate }}
             @endif
-            suscrito por {!! $blank($informeSignedBy, 'md') !!}
         </li>
     </ul>
 
@@ -138,23 +140,32 @@
 
     <table class="ogj-03-signatures" role="presentation">
         <tr>
-            <td>
-                <p>Cordialmente;</p>
+            <td><p>Cordialmente;</p></td>
+            <td><p>Recibido por;</p></td>
+        </tr>
+        <tr class="ogj-03-signatures-slot-row">
+            <td class="ogj-03-signature-slot">
                 @if (! $blankForDownload && filled($signatureDataUri))
                     <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
-                @else
-                    <div class="ogj-03-sign-line"></div>
                 @endif
-                <p>{{ filled($signerName) ? e($signerName) : 'Nombre:' }}</p>
-                <p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p>
-                <p>SJ Seguridad Privada Ltda</p>
             </td>
-            <td>
-                <p>Recibido por;</p>
-                <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Cargo:</p>
-            </td>
+            <td class="ogj-03-signature-slot"></td>
+        </tr>
+        <tr class="ogj-03-signatures-line-row">
+            <td><div class="ogj-03-sign-line"></div></td>
+            <td><div class="ogj-03-sign-line"></div></td>
+        </tr>
+        <tr>
+            <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
+            <td><p>Nombre:</p></td>
+        </tr>
+        <tr>
+            <td><p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p></td>
+            <td><p>Cargo:</p></td>
+        </tr>
+        <tr>
+            <td><p>SJ Seguridad Privada Ltda</p></td>
+            <td></td>
         </tr>
     </table>
 </div>

@@ -75,8 +75,11 @@
                 </div>
 
                 <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Descripción de hechos (formulación de cargos)</label>
-                    <textarea wire:model="foGj03ChargesDescription" rows="4" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Texto después de los dos puntos (formulación de cargos) <span class="text-red-600">*</span></label>
+                    <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        Se inserta en el párrafo oficial tras la fecha del incumplimiento. Ej.: «no diligenció la minuta de rondas…».
+                    </p>
+                    <textarea wire:model="foGj03ChargesDescription" rows="3" required class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Texto obligatorio que continúa después de «:»"></textarea>
                     @error('foGj03ChargesDescription')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
 
@@ -110,6 +113,44 @@
             <div class="mt-6 flex flex-wrap justify-end gap-2">
                 <button type="button" wire:click="closeFoGj03DraftModal" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
                 <button type="button" wire:click="saveFoGj03Draft" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">Guardar diligenciamiento</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showFoGj03PdfPreviewModal ?? false)
+    @php
+        $foGj03PdfPreviewUrl = route('disciplinary.cases.fo-gj-03.pdf', ['case' => $case, 'inline' => 1]);
+        $foGj03PdfDownloadUrl = route('disciplinary.cases.fo-gj-03.pdf', $case);
+    @endphp
+    <div class="fixed inset-0 z-[86] flex items-center justify-center p-3 sm:p-4"
+        x-on:keydown.escape.window="$wire.closeFoGj03PdfPreview()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fo-gj-03-pdf-preview-title"
+        wire:key="fo-gj-03-pdf-preview-{{ $case->id }}">
+        <div class="absolute inset-0 bg-black/50 dark:bg-black/60" wire:click="closeFoGj03PdfPreview" aria-hidden="true"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
+            <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+                <h2 id="fo-gj-03-pdf-preview-title" class="text-base font-bold text-slate-900 dark:text-white">
+                    Vista previa · FO-GJ-03 ({{ $case->case_number }})
+                </h2>
+                <div class="flex items-center gap-2">
+                    <a href="{{ $foGj03PdfDownloadUrl }}" target="_blank" rel="noopener"
+                        class="rounded-md px-3 py-1.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:text-indigo-200 dark:ring-indigo-400/40 dark:hover:bg-white/10">
+                        Descargar PDF
+                    </a>
+                    <button type="button" wire:click="closeFoGj03PdfPreview"
+                        class="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                        aria-label="Cerrar">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div class="relative flex min-h-0 flex-1 flex-col">
+                <iframe wire:ignore title="Vista previa FO-GJ-03"
+                    class="min-h-0 flex-1 min-h-[200px] bg-slate-100 dark:bg-black/40"
+                    src="{{ $foGj03PdfPreviewUrl }}"></iframe>
             </div>
         </div>
     </div>

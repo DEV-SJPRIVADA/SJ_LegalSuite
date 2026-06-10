@@ -137,6 +137,8 @@ class CaseDetail extends Component
 
     public string $foGj03InformeReportDate = '';
 
+    public bool $showFoGj03PdfPreviewModal = false;
+
     public function mount(DisciplinaryCase $case): void
     {
         Gate::authorize('view', $case);
@@ -845,6 +847,18 @@ class CaseDetail extends Component
     public function closeFo51PdfPreview(): void
     {
         $this->fo51PdfPreviewDocumentId = null;
+    }
+
+    public function openFoGj03PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj03', $this->case);
+        $this->resetErrorBag('fo_gj_03');
+        $this->showFoGj03PdfPreviewModal = true;
+    }
+
+    public function closeFoGj03PdfPreview(): void
+    {
+        $this->showFoGj03PdfPreviewModal = false;
     }
 
     private function syncCaseFromDb(): void

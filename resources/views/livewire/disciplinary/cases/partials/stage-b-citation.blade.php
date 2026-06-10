@@ -133,10 +133,10 @@
                             </button>
                         @endif
                         @if ($canPreviewFoGj03)
-                            <a href="{{ route('disciplinary.cases.fo-gj-03.pdf', $case) }}" target="_blank" rel="noopener"
+                            <button type="button" wire:click="openFoGj03PdfPreview"
                                 class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-100 dark:ring-indigo-400/40">
                                 Vista previa PDF
-                            </a>
+                            </button>
                         @endif
                         @can('generateFoGj03', $case)
                             <button type="button" wire:click="generateFoGj03"

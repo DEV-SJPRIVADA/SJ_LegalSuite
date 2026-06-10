@@ -164,7 +164,7 @@ class FoGj03DraftService
         $chargesDescription = trim((string) ($input['charges_description'] ?? ''));
         if ($chargesDescription === '') {
             throw ValidationException::withMessages([
-                'foGj03ChargesDescription' => 'Describa los hechos objeto de la formulación de cargos.',
+                'foGj03ChargesDescription' => 'Indique el texto obligatorio que continúa después de los dos puntos en la formulación de cargos.',
             ]);
         }
 

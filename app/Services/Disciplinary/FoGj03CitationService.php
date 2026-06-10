@@ -56,10 +56,6 @@ class FoGj03CitationService
             : FoGj03DraftService::PRESENCIAL_LOCATION;
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
-        $informeSigner = $case->informeSubmission?->reviewer?->name
-            ?? $lawyer?->name
-            ?? '';
-
         return [
             'fecha' => now()->timezone('America/Bogota')->format('d/m/Y'),
             'caseNumber' => (string) $case->case_number,
@@ -76,7 +72,6 @@ class FoGj03CitationService
             'article66Numerals' => (string) ($payload['article_66_numerals'] ?? ''),
             'article68Numerals' => (string) ($payload['article_68_numerals'] ?? ''),
             'article76Numerals' => (string) ($payload['article_76_numerals'] ?? ''),
-            'informeSignedBy' => $informeSigner,
             'signerName' => $lawyer?->name ?? '',
             'signerRole' => $lawyer?->displayJobTitle() ?? 'Analista de Relaciones Laborales',
             'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,

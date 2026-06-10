@@ -14,6 +14,7 @@ use App\Services\Disciplinary\FoGj03DraftService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FoGj03DraftTest extends TestCase
@@ -53,6 +54,18 @@ class FoGj03DraftTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_fo_gj_03_pdf_inline_for_preview_modal(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
+        $this->completeDraft($case, $lawyer);
+
+        $response = $this->actingAs($lawyer)
+            ->get(route('disciplinary.cases.fo-gj-03.pdf', ['case' => $case, 'inline' => 1]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('inline', (string) $response->headers->get('Content-Disposition'));
+    }
+
     public function test_fo_gj_03_can_generate_after_draft_and_signature(): void
     {
         ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
@@ -75,6 +88,52 @@ class FoGj03DraftTest extends TestCase
         $this->assertSame('virtual', $data['modality']);
         $this->assertSame('https://meet.example.com/abc', $data['locationText']);
         $this->assertNotNull($data['signatureDataUri']);
+    }
+
+    public function test_fo_gj_03_save_draft_rejects_empty_charges_description(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
+        $path = 'signatures/'.$lawyer->id.'/signature.png';
+        Storage::disk('local')->put($path, base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        ));
+        $lawyer->forceFill([
+            'signature_path' => $path,
+            'signature_disk' => 'local',
+        ])->save();
+
+        try {
+            app(FoGj03DraftService::class)->saveDraft($case->fresh(), $lawyer, [
+                'hearing_time' => '10:30',
+                'modality' => 'presencial',
+                'virtual_meeting_link' => '',
+                'breach_date' => now()->subWeek()->toDateString(),
+                'charges_description' => '   ',
+                'article_66_numerals' => '1, 3, 4',
+                'article_68_numerals' => '10, 34',
+                'article_76_numerals' => '3, 12, 15',
+            ]);
+            $this->fail('Expected ValidationException for empty charges_description.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('foGj03ChargesDescription', $e->errors());
+        }
+    }
+
+    public function test_fo_gj_03_build_view_data_includes_official_charges_paragraph_fields(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
+        $this->completeDraft($case, $lawyer, [
+            'charges_description' => 'No diligenció la minuta de rondas asignadas.',
+        ]);
+
+        $data = app(FoGj03CitationService::class)->buildViewData($case->fresh());
+
+        $this->assertSame('01/05/2026', $data['informeReportDate']);
+        $this->assertSame(
+            now()->subWeek()->timezone('America/Bogota')->format('d/m/Y'),
+            $data['breachDate'],
+        );
+        $this->assertSame('No diligenció la minuta de rondas asignadas.', $data['chargesDescription']);
     }
 
     /** @return array{case: DisciplinaryCase, lawyer: User} */

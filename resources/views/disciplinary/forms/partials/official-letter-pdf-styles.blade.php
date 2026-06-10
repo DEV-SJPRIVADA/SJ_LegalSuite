@@ -218,6 +218,10 @@
         font-weight: bold;
         margin: 10px 0 8px !important;
     }
+    .ogj-03-justify {
+        text-align: justify;
+        margin: 0 0 8px;
+    }
     .ogj-03-underline {
         font-weight: bold;
         text-decoration: underline;
@@ -249,9 +253,23 @@
         margin: 0 0 4px;
         text-align: left;
     }
+    .ogj-03-signature-slot {
+        height: 52px;
+        vertical-align: bottom;
+        padding-bottom: 2px;
+    }
+    .ogj-03-signature-img {
+        display: block;
+        max-height: 48px;
+        max-width: 180px;
+        object-fit: contain;
+    }
+    .ogj-03-signatures-line-row .ogj-03-sign-line {
+        border-bottom: 1px solid #000;
+        margin: 0 0 6px;
+    }
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
-        min-height: 36px;
         margin: 28px 0 6px;
     }
 </style>
