@@ -1,4 +1,8 @@
-@props(['status'])
+@props([
+    'status',
+    /** sm: tablas y listados · md: barra de acciones (misma altura que sj-btn) */
+    'size' => 'sm',
+])
 
 @php
     use App\Enums\Disciplinary\CaseBucket;
@@ -11,8 +15,13 @@
         CaseBucket::FINALIZADO => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
         default => 'bg-gray-50 text-gray-700 ring-gray-200',
     };
+
+    $sizeClass = match ($size) {
+        'md' => 'sj-status-md',
+        default => 'inline-flex items-center rounded px-2 py-0.5 text-xs font-medium',
+    };
 @endphp
 
-<span {{ $attributes->merge(['class' => "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset whitespace-nowrap $palette"]) }}>
+<span {{ $attributes->merge(['class' => "{$sizeClass} ring-1 ring-inset whitespace-nowrap {$palette}"]) }}>
     {{ $enum?->label() ?? '—' }}
 </span>

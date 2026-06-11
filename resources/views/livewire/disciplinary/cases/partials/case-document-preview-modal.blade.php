@@ -86,23 +86,20 @@
                     @else
                         <div class="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
                             <p class="text-sm text-slate-600 dark:text-slate-300">Este tipo de archivo no se puede previsualizar en el navegador.</p>
-                            <a href="{{ $docPreviewUrl }}" target="_blank" rel="noopener noreferrer"
-                                class="inline-flex rounded-md bg-white px-4 py-2 text-sm font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-200 dark:ring-indigo-400/40">
+                            <x-ui.btn variant="indigo-soft" href="{{ $docPreviewUrl }}" target="_blank" rel="noopener noreferrer">
                                 Abrir en nueva pestaña
-                            </a>
+                            </x-ui.btn>
                         </div>
                     @endif
                 </div>
 
                 <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
-                    <button type="button" wire:click="closeDocumentPreview"
-                        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                    <x-ui.btn type="button" variant="ghost" wire:click="closeDocumentPreview">
                         Cerrar
-                    </button>
-                    <a href="{{ $docDownloadUrl }}"
-                        class="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500">
+                    </x-ui.btn>
+                    <x-ui.btn variant="dark" href="{{ $docDownloadUrl }}">
                         Descargar
-                    </a>
+                    </x-ui.btn>
                 </div>
             </div>
         </div>

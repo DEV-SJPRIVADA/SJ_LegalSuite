@@ -19,17 +19,15 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
-                    <button type="button" wire:click="openFo51Modal(false)"
-                        class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm dark:hover:bg-indigo-500">
+                    <x-ui.btn type="button" wire:click="openFo51Modal(false)" class="shadow-sm">
                         <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                         Nuevo informe disciplinario (FO-GJ-51)
-                    </button>
-                    <button type="button" wire:click="openFo51Modal(true)"
-                        class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 shadow-sm dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">
+                    </x-ui.btn>
+                    <x-ui.btn type="button" variant="ghost" wire:click="openFo51Modal(true)" class="shadow-sm">
                         Cargar informe en PDF
-                    </button>
+                    </x-ui.btn>
                 @endcan
                 @unless(auth()->user()->isMinimalDisciplinaryPortalUser())
                     @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)

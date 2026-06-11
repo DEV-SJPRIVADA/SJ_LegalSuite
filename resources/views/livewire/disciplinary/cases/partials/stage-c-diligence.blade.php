@@ -1,6 +1,5 @@
 @php
     use App\Support\Disciplinary\DiligenceStageProgress;
-    use App\Support\Disciplinary\OfficialFormsCatalog;
 
     $stageSteps = $diligenceStageSteps ?? collect();
     $currentStep = $diligenceCurrentStep ?? ['key' => 'hearing', 'label' => '', 'status' => 'current', 'hint' => ''];
@@ -10,9 +9,6 @@
     $stageProgressHelper = app(DiligenceStageProgress::class);
     $actionTitle = $stageProgressHelper->actionBarTitle($currentStepKey);
     $actaDoc = $case->latestActaDiligenciaDocument();
-    $foGj04PreviewUrl = OfficialFormsCatalog::hasBlankPdf('FO-GJ-04')
-        ? route('disciplinary.formats.preview', ['code' => 'FO-GJ-04'])
-        : null;
     $canEditFoGj04Draft = auth()->user()->can('editFoGj04Draft', $case);
     $canPreviewFoGj04 = auth()->user()->can('previewFoGj04', $case);
     $canGenerateFoGj04 = auth()->user()->can('generateFoGj04', $case);
@@ -79,13 +75,6 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-                @if ($foGj04PreviewUrl)
-                    <a href="{{ $foGj04PreviewUrl }}" target="_blank" rel="noopener"
-                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
-                        Plantilla FO-GJ-04
-                    </a>
-                @endif
-
                 @if ($currentStepKey === 'acta' && $case->citation_confirmed_date && $isAssignedLawyer && ! $case->fo_gj_04_generated_at)
                     @if ($canEditFoGj04Draft)
                         <button type="button" wire:click="openFoGj04DraftModal"
@@ -121,30 +110,21 @@
             <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @enderror
 
+        @if ($actaDoc || $currentStepKey === 'decision')
         <div class="space-y-4 px-4 py-4">
-            @if ($currentStepKey === 'acta' || $actaDoc || $case->fo_gj_04_generated_at)
+            @if ($actaDoc)
                 <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10 dark:bg-white/[0.03]">
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acta FO-GJ-04</p>
-                    @if ($actaDoc)
-                        <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                            Documento en expediente:
-                            <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $actaDoc, 'download' => 1]) }}"
-                                class="font-semibold text-teal-700 underline dark:text-teal-300" target="_blank" rel="noopener">
-                                {{ $actaDoc->original_name }}
-                            </a>
-                            @if ($case->fo_gj_04_generated_at)
-                                <span class="text-slate-500 dark:text-slate-400"> · generado {{ $case->fo_gj_04_generated_at->timezone('America/Bogota')->format('d/m/Y H:i') }}</span>
-                            @endif
-                        </p>
-                    @elseif ($foGj04DraftCompleted)
-                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                            Borrador diligenciado. Use <strong>Vista previa PDF</strong> o <strong>Generar y guardar</strong> para incorporar el acta al expediente.
-                        </p>
-                    @else
-                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                            Diligencie el acta con el cuestionario y la manifestación del trabajador. Mientras tanto puede consultar la plantilla en blanco FO-GJ-04.
-                        </p>
-                    @endif
+                    <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        Documento en expediente:
+                        <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $actaDoc, 'download' => 1]) }}"
+                            class="font-semibold text-teal-700 underline dark:text-teal-300" target="_blank" rel="noopener">
+                            {{ $actaDoc->original_name }}
+                        </a>
+                        @if ($case->fo_gj_04_generated_at)
+                            <span class="text-slate-500 dark:text-slate-400"> · generado {{ $case->fo_gj_04_generated_at->timezone('America/Bogota')->format('d/m/Y H:i') }}</span>
+                        @endif
+                    </p>
                 </div>
             @endif
 
@@ -157,6 +137,7 @@
                 </div>
             @endif
         </div>
+        @endif
     </div>
 
     @include('livewire.disciplinary.cases.partials.stage-c-diligence-modals', ['case' => $case])

@@ -4,34 +4,24 @@
     @endpush
 
     <div class="bg-white border-b border-slate-200 dark:bg-dash-ink/60 dark:border-white/10">
-        <div class="max-w-[1600px] mx-auto py-5 px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
-                        class="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">← Volver al listado</a>
-                    <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold mt-2 dark:text-dash-muted">Disciplinarios · Detalle</p>
-                    <h1 class="font-bold text-2xl text-slate-900 leading-tight mt-1 dark:text-white">
-                        Caso <span class="font-mono">{{ $case->case_number }}</span>
-                    </h1>
-                    <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">
-                        {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
-                        @if ($case->employee?->document_number)
-                            · CC {{ $case->employee->document_number }}
-                        @endif
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <x-disciplinary.status-badge :status="$case->current_status" class="text-sm px-3 py-1" />
+        <div class="max-w-[1600px] mx-auto px-4 py-3 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <h1 class="min-w-0 truncate text-xl font-bold leading-tight text-slate-900 dark:text-white">
+                    Caso <span class="font-mono">{{ $case->case_number }}</span>
+                </h1>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <x-ui.btn variant="teal" href="{{ route('disciplinary.cases.index') }}" wire:navigate>
+                        ← Volver al listado
+                    </x-ui.btn>
+                    <x-disciplinary.status-badge :status="$case->current_status" size="md" />
                     @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME)
                         @can('transition', $case)
-                            <button type="button" wire:click="openAdvanceStageConfirm"
-                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                            <x-ui.btn type="button" wire:click="openAdvanceStageConfirm">
                                 Cambiar de etapa
-                            </button>
-                            <button type="button" wire:click="openArchiveConfirm"
-                                class="inline-flex items-center px-4 py-2 bg-white text-slate-700 text-sm font-semibold rounded-md ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/15">
+                            </x-ui.btn>
+                            <x-ui.btn type="button" variant="secondary" wire:click="openArchiveConfirm">
                                 Archivar
-                            </button>
+                            </x-ui.btn>
                         @endcan
                     @endif
                 </div>
@@ -61,10 +51,9 @@
                             Este expediente aún no tiene abogado titular. Confirme la gestión para asignárselo y continuar el trámite.
                         </p>
                     </div>
-                    <button type="button" wire:click="openClaimConfirm"
-                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 shrink-0">
+                    <x-ui.btn type="button" wire:click="openClaimConfirm">
                         Gestionar caso
-                    </button>
+                    </x-ui.btn>
                 </div>
             @endcan
 
@@ -372,14 +361,12 @@
                         <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                     <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" wire:click="closeAdvanceStageConfirm"
-                            class="px-4 py-2 bg-gray-100 text-gray-700 dark:text-slate-300 rounded-md text-sm hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15">
+                        <x-ui.btn type="button" variant="muted" wire:click="closeAdvanceStageConfirm">
                             Cancelar
-                        </button>
-                        <button type="button" wire:click="confirmAdvanceStage" wire:loading.attr="disabled"
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 disabled:opacity-60">
+                        </x-ui.btn>
+                        <x-ui.btn type="button" wire:click="confirmAdvanceStage" wire:loading.attr="disabled">
                             Confirmar
-                        </button>
+                        </x-ui.btn>
                     </div>
                 </div>
             </div>
@@ -403,14 +390,12 @@
                         <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                     <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" wire:click="closeArchiveConfirm"
-                            class="px-4 py-2 bg-gray-100 text-gray-700 dark:text-slate-300 rounded-md text-sm hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15">
+                        <x-ui.btn type="button" variant="muted" wire:click="closeArchiveConfirm">
                             Cancelar
-                        </button>
-                        <button type="button" wire:click="confirmArchive" wire:loading.attr="disabled"
-                            class="px-4 py-2 bg-amber-700 text-white text-sm font-semibold rounded-md hover:bg-amber-800 disabled:opacity-60">
+                        </x-ui.btn>
+                        <x-ui.btn type="button" variant="warning" wire:click="confirmArchive" wire:loading.attr="disabled">
                             Confirmar
-                        </button>
+                        </x-ui.btn>
                     </div>
                 </div>
             </div>
@@ -452,14 +437,12 @@
                         @error('scheduleNote') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" wire:click="closeScheduleModal"
-                            class="px-4 py-2 bg-gray-100 text-gray-700 dark:text-slate-300 rounded-md text-sm hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15">
+                        <x-ui.btn type="button" variant="muted" wire:click="closeScheduleModal">
                             Cancelar
-                        </button>
-                        <button type="submit"
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
+                        </x-ui.btn>
+                        <x-ui.btn type="submit">
                             Guardar fechas
-                        </button>
+                        </x-ui.btn>
                     </div>
                 </form>
             </div>
@@ -555,15 +538,13 @@
                     </div>
 
                     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
-                        <button type="button" wire:click="closeFo51PdfPreview"
-                            class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        <x-ui.btn type="button" variant="ghost" wire:click="closeFo51PdfPreview">
                             Cerrar
-                        </button>
-                        <button type="button"
-                            class="inline-flex items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90"
+                        </x-ui.btn>
+                        <x-ui.btn type="button" variant="dark"
                             x-on:click="(() => { const a = document.createElement('a'); a.href = @js($fo51PdfDownloadUrl); a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); a.remove(); })()">
                             Descargar PDF
-                        </button>
+                        </x-ui.btn>
                     </div>
                 </div>
             </div>
@@ -607,20 +588,17 @@
                         </p>
                     </div>
                     <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-dash-ink/80">
-                        <button type="button" wire:click="cancelLawyerAssignment"
-                            class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        <x-ui.btn type="button" variant="ghost" wire:click="cancelLawyerAssignment">
                             Cancelar
-                        </button>
+                        </x-ui.btn>
                         @if ($lawyerConfirmKind === 'change')
-                            <button type="button" wire:click="confirmLawyerAssignment"
-                                class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                            <x-ui.btn type="button" wire:click="confirmLawyerAssignment">
                                 Confirmar cambio
-                            </button>
+                            </x-ui.btn>
                         @else
-                            <button type="button" wire:click="confirmLawyerAssignment"
-                                class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                            <x-ui.btn type="button" wire:click="confirmLawyerAssignment">
                                 Confirmar
-                            </button>
+                            </x-ui.btn>
                         @endif
                     </div>
                 </div>
@@ -647,15 +625,13 @@
                     </p>
                 </div>
                 <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-dash-ink/80">
-                    <button type="button" wire:click="cancelClaimConfirm"
-                        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                    <x-ui.btn type="button" variant="ghost" wire:click="cancelClaimConfirm">
                         Cancelar
-                    </button>
-                    <button type="button" wire:click="confirmClaimCase" wire:loading.attr="disabled"
-                        class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                    </x-ui.btn>
+                    <x-ui.btn type="button" wire:click="confirmClaimCase" wire:loading.attr="disabled">
                         <span wire:loading.remove wire:target="confirmClaimCase">Sí, gestionar caso</span>
                         <span wire:loading wire:target="confirmClaimCase">Asignando…</span>
-                    </button>
+                    </x-ui.btn>
                 </div>
             </div>
         </div>
