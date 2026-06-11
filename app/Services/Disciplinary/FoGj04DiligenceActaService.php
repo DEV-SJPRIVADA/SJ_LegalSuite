@@ -9,6 +9,7 @@ use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Users\UserSignatureService;
+use App\Support\Disciplinary\FoGj04PagePlanner;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
@@ -43,6 +44,8 @@ class FoGj04DiligenceActaService
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
         $citation = $this->drafts->citationDataFromFo03($case);
+        $questionItems = $this->normalizeQuestions($payload['questions'] ?? []);
+        $questionPages = app(FoGj04PagePlanner::class)->plan($questionItems, false);
 
         return [
             'workerName' => $workerName,
@@ -60,9 +63,33 @@ class FoGj04DiligenceActaService
             'chargesDescription' => $citation['charges_description'],
             'workerManifestation' => (string) ($payload['worker_manifestation'] ?? ''),
             'closingTime' => (string) ($payload['closing_time'] ?? ''),
-            'questions' => $payload['questions'] ?? [],
+            'questions' => $questionItems,
+            'questionPages' => $questionPages,
             'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
         ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $raw
+     * @return list<array{question: string, answer: string}>
+     */
+    private function normalizeQuestions(array $raw): array
+    {
+        return collect($raw)->map(function ($q) {
+            if (! is_array($q)) {
+                return null;
+            }
+
+            $question = trim((string) ($q['question'] ?? $q['text'] ?? ''));
+            if ($question === '') {
+                return null;
+            }
+
+            return [
+                'question' => $question,
+                'answer' => trim((string) ($q['answer'] ?? '')),
+            ];
+        })->filter()->values()->all();
     }
 
     public function downloadPdf(DisciplinaryCase $case, User $actor): string

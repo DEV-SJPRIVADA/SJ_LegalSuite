@@ -25,6 +25,7 @@
         'workerManifestation' => $workerManifestation ?? '',
         'closingTime' => $closingTime ?? '',
         'questions' => $questions ?? [],
+        'questionPages' => $questionPages ?? null,
         'signatureDataUri' => $signatureDataUri ?? null,
     ])
 </body>

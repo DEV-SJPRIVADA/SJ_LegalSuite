@@ -50,7 +50,7 @@ class FoGj04DraftService
         return [
             'worker_manifestation' => (string) ($existing['worker_manifestation'] ?? ''),
             'closing_time' => (string) ($existing['closing_time'] ?? ''),
-            'questions' => $existing['questions'] ?? [],
+            'questions' => $this->questionsForForm($existing['questions'] ?? []),
             'opening_day' => $hearingDate ? (string) $hearingDate->day : '',
             'opening_month' => $hearingDate ? $this->spanishMonthName($hearingDate) : '',
             'opening_year' => $hearingDate ? (string) $hearingDate->year : '',
@@ -150,19 +150,7 @@ class FoGj04DraftService
             $rawQuestions = [];
         }
 
-        $questions = [];
-        foreach ($rawQuestions as $row) {
-            $text = trim(is_array($row) ? (string) ($row['text'] ?? '') : (string) $row);
-            if ($text !== '') {
-                $questions[] = ['text' => $text];
-            }
-        }
-
-        if ($questions === []) {
-            throw ValidationException::withMessages([
-                'foGj04Questions' => 'Agregue al menos una pregunta al cuestionario.',
-            ]);
-        }
+        $questions = $this->parseAndValidateQuestions($rawQuestions);
 
         if (! $actor->hasSignature()) {
             throw ValidationException::withMessages([
@@ -196,6 +184,89 @@ class FoGj04DraftService
         }
 
         return $case->fo_gj_04_payload ?? [];
+    }
+
+    /**
+     * @param  array<int, mixed>  $raw
+     * @return list<array{question: string, answer: string}>
+     */
+    public function questionsForForm(array $raw): array
+    {
+        $items = [];
+
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $items[] = [
+                'question' => (string) ($row['question'] ?? $row['text'] ?? ''),
+                'answer' => (string) ($row['answer'] ?? ''),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  array<int, mixed>  $raw
+     * @return list<array{question: string, answer: string}>
+     */
+    public function parseAndValidateQuestions(array $raw): array
+    {
+        $questions = [];
+
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $question = self::formatQuestionMarks((string) ($row['question'] ?? $row['text'] ?? ''));
+            $answer = trim((string) ($row['answer'] ?? ''));
+
+            if ($question === '' && $answer === '') {
+                continue;
+            }
+
+            if ($question === '') {
+                throw ValidationException::withMessages([
+                    'foGj04Questions' => 'Cada ítem del cuestionario debe tener el texto de la pregunta.',
+                ]);
+            }
+
+            if ($answer === '') {
+                throw ValidationException::withMessages([
+                    'foGj04Questions' => 'La respuesta del trabajador es obligatoria en cada pregunta.',
+                ]);
+            }
+
+            $questions[] = [
+                'question' => $question,
+                'answer' => $answer,
+            ];
+        }
+
+        if ($questions === []) {
+            throw ValidationException::withMessages([
+                'foGj04Questions' => 'Agregue al menos una pregunta al cuestionario.',
+            ]);
+        }
+
+        return $questions;
+    }
+
+    public static function formatQuestionMarks(string $text): string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        $text = preg_replace('/\?+$/u', '', $text) ?? $text;
+        $text = preg_replace('/^¿+/u', '', $text) ?? $text;
+        $text = trim($text);
+
+        return '¿'.$text.'?';
     }
 
     /**

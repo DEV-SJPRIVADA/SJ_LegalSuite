@@ -137,7 +137,7 @@
     }
     .fo51-tbl th {
         font-weight: bold;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-align: left;
     }
     .fo51-in {
@@ -179,7 +179,7 @@
     }
     .fo51-lbl-cap {
         font-weight: bold;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-transform: uppercase;
         padding: 5px 5px !important;
         line-height: 1.2;
@@ -187,7 +187,7 @@
     .fo51-date-grid .fo51-date-lbl {
         text-align: center;
         font-weight: bold;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         padding: 5px 6px !important;
         vertical-align: middle;
     }
@@ -220,7 +220,7 @@
     }
     .fo51-fault-head {
         font-weight: bold;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-transform: uppercase;
         padding: 6px 6px !important;
         line-height: 1.25;
@@ -240,7 +240,7 @@
     }
     .fo51-obs-head {
         font-weight: bold;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         padding: 6px 7px !important;
         line-height: 1.3;
         border-bottom: 1px solid #000 !important;
@@ -253,27 +253,27 @@
     .fo51-sign-cap th {
         text-align: center !important;
         text-transform: uppercase;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         padding: 6px 4px !important;
     }
     .fo51-sign-note td {
         text-align: center !important;
         font-style: italic;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         padding: 6px 8px !important;
         border-top: 1px solid #000 !important;
     }
     th.fo51-foot-band {
         background: #e0e0e0 !important;
         text-align: center !important;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-transform: uppercase;
         padding: 7px 6px !important;
         letter-spacing: 0.02em;
         border-bottom: 1px solid #000 !important;
     }
     .fo51-micro {
-        font-size: 7px;
+        font-size: var(--ogj-font-micro);
         color: #555;
         text-align: center;
         padding: 6px 8px 0;
@@ -605,7 +605,7 @@
 </x-disciplinary.forms.official-letter-pdf-shell>
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
-    <p style="font-size:10px;color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
+    <p style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
         Nombre y cargo del elaborador se cargan desde su sesión; la firma se diligencia manualmente.
     </p>
 @endif

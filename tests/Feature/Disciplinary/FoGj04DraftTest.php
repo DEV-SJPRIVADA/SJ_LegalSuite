@@ -76,6 +76,39 @@ class FoGj04DraftTest extends TestCase
         $this->assertSame('enero', $data['breachMonth']);
         $this->assertSame('2026', $data['breachYear']);
         $this->assertStringContainsString('incumplimiento', $data['chargesDescription']);
+        $this->assertSame('Sí, los reconozco parcialmente.', $data['questions'][0]['answer'] ?? null);
+    }
+
+    public function test_fo_gj_04_format_question_marks_adds_spanish_punctuation(): void
+    {
+        $this->assertSame(
+            '¿Reconoce los hechos?',
+            FoGj04DraftService::formatQuestionMarks('Reconoce los hechos'),
+        );
+        $this->assertSame(
+            '¿Ya tiene signos?',
+            FoGj04DraftService::formatQuestionMarks('¿Ya tiene signos???'),
+        );
+    }
+
+    public function test_fo_gj_04_save_draft_rejects_question_without_answer(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->attachSignature($lawyer);
+
+        try {
+            app(FoGj04DraftService::class)->saveDraft($case->fresh(), $lawyer, [
+                'worker_manifestation' => FoGj04DraftService::MANIFESTATION_WANTS_TO_RESPOND,
+                'opening_time' => '10:00 AM',
+                'closing_time' => '11:00 AM',
+                'questions' => [
+                    ['question' => '¿Reconoce los hechos?', 'answer' => ''],
+                ],
+            ]);
+            $this->fail('Expected ValidationException for missing answer.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('foGj04Questions', $e->errors());
+        }
     }
 
     public function test_fo_gj_04_save_draft_rejects_empty_questions(): void
@@ -137,8 +170,14 @@ class FoGj04DraftTest extends TestCase
             'opening_time' => '10:00 AM',
             'closing_time' => '11:30 AM',
             'questions' => [
-                ['text' => '¿Reconoce los hechos descritos en la citación?'],
-                ['text' => '¿Desea agregar alguna aclaración?'],
+                [
+                    'question' => 'Reconoce los hechos descritos en la citación',
+                    'answer' => 'Sí, los reconozco parcialmente.',
+                ],
+                [
+                    'question' => 'Desea agregar alguna aclaración',
+                    'answer' => 'No tengo más que agregar.',
+                ],
             ],
         ], $overrides));
     }

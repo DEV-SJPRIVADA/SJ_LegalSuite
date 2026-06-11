@@ -153,7 +153,7 @@ class CaseDetail extends Component
 
     public string $foGj04ClosingTime = '';
 
-    /** @var array<int, array{text: string}> */
+    /** @var array<int, array{question: string, answer: string}> */
     public array $foGj04Questions = [];
 
     public bool $showFoGj04PdfPreviewModal = false;
@@ -935,7 +935,7 @@ class CaseDetail extends Component
 
     public function addFoGj04Question(): void
     {
-        $this->foGj04Questions[] = ['text' => ''];
+        $this->foGj04Questions[] = ['question' => '', 'answer' => ''];
     }
 
     public function removeFoGj04Question(int $index): void

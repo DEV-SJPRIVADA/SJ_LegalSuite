@@ -3,14 +3,17 @@
 @endphp
 
 @if ($showFoGj04DraftModal ?? false)
-    <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50 overflow-y-auto" wire:key="fo-gj-04-draft-modal">
-        <div class="w-full max-w-2xl my-6 rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Diligenciar FO-GJ-04 · Acta de diligencia</h2>
-            <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                Complete el contexto, la manifestación del trabajador y el cuestionario. Los datos del trabajador y la fecha se toman del expediente.
-            </p>
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-04-draft-modal">
+        <div class="flex h-[min(92dvh,calc(100dvh-1.5rem))] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true" aria-labelledby="fo-gj-04-draft-title">
+            <div class="shrink-0 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
+                <h2 id="fo-gj-04-draft-title" class="text-lg font-bold text-slate-900 dark:text-white">Diligenciar FO-GJ-04 · Acta de diligencia</h2>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                    Complete el contexto, la manifestación del trabajador y el cuestionario. Los datos del trabajador y la fecha se toman del expediente.
+                </p>
+            </div>
 
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/[0.03]">
                     <p><span class="font-semibold">Caso:</span> <span class="font-mono">{{ $case->case_number }}</span></p>
                     <p class="mt-1"><span class="font-semibold">Trabajador:</span> {{ $case->employee?->first_name }} {{ $case->employee?->last_name }} · {{ $case->employee?->document_number }}</p>
@@ -75,7 +78,8 @@
                         </button>
                     </div>
                     <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                        Agregue las preguntas que formulará al trabajador. La firma del trabajador quedará en blanco para captura posterior.
+                        Redacte cada pregunta y la respuesta que manifestó el trabajador. Al guardar se normalizan los signos ¿?.
+                        La firma del trabajador quedará en blanco para captura posterior.
                     </p>
 
                     @if (count($foGj04Questions ?? []) === 0)
@@ -83,20 +87,25 @@
                             Sin preguntas. Use «Agregar pregunta» para comenzar el cuestionario.
                         </p>
                     @else
-                        <div class="mt-2 space-y-2">
+                        <div class="mt-2 space-y-4">
                             @foreach ($foGj04Questions as $index => $question)
-                                <div class="flex gap-2" wire:key="fo-gj-04-q-{{ $index }}">
-                                    <span class="mt-2 shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ $index + 1 }}.</span>
-                                    <div class="min-w-0 flex-1">
-                                        <input type="text" wire:model="foGj04Questions.{{ $index }}.text"
-                                            placeholder="Texto de la pregunta"
-                                            class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                <div class="rounded-lg border border-slate-200 p-3 dark:border-white/10" wire:key="fo-gj-04-q-{{ $index }}">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pregunta {{ $index + 1 }}</span>
+                                        <button type="button" wire:click="removeFoGj04Question({{ $index }})"
+                                            class="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 dark:text-red-300 dark:ring-red-500/40"
+                                            title="Quitar pregunta">
+                                            Quitar
+                                        </button>
                                     </div>
-                                    <button type="button" wire:click="removeFoGj04Question({{ $index }})"
-                                        class="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 dark:text-red-300 dark:ring-red-500/40"
-                                        title="Quitar pregunta">
-                                        Quitar
-                                    </button>
+                                    <label class="mt-2 block text-[11px] font-semibold text-slate-600 dark:text-slate-400">Pregunta</label>
+                                    <input type="text" wire:model="foGj04Questions.{{ $index }}.question"
+                                        placeholder="Ej. Reconoce los hechos descritos en la citación"
+                                        class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                    <label class="mt-2 block text-[11px] font-semibold text-slate-600 dark:text-slate-400">R: Respuesta del trabajador <span class="text-red-600">*</span></label>
+                                    <textarea wire:model="foGj04Questions.{{ $index }}.answer" rows="3"
+                                        placeholder="Transcripción de lo manifestado por el trabajador"
+                                        class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
                                 </div>
                             @endforeach
                         </div>
@@ -114,8 +123,9 @@
                     <p class="sm:col-span-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
             </div>
+            </div>
 
-            <div class="mt-6 flex flex-wrap justify-end gap-2">
+            <div class="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
                 <button type="button" wire:click="closeFoGj04DraftModal" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
                 <button type="button" wire:click="saveFoGj04Draft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700">Guardar diligenciamiento</button>
             </div>
