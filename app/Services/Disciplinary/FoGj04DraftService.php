@@ -3,6 +3,7 @@
 namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -78,6 +79,10 @@ class FoGj04DraftService
             $missing[] = 'Fecha de diligencia confirmada';
         }
 
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            $missing[] = 'Registro de asistencia del trabajador';
+        }
+
         if (! $this->hasDraftCompleted($case)) {
             $missing[] = 'Borrador FO-GJ-04 diligenciado';
         }
@@ -114,6 +119,12 @@ class FoGj04DraftService
         if ($case->fo_gj_04_generated_at !== null) {
             throw ValidationException::withMessages([
                 'fo_gj_04' => 'El FO-GJ-04 ya fue generado; no puede editarse el borrador.',
+            ]);
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            throw ValidationException::withMessages([
+                'fo_gj_04' => 'El acta FO-GJ-04 solo aplica cuando el trabajador asistió.',
             ]);
         }
 
@@ -172,6 +183,56 @@ class FoGj04DraftService
         ])->save();
 
         return $case->fresh();
+    }
+
+    public function saveWorkerSignature(DisciplinaryCase $case, User $actor, string $dataUri): DisciplinaryCase
+    {
+        if ((int) $case->assigned_lawyer_id !== (int) $actor->id) {
+            throw ValidationException::withMessages([
+                'foGj04WorkerSignature' => 'Solo el abogado titular puede registrar la firma del trabajador.',
+            ]);
+        }
+
+        if ($case->current_status !== CaseStatus::DILIGENCIA) {
+            throw ValidationException::withMessages([
+                'foGj04WorkerSignature' => 'La firma del trabajador solo se registra en etapa de diligencia.',
+            ]);
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            throw ValidationException::withMessages([
+                'foGj04WorkerSignature' => 'La firma del trabajador solo aplica cuando asistió a la diligencia.',
+            ]);
+        }
+
+        if (! $this->hasDraftCompleted($case)) {
+            throw ValidationException::withMessages([
+                'foGj04WorkerSignature' => 'Complete el diligenciamiento del FO-GJ-04 antes de capturar la firma.',
+            ]);
+        }
+
+        if ($case->fo_gj_04_generated_at !== null) {
+            throw ValidationException::withMessages([
+                'foGj04WorkerSignature' => 'El FO-GJ-04 ya fue generado.',
+            ]);
+        }
+
+        $valid = app(CitationNotificationSigningService::class)->assertValidWorkerSignatureDataUri($dataUri);
+        $payload = $case->fo_gj_04_payload ?? [];
+        $payload['worker_signature_data_uri'] = $valid;
+
+        $case->forceFill([
+            'fo_gj_04_payload' => $payload,
+        ])->save();
+
+        return $case->fresh();
+    }
+
+    public function hasWorkerSignature(DisciplinaryCase $case): bool
+    {
+        $payload = $case->fo_gj_04_payload ?? [];
+
+        return filled($payload['worker_signature_data_uri'] ?? null);
     }
 
     /** @return array<string, mixed> */

@@ -170,3 +170,96 @@
         </div>
     </div>
 @endif
+
+@if ($showFoGj04SignaturePadModal ?? false)
+    <x-disciplinary.signature-capture-modal
+        :show="true"
+        title="Firma del trabajador · FO-GJ-04"
+        wire-key="fo-gj-04-worker-signature-pad"
+        close-action="closeFoGj04WorkerSignaturePad"
+        save-action="saveFoGj04WorkerSignature"
+        variant="teal"
+    >
+        @error('foGj04WorkerSignature')
+            <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+        @enderror
+    </x-disciplinary.signature-capture-modal>
+@endif
+
+@if ($showFoGj44DraftModal ?? false)
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-44-draft-modal">
+        <div class="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10">
+            <div class="border-b px-4 py-4 dark:border-white/10"><h2 class="text-lg font-bold">Diligenciar FO-GJ-44</h2></div>
+            <div class="overflow-y-auto px-4 py-4 space-y-3">
+                <input type="text" wire:model="foGj44SignTime" placeholder="Hora de firma" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="text" wire:model="foGj44SignDay" placeholder="Día" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                    <input type="text" wire:model="foGj44SignMonth" placeholder="Mes" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                    <input type="text" wire:model="foGj44SignYearSuffix" placeholder="Año (dígito)" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                </div>
+                @foreach ([1, 2] as $w)
+                    <div class="rounded-lg border p-3 dark:border-white/10">
+                        <p class="text-xs font-semibold">Testigo {{ $w }}</p>
+                        @if ($w === 1)
+                            <input type="text" wire:model="foGj44Witness1Name" placeholder="Nombre" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <input type="text" wire:model="foGj44Witness1Cargo" placeholder="Cargo" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <input type="text" wire:model="foGj44Witness1Date" placeholder="Fecha" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                        @else
+                            <input type="text" wire:model="foGj44Witness2Name" placeholder="Nombre" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <input type="text" wire:model="foGj44Witness2Cargo" placeholder="Cargo" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <input type="text" wire:model="foGj44Witness2Date" placeholder="Fecha" class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                        @endif
+                    </div>
+                @endforeach
+                @error('fo_gj_44')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+            <div class="flex justify-end gap-2 border-t px-4 py-4 dark:border-white/10">
+                <button type="button" wire:click="closeFoGj44DraftModal" class="px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 rounded-md">Cancelar</button>
+                <button type="button" wire:click="saveFoGj44Draft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showFoGj44PdfPreviewModal ?? false)
+    <div class="fixed inset-0 z-[86] flex items-center justify-center p-3 sm:p-4" wire:key="fo-gj-44-pdf-preview">
+        <div class="absolute inset-0 bg-black/50" wire:click="closeFoGj44PdfPreview"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-dash-ink">
+            <div class="flex justify-between border-b px-4 py-3"><h2 class="font-bold">FO-GJ-44</h2><button type="button" wire:click="closeFoGj44PdfPreview">✕</button></div>
+            <iframe class="min-h-0 flex-1" src="{{ route('disciplinary.cases.fo-gj-44.pdf', ['case' => $case, 'inline' => 1]) }}"></iframe>
+        </div>
+    </div>
+@endif
+
+@if ($showFoGj54DraftModal ?? false)
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-54-draft-modal">
+        <div class="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10">
+            <div class="border-b px-4 py-4 dark:border-white/10"><h2 class="text-lg font-bold">Diligenciar FO-GJ-54</h2></div>
+            <div class="overflow-y-auto px-4 py-4 space-y-3">
+                <input type="text" wire:model="foGj54ClientSite" placeholder="Instalaciones del cliente" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" wire:model="foGj54ShiftStart" placeholder="Turno desde" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                    <input type="text" wire:model="foGj54ShiftEnd" placeholder="Turno hasta" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                </div>
+                <input type="date" wire:model="foGj54NewHearingDate" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                <input type="text" wire:model="foGj54NewHearingTime" placeholder="Nueva hora" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                <input type="text" wire:model="foGj54NewHearingPlace" placeholder="Lugar nueva diligencia" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                @error('fo_gj_54')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+            </div>
+            <div class="flex justify-end gap-2 border-t px-4 py-4 dark:border-white/10">
+                <button type="button" wire:click="closeFoGj54DraftModal" class="px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 rounded-md">Cancelar</button>
+                <button type="button" wire:click="saveFoGj54Draft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showFoGj54PdfPreviewModal ?? false)
+    <div class="fixed inset-0 z-[86] flex items-center justify-center p-3 sm:p-4" wire:key="fo-gj-54-pdf-preview">
+        <div class="absolute inset-0 bg-black/50" wire:click="closeFoGj54PdfPreview"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-dash-ink">
+            <div class="flex justify-between border-b px-4 py-3"><h2 class="font-bold">FO-GJ-54</h2><button type="button" wire:click="closeFoGj54PdfPreview">✕</button></div>
+            <iframe class="min-h-0 flex-1" src="{{ route('disciplinary.cases.fo-gj-54.pdf', ['case' => $case, 'inline' => 1]) }}"></iframe>
+        </div>
+    </div>
+@endif

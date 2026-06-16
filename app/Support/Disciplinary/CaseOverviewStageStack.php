@@ -16,7 +16,7 @@ final class CaseOverviewStageStack
     {
         $stack = [];
 
-        if ($case->isDiligenciaStageActive()) {
+        if ($case->showsDiligenceStagePanel()) {
             $stack[] = 'c';
         }
 

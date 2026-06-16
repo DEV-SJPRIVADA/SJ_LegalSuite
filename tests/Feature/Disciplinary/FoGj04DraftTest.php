@@ -59,6 +59,7 @@ class FoGj04DraftTest extends TestCase
     {
         ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
         $this->completeDraft($case, $lawyer);
+        $this->saveWorkerSignature($case, $lawyer);
 
         $service = app(FoGj04DiligenceActaService::class);
         $this->assertTrue($service->canGenerate($case->fresh()));
@@ -150,6 +151,9 @@ class FoGj04DraftTest extends TestCase
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
             'citation_confirmed_time' => '09:00:00',
             'citation_confirmed_by' => $lawyer->id,
+            'diligence_attendance' => \App\Enums\Disciplinary\DiligenceAttendance::ATTENDED,
+            'diligence_attendance_registered_at' => now(),
+            'diligence_attendance_registered_by' => $lawyer->id,
             'fo_gj_03_payload' => [
                 'breach_date' => '2026-01-15',
                 'breach_date_display' => '15/01/2026',
@@ -185,13 +189,20 @@ class FoGj04DraftTest extends TestCase
     private function attachSignature(User $lawyer): void
     {
         $path = 'signatures/'.$lawyer->id.'/signature.png';
-        Storage::disk('local')->put($path, base64_decode(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
-        ));
+        Storage::disk('local')->put($path, str_repeat('PNG', 40));
         $lawyer->forceFill([
             'signature_path' => $path,
             'signature_disk' => 'local',
         ])->save();
+    }
+
+    private function saveWorkerSignature(DisciplinaryCase $case, User $lawyer): void
+    {
+        $lawyer = $lawyer->fresh();
+        $binary = Storage::disk($lawyer->signature_disk ?? 'local')->get((string) $lawyer->signature_path);
+        $dataUri = 'data:image/png;base64,'.base64_encode($binary);
+
+        app(FoGj04DraftService::class)->saveWorkerSignature($case->fresh(), $lawyer, $dataUri);
     }
 
     private function makeLawyer(): User

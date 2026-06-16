@@ -73,6 +73,9 @@ class CaseDetailStageViewsTest extends TestCase
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
             'citation_confirmed_time' => '10:00:00',
+            'diligence_attendance' => \App\Enums\Disciplinary\DiligenceAttendance::ATTENDED,
+            'diligence_attendance_registered_at' => now(),
+            'diligence_attendance_registered_by' => $lawyer->id,
             'fo_gj_03_generated_at' => now(),
             'fo_gj_03_generated_by' => $lawyer->id,
             'citation_evidence_uploaded_at' => now(),
@@ -127,6 +130,12 @@ class CaseDetailStageViewsTest extends TestCase
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
             'coordination_started_at' => now(),
+            'diligence_attendance' => \App\Enums\Disciplinary\DiligenceAttendance::ATTENDED,
+            'diligence_attendance_registered_at' => now(),
+            'diligence_attendance_registered_by' => $lawyer->id,
+            'fo_gj_04_generated_at' => now(),
+            'fo_gj_04_generated_by' => $lawyer->id,
+            'fo_gj_04_payload' => ['worker_signature_data_uri' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='],
         ])->save();
 
         Livewire::actingAs($lawyer)
@@ -136,6 +145,21 @@ class CaseDetailStageViewsTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(CaseStatus::DECISION, $case->fresh()->current_status);
+    }
+
+    public function test_diligence_advance_blocked_without_requirements(): void
+    {
+        $lawyer = $this->user('abogado', 'stage-c-blocked@test.local');
+        $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
+        $case->forceFill([
+            'citation_confirmed_date' => now()->addDay()->toDateString(),
+            'coordination_started_at' => now(),
+        ])->save();
+
+        Livewire::actingAs($lawyer)
+            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh()])
+            ->call('requestAdvanceFromDiligencia')
+            ->assertHasErrors('diligenceAdvance');
     }
 
     private function user(string $role, string $email): User

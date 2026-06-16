@@ -19,6 +19,7 @@
     'questionPages' => null,
     'lawyerRole' => 'Analista de relaciones laborales y cumplimiento SJ Seguridad Privada Ltda.',
     'signatureDataUri' => null,
+    'workerSignatureDataUri' => null,
 ])
 
 @php
@@ -82,6 +83,7 @@
         'workerName',
         'workerDocument',
         'signatureDataUri',
+        'workerSignatureDataUri',
     ) + ['blank' => $blank];
 @endphp
 

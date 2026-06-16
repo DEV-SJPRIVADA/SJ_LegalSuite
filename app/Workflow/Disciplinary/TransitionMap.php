@@ -58,6 +58,7 @@ final class TransitionMap
             ],
             CaseStatus::DILIGENCIA->value => [
                 CaseStatus::DECISION,
+                CaseStatus::JUSTIFICACION_PENDIENTE,
             ],
             CaseStatus::DECISION->value => [
                 CaseStatus::APELACION,

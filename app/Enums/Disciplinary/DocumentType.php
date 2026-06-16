@@ -9,6 +9,7 @@ enum DocumentType: string
     case REPROGRAMACION = 'reprogramacion';
     case JUSTIFICACION = 'justificacion';
     case ACTA_DILIGENCIA = 'acta_diligencia';
+    case CONSTANCIA_INASISTENCIA = 'constancia_inasistencia';
     case DECISION = 'decision';
     case APELACION = 'apelacion';
     case SEGUNDA_INSTANCIA = 'segunda_instancia';
@@ -23,6 +24,7 @@ enum DocumentType: string
             self::REPROGRAMACION => 'Reprogramación a diligencia disciplinaria (FO-GJ-54)',
             self::JUSTIFICACION => 'Justificación de inasistencia',
             self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-04)',
+            self::CONSTANCIA_INASISTENCIA => 'Constancia de inasistencia a diligencia (FO-GJ-44)',
             self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
             self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
             self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',

@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\Decision;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\ColombianMunicipality;
@@ -71,6 +72,19 @@ class DisciplinaryCase extends Model
         'fo_gj_04_draft_completed_by',
         'fo_gj_04_generated_at',
         'fo_gj_04_generated_by',
+        'diligence_attendance',
+        'diligence_attendance_registered_at',
+        'diligence_attendance_registered_by',
+        'fo_gj_44_payload',
+        'fo_gj_44_draft_completed_at',
+        'fo_gj_44_draft_completed_by',
+        'fo_gj_44_generated_at',
+        'fo_gj_44_generated_by',
+        'fo_gj_54_payload',
+        'fo_gj_54_draft_completed_at',
+        'fo_gj_54_draft_completed_by',
+        'fo_gj_54_generated_at',
+        'fo_gj_54_generated_by',
         'citation_evidence_type',
         'citation_evidence_uploaded_at',
         'notification_requested_at',
@@ -106,6 +120,14 @@ class DisciplinaryCase extends Model
             'fo_gj_04_payload' => 'array',
             'fo_gj_04_draft_completed_at' => 'datetime',
             'fo_gj_04_generated_at' => 'datetime',
+            'diligence_attendance' => DiligenceAttendance::class,
+            'diligence_attendance_registered_at' => 'datetime',
+            'fo_gj_44_payload' => 'array',
+            'fo_gj_44_draft_completed_at' => 'datetime',
+            'fo_gj_44_generated_at' => 'datetime',
+            'fo_gj_54_payload' => 'array',
+            'fo_gj_54_draft_completed_at' => 'datetime',
+            'fo_gj_54_generated_at' => 'datetime',
             'citation_evidence_uploaded_at' => 'datetime',
             'notification_requested_at' => 'datetime',
             'notification_information_completed_at' => 'datetime',
@@ -225,11 +247,24 @@ class DisciplinaryCase extends Model
     }
 
     /**
+     * Panel Etapa C visible: diligencia en curso o seguimiento por inasistencia (justificación).
+     */
+    public function showsDiligenceStagePanel(): bool
+    {
+        if ($this->current_status === CaseStatus::DILIGENCIA) {
+            return true;
+        }
+
+        return $this->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
+            && $this->diligence_attendance === DiligenceAttendance::ABSENT;
+    }
+
+    /**
      * Etapa B visible en solo lectura (coordinación cerrada al avanzar a diligencia).
      */
     public function showsCitationStageReadOnly(): bool
     {
-        if (! $this->isDiligenciaStageActive()) {
+        if (! $this->showsDiligenceStagePanel()) {
             return false;
         }
 
@@ -617,6 +652,10 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_04_GENERATED = 'FO-GJ-04 generado desde expediente';
 
+    public const NOTE_FO_GJ_44_GENERATED = 'FO-GJ-44 generado desde expediente';
+
+    public const NOTE_FO_GJ_54_GENERATED = 'FO-GJ-54 generado desde expediente';
+
     public const NOTE_CITATION_EVIDENCE_PREFIX = 'Evidencia notificación citación';
 
     /**
@@ -648,6 +687,29 @@ class DisciplinaryCase extends Model
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Constancia de inasistencia (FO-GJ-44) más reciente en el expediente. */
+    public function latestConstanciaInasistenciaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CONSTANCIA_INASISTENCIA
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    public function activeJustificationStage(): ?DisciplinaryStage
+    {
+        return $this->stages()
+            ->where('stage_type', StageType::JUSTIFICACION)
+            ->open()
+            ->orderByDesc('sequence')
+            ->first();
     }
 
     /**

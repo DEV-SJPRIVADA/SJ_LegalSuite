@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
@@ -289,7 +290,138 @@ class DisciplinaryCasePolicy
             return false;
         }
 
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            return false;
+        }
+
         return $case->fo_gj_04_generated_at === null;
+    }
+
+    public function registerDiligenceAttendance(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\DiligenceAttendanceService::class)->canRegister($case);
+    }
+
+    public function editFoGj44Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DILIGENCIA) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ABSENT) {
+            return false;
+        }
+
+        return $case->fo_gj_44_generated_at === null;
+    }
+
+    public function previewFoGj44(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj44DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj44(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj44($user, $case)) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj44ConstanciaService::class)->canGenerate($case);
+    }
+
+    public function editFoGj54Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::JUSTIFICACION_PENDIENTE) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ABSENT) {
+            return false;
+        }
+
+        return $case->fo_gj_54_generated_at === null;
+    }
+
+    public function previewFoGj54(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj54DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj54(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj54($user, $case)) {
+            return false;
+        }
+
+        return app(\App\Services\Disciplinary\FoGj54ReprogramacionService::class)->canGenerate($case);
+    }
+
+    public function manageDiligenceJustification(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
+            && $case->diligence_attendance === DiligenceAttendance::ABSENT
+            && $case->fo_gj_44_generated_at !== null;
+    }
+
+    public function captureFoGj04WorkerSignature(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj04($user, $case)) {
+            return false;
+        }
+
+        if ($case->fo_gj_04_generated_at !== null) {
+            return false;
+        }
+
+        return $case->diligence_attendance === DiligenceAttendance::ATTENDED;
     }
 
     public function previewFoGj04(User $user, DisciplinaryCase $case): bool
@@ -303,6 +435,10 @@ class DisciplinaryCasePolicy
         }
 
         if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
             return false;
         }
 

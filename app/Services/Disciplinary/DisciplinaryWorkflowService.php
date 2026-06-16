@@ -215,6 +215,21 @@ class DisciplinaryWorkflowService
         );
     }
 
+    /**
+     * Tras FO-GJ-44 en diligencia: abre ventana de 2 días calendario para justificar inasistencia.
+     */
+    public function openDiligenceNoShowJustification(DisciplinaryCase $case, User $actor, ?string $note = null): DisciplinaryCase
+    {
+        return $this->transition(
+            $case,
+            CaseStatus::JUSTIFICACION_PENDIENTE,
+            $actor,
+            $note ?? 'Apertura ventana de 2 días calendario para justificar inasistencia a diligencia.',
+            stageType: StageType::JUSTIFICACION,
+            deadlineAt: now()->addDays(2),
+        );
+    }
+
     public function acceptJustification(DisciplinaryCase $case, User $actor, ?Carbon $newCitationAt = null, ?string $note = null): DisciplinaryCase
     {
         $this->logAction($case, $actor, ActionType::JUSTIFICACION_ACEPTADA, $note);

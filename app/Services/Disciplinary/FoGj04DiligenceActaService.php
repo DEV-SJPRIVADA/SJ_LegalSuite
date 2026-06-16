@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -29,9 +30,11 @@ class FoGj04DiligenceActaService
     public function canGenerate(DisciplinaryCase $case): bool
     {
         return $case->current_status === CaseStatus::DILIGENCIA
+            && $case->diligence_attendance === DiligenceAttendance::ATTENDED
             && $case->assigned_lawyer_id !== null
             && $case->fo_gj_04_generated_at === null
-            && $this->drafts->isReadyForPdf($case);
+            && $this->drafts->isReadyForPdf($case)
+            && $this->drafts->hasWorkerSignature($case);
     }
 
     /** @return array<string, mixed> */
@@ -66,6 +69,7 @@ class FoGj04DiligenceActaService
             'questions' => $questionItems,
             'questionPages' => $questionPages,
             'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
+            'workerSignatureDataUri' => (string) ($payload['worker_signature_data_uri'] ?? '') ?: null,
         ];
     }
 

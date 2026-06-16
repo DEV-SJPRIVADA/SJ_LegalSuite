@@ -1,12 +1,11 @@
 /**
- * Lienzo de firma táctil para el trabajador (supervisor · evidencias pendientes).
+ * Lienzo de firma: franja horizontal (móvil táctil · PC mesa digitalizadora Wacom).
  */
 window.sjWorkerSignaturePad = function sjWorkerSignaturePad() {
     return {
         drawing: false,
-        lastX: 0,
-        lastY: 0,
         hasInk: false,
+        activePointerId: null,
 
         init() {
             this.$nextTick(() => this.resizeCanvas());
@@ -31,6 +30,10 @@ window.sjWorkerSignaturePad = function sjWorkerSignaturePad() {
 
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(ratio, ratio);
+            this.applyStrokeDefaults(ctx);
+        },
+
+        applyStrokeDefaults(ctx) {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.lineWidth = 2.2;
@@ -40,50 +43,104 @@ window.sjWorkerSignaturePad = function sjWorkerSignaturePad() {
         pointerPosition(event) {
             const canvas = this.$refs.canvas;
             const rect = canvas.getBoundingClientRect();
-            const clientX = event.touches?.[0]?.clientX ?? event.clientX;
-            const clientY = event.touches?.[0]?.clientY ?? event.clientY;
 
             return {
-                x: clientX - rect.left,
-                y: clientY - rect.top,
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
             };
+        },
+
+        lineWidthForEvent(event) {
+            const pressure = typeof event.pressure === 'number' && event.pressure > 0
+                ? event.pressure
+                : 0.5;
+
+            return 1.4 + pressure * 2.4;
         },
 
         start(event) {
             event.preventDefault();
+
+            const canvas = this.$refs.canvas;
+            if (! canvas) {
+                return;
+            }
+
+            if (typeof canvas.setPointerCapture === 'function') {
+                try {
+                    canvas.setPointerCapture(event.pointerId);
+                } catch {
+                    // ignore if capture is not allowed
+                }
+            }
+
+            this.activePointerId = event.pointerId;
             const { x, y } = this.pointerPosition(event);
-            const ctx = this.$refs.canvas.getContext('2d');
+            const ctx = canvas.getContext('2d');
             this.drawing = true;
-            this.lastX = x;
-            this.lastY = y;
+            this.applyStrokeDefaults(ctx);
+            ctx.lineWidth = this.lineWidthForEvent(event);
             ctx.beginPath();
             ctx.moveTo(x, y);
         },
 
         draw(event) {
-            if (! this.drawing) {
+            if (! this.drawing || this.activePointerId !== event.pointerId) {
                 return;
             }
 
             event.preventDefault();
-            const { x, y } = this.pointerPosition(event);
-            const ctx = this.$refs.canvas.getContext('2d');
-            ctx.lineTo(x, y);
+
+            const canvas = this.$refs.canvas;
+            const ctx = canvas.getContext('2d');
+            const events = typeof event.getCoalescedEvents === 'function'
+                ? event.getCoalescedEvents()
+                : [event];
+
+            for (const point of events) {
+                if (point.pointerId !== this.activePointerId) {
+                    continue;
+                }
+
+                const { x, y } = this.pointerPosition(point);
+                ctx.lineWidth = this.lineWidthForEvent(point);
+                ctx.lineTo(x, y);
+            }
+
             ctx.stroke();
-            this.lastX = x;
-            this.lastY = y;
             this.hasInk = true;
         },
 
-        end() {
+        end(event) {
+            if (event && this.activePointerId !== null && event.pointerId !== this.activePointerId) {
+                return;
+            }
+
+            const canvas = this.$refs.canvas;
+            if (canvas && this.activePointerId !== null && typeof canvas.releasePointerCapture === 'function') {
+                try {
+                    canvas.releasePointerCapture(this.activePointerId);
+                } catch {
+                    // ignore
+                }
+            }
+
             this.drawing = false;
+            this.activePointerId = null;
         },
 
         clear() {
             const canvas = this.$refs.canvas;
+            if (! canvas) {
+                return;
+            }
+
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             this.hasInk = false;
+            this.drawing = false;
+            this.activePointerId = null;
+            this.applyStrokeDefaults(ctx);
         },
 
         exportDataUri() {

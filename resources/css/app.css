@@ -91,4 +91,20 @@
     .sj-status-md {
         @apply inline-flex h-8 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-semibold leading-none ring-1 ring-inset;
     }
+
+    /** Franja horizontal de captura de firma (móvil táctil · mesa digitalizadora). */
+    .sj-signature-strip-wrap {
+        @apply relative w-full;
+    }
+
+    .sj-signature-strip-wrap::after {
+        content: '';
+        @apply pointer-events-none absolute inset-x-[8%] bottom-[30%] border-b border-slate-300/90 dark:border-white/25;
+    }
+
+    .sj-signature-strip {
+        @apply block w-full rounded-lg border-2 border-dashed border-slate-300 bg-white dark:border-white/25 dark:bg-white;
+        height: 17.5rem;
+        touch-action: none;
+    }
 }
