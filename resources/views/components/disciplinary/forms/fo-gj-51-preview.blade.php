@@ -94,6 +94,9 @@
 
     $preparerFieldsReadonly = ! $blankForDownload && $useAuthPreparer && $user;
 
+    $resolvedPreparerSignature = old('fo51_preparer_signature', $preparerSignature);
+    $preparerSignatureIsImage = str_starts_with(trim((string) $resolvedPreparerSignature), 'data:image/');
+
     $faultRightCount = count($faultRight);
     $faultRows = max(count($faultLeft), $faultRightCount + 1);
 
@@ -262,6 +265,52 @@
         font-size: var(--ogj-font-meta);
         padding: 6px 8px !important;
         border-top: 1px solid #000 !important;
+    }
+    .fo51-signature-img,
+    .fo51-signature-preview {
+        display: block;
+        max-height: 32px;
+        max-width: 100%;
+        margin: 0 auto;
+        object-fit: contain;
+    }
+    .fo51-signature-capture-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-height: 36px;
+        padding: 2px 4px;
+        box-sizing: border-box;
+    }
+    .fo51-signature-capture-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #94a3b8;
+        border-radius: 4px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.2;
+        padding: 4px 8px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .fo51-signature-capture-btn:hover {
+        background: #e2e8f0;
+    }
+    .fo51-signature-capture-link {
+        border: 0;
+        background: transparent;
+        color: #4338ca;
+        font-size: 10px;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 0;
     }
     th.fo51-foot-band {
         background: #e0e0e0 !important;
@@ -560,8 +609,39 @@
                         <td style="padding:0!important">
                             <input type="text" name="fo51_preparer_role" class="fo51-in" @if ($preparerFieldsReadonly) readonly @endif value="{{ $resolvedPreparerRole }}" style="height:36px">
                         </td>
-                        <td style="padding:0!important">
-                            <input type="text" name="fo51_preparer_signature" class="fo51-in" value="{{ $preparerSignature }}" autocomplete="off" style="height:36px">
+                        <td style="padding:0!important;vertical-align:middle">
+                            @if ($renderAsPdf ?? false)
+                                @if ($preparerSignatureIsImage)
+                                    <img src="{{ $resolvedPreparerSignature }}" alt="Firma elaborador" class="fo51-signature-img">
+                                @endif
+                            @elseif ($blankForDownload ?? false)
+                                <div style="height:36px"></div>
+                            @else
+                                <div
+                                    x-data="window.sjFo51PreparerSignature(@js($resolvedPreparerSignature))"
+                                    class="fo51-signature-capture">
+                                    <input type="hidden" name="fo51_preparer_signature" x-model="signatureUri">
+                                    <div class="fo51-signature-capture-inner">
+                                        <img x-show="hasStoredSignature()"
+                                            x-bind:src="signatureUri"
+                                            alt="Firma capturada"
+                                            class="fo51-signature-preview">
+                                        <button type="button"
+                                            class="fo51-signature-capture-btn"
+                                            x-on:click="openSignatureModal()"
+                                            x-text="hasStoredSignature() ? 'Cambiar firma' : 'Capturar firma'"></button>
+                                        <button type="button"
+                                            class="fo51-signature-capture-link"
+                                            x-show="hasStoredSignature()"
+                                            x-on:click="clearStoredSignature()">
+                                            Quitar
+                                        </button>
+                                    </div>
+                                    <x-disciplinary.signature-capture-modal-alpine
+                                        title="Firma de quien elabora el informe"
+                                        modal-id="fo51-preparer-signature" />
+                                </div>
+                            @endif
                         </td>
                     </tr>
                     <tr>
@@ -606,6 +686,6 @@
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
     <p style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
-        Nombre y cargo del elaborador se cargan desde su sesión; la firma se diligencia manualmente.
+        Nombre y cargo del elaborador se cargan desde su sesión. Capture su firma con el dedo (móvil) o con el lápiz de la mesa digitalizadora (PC).
     </p>
 @endif

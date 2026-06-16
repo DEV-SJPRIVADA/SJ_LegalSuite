@@ -58,6 +58,9 @@
             @error('fo51_worker_document')
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
+            @error('fo51_preparer_signature')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
 
             @php
                 $operacionesReviewers = $operacionesReviewers ?? collect();

@@ -202,3 +202,60 @@ window.sjWorkerSignaturePad = function sjWorkerSignaturePad() {
         },
     };
 };
+
+/**
+ * FO-GJ-51 y otros formularios POST: captura de firma del elaborador (Alpine, sin Livewire).
+ */
+window.sjFo51PreparerSignature = function sjFo51PreparerSignature(initialUri = '') {
+    const pad = window.sjWorkerSignaturePad();
+
+    return {
+        ...pad,
+        signatureUri: initialUri || '',
+        modalOpen: false,
+
+        init() {
+            this.$watch('modalOpen', (open) => {
+                if (open) {
+                    this.$nextTick(() => this.resizeCanvas());
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (this.modalOpen) {
+                    this.resizeCanvas();
+                }
+            });
+        },
+
+        openSignatureModal() {
+            this.clear();
+            this.modalOpen = true;
+        },
+
+        closeSignatureModal() {
+            this.modalOpen = false;
+            this.clear();
+        },
+
+        saveModalSignature() {
+            const uri = this.exportDataUri();
+            if (! uri) {
+                alert('Dibuje la firma antes de guardar.');
+
+                return;
+            }
+
+            this.signatureUri = uri;
+            this.closeSignatureModal();
+        },
+
+        clearStoredSignature() {
+            this.signatureUri = '';
+        },
+
+        hasStoredSignature() {
+            return Boolean(this.signatureUri);
+        },
+    };
+};

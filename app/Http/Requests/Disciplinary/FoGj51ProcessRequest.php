@@ -5,6 +5,7 @@ namespace App\Http\Requests\Disciplinary;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
+use App\Rules\PngSignatureDataUri;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,17 @@ class FoGj51ProcessRequest extends FormRequest
      */
     public function rules(): array
     {
-        return array_merge(StoreFoGj51InformePdfRequest::fieldRules(), [
+        $rules = StoreFoGj51InformePdfRequest::fieldRules();
+
+        $rules['fo51_preparer_signature'] = [
+            Rule::requiredIf(fn () => in_array((string) $this->input('fo51_action'), ['pdf', 'enviar'], true)),
+            'nullable',
+            'string',
+            'max:524288',
+            new PngSignatureDataUri,
+        ];
+
+        return array_merge($rules, [
             'fo51_action' => ['required', Rule::in(['pdf', 'enviar', 'cargar'])],
             'fo51_assigned_reviewer_id' => [
                 Rule::requiredIf(fn () => in_array((string) $this->input('fo51_action'), ['enviar', 'cargar'], true)),
@@ -78,6 +89,16 @@ class FoGj51ProcessRequest extends FormRequest
             'evidence_images' => ['nullable', 'array', 'max:10'],
             'evidence_images.*' => ['nullable', 'image', 'max:5120'],
         ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'fo51_preparer_signature.required' => 'Capture la firma de quien elabora el informe antes de continuar.',
+        ];
     }
 
     protected function prepareForValidation(): void
