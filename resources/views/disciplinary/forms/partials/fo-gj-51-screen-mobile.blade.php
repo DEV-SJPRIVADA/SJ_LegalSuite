@@ -57,7 +57,7 @@
             white-space: nowrap;
         }
 
-        /* Datos del trabajador: grilla 2×3 en escritorio; celdas apiladas en móvil */
+        /* Datos del trabajador: grilla 4 cols (CC+Nombre / Cargo+Ciudad+Turno+Puesto); apilado en móvil */
         .fo51-interactive .fo51-block-personal table.fo51-tbl {
             table-layout: auto;
         }
@@ -72,15 +72,19 @@
         }
 
         .fo51-interactive .fo51-block-personal td.fo51-personal-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 4px;
+            display: block;
             width: 100% !important;
             box-sizing: border-box;
             border-left: none;
             border-right: none;
             padding: 8px !important;
+        }
+
+        .fo51-interactive .fo51-block-personal .fo51-personal-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 4px;
         }
 
         .fo51-interactive .fo51-block-personal td.fo51-personal-cell .fo51-inline-lbl {

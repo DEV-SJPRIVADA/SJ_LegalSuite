@@ -115,7 +115,7 @@ class FoGj51PreparerSignatureTest extends TestCase
         $response->assertOk();
         $response->assertSee('fo51-interactive', false);
         $response->assertSee('fo51-block-personal', false);
-        $response->assertSee('fo51-personal-cell', false);
+        $response->assertSee('fo51-personal-inner', false);
         $response->assertSee('fo51-inline-lbl', false);
         $response->assertSee('sjFo51PreparerSignature', false);
         $response->assertSee('Capturar firma', false);
@@ -157,6 +157,12 @@ class FoGj51PreparerSignatureTest extends TestCase
 
         $this->assertStringNotContainsString('fo51-interactive', $html);
         $this->assertStringNotContainsString('@media (max-width: 767px)', $html);
+        $this->assertStringContainsString('fo51-personal-inner', $html);
+        $this->assertStringNotContainsString('.fo51-personal-cell {
+        display: flex', $html);
+        $this->assertStringContainsString('colspan="3"', $html);
+        $this->assertStringContainsString('>NOMBRE:</span>', $html);
+        $this->assertSame(6, substr_count($html, 'class="fo51-personal-cell"'));
     }
 
     private function makeSupervisor(): User

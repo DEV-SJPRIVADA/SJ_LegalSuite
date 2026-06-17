@@ -194,11 +194,14 @@
         line-height: 1.2;
     }
     .fo51-personal-cell {
+        vertical-align: middle;
+        padding: 3px 5px !important;
+    }
+    .fo51-personal-inner {
         display: flex;
         align-items: center;
         gap: 4px;
-        vertical-align: middle;
-        padding: 3px 5px !important;
+        min-width: 0;
     }
     .fo51-inline-lbl {
         font-weight: bold;
@@ -436,14 +439,16 @@
         <div @class(['fo51-block', 'fo51-block-personal' => $fo51Interactive]) @if ($useEmployeeLookup) x-data="window.disciplinaryFo51EmployeeCombo(@js($employeeSearchUrl), @js(old('fo51_worker_document', $workerDocument)), @js(old('fo51_worker_name', $workerName)), @js($workerCargo), @js(old('fo51_employee_id', $employeeId)))" @endif>
             <table class="fo51-tbl" role="presentation">
                 <colgroup>
-                    <col style="width:33%">
-                    <col style="width:34%">
-                    <col style="width:33%">
+                    <col style="width:25%">
+                    <col style="width:25%">
+                    <col style="width:25%">
+                    <col style="width:25%">
                 </colgroup>
                 <tr>
                     <td class="fo51-personal-cell">
+                        <div class="fo51-personal-inner">
                         <span class="fo51-inline-lbl">CC:</span>
-                        <span class="fo51-personal-val">
+                        <div class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerDocument }}</span>
                         @elseif ($useEmployeeLookup)
@@ -466,11 +471,13 @@
                         @else
                             <input type="text" name="fo51_worker_document" class="fo51-in" value="{{ $workerDocument }}" autocomplete="off" inputmode="numeric">
                         @endif
-                        </span>
+                        </div>
+                        </div>
                     </td>
-                    <td class="fo51-personal-cell">
+                    <td class="fo51-personal-cell" colspan="3">
+                        <div class="fo51-personal-inner">
                         <span class="fo51-inline-lbl">NOMBRE:</span>
-                        <span class="fo51-personal-val">
+                        <div class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerName }}</span>
                         @elseif ($useEmployeeLookup)
@@ -478,11 +485,15 @@
                         @else
                             <input type="text" name="fo51_worker_name" class="fo51-in" value="{{ $workerName }}" autocomplete="off">
                         @endif
-                        </span>
+                        </div>
+                        </div>
                     </td>
+                </tr>
+                <tr>
                     <td class="fo51-personal-cell">
+                        <div class="fo51-personal-inner">
                         <span class="fo51-inline-lbl">CARGO:</span>
-                        <span class="fo51-personal-val">
+                        <div class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
                         @elseif ($useEmployeeLookup)
@@ -490,33 +501,13 @@
                         @else
                             <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
                         @endif
-                        </span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="fo51-personal-cell">
-                        <span class="fo51-inline-lbl">PUESTO:</span>
-                        <span class="fo51-personal-val">
-                        @if ($renderAsPdf ?? false)
-                            <span class="fo51-static">{{ $position }}</span>
-                        @else
-                            <input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}">
-                        @endif
-                        </span>
+                        </div>
+                        </div>
                     </td>
                     <td class="fo51-personal-cell">
-                        <span class="fo51-inline-lbl">TURNO:</span>
-                        <span class="fo51-personal-val">
-                        @if ($renderAsPdf ?? false)
-                            <span class="fo51-static">{{ $shift }}</span>
-                        @else
-                            <input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}">
-                        @endif
-                        </span>
-                    </td>
-                    <td class="fo51-personal-cell">
+                        <div class="fo51-personal-inner">
                         <span class="fo51-inline-lbl">CIUDAD:</span>
-                        <span class="fo51-personal-val">
+                        <div class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $city }}</span>
                         @elseif ($blankForDownload ?? false)
@@ -565,7 +556,32 @@
                                 </ul>
                             </div>
                         @endif
-                        </span>
+                        </div>
+                        </div>
+                    </td>
+                    <td class="fo51-personal-cell">
+                        <div class="fo51-personal-inner">
+                        <span class="fo51-inline-lbl">TURNO:</span>
+                        <div class="fo51-personal-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $shift }}</span>
+                        @else
+                            <input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}">
+                        @endif
+                        </div>
+                        </div>
+                    </td>
+                    <td class="fo51-personal-cell">
+                        <div class="fo51-personal-inner">
+                        <span class="fo51-inline-lbl">PUESTO:</span>
+                        <div class="fo51-personal-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $position }}</span>
+                        @else
+                            <input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}">
+                        @endif
+                        </div>
+                        </div>
                     </td>
                 </tr>
             </table>
