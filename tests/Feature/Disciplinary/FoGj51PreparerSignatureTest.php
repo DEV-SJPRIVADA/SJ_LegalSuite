@@ -58,6 +58,18 @@ class FoGj51PreparerSignatureTest extends TestCase
         $response->assertSessionHasErrors('fo51_preparer_signature');
     }
 
+    public function test_supervisor_validation_errors_redirect_to_full_page_form_not_cases_index(): void
+    {
+        $supervisor = $this->makeSupervisor();
+
+        $response = $this->actingAs($supervisor)->post(route('disciplinary.forms.informe.process'), [
+            'fo51_action' => 'enviar',
+        ]);
+
+        $response->assertRedirect(route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1]));
+        $response->assertSessionHasErrors();
+    }
+
     public function test_filled_pdf_view_renders_preparer_signature_image(): void
     {
         $signature = $this->sampleSignatureDataUri();
@@ -101,9 +113,50 @@ class FoGj51PreparerSignatureTest extends TestCase
         ]));
 
         $response->assertOk();
+        $response->assertSee('fo51-interactive', false);
+        $response->assertSee('fo51-block-personal', false);
+        $response->assertSee('fo51-personal-cell', false);
+        $response->assertSee('fo51-inline-lbl', false);
         $response->assertSee('sjFo51PreparerSignature', false);
         $response->assertSee('Capturar firma', false);
+        $response->assertSee('Agregar evidencias (opcional)', false);
+        $response->assertSee('form="fo51-informe-form"', false);
+        $response->assertDontSee('x-model="evidenceModalOpen"', false);
         $response->assertDontSee('name="fo51_preparer_signature" class="fo51-in"', false);
+    }
+
+    public function test_filled_pdf_view_does_not_include_mobile_interactive_layout(): void
+    {
+        $signature = $this->sampleSignatureDataUri();
+
+        $html = view('disciplinary.forms.fo-gj-51-filled-download', [
+            'embeddedLogoSrc' => 'data:image/png;base64,AA==',
+            'workerName' => 'Trabajador Prueba',
+            'workerDocument' => '1234567890',
+            'workerCargo' => 'Operario',
+            'city' => 'Cali',
+            'shift' => 'Mañana',
+            'position' => 'Puesto 1',
+            'faultOtherDetail' => '',
+            'observations' => 'Observaciones.',
+            'preparerName' => 'Supervisor campo',
+            'preparerRole' => 'supervisor',
+            'preparerSignature' => $signature,
+            'reportDay' => '16',
+            'reportMonth' => '06',
+            'reportYear' => '2026',
+            'faultLeftChecked' => [],
+            'faultRightChecked' => [],
+            'faultOtherChecked' => false,
+            'jurPd' => '',
+            'entregaGh' => '',
+            'jurDd' => '',
+            'jurMm' => '',
+            'jurYyyy' => '',
+        ])->render();
+
+        $this->assertStringNotContainsString('fo51-interactive', $html);
+        $this->assertStringNotContainsString('@media (max-width: 767px)', $html);
     }
 
     private function makeSupervisor(): User

@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Rules\PngSignatureDataUri;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -130,6 +131,17 @@ class FoGj51ProcessRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         $action = (string) $this->input('fo51_action');
+
+        if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
+            $params = ['vista_completa' => 1];
+            if ($action === 'cargar') {
+                $params['cargar_pdf'] = 1;
+            }
+
+            throw (new ValidationException($validator))
+                ->redirectTo(route('disciplinary.forms.informe-fo-gj-51', $params));
+        }
+
         $params = ['informe_modal' => 1];
 
         if ($action === 'cargar') {

@@ -103,7 +103,13 @@
     $resolvedMetaDate = ucfirst(
         Carbon::now()->timezone(config('app.timezone', 'America/Bogota'))->locale('es')->translatedFormat('F \d\e Y')
     );
+
+    $fo51Interactive = ! ($renderAsPdf ?? false) && ! ($blankForDownload ?? false);
 @endphp
+
+@if ($fo51Interactive)
+    @include('disciplinary.forms.partials.fo-gj-51-screen-mobile')
+@endif
 
 <style>
     /* Cuerpo FO-GJ-51 (encabezado grilla vía official-letter-pdf-shell). */
@@ -186,6 +192,34 @@
         text-transform: uppercase;
         padding: 5px 5px !important;
         line-height: 1.2;
+    }
+    .fo51-personal-cell {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        vertical-align: middle;
+        padding: 3px 5px !important;
+    }
+    .fo51-inline-lbl {
+        font-weight: bold;
+        font-size: var(--ogj-font-meta);
+        text-transform: uppercase;
+        flex-shrink: 0;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .fo51-personal-val {
+        flex: 1;
+        min-width: 0;
+    }
+    .fo51-personal-val .fo51-in,
+    .fo51-personal-val .fo51-static {
+        width: 100%;
+    }
+    .fo51-personal-val > .relative {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     .fo51-date-grid .fo51-date-lbl {
         text-align: center;
@@ -342,6 +376,7 @@
     }
 </style>
 
+<div @class(['fo51-interactive' => $fo51Interactive])>
 <x-disciplinary.forms.official-letter-pdf-shell
     code="FO-GJ-51"
     headline="Informe disciplinario"
@@ -398,24 +433,22 @@
             $useEmployeeLookup = ($enableEmployeeLookup ?? true) && ! ($renderAsPdf ?? false) && ! ($blankForDownload ?? false);
             $employeeSearchUrl = route('api.employees.search');
         @endphp
-        <div class="fo51-block" @if ($useEmployeeLookup) x-data="window.disciplinaryFo51EmployeeCombo(@js($employeeSearchUrl), @js(old('fo51_worker_document', $workerDocument)), @js(old('fo51_worker_name', $workerName)), @js($workerCargo), @js(old('fo51_employee_id', $employeeId)))" @endif>
+        <div @class(['fo51-block', 'fo51-block-personal' => $fo51Interactive]) @if ($useEmployeeLookup) x-data="window.disciplinaryFo51EmployeeCombo(@js($employeeSearchUrl), @js(old('fo51_worker_document', $workerDocument)), @js(old('fo51_worker_name', $workerName)), @js($workerCargo), @js(old('fo51_employee_id', $employeeId)))" @endif>
             <table class="fo51-tbl" role="presentation">
                 <colgroup>
-                    <col style="width:14%">
-                    <col style="width:19%">
-                    <col style="width:14%">
-                    <col style="width:19%">
-                    <col style="width:14%">
-                    <col style="width:20%">
+                    <col style="width:33%">
+                    <col style="width:34%">
+                    <col style="width:33%">
                 </colgroup>
                 <tr>
-                    <td class="fo51-lbl-cap">CC:</td>
-                    <td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">CC:</span>
+                        <span class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerDocument }}</span>
                         @elseif ($useEmployeeLookup)
                             <input type="hidden" name="fo51_employee_id" x-model="employeeId">
-                            <div class="relative" style="width:100%">
+                            <div class="relative">
                                 <input type="text" name="fo51_worker_document" class="fo51-in" x-model="query" autocomplete="off" inputmode="numeric" pattern="[0-9]*" required
                                     @focus="openList()" @input="onInput()" @blur="onBlur()" @keydown="onKeydown($event)"
                                     placeholder="Digite documento…" role="combobox" :aria-expanded="open ? 'true' : 'false'">
@@ -433,9 +466,11 @@
                         @else
                             <input type="text" name="fo51_worker_document" class="fo51-in" value="{{ $workerDocument }}" autocomplete="off" inputmode="numeric">
                         @endif
+                        </span>
                     </td>
-                    <td class="fo51-lbl-cap">NOMBRE:</td>
-                    <td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">NOMBRE:</span>
+                        <span class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerName }}</span>
                         @elseif ($useEmployeeLookup)
@@ -443,9 +478,11 @@
                         @else
                             <input type="text" name="fo51_worker_name" class="fo51-in" value="{{ $workerName }}" autocomplete="off">
                         @endif
+                        </span>
                     </td>
-                    <td class="fo51-lbl-cap">CARGO:</td>
-                    <td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">CARGO:</span>
+                        <span class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
                         @elseif ($useEmployeeLookup)
@@ -453,11 +490,33 @@
                         @else
                             <span class="fo51-static">{{ $workerCargo ?: ' ' }}</span>
                         @endif
+                        </span>
                     </td>
                 </tr>
                 <tr>
-                    <td class="fo51-lbl-cap">CIUDAD:</td>
-                    <td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">PUESTO:</span>
+                        <span class="fo51-personal-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $position }}</span>
+                        @else
+                            <input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}">
+                        @endif
+                        </span>
+                    </td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">TURNO:</span>
+                        <span class="fo51-personal-val">
+                        @if ($renderAsPdf ?? false)
+                            <span class="fo51-static">{{ $shift }}</span>
+                        @else
+                            <input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}">
+                        @endif
+                        </span>
+                    </td>
+                    <td class="fo51-personal-cell">
+                        <span class="fo51-inline-lbl">CIUDAD:</span>
+                        <span class="fo51-personal-val">
                         @if ($renderAsPdf ?? false)
                             <span class="fo51-static">{{ $city }}</span>
                         @elseif ($blankForDownload ?? false)
@@ -467,7 +526,6 @@
                         @else
                             <div
                                 class="relative"
-                                style="width:100%;max-width:100%;box-sizing:border-box"
                                 x-data="window.disciplinaryFo51MunicipalityCombo(@js($municipalitiesFlat), @js(old('fo51_municipality_code', '')), @js(['required' => true]))"
                                 @fo51-employee-selected.window="if ($event.detail.municipalityCode) { code = $event.detail.municipalityCode; const it = items.find(i => i.code === code); if (it) { query = it.name + ' — ' + it.dept; } }">
                                 <input type="hidden" name="fo51_municipality_code" x-model="code" required>
@@ -507,29 +565,14 @@
                                 </ul>
                             </div>
                         @endif
-                    </td>
-                    <td class="fo51-lbl-cap">TURNO:</td>
-                    <td>
-                        @if ($renderAsPdf ?? false)
-                            <span class="fo51-static">{{ $shift }}</span>
-                        @else
-                            <input type="text" name="fo51_shift" class="fo51-in" value="{{ $shift }}">
-                        @endif
-                    </td>
-                    <td class="fo51-lbl-cap">PUESTO:</td>
-                    <td>
-                        @if ($renderAsPdf ?? false)
-                            <span class="fo51-static">{{ $position }}</span>
-                        @else
-                            <input type="text" name="fo51_position" class="fo51-in" value="{{ $position }}">
-                        @endif
+                        </span>
                     </td>
                 </tr>
             </table>
         </div>
 
         {{-- 3 · Faltas (texto + casilla a la derecha como en el papel) --}}
-        <div class="fo51-block">
+        <div @class(['fo51-block', 'fo51-block-faults' => $fo51Interactive])>
             <table class="fo51-tbl" role="presentation">
                 <thead>
                     <tr>
@@ -644,7 +687,7 @@
                             @endif
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="fo51-sign-note-row">
                         <td colspan="3" class="fo51-sign-note">Nombre, cargo y firma de quien elaboró el informe</td>
                     </tr>
                 </tbody>
@@ -652,7 +695,7 @@
         </div>
 
         {{-- 7 · Gestión jurídica (grilla aparte; barra gris como en el formato base) --}}
-        <div class="fo51-block">
+        <div @class(['fo51-block', 'fo51-block-legal' => $fo51Interactive])>
             <table class="fo51-tbl" role="presentation">
                 <thead>
                     <tr>
@@ -683,9 +726,10 @@
         </p>
     </div>
 </x-disciplinary.forms.official-letter-pdf-shell>
+</div>
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
-    <p style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
+    <p class="fo51-helper-note" style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
         Nombre y cargo del elaborador se cargan desde su sesión. Capture su firma con el dedo (móvil) o con el lápiz de la mesa digitalizadora (PC).
     </p>
 @endif
