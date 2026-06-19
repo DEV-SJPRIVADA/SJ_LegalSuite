@@ -68,6 +68,12 @@ final class DiligenceStageProgress
                     'done' => $comiteDone,
                     'hint' => 'Diligencie el acta del comité disciplinario e incorpórela al expediente.',
                 ];
+                $defs[] = [
+                    'key' => 'decision',
+                    'label' => 'Comunicado de decisión',
+                    'done' => false,
+                    'hint' => 'Avance a la etapa D cuando el acta de comité esté en el expediente.',
+                ];
             }
         } else {
             $actaUploaded = $case->fo_gj_04_generated_at !== null
@@ -157,7 +163,7 @@ final class DiligenceStageProgress
         if ($case !== null
             && $case->diligence_attendance === DiligenceAttendance::ABSENT
             && $case->current_status === CaseStatus::COMITE_DISCIPLINARIO) {
-            return 5;
+            return 6;
         }
 
         return 4;

@@ -16,13 +16,17 @@ class DisciplinaryDiligenceWorkflowService
     /** @return list<string> */
     public function missingAdvanceToDecisionRequirements(DisciplinaryCase $case): array
     {
+        return match ($case->current_status) {
+            CaseStatus::DILIGENCIA => $this->missingAdvanceFromDiligenciaRequirements($case),
+            CaseStatus::COMITE_DISCIPLINARIO => $this->missingAdvanceFromComiteRequirements($case),
+            default => ['El expediente debe estar en diligencia o comité disciplinario'],
+        };
+    }
+
+    /** @return list<string> */
+    private function missingAdvanceFromDiligenciaRequirements(DisciplinaryCase $case): array
+    {
         $missing = [];
-
-        if ($case->current_status !== CaseStatus::DILIGENCIA) {
-            $missing[] = 'El expediente debe estar en etapa de diligencia';
-
-            return $missing;
-        }
 
         if ($this->attendance->attendance($case) !== DiligenceAttendance::ATTENDED) {
             $missing[] = 'Registro de asistencia: el trabajador debe haber asistido';
@@ -40,6 +44,18 @@ class DisciplinaryDiligenceWorkflowService
         return $missing;
     }
 
+    /** @return list<string> */
+    private function missingAdvanceFromComiteRequirements(DisciplinaryCase $case): array
+    {
+        $missing = [];
+
+        if ($case->comite_generated_at === null && $case->latestComiteActaDocument() === null) {
+            $missing[] = 'Acta de comité generada y guardada en el expediente';
+        }
+
+        return $missing;
+    }
+
     public function assertCanAdvanceToDecision(DisciplinaryCase $case): void
     {
         $missing = $this->missingAdvanceToDecisionRequirements($case);
@@ -50,5 +66,12 @@ class DisciplinaryDiligenceWorkflowService
         throw ValidationException::withMessages([
             'diligenceAdvance' => 'No puede avanzar a decisión. Falta: '.implode('; ', $missing).'.',
         ]);
+    }
+
+    public function advanceNoteFor(DisciplinaryCase $case): string
+    {
+        return $case->current_status === CaseStatus::COMITE_DISCIPLINARIO
+            ? 'Avance a comunicado de decisión tras acta de comité disciplinario.'
+            : 'Avance a comunicado de decisión tras la diligencia disciplinaria.';
     }
 }

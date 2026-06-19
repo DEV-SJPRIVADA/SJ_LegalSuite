@@ -203,6 +203,64 @@ class CaseDetailStageViewsTest extends TestCase
             ->assertDontSee('Etapa B · Citación a diligencia (FO-GJ-03)');
     }
 
+    public function test_comite_advance_transitions_to_decision(): void
+    {
+        $lawyer = $this->user('abogado', 'stage-comite-advance@test.local');
+        $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
+        $case->forceFill([
+            'citation_confirmed_date' => now()->subDays(5)->toDateString(),
+            'diligence_attendance' => DiligenceAttendance::ABSENT,
+            'diligence_attendance_registered_at' => now()->subDays(5),
+            'diligence_attendance_registered_by' => $lawyer->id,
+            'comite_generated_at' => now(),
+            'comite_generated_by' => $lawyer->id,
+            'comite_draft_completed_at' => now()->subHour(),
+            'comite_payload' => [
+                'decision_narrative' => 'Decisión del comité.',
+                'attendees' => [
+                    ['name' => 'Integrante Uno', 'cargo' => 'Director', 'signature_data_uri' => null],
+                ],
+            ],
+        ])->save();
+
+        DisciplinaryDocument::query()->create([
+            'disciplinary_case_id' => $case->id,
+            'uploaded_by' => $lawyer->id,
+            'document_type' => DocumentType::ACTA_COMITE,
+            'original_name' => 'Acta-comite-test.pdf',
+            'disk' => 'local',
+            'path' => 'disciplinary/test/acta-comite.pdf',
+            'mime_type' => 'application/pdf',
+            'notes' => DisciplinaryCase::NOTE_COMITE_ACTA_GENERATED,
+        ]);
+
+        Livewire::actingAs($lawyer)
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->assertSee('Siguiente etapa')
+            ->call('requestAdvanceFromDiligencia')
+            ->call('confirmAdvanceFromDiligencia')
+            ->assertHasNoErrors();
+
+        $this->assertSame(CaseStatus::DECISION, $case->fresh()->current_status);
+    }
+
+    public function test_comite_advance_blocked_without_acta(): void
+    {
+        $lawyer = $this->user('abogado', 'stage-comite-blocked@test.local');
+        $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
+        $case->forceFill([
+            'citation_confirmed_date' => now()->subDays(5)->toDateString(),
+            'diligence_attendance' => DiligenceAttendance::ABSENT,
+            'diligence_attendance_registered_at' => now()->subDays(5),
+            'diligence_attendance_registered_by' => $lawyer->id,
+        ])->save();
+
+        Livewire::actingAs($lawyer)
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('requestAdvanceFromDiligencia')
+            ->assertHasErrors('diligenceAdvance');
+    }
+
     private function user(string $role, string $email): User
     {
         $user = User::factory()->create([

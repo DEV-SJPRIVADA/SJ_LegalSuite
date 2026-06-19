@@ -758,8 +758,8 @@ class CaseDetail extends Component
     {
         Gate::authorize('transition', $this->case);
 
-        if ($this->case->current_status !== CaseStatus::DILIGENCIA) {
-            $this->addError('diligenceAdvance', 'Esta acción solo está disponible en etapa de diligencia.');
+        if (! in_array($this->case->current_status, [CaseStatus::DILIGENCIA, CaseStatus::COMITE_DISCIPLINARIO], true)) {
+            $this->addError('diligenceAdvance', 'Esta acción solo está disponible en diligencia o comité disciplinario.');
 
             return;
         }
@@ -790,11 +790,12 @@ class CaseDetail extends Component
         $this->showDiligenceAdvanceConfirm = false;
 
         try {
-            $diligence->assertCanAdvanceToDecision($this->case->fresh());
+            $freshCase = $this->case->fresh();
+            $diligence->assertCanAdvanceToDecision($freshCase);
             $this->applyCaseTransition(
                 $workflow,
                 CaseStatus::DECISION,
-                'Avance a comunicado de decisión tras la diligencia disciplinaria.',
+                $diligence->advanceNoteFor($freshCase),
             );
             session()->flash('success', 'El expediente pasó a etapa D: comunicado de decisión.');
         } catch (InvalidStateTransitionException $e) {
