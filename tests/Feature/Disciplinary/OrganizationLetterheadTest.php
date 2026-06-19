@@ -6,6 +6,7 @@ use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Settings\OrganizationLetterheadService;
+use App\Support\Disciplinary\OfficialFormsCatalog;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -113,6 +114,26 @@ class OrganizationLetterheadTest extends TestCase
             ->test(FormatsCatalog::class)
             ->assertSee('Membrete · Acta de comité disciplinario')
             ->assertSee('Cargar imagen membrete');
+    }
+
+    public function test_formats_catalog_lists_comite_acta_blank_pdf(): void
+    {
+        $this->assertTrue(OfficialFormsCatalog::hasBlankPdf('ACTA-COMITE'));
+
+        $admin = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+            'is_active' => true,
+        ]);
+        $admin->assignRole('admin');
+
+        Livewire::actingAs($admin)
+            ->test(FormatsCatalog::class)
+            ->assertSee('ACTA-COMITE')
+            ->assertSee('Comité disciplinario para decisión')
+            ->assertSee('Ver plantilla PDF')
+            ->call('openFormPreview', 'ACTA-COMITE')
+            ->assertSet('activeFormPreview', 'ACTA-COMITE');
     }
 
     public function test_manage_official_letterhead_policy(): void

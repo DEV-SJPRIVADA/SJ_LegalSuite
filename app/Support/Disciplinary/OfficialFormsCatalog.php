@@ -53,9 +53,9 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-54-reprogramacion.pdf'),
             ],
             [
-                'code' => null,
+                'code' => 'ACTA-COMITE',
                 'title' => 'Comité disciplinario para decisión',
-                'phase' => 'B · Sin justificación (u otro ingreso a comité)',
+                'phase' => 'C · Comité disciplinario',
                 'summary' => 'Cuando no justifica en el plazo o la justificación no procede, el caso puede llevarse al comité disciplinario para decisión.',
                 'pdf' => null,
             ],
@@ -140,6 +140,11 @@ final class OfficialFormsCatalog
                 'inline' => 'FO-GJ-04-acta-en-blanco.pdf',
                 'download' => 'FO-GJ-04-acta-en-blanco.pdf',
             ],
+            'ACTA-COMITE' => [
+                'view' => 'disciplinary.forms.comite-acta-blank-download',
+                'inline' => 'ACTA-COMITE-en-blanco.pdf',
+                'download' => 'ACTA-COMITE-en-blanco.pdf',
+            ],
         ];
     }
 
@@ -199,6 +204,17 @@ final class OfficialFormsCatalog
         if (strtoupper($normalizedCode) === 'FO-GJ-04') {
             $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-04-body.blade.php');
             $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'ACTA-COMITE') {
+            foreach ([
+                'partials/comite-acta-body.blade.php',
+                'partials/comite-acta-pdf-document.blade.php',
+                'partials/comite-acta-pdf-styles.blade.php',
+            ] as $relativePath) {
+                $bodyPath = resource_path('views/disciplinary/forms/'.$relativePath);
+                $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+            }
         }
 
         return $mtime;
