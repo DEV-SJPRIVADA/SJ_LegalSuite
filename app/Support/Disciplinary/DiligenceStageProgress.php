@@ -31,6 +31,8 @@ final class DiligenceStageProgress
                 || $case->latestConstanciaInasistenciaDocument() !== null;
             $justificationDone = $case->current_status !== CaseStatus::DILIGENCIA
                 && $case->current_status !== CaseStatus::JUSTIFICACION_PENDIENTE;
+            $comiteDone = $case->comite_generated_at !== null
+                || $case->latestComiteActaDocument() !== null;
 
             $defs = [
                 [
@@ -58,6 +60,15 @@ final class DiligenceStageProgress
                     'hint' => 'Ventana de 2 días calendario: aceptar justificación y reprogramar, o remitir a comité.',
                 ],
             ];
+
+            if ($case->current_status === CaseStatus::COMITE_DISCIPLINARIO) {
+                $defs[] = [
+                    'key' => 'comite',
+                    'label' => 'Acta de comité',
+                    'done' => $comiteDone,
+                    'hint' => 'Diligencie el acta del comité disciplinario e incorpórela al expediente.',
+                ];
+            }
         } else {
             $actaUploaded = $case->fo_gj_04_generated_at !== null
                 || $case->latestActaDiligenciaDocument() !== null;
@@ -141,8 +152,14 @@ final class DiligenceStageProgress
         return $index === false ? 1 : (int) $index + 1;
     }
 
-    public function totalSteps(): int
+    public function totalSteps(?DisciplinaryCase $case = null): int
     {
+        if ($case !== null
+            && $case->diligence_attendance === DiligenceAttendance::ABSENT
+            && $case->current_status === CaseStatus::COMITE_DISCIPLINARIO) {
+            return 5;
+        }
+
         return 4;
     }
 
@@ -154,6 +171,7 @@ final class DiligenceStageProgress
             'acta' => 'Acta de diligencia (FO-GJ-04)',
             'constancia' => 'Constancia de inasistencia (FO-GJ-44)',
             'justification' => 'Justificación de inasistencia',
+            'comite' => 'Acta de comité disciplinario',
             'decision' => 'Avance a decisión',
             default => 'Diligencia disciplinaria',
         };

@@ -10,6 +10,7 @@ enum DocumentType: string
     case JUSTIFICACION = 'justificacion';
     case ACTA_DILIGENCIA = 'acta_diligencia';
     case CONSTANCIA_INASISTENCIA = 'constancia_inasistencia';
+    case ACTA_COMITE = 'acta_comite';
     case DECISION = 'decision';
     case APELACION = 'apelacion';
     case SEGUNDA_INSTANCIA = 'segunda_instancia';
@@ -25,6 +26,7 @@ enum DocumentType: string
             self::JUSTIFICACION => 'Justificación de inasistencia',
             self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-04)',
             self::CONSTANCIA_INASISTENCIA => 'Constancia de inasistencia a diligencia (FO-GJ-44)',
+            self::ACTA_COMITE => 'Acta de comité disciplinario',
             self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
             self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
             self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',

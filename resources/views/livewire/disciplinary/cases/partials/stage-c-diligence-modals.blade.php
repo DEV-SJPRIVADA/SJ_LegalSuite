@@ -263,3 +263,81 @@
         </div>
     </div>
 @endif
+
+@if ($showComiteDraftModal ?? false)
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="comite-draft-modal">
+        <div class="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10">
+            <div class="border-b px-4 py-4 dark:border-white/10">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Diligenciar acta de comité</h2>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                    La fecha del comité se registrará automáticamente al generar el PDF.
+                </p>
+            </div>
+            <div class="overflow-y-auto px-4 py-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Decisión / acuerdo del comité <span class="text-red-600">*</span></label>
+                    <textarea wire:model="comiteDecisionNarrative" rows="5"
+                        class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
+                        placeholder="Describa la decisión o acuerdo del comité disciplinario"></textarea>
+                    @error('comiteDecisionNarrative')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Integrantes del comité</p>
+                        <button type="button" wire:click="addComiteAttendee"
+                            class="rounded-md px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:text-teal-200 dark:ring-teal-400/40">
+                            + Agregar integrante
+                        </button>
+                    </div>
+                    @foreach ($comiteAttendees as $index => $attendee)
+                        <div class="rounded-lg border p-3 dark:border-white/10" wire:key="comite-attendee-{{ $index }}">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Integrante {{ $index + 1 }}</p>
+                                @if (count($comiteAttendees) > 1)
+                                    <button type="button" wire:click="removeComiteAttendee({{ $index }})"
+                                        class="text-xs font-semibold text-red-600 hover:text-red-700">Quitar</button>
+                                @endif
+                            </div>
+                            <input type="text" wire:model="comiteAttendees.{{ $index }}.name" placeholder="Nombre"
+                                class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <input type="text" wire:model="comiteAttendees.{{ $index }}.cargo" placeholder="Cargo"
+                                class="mt-2 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <button type="button" wire:click="openComiteAttendeeSignaturePad({{ $index }})"
+                                class="mt-2 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                                {{ ! empty($attendee['signature_data_uri']) ? 'Editar firma' : 'Capturar firma' }}
+                            </button>
+                        </div>
+                    @endforeach
+                    @error('comiteAttendees')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 border-t px-4 py-4 dark:border-white/10">
+                <button type="button" wire:click="closeComiteDraftModal" class="px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 rounded-md">Cancelar</button>
+                <button type="button" wire:click="saveComiteDraft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showComitePdfPreviewModal ?? false)
+    <div class="fixed inset-0 z-[86] flex items-center justify-center p-3 sm:p-4" wire:key="comite-pdf-preview">
+        <div class="absolute inset-0 bg-black/50" wire:click="closeComitePdfPreview"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-dash-ink">
+            <div class="flex justify-between border-b px-4 py-3"><h2 class="font-bold">Acta de comité</h2><button type="button" wire:click="closeComitePdfPreview">✕</button></div>
+            <iframe class="min-h-0 flex-1" src="{{ route('disciplinary.cases.comite-acta.pdf', ['case' => $case, 'inline' => 1]) }}"></iframe>
+        </div>
+    </div>
+@endif
+
+@if ($comiteSignatureAttendeeIndex !== null)
+    <x-disciplinary.signature-capture-modal
+        wire:key="comite-signature-pad-{{ $comiteSignatureAttendeeIndex }}"
+        :show="true"
+        title="Firma del integrante"
+        :initial-data-uri="$comiteSignaturePendingDataUri"
+        close-action="closeComiteAttendeeSignaturePad"
+        save-action="saveComiteAttendeeSignature"
+        variant="teal"
+    />
+@endif

@@ -16,18 +16,17 @@ use App\Models\Disciplinary\DisciplinaryStage;
 use App\Models\OrganizationalArea;
 use App\Models\User;
 use App\Services\Disciplinary\CitationNotificationSigningService;
+use App\Services\Disciplinary\ComiteActaService;
+use App\Services\Disciplinary\ComiteDraftService;
 use App\Services\Disciplinary\DiligenceAttendanceService;
-use App\Services\Disciplinary\DisciplinaryDiligenceWorkflowService;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryAuditService;
 use App\Services\Disciplinary\DisciplinaryCaseService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
+use App\Services\Disciplinary\DisciplinaryDiligenceWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
-use App\Support\Disciplinary\CitationStageProgress;
-use App\Support\Disciplinary\CaseOverviewStageStack;
-use App\Support\Disciplinary\DiligenceStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Services\Disciplinary\FoGj03DraftService;
 use App\Services\Disciplinary\FoGj04DiligenceActaService;
@@ -36,6 +35,9 @@ use App\Services\Disciplinary\FoGj44ConstanciaService;
 use App\Services\Disciplinary\FoGj44DraftService;
 use App\Services\Disciplinary\FoGj54DraftService;
 use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Support\Disciplinary\CaseOverviewStageStack;
+use App\Support\Disciplinary\CitationStageProgress;
+use App\Support\Disciplinary\DiligenceStageProgress;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -217,6 +219,19 @@ class CaseDetail extends Component
     public bool $showJustificationRejectConfirm = false;
 
     public string $justificationRejectNote = '';
+
+    public bool $showComiteDraftModal = false;
+
+    public string $comiteDecisionNarrative = '';
+
+    /** @var array<int, array{name: string, cargo: string, signature_data_uri: ?string}> */
+    public array $comiteAttendees = [];
+
+    public bool $showComitePdfPreviewModal = false;
+
+    public ?int $comiteSignatureAttendeeIndex = null;
+
+    public ?string $comiteSignaturePendingDataUri = null;
 
     public ?int $documentPreviewId = null;
 
@@ -567,7 +582,7 @@ class CaseDetail extends Component
         }
 
         $upload = $files[$index];
-        if ($upload instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+        if ($upload instanceof TemporaryUploadedFile) {
             $upload->delete();
         }
 
@@ -1356,6 +1371,131 @@ class CaseDetail extends Component
         }
     }
 
+    public function openComiteDraftModal(ComiteDraftService $drafts): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->comiteDecisionNarrative = (string) ($defaults['decision_narrative'] ?? '');
+        $this->comiteAttendees = is_array($defaults['attendees'] ?? null) ? $defaults['attendees'] : [];
+        $this->resetErrorBag(['comiteDecisionNarrative', 'comiteAttendees']);
+        $this->showComiteDraftModal = true;
+    }
+
+    public function closeComiteDraftModal(): void
+    {
+        $this->showComiteDraftModal = false;
+    }
+
+    public function saveComiteDraft(ComiteDraftService $drafts): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'decision_narrative' => $this->comiteDecisionNarrative,
+                'attendees' => $this->comiteAttendees,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showComiteDraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Acta de comité diligenciada. Ya puede previsualizar o generar el PDF.');
+    }
+
+    public function addComiteAttendee(): void
+    {
+        $this->comiteAttendees[] = ['name' => '', 'cargo' => '', 'signature_data_uri' => null];
+    }
+
+    public function removeComiteAttendee(int $index): void
+    {
+        if (! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        unset($this->comiteAttendees[$index]);
+        $this->comiteAttendees = array_values($this->comiteAttendees);
+    }
+
+    public function openComiteAttendeeSignaturePad(int $index): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        if (! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        $this->comiteSignatureAttendeeIndex = $index;
+        $this->comiteSignaturePendingDataUri = $this->comiteAttendees[$index]['signature_data_uri'] ?? null;
+    }
+
+    public function closeComiteAttendeeSignaturePad(): void
+    {
+        $this->comiteSignatureAttendeeIndex = null;
+        $this->comiteSignaturePendingDataUri = null;
+    }
+
+    public function saveComiteAttendeeSignature(string $dataUri, CitationNotificationSigningService $signing): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        $index = $this->comiteSignatureAttendeeIndex;
+        if ($index === null || ! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        try {
+            $valid = $signing->assertValidWorkerSignatureDataUri($dataUri);
+            $this->comiteAttendees[$index]['signature_data_uri'] = $valid;
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Firma no válida.');
+            }
+
+            return;
+        }
+
+        $this->closeComiteAttendeeSignaturePad();
+    }
+
+    public function generateComiteActa(ComiteActaService $comite): void
+    {
+        Gate::authorize('generateComite', $this->case);
+
+        try {
+            $this->case = $comite->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        } catch (\Throwable $e) {
+            $this->addError('comiteDecisionNarrative', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Acta de comité generada y guardada en el expediente.');
+    }
+
+    public function openComitePdfPreview(): void
+    {
+        Gate::authorize('previewComite', $this->case);
+        $this->resetErrorBag('comiteDecisionNarrative');
+        $this->showComitePdfPreviewModal = true;
+    }
+
+    public function closeComitePdfPreview(): void
+    {
+        $this->showComitePdfPreviewModal = false;
+    }
+
     public function openDocumentPreview(int $documentId): void
     {
         Gate::authorize('view', $this->case);
@@ -1508,7 +1648,7 @@ class CaseDetail extends Component
             'diligenceStageSteps' => $showsDiligenceStagePanel ? $diligenceStageProgress->steps($this->case) : collect(),
             'diligenceCurrentStep' => $showsDiligenceStagePanel ? $diligenceStageProgress->currentStep($this->case) : null,
             'diligenceCurrentStepNumber' => $showsDiligenceStagePanel ? $diligenceStageProgress->currentStepNumber($this->case) : null,
-            'diligenceTotalSteps' => $diligenceStageProgress->totalSteps(),
+            'diligenceTotalSteps' => $diligenceStageProgress->totalSteps($this->case),
             'diligenceAdvanceTargetLabel' => StageType::DECISION->label(),
             'diligenceSlotDisplay' => $this->resolveDiligenceSlotDisplay(),
             'notificationSlotDisplay' => $this->resolveNotificationSlotDisplay(),

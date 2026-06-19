@@ -11,12 +11,12 @@ use Spatie\Browsershot\Browsershot;
  */
 final class HtmlLetterPdfGenerator
 {
-    public static function fromView(string $view, array $data = []): string
+    public static function fromView(string $view, array $data = [], bool $zeroPageMargins = false): string
     {
-        return self::fromHtml(View::make($view, $data)->render());
+        return self::fromHtml(View::make($view, $data)->render(), $zeroPageMargins);
     }
 
-    public static function fromHtml(string $html): string
+    public static function fromHtml(string $html, bool $zeroPageMargins = false): string
     {
         $shot = Browsershot::html($html)
             ->format('Letter')
@@ -28,6 +28,10 @@ final class HtmlLetterPdfGenerator
                 (int) config('services.pdf.viewport_width', 1280),
                 (int) config('services.pdf.viewport_height', 1650),
             );
+
+        if ($zeroPageMargins) {
+            $shot->margins(0, 0, 0, 0, 'in');
+        }
 
         $chromePath = BrowsershotBinaryResolver::chromeBinary();
         if ($chromePath !== null) {

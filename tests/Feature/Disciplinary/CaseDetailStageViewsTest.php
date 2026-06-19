@@ -3,7 +3,9 @@
 namespace Tests\Feature\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
+use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryDocument;
@@ -31,7 +33,7 @@ class CaseDetailStageViewsTest extends TestCase
         $case = $this->caseInStatus($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
         Livewire::actingAs($lawyer)
-            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
+            ->test(CaseDetail::class, ['case' => $case])
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
             ->assertDontSee('Completada · Solo lectura')
             ->assertDontSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)');
@@ -73,7 +75,7 @@ class CaseDetailStageViewsTest extends TestCase
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
             'citation_confirmed_time' => '10:00:00',
-            'diligence_attendance' => \App\Enums\Disciplinary\DiligenceAttendance::ATTENDED,
+            'diligence_attendance' => DiligenceAttendance::ATTENDED,
             'diligence_attendance_registered_at' => now(),
             'diligence_attendance_registered_by' => $lawyer->id,
             'fo_gj_03_generated_at' => now(),
@@ -96,7 +98,7 @@ class CaseDetailStageViewsTest extends TestCase
         $case->agendaThread?->update(['coordination_status' => 'closed']);
 
         Livewire::actingAs($lawyer)
-            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
+            ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->assertSee('Completada · Solo lectura')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
             ->assertSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)')
@@ -109,7 +111,7 @@ class CaseDetailStageViewsTest extends TestCase
             ->assertDontSee('Citación firmada o acta de rechazo con testigos');
 
         $html = Livewire::actingAs($lawyer)
-            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
+            ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->html();
 
         $posC = strpos($html, 'Etapa C · Diligencia disciplinaria (FO-GJ-04)');
@@ -130,7 +132,7 @@ class CaseDetailStageViewsTest extends TestCase
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
             'coordination_started_at' => now(),
-            'diligence_attendance' => \App\Enums\Disciplinary\DiligenceAttendance::ATTENDED,
+            'diligence_attendance' => DiligenceAttendance::ATTENDED,
             'diligence_attendance_registered_at' => now(),
             'diligence_attendance_registered_by' => $lawyer->id,
             'fo_gj_04_generated_at' => now(),
@@ -139,7 +141,7 @@ class CaseDetailStageViewsTest extends TestCase
         ])->save();
 
         Livewire::actingAs($lawyer)
-            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh()])
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
             ->call('requestAdvanceFromDiligencia')
             ->call('confirmAdvanceFromDiligencia')
             ->assertHasNoErrors();
@@ -157,9 +159,48 @@ class CaseDetailStageViewsTest extends TestCase
         ])->save();
 
         Livewire::actingAs($lawyer)
-            ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh()])
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
             ->call('requestAdvanceFromDiligencia')
             ->assertHasErrors('diligenceAdvance');
+    }
+
+    public function test_comite_stage_shows_diligenciar_buttons_not_only_fo_gj_44(): void
+    {
+        $lawyer = $this->user('abogado', 'stage-comite@test.local');
+        $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
+        $case->forceFill([
+            'citation_confirmed_date' => now()->subDays(5)->toDateString(),
+            'coordination_started_at' => now()->subDays(10),
+            'diligence_attendance' => DiligenceAttendance::ABSENT,
+            'diligence_attendance_registered_at' => now()->subDays(5),
+            'diligence_attendance_registered_by' => $lawyer->id,
+            'fo_gj_03_generated_at' => now()->subDays(8),
+            'fo_gj_03_generated_by' => $lawyer->id,
+            'fo_gj_44_generated_at' => now()->subDays(4),
+            'fo_gj_44_generated_by' => $lawyer->id,
+            'fo_gj_44_draft_completed_at' => now()->subDays(4),
+            'fo_gj_44_payload' => [
+                'sign_time' => '10:00 AM',
+                'sign_day' => '15',
+                'sign_month' => 'junio',
+                'sign_year_suffix' => '6',
+                'witness1_name' => 'Testigo Uno',
+                'witness1_cargo' => 'Supervisor',
+                'witness1_date' => '15/06/2026',
+                'witness2_name' => 'Testigo Dos',
+                'witness2_cargo' => 'Operador',
+                'witness2_date' => '15/06/2026',
+            ],
+        ])->save();
+
+        $stack = app(CaseOverviewStageStack::class);
+        $this->assertSame(['c', 'a'], $stack->stagesForCase($case->fresh()));
+
+        Livewire::actingAs($lawyer)
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->assertSee('Etapa C · Comité disciplinario')
+            ->assertSee('Diligenciar comité')
+            ->assertDontSee('Etapa B · Citación a diligencia (FO-GJ-03)');
     }
 
     private function user(string $role, string $email): User

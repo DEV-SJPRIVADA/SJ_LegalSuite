@@ -11,7 +11,83 @@
     </div>
 
     <div class="py-6 sm:py-8">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            @if (session('success'))
+                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-100">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
+                <div class="border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Membrete · Acta de comité disciplinario</h2>
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Imagen PNG o JPEG tamaño carta (recomendado 8.5×11″, 2550×3300 px a 300 dpi). Se usa como fondo del PDF del acta de comité.
+                    </p>
+                </div>
+                <div class="px-4 py-4 sm:px-6 sm:py-5">
+                    @if ($letterheadConfigured)
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+                            <div class="shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.03]">
+                                <img src="{{ route('disciplinary.formats.letterhead') }}?v={{ md5((string) ($letterheadUploadedAt ?? '1')) }}"
+                                    alt="Vista previa membrete"
+                                    class="max-h-48 w-auto max-w-full object-contain">
+                            </div>
+                            <div class="min-w-0 flex-1 text-sm text-slate-700 dark:text-slate-300">
+                                <p><span class="font-semibold text-slate-900 dark:text-white">Estado:</span> Membrete cargado</p>
+                                @if ($letterheadOriginalName)
+                                    <p class="mt-1"><span class="font-semibold">Archivo:</span> {{ $letterheadOriginalName }}</p>
+                                @endif
+                                @if ($letterheadUploadedAt)
+                                    <p class="mt-1"><span class="font-semibold">Actualizado:</span> {{ $letterheadUploadedAt }} (Colombia)</p>
+                                @endif
+                                @if ($canManageLetterhead)
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <label class="inline-flex cursor-pointer items-center rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white/10 dark:ring-1 dark:ring-white/15 dark:hover:bg-white/15">
+                                            Reemplazar imagen
+                                            <input type="file" wire:model="letterheadFile" accept="image/png,image/jpeg" class="sr-only">
+                                        </label>
+                                        <button type="button" wire:click="removeLetterhead" wire:confirm="¿Eliminar el membrete cargado?"
+                                            class="inline-flex items-center rounded-md px-3 py-2 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50 dark:text-red-300 dark:ring-red-500/40 dark:hover:bg-red-950/30">
+                                            Eliminar membrete
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        <p class="text-sm text-slate-600 dark:text-slate-400">
+                            Sin membrete personalizado: el acta de comité usará el encabezado estándar FO-GJ (logo SJ).
+                        </p>
+                        @if ($canManageLetterhead)
+                            <div class="mt-4 flex flex-wrap items-center gap-3">
+                                <label class="inline-flex cursor-pointer items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-teal-700 dark:hover:bg-teal-600">
+                                    Cargar imagen membrete
+                                    <input type="file" wire:model="letterheadFile" accept="image/png,image/jpeg" class="sr-only">
+                                </label>
+                                <div wire:loading wire:target="letterheadFile" class="text-xs text-slate-500 dark:text-slate-400">Subiendo…</div>
+                            </div>
+                        @else
+                            <p class="mt-2 text-xs text-slate-500 dark:text-slate-500">Solo administradores o quienes pueden asignar expedientes pueden cargar el membrete.</p>
+                        @endif
+                    @endif
+
+                    @error('letterheadFile')
+                        <p class="mt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+
+                    @if ($canManageLetterhead && $letterheadFile)
+                        <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-white/10">
+                            <span class="text-sm text-slate-600 dark:text-slate-400">Archivo seleccionado: {{ $letterheadFile->getClientOriginalName() }}</span>
+                            <button type="button" wire:click="uploadLetterhead"
+                                class="inline-flex items-center rounded-md bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700">
+                                Confirmar carga
+                            </button>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-white/10">

@@ -33,9 +33,16 @@
     $canPreviewFoGj54 = auth()->user()->can('previewFoGj54', $case);
     $canGenerateFoGj54 = auth()->user()->can('generateFoGj54', $case);
     $foGj54DraftCompleted = $case->fo_gj_54_draft_completed_at !== null;
+    $canEditComiteDraft = auth()->user()->can('editComiteDraft', $case);
+    $canPreviewComite = auth()->user()->can('previewComite', $case);
+    $canGenerateComite = auth()->user()->can('generateComite', $case);
+    $comiteDraftCompleted = $case->comite_draft_completed_at !== null;
+    $comiteDoc = $case->latestComiteActaDocument();
     $justificationStage = $case->activeJustificationStage();
     $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) auth()->id();
+    $isComitePanel = $case->current_status === CaseStatus::COMITE_DISCIPLINARIO;
     $panelTitle = match (true) {
+        $isComitePanel => 'Etapa C · Comité disciplinario',
         $case->current_status === CaseStatus::JUSTIFICACION_PENDIENTE => 'Etapa C · Justificación de inasistencia',
         default => 'Etapa C · Diligencia disciplinaria (FO-GJ-04)',
     };
@@ -196,6 +203,31 @@
                         class="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
                         Rechazar / Comité
                     </button>
+                @elseif ($isComitePanel && $isAssignedLawyer)
+                    @if ($canEditComiteDraft)
+                        <button type="button" wire:click="openComiteDraftModal"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            {{ $comiteDraftCompleted ? 'Editar acta de comité' : 'Diligenciar comité' }}
+                        </button>
+                    @endif
+                    @if ($canPreviewComite)
+                        <button type="button" wire:click="openComitePdfPreview"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            Vista previa PDF
+                        </button>
+                    @endif
+                    @if ($canGenerateComite)
+                        <button type="button" wire:click="generateComiteActa"
+                            class="inline-flex items-center rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+                            Generar y guardar
+                        </button>
+                    @endif
+                    @if ($case->fo_gj_44_generated_at && auth()->user()->can('previewFoGj44', $case))
+                        <button type="button" wire:click="openFoGj44PdfPreview"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            Consultar FO-GJ-44 (PDF)
+                        </button>
+                    @endif
                 @endif
             </div>
         </div>
@@ -216,6 +248,12 @@
             <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @enderror
         @error('justification')
+            <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+        @enderror
+        @error('comiteDecisionNarrative')
+            <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+        @enderror
+        @error('comiteAttendees')
             <p class="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
         @enderror
 
@@ -277,6 +315,31 @@
                     <p class="mt-1 text-amber-900/90 dark:text-amber-100/85">
                         Si la justificación es aceptada, diligencie el FO-GJ-54 y reprograme la diligencia.
                         Si no hay justificación o es rechazada, remita el caso a <strong>comité disciplinario</strong>.
+                    </p>
+                </div>
+            @endif
+
+            @if ($isComitePanel && $currentStepKey === 'comite')
+                <div class="rounded-lg border border-teal-200 bg-teal-50/70 px-4 py-3 text-sm dark:border-teal-500/30 dark:bg-teal-950/30">
+                    <p class="font-semibold text-teal-950 dark:text-teal-100">Comité disciplinario</p>
+                    <p class="mt-1 text-teal-900/90 dark:text-teal-100/85">
+                        Diligencie el acta del comité, previsualice el PDF y genérelo para incorporarlo al expediente.
+                    </p>
+                </div>
+            @endif
+
+            @if ($comiteDoc)
+                <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Acta de comité</p>
+                    <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        Documento en expediente:
+                        <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $comiteDoc, 'download' => 1]) }}"
+                            class="font-semibold text-teal-700 underline dark:text-teal-300" target="_blank" rel="noopener">
+                            {{ $comiteDoc->original_name }}
+                        </a>
+                        @if ($case->comite_generated_at)
+                            <span class="text-slate-500 dark:text-slate-400"> · generado {{ $case->comite_generated_at->timezone('America/Bogota')->format('d/m/Y H:i') }}</span>
+                        @endif
                     </p>
                 </div>
             @endif

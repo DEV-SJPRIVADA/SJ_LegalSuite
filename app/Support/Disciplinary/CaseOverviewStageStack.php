@@ -20,8 +20,9 @@ final class CaseOverviewStageStack
             $stack[] = 'c';
         }
 
-        if ($case->current_status === CaseStatus::CITACION_PROGRAMADA
-            || $case->showsCitationStageReadOnly()) {
+        if ($case->current_status !== CaseStatus::COMITE_DISCIPLINARIO
+            && ($case->current_status === CaseStatus::CITACION_PROGRAMADA
+                || $case->showsCitationStageReadOnly())) {
             $stack[] = 'b';
         }
 

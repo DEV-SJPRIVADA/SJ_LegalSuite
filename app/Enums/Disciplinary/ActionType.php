@@ -43,6 +43,7 @@ enum ActionType: string
     case JUSTIFICACION_RECHAZADA = 'justificacion_rechazada';
     case REPROGRAMADO = 'reprogramado';
     case COMITE_REMITIDO = 'comite_remitido';
+    case COMITE_ACTA_GENERADO = 'comite_acta_generado';
     case DECISION_TOMADA = 'decision_tomada';
     case APELACION_INTERPUESTA = 'apelacion_interpuesta';
     case SEGUNDA_INSTANCIA_RESUELTA = 'segunda_instancia_resuelta';

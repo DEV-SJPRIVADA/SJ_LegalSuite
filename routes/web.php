@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
+use App\Http\Controllers\Disciplinary\ComiteActaCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentDownloadController;
@@ -9,14 +9,16 @@ use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
 use App\Http\Controllers\Disciplinary\DisciplinaryGeoJsonController;
+use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
 use App\Http\Controllers\Disciplinary\FoGj03CaseController;
 use App\Http\Controllers\Disciplinary\FoGj04CaseController;
 use App\Http\Controllers\Disciplinary\FoGj44CaseController;
-use App\Http\Controllers\Disciplinary\FoGj54CaseController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
+use App\Http\Controllers\Disciplinary\FoGj54CaseController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
+use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
@@ -71,6 +73,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::get('formats/preview/{code}', OfficialFormPreviewController::class)
             ->where('code', '[A-Za-z0-9\-]+')
             ->name('formats.preview');
+        Route::get('formats/membrete', [OrganizationLetterheadController::class, 'show'])
+            ->name('formats.letterhead');
 
         Route::get('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'show'])
             ->name('forms.informe-fo-gj-51');
@@ -107,6 +111,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.fo-gj-44.pdf');
         Route::get('cases/{case}/fo-gj-54/pdf', [FoGj54CaseController::class, 'download'])
             ->name('cases.fo-gj-54.pdf');
+        Route::get('cases/{case}/comite-acta/pdf', [ComiteActaCaseController::class, 'download'])
+            ->name('cases.comite-acta.pdf');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
 

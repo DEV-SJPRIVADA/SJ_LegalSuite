@@ -6,7 +6,17 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Services\Disciplinary\ComiteActaService;
+use App\Services\Disciplinary\ComiteDraftService;
+use App\Services\Disciplinary\DiligenceAttendanceService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
+use App\Services\Disciplinary\FoGj03DraftService;
+use App\Services\Disciplinary\FoGj04DiligenceActaService;
+use App\Services\Disciplinary\FoGj04DraftService;
+use App\Services\Disciplinary\FoGj44ConstanciaService;
+use App\Services\Disciplinary\FoGj44DraftService;
+use App\Services\Disciplinary\FoGj54DraftService;
+use App\Services\Disciplinary\FoGj54ReprogramacionService;
 
 /**
  * Autorización del módulo disciplinario:
@@ -238,7 +248,7 @@ class DisciplinaryCasePolicy
         $notification = app(DisciplinaryCitationNotificationService::class);
 
         return $notification->hasNotificationInformationCompleted($case)
-            && app(\App\Services\Disciplinary\FoGj03DraftService::class)->isReadyForPdf($case);
+            && app(FoGj03DraftService::class)->isReadyForPdf($case);
     }
 
     public function generateFoGj03(User $user, DisciplinaryCase $case): bool
@@ -307,7 +317,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\DiligenceAttendanceService::class)->canRegister($case);
+        return app(DiligenceAttendanceService::class)->canRegister($case);
     }
 
     public function editFoGj44Draft(User $user, DisciplinaryCase $case): bool
@@ -341,7 +351,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj44DraftService::class)->isReadyForPdf($case);
+        return app(FoGj44DraftService::class)->isReadyForPdf($case);
     }
 
     public function generateFoGj44(User $user, DisciplinaryCase $case): bool
@@ -350,7 +360,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj44ConstanciaService::class)->canGenerate($case);
+        return app(FoGj44ConstanciaService::class)->canGenerate($case);
     }
 
     public function editFoGj54Draft(User $user, DisciplinaryCase $case): bool
@@ -384,7 +394,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj54DraftService::class)->isReadyForPdf($case);
+        return app(FoGj54DraftService::class)->isReadyForPdf($case);
     }
 
     public function generateFoGj54(User $user, DisciplinaryCase $case): bool
@@ -393,7 +403,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj54ReprogramacionService::class)->canGenerate($case);
+        return app(FoGj54ReprogramacionService::class)->canGenerate($case);
     }
 
     public function manageDiligenceJustification(User $user, DisciplinaryCase $case): bool
@@ -409,6 +419,45 @@ class DisciplinaryCasePolicy
         return $case->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
             && $case->diligence_attendance === DiligenceAttendance::ABSENT
             && $case->fo_gj_44_generated_at !== null;
+    }
+
+    public function editComiteDraft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::COMITE_DISCIPLINARIO) {
+            return false;
+        }
+
+        return $case->comite_generated_at === null;
+    }
+
+    public function previewComite(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(ComiteDraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateComite(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewComite($user, $case)) {
+            return false;
+        }
+
+        return app(ComiteActaService::class)->canGenerate($case);
     }
 
     public function captureFoGj04WorkerSignature(User $user, DisciplinaryCase $case): bool
@@ -442,7 +491,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj04DraftService::class)->isReadyForPdf($case);
+        return app(FoGj04DraftService::class)->isReadyForPdf($case);
     }
 
     public function generateFoGj04(User $user, DisciplinaryCase $case): bool
@@ -451,7 +500,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return app(\App\Services\Disciplinary\FoGj04DiligenceActaService::class)->canGenerate($case);
+        return app(FoGj04DiligenceActaService::class)->canGenerate($case);
     }
 
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool
@@ -650,5 +699,16 @@ class DisciplinaryCasePolicy
         }
 
         return $this->viewAny($user);
+    }
+
+    /** Membrete institucional del acta de comité (PNG/JPEG en Formatos). */
+    public function manageOfficialLetterhead(User $user): bool
+    {
+        if ($user->read_only ?? false) {
+            return false;
+        }
+
+        return $user->hasRole('admin')
+            || $user->hasPermissionTo('disciplinary.assign');
     }
 }

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 /**
  * Caso disciplinario. Es la raíz del agregado.
@@ -85,6 +86,14 @@ class DisciplinaryCase extends Model
         'fo_gj_54_draft_completed_by',
         'fo_gj_54_generated_at',
         'fo_gj_54_generated_by',
+        'diligence_justification_received_at',
+        'diligence_justification_received_by',
+        'diligence_justification_notes',
+        'comite_payload',
+        'comite_draft_completed_at',
+        'comite_draft_completed_by',
+        'comite_generated_at',
+        'comite_generated_by',
         'citation_evidence_type',
         'citation_evidence_uploaded_at',
         'notification_requested_at',
@@ -128,6 +137,10 @@ class DisciplinaryCase extends Model
             'fo_gj_54_payload' => 'array',
             'fo_gj_54_draft_completed_at' => 'datetime',
             'fo_gj_54_generated_at' => 'datetime',
+            'diligence_justification_received_at' => 'datetime',
+            'comite_payload' => 'array',
+            'comite_draft_completed_at' => 'datetime',
+            'comite_generated_at' => 'datetime',
             'citation_evidence_uploaded_at' => 'datetime',
             'notification_requested_at' => 'datetime',
             'notification_information_completed_at' => 'datetime',
@@ -249,8 +262,17 @@ class DisciplinaryCase extends Model
     /**
      * Panel Etapa C visible: diligencia en curso o seguimiento por inasistencia (justificación).
      */
+    public function showsComiteStagePanel(): bool
+    {
+        return $this->current_status === CaseStatus::COMITE_DISCIPLINARIO;
+    }
+
     public function showsDiligenceStagePanel(): bool
     {
+        if ($this->showsComiteStagePanel()) {
+            return true;
+        }
+
         if ($this->current_status === CaseStatus::DILIGENCIA) {
             return true;
         }
@@ -264,6 +286,10 @@ class DisciplinaryCase extends Model
      */
     public function showsCitationStageReadOnly(): bool
     {
+        if ($this->showsComiteStagePanel()) {
+            return false;
+        }
+
         if (! $this->showsDiligenceStagePanel()) {
             return false;
         }
@@ -553,7 +579,7 @@ class DisciplinaryCase extends Model
     {
         try {
             return $user->hasPermissionTo('disciplinary.review-inform-all');
-        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+        } catch (PermissionDoesNotExist) {
             return false;
         }
     }
@@ -656,6 +682,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_54_GENERATED = 'FO-GJ-54 generado desde expediente';
 
+    public const NOTE_COMITE_ACTA_GENERATED = 'Acta de comité disciplinario generada desde expediente';
+
     public const NOTE_CITATION_EVIDENCE_PREFIX = 'Evidencia notificación citación';
 
     /**
@@ -698,6 +726,20 @@ class DisciplinaryCase extends Model
 
         $match = $docs->first(
             fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CONSTANCIA_INASISTENCIA
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Acta de comité disciplinario más reciente en el expediente. */
+    public function latestComiteActaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::ACTA_COMITE
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;
