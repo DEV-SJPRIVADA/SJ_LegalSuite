@@ -225,36 +225,97 @@
 
                         @if ($showDecisionPlanningModal ?? false)
                             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionPlanningModal">
-                                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
+                                <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-5 max-h-[90vh] overflow-y-auto">
                                     <h3 class="text-lg font-bold text-slate-900 dark:text-white">Programación de decisión</h3>
+
                                     @if ($decisionBranch && \App\Support\Disciplinary\DecisionBranch::requiresSuspensionDates($decisionBranch))
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label class="text-xs font-semibold">Inicio suspensión</label>
-                                                <input type="date" wire:model="decisionSuspensionStart" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        <section class="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Periodo de suspensión</h4>
+                                            <p class="text-xs text-slate-600 dark:text-slate-400">Fechas de la medida disciplinaria (comunicado de decisión).</p>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Inicio suspensión</label>
+                                                    <input type="date" wire:model="decisionSuspensionStart" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                </div>
+                                                <div>
+                                                    <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Fin suspensión</label>
+                                                    <input type="date" wire:model="decisionSuspensionEnd" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label class="text-xs font-semibold">Fin suspensión</label>
-                                                <input type="date" wire:model="decisionSuspensionEnd" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                            </div>
-                                        </div>
+                                            @error('decisionSuspensionStart')
+                                                <p class="text-xs text-red-600">{{ $message }}</p>
+                                            @enderror
+                                            @error('decisionSuspensionEnd')
+                                                <p class="text-xs text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </section>
                                     @endif
+
                                     @if ($decisionBranch === \App\Support\Disciplinary\DecisionBranch::TERMINATION)
-                                        <div>
-                                            <label class="text-xs font-semibold">Relevo</label>
-                                            <textarea wire:model="decisionReliefNotes" rows="2" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
-                                        </div>
+                                        <section class="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Relevo</h4>
+                                            <textarea wire:model="decisionReliefNotes" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Notas de relevo…"></textarea>
+                                        </section>
                                     @endif
-                                    <textarea wire:model="agendaPlanningBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Comentario opcional…"></textarea>
-                                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Turnos / fechas para notificar al trabajador</p>
-                                    @foreach ($planningSlots as $i => $slot)
-                                        <div class="grid grid-cols-3 gap-2">
-                                            <input type="date" wire:model="planningSlots.{{ $i }}.date" required class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                            <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                            <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Turno / notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+
+                                    <section class="space-y-3 rounded-lg border border-violet-200 p-4 dark:border-violet-500/30">
+                                        <div>
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Opciones para notificar al trabajador</h4>
+                                            <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">Proponga una o más ventanas operativas (fecha, hora, turno, zona y supervisor de turno).</p>
                                         </div>
-                                    @endforeach
-                                    <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-violet-700 dark:text-violet-300">+ Otra fecha</button>
+                                        @foreach ($decisionNotificationSlots as $i => $slot)
+                                            <div class="space-y-2 rounded-md bg-violet-50/50 p-3 dark:bg-violet-950/20">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Fecha</label>
+                                                        <input type="date" wire:model="decisionNotificationSlots.{{ $i }}.date" required class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                    </div>
+                                                    <div>
+                                                        <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Hora</label>
+                                                        <input type="time" wire:model="decisionNotificationSlots.{{ $i }}.time" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                    <div>
+                                                        <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Turno</label>
+                                                        <input type="text" wire:model="decisionNotificationSlots.{{ $i }}.notes" placeholder="Ej. Mañana" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                    </div>
+                                                    <div>
+                                                        <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Zona</label>
+                                                        <input type="text" wire:model="decisionNotificationSlots.{{ $i }}.zone" placeholder="Zona operativa" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                    </div>
+                                                    <div>
+                                                        <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Supervisor de turno</label>
+                                                        <select wire:model="decisionNotificationSlots.{{ $i }}.supervisor_user_id" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                                            <option value="">— Seleccione —</option>
+                                                            @foreach ($supervisorCandidates as $supervisor)
+                                                                <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                @error('decisionNotificationSlots.'.$i.'.date')
+                                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                                @enderror
+                                                @error('decisionNotificationSlots.'.$i.'.notes')
+                                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                                @enderror
+                                                @error('decisionNotificationSlots.'.$i.'.zone')
+                                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                                @enderror
+                                                @error('decisionNotificationSlots.'.$i.'.supervisor_user_id')
+                                                    <p class="text-xs text-red-600">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+                                        @endforeach
+                                        <button type="button" wire:click="addDecisionNotificationSlotRow" class="text-xs font-semibold text-violet-700 dark:text-violet-300">+ Otra opción</button>
+                                    </section>
+
+                                    <div>
+                                        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Comentario opcional</label>
+                                        <textarea wire:model="agendaPlanningBody" rows="2" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Comentario opcional…"></textarea>
+                                    </div>
+
                                     @error('decisionPlanningModal')
                                         <p class="text-xs text-red-600">{{ $message }}</p>
                                     @enderror

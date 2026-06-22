@@ -407,7 +407,7 @@ class DisciplinaryAgendaThreadService
     }
 
     /**
-     * @param  list<array{date: string, time?: string|null, notes?: string|null}>  $proposedSlots
+     * @param  list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int|null, supervisor_name?: string|null}>  $proposedSlots
      * @param  array{suspension_start?: string|null, suspension_end?: string|null, relief_notes?: string|null}  $decisionPayload
      * @param  list<UploadedFile>  $attachments
      */
@@ -433,7 +433,7 @@ class DisciplinaryAgendaThreadService
         }
 
         $body = trim($body);
-        $slots = $this->normalizeSlots($proposedSlots);
+        $slots = $this->normalizeSlots($proposedSlots, includeNotificationContext: true);
 
         if ($body === '' && $slots === [] && $attachments === []) {
             throw new \InvalidArgumentException('Escriba un mensaje, proponga fechas o adjunte archivos.');
@@ -486,8 +486,29 @@ class DisciplinaryAgendaThreadService
      * @param  list<array{date?: mixed, time?: mixed, notes?: mixed}>  $raw
      * @return list<array{date: string, time?: string|null, notes?: string|null}>
      */
-    private function normalizeSlots(array $raw): array
+    /**
+     * @param  list<array<string, mixed>>  $raw
+     * @return list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int, supervisor_name?: string|null}>
+     */
+    private function normalizeSlots(array $raw, bool $includeNotificationContext = false): array
     {
+        $supervisorNames = [];
+        if ($includeNotificationContext) {
+            $ids = collect($raw)
+                ->filter(fn ($row) => is_array($row) && filled($row['supervisor_user_id'] ?? null))
+                ->map(fn (array $row) => (int) $row['supervisor_user_id'])
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids !== []) {
+                $supervisorNames = User::query()
+                    ->whereIn('id', $ids)
+                    ->pluck('name', 'id')
+                    ->all();
+            }
+        }
+
         $out = [];
         foreach ($raw as $row) {
             if (! is_array($row)) {
@@ -497,11 +518,27 @@ class DisciplinaryAgendaThreadService
             if ($date === '') {
                 continue;
             }
-            $out[] = [
+            $slot = [
                 'date' => $date,
                 'time' => isset($row['time']) && $row['time'] !== '' ? substr((string) $row['time'], 0, 5) : null,
                 'notes' => isset($row['notes']) && $row['notes'] !== '' ? (string) $row['notes'] : null,
             ];
+
+            if ($includeNotificationContext) {
+                $zone = trim((string) ($row['zone'] ?? ''));
+                if ($zone !== '') {
+                    $slot['zone'] = $zone;
+                }
+
+                $supervisorId = $row['supervisor_user_id'] ?? null;
+                if (filled($supervisorId)) {
+                    $supervisorId = (int) $supervisorId;
+                    $slot['supervisor_user_id'] = $supervisorId;
+                    $slot['supervisor_name'] = (string) ($supervisorNames[$supervisorId] ?? '');
+                }
+            }
+
+            $out[] = $slot;
         }
 
         return $out;

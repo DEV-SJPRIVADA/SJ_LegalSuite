@@ -39,7 +39,8 @@ class DecisionStageCompletionTest extends TestCase
             ->call('openDecisionNotificationModal', $case->id)
             ->assertSet('decisionNotificationCaseId', $case->id)
             ->call('saveWorkerSignature', $signature)
-            ->call('uploadSignedDecisionNotification')
+            ->call('acceptSignedNotificationPreview')
+            ->call('confirmSignedNotificationUpload')
             ->assertHasNoErrors();
 
         $case->refresh();

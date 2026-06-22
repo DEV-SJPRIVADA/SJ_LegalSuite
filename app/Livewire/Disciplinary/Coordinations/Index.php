@@ -34,6 +34,11 @@ class Index extends Component
         ['date' => '', 'time' => '', 'notes' => ''],
     ];
 
+    /** @var array<int, array{date: string, time: string, notes: string, zone: string, supervisor_user_id: int|string|null}> */
+    public array $decisionNotificationSlots = [
+        ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+    ];
+
     /** @var array<int, mixed> */
     public array $agendaPlanningUploads = [];
 
@@ -90,12 +95,18 @@ class Index extends Component
         $this->showDecisionPlanningModal = true;
         $this->showDiligenceModal = false;
         $this->showNotificationModal = false;
+        $this->decisionNotificationSlots = [
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+        ];
     }
 
     public function closeDecisionPlanningModal(): void
     {
         $this->showDecisionPlanningModal = false;
         $this->reset('decisionSuspensionStart', 'decisionSuspensionEnd', 'decisionReliefNotes');
+        $this->decisionNotificationSlots = [
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+        ];
     }
 
     public function submitDecisionPlanningModal(DisciplinaryAgendaThreadService $agenda): void
@@ -112,13 +123,20 @@ class Index extends Component
 
         $this->validate([
             'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
-            'planningSlots' => ['required', 'array', 'min:1', 'max:5'],
-            'planningSlots.*.date' => ['required', 'date'],
-            'planningSlots.*.time' => ['nullable', 'date_format:H:i'],
-            'planningSlots.*.notes' => ['nullable', 'string', 'max:500'],
+            'decisionNotificationSlots' => ['required', 'array', 'min:1', 'max:5'],
+            'decisionNotificationSlots.*.date' => ['required', 'date'],
+            'decisionNotificationSlots.*.time' => ['nullable', 'date_format:H:i'],
+            'decisionNotificationSlots.*.notes' => ['required', 'string', 'max:80'],
+            'decisionNotificationSlots.*.zone' => ['required', 'string', 'max:120'],
+            'decisionNotificationSlots.*.supervisor_user_id' => ['required', 'integer', 'exists:users,id'],
             'decisionSuspensionStart' => ['nullable', 'date'],
             'decisionSuspensionEnd' => ['nullable', 'date', 'after_or_equal:decisionSuspensionStart'],
             'decisionReliefNotes' => ['nullable', 'string', 'max:2000'],
+        ], [], [
+            'decisionNotificationSlots.*.date' => 'fecha de notificación',
+            'decisionNotificationSlots.*.notes' => 'turno',
+            'decisionNotificationSlots.*.zone' => 'zona',
+            'decisionNotificationSlots.*.supervisor_user_id' => 'supervisor de turno',
         ]);
 
         $branch = DecisionBranch::forDecision($case->decision);
@@ -134,7 +152,7 @@ class Index extends Component
                 $case->fresh(['agendaThread']),
                 auth()->user(),
                 trim($this->agendaPlanningBody),
-                $this->planningSlots,
+                $this->decisionNotificationSlots,
                 array_filter([
                     'suspension_start' => $this->decisionSuspensionStart ?: null,
                     'suspension_end' => $this->decisionSuspensionEnd ?: null,
@@ -220,6 +238,20 @@ class Index extends Component
             return;
         }
         $this->planningSlots[] = ['date' => '', 'time' => '', 'notes' => ''];
+    }
+
+    public function addDecisionNotificationSlotRow(): void
+    {
+        if (count($this->decisionNotificationSlots) >= 5) {
+            return;
+        }
+        $this->decisionNotificationSlots[] = [
+            'date' => '',
+            'time' => '',
+            'notes' => '',
+            'zone' => '',
+            'supervisor_user_id' => null,
+        ];
     }
 
     public function removeAgendaPlanningUploadAt(int $index): void

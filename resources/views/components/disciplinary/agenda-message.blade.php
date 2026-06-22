@@ -14,6 +14,19 @@
     };
     $slots = $message->normalizedProposedSlots();
     $payload = $message->normalizedNotificationPayload();
+    $isDecisionPlanning = $kind === AgendaMessageKind::DECISION_PLANNING_RESPONSE;
+    $isNotificationCoordination = in_array($kind, [
+        AgendaMessageKind::NOTIFICATION_COORDINATION,
+        AgendaMessageKind::DECISION_NOTIFICATION_COORDINATION,
+    ], true);
+    $decisionMeasurePayload = $isDecisionPlanning ? array_filter([
+        'suspension_start' => $payload['suspension_start'] ?? null,
+        'suspension_end' => $payload['suspension_end'] ?? null,
+        'relief_notes' => $payload['relief_notes'] ?? null,
+    ]) : [];
+    $slotsHeading = $isDecisionPlanning
+        ? 'Opciones para notificar al trabajador'
+        : 'Fechas propuestas';
     $bodyForDisplay = trim((string) $message->body);
     if ($slots !== []) {
         $commentLines = collect(preg_split('/\r\n|\n/', $bodyForDisplay) ?: [])
@@ -40,7 +53,7 @@
 
     @if ($slots !== [])
         <div class="mt-3 rounded-md bg-indigo-50/80 px-3 py-2 ring-1 ring-indigo-200/80 dark:bg-indigo-950/30 dark:ring-indigo-500/30">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">Fechas propuestas</p>
+            <p class="text-[10px] font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">{{ $slotsHeading }}</p>
             <ul class="mt-2 space-y-1.5 text-sm text-indigo-900 dark:text-indigo-100">
                 @foreach ($slots as $index => $slot)
                     @php
@@ -52,6 +65,12 @@
                                 $label = \Illuminate\Support\Carbon::parse($date.' '.$time)->format('d/m/Y — h:i A');
                             } catch (\Throwable) {
                                 $label = trim($date.' '.$time);
+                            }
+                        } elseif ($date !== '') {
+                            try {
+                                $label = \Illuminate\Support\Carbon::parse($date)->format('d/m/Y');
+                            } catch (\Throwable) {
+                                $label = $date;
                             }
                         }
                         $slotKey = $message->id.'-'.$index;
@@ -65,7 +84,13 @@
                                 <span>
                                     <span class="font-semibold">{{ $label }}</span>
                                     @if (! empty($slot['notes']))
-                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">{{ $slot['notes'] }}</span>
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Turno: {{ $slot['notes'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['zone']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Zona: {{ $slot['zone'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['supervisor_name']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Supervisor: {{ $slot['supervisor_name'] }}</span>
                                     @endif
                                 </span>
                             </label>
@@ -75,7 +100,13 @@
                                 <span>
                                     <span class="font-semibold">{{ $label }}</span>
                                     @if (! empty($slot['notes']))
-                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">{{ $slot['notes'] }}</span>
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Turno: {{ $slot['notes'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['zone']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Zona: {{ $slot['zone'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['supervisor_name']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Supervisor: {{ $slot['supervisor_name'] }}</span>
                                     @endif
                                 </span>
                             </span>
@@ -86,7 +117,21 @@
         </div>
     @endif
 
-    @if ($payload !== [])
+    @if ($decisionMeasurePayload !== [])
+        <dl class="mt-3 grid gap-1 rounded-md bg-fuchsia-50/80 px-3 py-2 text-xs text-fuchsia-900 ring-1 ring-fuchsia-200/80 dark:bg-fuchsia-950/30 dark:text-fuchsia-100 dark:ring-fuchsia-500/30">
+            @if (! empty($decisionMeasurePayload['suspension_start']) || ! empty($decisionMeasurePayload['suspension_end']))
+                <div>
+                    <span class="font-semibold">Periodo de suspensión:</span>
+                    {{ $decisionMeasurePayload['suspension_start'] ?? '—' }} — {{ $decisionMeasurePayload['suspension_end'] ?? '—' }}
+                </div>
+            @endif
+            @if (! empty($decisionMeasurePayload['relief_notes']))
+                <div><span class="font-semibold">Relevo:</span> {{ $decisionMeasurePayload['relief_notes'] }}</div>
+            @endif
+        </dl>
+    @endif
+
+    @if ($isNotificationCoordination && $payload !== [])
         <dl class="mt-3 grid gap-1 rounded-md bg-violet-50/80 px-3 py-2 text-xs text-violet-900 ring-1 ring-violet-200/80 dark:bg-violet-950/30 dark:text-violet-100 dark:ring-violet-500/30">
             <div><span class="font-semibold">Fecha ingreso trabajador:</span> {{ $payload['notification_date'] ?? '—' }}</div>
             <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>

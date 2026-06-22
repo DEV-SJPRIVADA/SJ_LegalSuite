@@ -53,7 +53,7 @@
 @endif
 
 {{-- Fase B: notificación HTML + firma del trabajador o testigos --}}
-@if ($notificationCaseId !== null && $notificationCase && $notificationViewData)
+@if ($notificationCaseId !== null && $notificationCase && $notificationViewData && empty($signedNotificationPreviewToken))
     <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
         x-data="{ scale: 1 }"
         x-on:keydown.escape.window="$wire.closeNotificationModal()"
@@ -145,7 +145,7 @@
                     @if ($workerSignatureDataUri)
                         <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">✓ Firma del trabajador capturada.</p>
                     @else
-                        <p class="text-xs text-amber-700 dark:text-amber-300">Capture la firma del trabajador antes de cargar el documento.</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-300">Capture la firma del trabajador antes de continuar.</p>
                     @endif
                 @else
                     <p class="text-xs text-amber-700 dark:text-amber-300">
@@ -223,11 +223,11 @@
                             Firma trabajador
                         </button>
                     @endif
-                    <button type="button" wire:click="uploadSignedNotification" wire:loading.attr="disabled"
+                    <button type="button" wire:click="acceptSignedNotificationPreview" wire:loading.attr="disabled"
                         @disabled(! $this->notificationUploadReady())
                         class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400">
-                        <span wire:loading.remove wire:target="uploadSignedNotification">Cargar firmado</span>
-                        <span wire:loading wire:target="uploadSignedNotification">Generando PDF…</span>
+                        <span wire:loading.remove wire:target="acceptSignedNotificationPreview">Aceptar</span>
+                        <span wire:loading wire:target="acceptSignedNotificationPreview">Generando PDF…</span>
                     </button>
                 </div>
             </div>
@@ -236,7 +236,7 @@
 @endif
 
 {{-- Fase B (decisión): comunicado FO-GJ-DECISION + firma del trabajador o testigos --}}
-@if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null))
+@if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null) && empty($signedNotificationPreviewToken))
     <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
         x-data="{ scale: 1 }"
         x-on:keydown.escape.window="$wire.closeDecisionNotificationModal()"
@@ -328,7 +328,7 @@
                     @if ($workerSignatureDataUri)
                         <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">✓ Firma del trabajador capturada.</p>
                     @else
-                        <p class="text-xs text-amber-700 dark:text-amber-300">Capture la firma del trabajador antes de cargar el documento.</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-300">Capture la firma del trabajador antes de continuar.</p>
                     @endif
                 @else
                     <p class="text-xs text-amber-700 dark:text-amber-300">
@@ -406,11 +406,64 @@
                             Firma trabajador
                         </button>
                     @endif
-                    <button type="button" wire:click="uploadSignedDecisionNotification" wire:loading.attr="disabled"
+                    <button type="button" wire:click="acceptSignedNotificationPreview" wire:loading.attr="disabled"
                         @disabled(! $this->notificationUploadReady())
                         class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-violet-500 dark:hover:bg-violet-400">
-                        <span wire:loading.remove wire:target="uploadSignedDecisionNotification">Cargar firmado</span>
-                        <span wire:loading wire:target="uploadSignedDecisionNotification">Generando PDF…</span>
+                        <span wire:loading.remove wire:target="acceptSignedNotificationPreview">Aceptar</span>
+                        <span wire:loading wire:target="acceptSignedNotificationPreview">Generando PDF…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
+{{-- Fase C: vista previa del PDF firmado antes de enviar al expediente --}}
+@if (! empty($signedNotificationPreviewToken) && $signedNotificationPreviewUrl)
+    <div class="fixed inset-0 z-[82] flex items-center justify-center p-3 sm:p-4"
+        x-data
+        x-on:keydown.escape.window="$wire.cancelSignedNotificationPreview()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signed-notification-preview-title"
+        wire:key="signed-notification-preview-{{ $signedNotificationPreviewToken }}">
+        <div class="absolute inset-0 bg-black/55 dark:bg-black/65" wire:click="cancelSignedNotificationPreview" aria-hidden="true"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
+            <div class="shrink-0 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+                <h2 id="signed-notification-preview-title" class="text-base font-bold text-slate-900 dark:text-white">
+                    Documento firmado
+                </h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Descargue una copia para el trabajador y luego envíe el documento al expediente.
+                    @if (! empty($signedNotificationPreviewFilename))
+                        <span class="block font-mono text-[11px] mt-0.5">{{ $signedNotificationPreviewFilename }}</span>
+                    @endif
+                </p>
+            </div>
+
+            <div class="min-h-0 flex-1 bg-slate-100 dark:bg-black/40">
+                <iframe wire:ignore title="Vista previa notificación firmada" class="h-full min-h-[240px] w-full bg-white dark:bg-black/20"
+                    src="{{ $signedNotificationPreviewUrl }}"></iframe>
+            </div>
+
+            <div class="shrink-0 space-y-3 border-t border-slate-200 bg-slate-50 px-4 py-4 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
+                @error('signedNotification')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                @error('signedDecisionNotification')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button" wire:click="cancelSignedNotificationPreview"
+                        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        Volver
+                    </button>
+                    @if ($signedNotificationDownloadUrl)
+                        <a href="{{ $signedNotificationDownloadUrl }}"
+                            class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-white/20">
+                            Descargar
+                        </a>
+                    @endif
+                    <button type="button" wire:click="confirmSignedNotificationUpload" wire:loading.attr="disabled"
+                        class="inline-flex items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
+                        <span wire:loading.remove wire:target="confirmSignedNotificationUpload">Enviar</span>
+                        <span wire:loading wire:target="confirmSignedNotificationUpload">Enviando…</span>
                     </button>
                 </div>
             </div>

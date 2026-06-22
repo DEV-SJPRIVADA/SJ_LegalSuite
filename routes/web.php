@@ -19,7 +19,7 @@ use App\Http\Controllers\Disciplinary\FoGj54CaseController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
-use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
+use App\Http\Controllers\Disciplinary\SupervisorSignedNotificationPreviewController;
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
@@ -92,6 +92,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
         Route::get('evidences-pending', PendingEvidenceIndex::class)->name('evidences-pending.index');
+        Route::get('evidences-pending/signed-preview/{token}', SupervisorSignedNotificationPreviewController::class)
+            ->name('evidences-pending.signed-preview');
         Route::get('decision-hr-pending', PendingDecisionHrIndex::class)->name('decision-hr-pending.index');
         Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
         Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)

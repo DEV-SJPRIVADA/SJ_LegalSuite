@@ -173,12 +173,25 @@
         <tr>
             <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
             <td>
-                <p>Nombre:@if (! $blankForDownload && $evidenceType === 'refused_witnesses' && filled($workerName)) {{ e($workerName) }}@endif</p>
+                <p>Nombre:
+                    @if (! $blankForDownload && filled($workerName) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
+                        {{ e($workerName) }}
+                    @endif
+                </p>
+                @if (! $blankForDownload && $evidenceType === 'signed' && filled($workerDocument))
+                    <p>C.C. {{ e($workerDocument) }}</p>
+                @endif
             </td>
         </tr>
         <tr>
             <td><p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p></td>
-            <td><p>Cargo:@if (! $blankForDownload && $evidenceType === 'refused_witnesses' && filled($workerPosition)) {{ e($workerPosition) }}@endif</p></td>
+            <td>
+                <p>Cargo:
+                    @if (! $blankForDownload && filled($workerPosition) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
+                        {{ e($workerPosition) }}
+                    @endif
+                </p>
+            </td>
         </tr>
         <tr>
             <td><p>SJ Seguridad Privada Ltda</p></td>

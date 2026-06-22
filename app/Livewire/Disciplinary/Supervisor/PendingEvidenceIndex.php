@@ -16,9 +16,11 @@ use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Support\Disciplinary\DecisionWorkflowSchema;
+use App\Support\Disciplinary\SupervisorSignedNotificationPreviewStore;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -65,6 +67,10 @@ class PendingEvidenceIndex extends Component
     public string $signaturePadTarget = 'worker';
 
     public bool $showSignaturePadModal = false;
+
+    public ?string $signedNotificationPreviewToken = null;
+
+    public ?string $signedNotificationPreviewFilename = null;
 
     public function mount(): void
     {
@@ -264,6 +270,7 @@ class PendingEvidenceIndex extends Component
 
     public function closeDecisionNotificationModal(): void
     {
+        $this->clearSignedNotificationPreview();
         $this->decisionNotificationCaseId = null;
         $this->resetNotificationCaptureState();
     }
@@ -281,45 +288,22 @@ class PendingEvidenceIndex extends Component
 
     public function closeNotificationModal(): void
     {
+        $this->clearSignedNotificationPreview();
         $this->notificationCaseId = null;
         $this->resetNotificationCaptureState();
     }
 
-    public function uploadSignedDecisionNotification(
-        DecisionNotificationSigningService $signing,
-        DisciplinaryDocumentService $documents,
-        DisciplinaryDecisionWorkflowService $decisionWorkflow,
-        DisciplinaryAuditService $audit,
+    public function acceptSignedNotificationPreview(
+        CitationNotificationSigningService $citationSigning,
+        DecisionNotificationSigningService $decisionSigning,
+        SupervisorSignedNotificationPreviewStore $previewStore,
     ): void {
-        $caseId = $this->decisionNotificationCaseId;
-        if ($caseId === null) {
+        if (! $this->notificationUploadReady()) {
             return;
         }
 
-        $case = $this->resolveDecisionPendingCase($caseId);
-        Gate::authorize('uploadDecisionEvidence', $case);
-        Gate::authorize('viewDecisionComunicadoForSupervisor', $case);
-        $decisionWorkflow->assertDecisionEvidenceUploadAllowed($case, auth()->user());
-
         try {
-            $payload = $signing->validateNotificationPayload([
-                'evidence_type' => $this->notificationEvidenceType,
-                'worker_signature' => $this->workerSignatureDataUri,
-                'witnesses' => [
-                    [
-                        'signature' => $this->witness1SignatureDataUri,
-                        'name' => $this->witness1Name,
-                        'document' => $this->witness1Document,
-                    ],
-                    [
-                        'signature' => $this->witness2SignatureDataUri,
-                        'name' => $this->witness2Name,
-                        'document' => $this->witness2Document,
-                    ],
-                ],
-            ]);
-            $binary = $signing->renderNotificationPdf($case, $payload);
-            $type = CitationEvidenceType::from($payload['evidence_type']);
+            $package = $this->buildSignedNotificationPackage($citationSigning, $decisionSigning);
         } catch (ValidationException $e) {
             foreach ($e->errors() as $field => $messages) {
                 $this->addError($field, $messages[0] ?? 'No se pudo generar el documento firmado.');
@@ -327,23 +311,95 @@ class PendingEvidenceIndex extends Component
 
             return;
         } catch (\Throwable $e) {
-            $this->addError('signedDecisionNotification', 'No se pudo generar el PDF firmado. '.$e->getMessage());
+            $errorField = $this->decisionNotificationCaseId !== null
+                ? 'signedDecisionNotification'
+                : 'signedNotification';
+            $this->addError($errorField, 'No se pudo generar el PDF firmado. '.$e->getMessage());
 
             return;
         }
 
-        $filename = $type === CitationEvidenceType::SIGNED
-            ? 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf'
-            : 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf';
+        $this->clearSignedNotificationPreview();
 
-        $path = tempnam(sys_get_temp_dir(), 'decision_signed_');
-        file_put_contents($path, $binary);
+        $stored = $previewStore->store(
+            (int) auth()->id(),
+            $package['context'],
+            $package['case']->id,
+            $package['filename'],
+            $package['type']->value,
+            $package['binary'],
+        );
+
+        $this->signedNotificationPreviewToken = $stored['token'];
+        $this->signedNotificationPreviewFilename = $package['filename'];
+        $this->resetErrorBag();
+    }
+
+    public function cancelSignedNotificationPreview(): void
+    {
+        $this->clearSignedNotificationPreview();
+    }
+
+    public function confirmSignedNotificationUpload(
+        DisciplinaryDocumentService $documents,
+        DisciplinaryCitationWorkflowService $citationWorkflow,
+        DisciplinaryDecisionWorkflowService $decisionWorkflow,
+        DisciplinaryAuditService $audit,
+        SupervisorSignedNotificationPreviewStore $previewStore,
+    ): void {
+        $token = $this->signedNotificationPreviewToken;
+        if ($token === null) {
+            return;
+        }
+
+        $meta = $previewStore->resolve($token, (int) auth()->id());
+        if ($meta === null) {
+            $this->addError('signedNotification', 'La vista previa expiró. Vuelva a generar el documento.');
+            $this->clearSignedNotificationPreview();
+
+            return;
+        }
+
+        $path = Storage::disk('local')->path((string) $meta['path']);
+        if (! is_file($path)) {
+            $this->addError('signedNotification', 'No se encontró el PDF generado.');
+            $this->clearSignedNotificationPreview();
+
+            return;
+        }
 
         try {
-            $uploaded = new UploadedFile($path, $filename, 'application/pdf', UPLOAD_ERR_OK, true);
+            $uploaded = new UploadedFile(
+                $path,
+                (string) $meta['filename'],
+                'application/pdf',
+                UPLOAD_ERR_OK,
+                true,
+            );
 
+            if ($meta['context'] === 'decision') {
+                $case = $this->resolveDecisionPendingCase((int) $meta['case_id']);
+                Gate::authorize('uploadDecisionEvidence', $case);
+                Gate::authorize('viewDecisionComunicadoForSupervisor', $case);
+                $decisionWorkflow->assertDecisionEvidenceUploadAllowed($case, auth()->user());
+                $stageType = StageType::DECISION;
+                $documentType = DocumentType::DECISION;
+                $notePrefix = DisciplinaryCase::NOTE_DECISION_EVIDENCE_PREFIX;
+                $actionType = ActionType::DECISION_EVIDENCIA_CARGADA;
+            } else {
+                $case = $this->resolveSupervisorPendingCase((int) $meta['case_id']);
+                Gate::authorize('uploadCitationEvidence', $case);
+                Gate::authorize('viewFoGj03NotificationForSupervisor', $case);
+                $citationWorkflow->assertCitationEvidenceUploadAllowed($case, auth()->user());
+                $stageType = StageType::CITACION;
+                $documentType = DocumentType::CITACION;
+                $notePrefix = DisciplinaryCase::NOTE_CITATION_EVIDENCE_PREFIX;
+                $actionType = ActionType::EVIDENCIA_CITACION_CARGADA;
+            }
+
+            $type = CitationEvidenceType::from((string) $meta['evidence_type']);
             $stage = $case->stages()
-                ->where('stage_type', StageType::DECISION)
+                ->where('stage_type', $stageType)
                 ->orderByDesc('sequence')
                 ->first();
 
@@ -351,39 +407,62 @@ class PendingEvidenceIndex extends Component
             $doc = $documents->upload(
                 $case,
                 $uploaded,
-                DocumentType::DECISION,
+                $documentType,
                 $uploader,
                 $stage,
-                DisciplinaryCase::NOTE_DECISION_EVIDENCE_PREFIX.' - '.$type->label(),
+                $notePrefix.' - '.$type->label(),
             );
 
-            $case = $decisionWorkflow->markEvidenceUploaded($case->fresh(), $type);
-
-            $audit->logCase(
-                $case,
-                $uploader,
-                ActionType::DECISION_EVIDENCIA_CARGADA,
-                $type === CitationEvidenceType::SIGNED
+            if ($meta['context'] === 'decision') {
+                $case = $decisionWorkflow->markEvidenceUploaded($case->fresh(), $type);
+                $description = $type === CitationEvidenceType::SIGNED
                     ? 'Comunicado de decisión firmado digitalmente por el trabajador.'
-                    : 'Comunicado de decisión con rechazo de firma y testigos.',
-                [
+                    : 'Comunicado de decisión con rechazo de firma y testigos.';
+                $auditMeta = [
                     'evidence_type' => $type->value,
                     'document_id' => $doc->id,
                     'source' => 'supervisor_html_signature',
-                ],
-            );
-        } finally {
-            if (is_file($path)) {
-                @unlink($path);
+                ];
+                $success = "Notificación de decisión cargada para {$case->case_number}.";
+                $this->closeDecisionNotificationModal();
+            } else {
+                $case = $citationWorkflow->markEvidenceUploaded($case->fresh(), $type);
+                $description = $type === CitationEvidenceType::SIGNED
+                    ? 'Evidencia PDF de citación firmada digitalmente por el trabajador.'
+                    : 'Evidencia PDF de citación con rechazo de firma y testigos.';
+                $auditMeta = [
+                    'evidence_type' => $type->value,
+                    'document_id' => $doc->id,
+                    'uploaded_by' => $uploader->id,
+                    'uploaded_at' => now()->toIso8601String(),
+                    'fo_gj_03_document_id' => $case->primaryFoGj03CitationDocument()?->id,
+                    'source' => 'supervisor_html_signature',
+                    'witnesses' => $type === CitationEvidenceType::REFUSED_WITNESSES ? [
+                        ['name' => $this->witness1Name, 'document' => $this->witness1Document],
+                        ['name' => $this->witness2Name, 'document' => $this->witness2Document],
+                    ] : null,
+                ];
+                $success = "Notificación cargada para {$case->case_number}.";
+                $this->closeNotificationModal();
             }
-        }
 
-        $this->closeDecisionNotificationModal();
-        session()->flash('success', "Notificación de decisión cargada para {$case->case_number}.");
+            $audit->logCase($case, $uploader, $actionType, $description, $auditMeta);
+            $previewStore->forget($token);
+            $this->signedNotificationPreviewToken = null;
+            $this->signedNotificationPreviewFilename = null;
+            session()->flash('success', $success);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'No se pudo enviar el documento.');
+            }
+        } catch (\Throwable $e) {
+            $this->addError('signedNotification', 'No se pudo enviar el documento. '.$e->getMessage());
+        }
     }
 
     public function updatedNotificationEvidenceType(): void
     {
+        $this->clearSignedNotificationPreview();
         $this->resetNotificationCaptureState(keepType: true);
     }
 
@@ -496,116 +575,6 @@ class PendingEvidenceIndex extends Component
             && filled(trim($this->witness2Document));
     }
 
-    public function uploadSignedNotification(
-        CitationNotificationSigningService $signing,
-        DisciplinaryDocumentService $documents,
-        DisciplinaryCitationWorkflowService $citationWorkflow,
-        DisciplinaryAuditService $audit,
-    ): void {
-        $caseId = $this->notificationCaseId;
-        if ($caseId === null) {
-            return;
-        }
-
-        $case = $this->resolveSupervisorPendingCase($caseId);
-        Gate::authorize('uploadCitationEvidence', $case);
-        Gate::authorize('viewFoGj03NotificationForSupervisor', $case);
-        $citationWorkflow->assertCitationEvidenceUploadAllowed($case, auth()->user());
-
-        try {
-            $payload = $signing->validateNotificationPayload([
-                'evidence_type' => $this->notificationEvidenceType,
-                'worker_signature' => $this->workerSignatureDataUri,
-                'witnesses' => [
-                    [
-                        'signature' => $this->witness1SignatureDataUri,
-                        'name' => $this->witness1Name,
-                        'document' => $this->witness1Document,
-                    ],
-                    [
-                        'signature' => $this->witness2SignatureDataUri,
-                        'name' => $this->witness2Name,
-                        'document' => $this->witness2Document,
-                    ],
-                ],
-            ]);
-            $binary = $signing->renderNotificationPdf($case, $payload);
-            $type = CitationEvidenceType::from($payload['evidence_type']);
-        } catch (ValidationException $e) {
-            foreach ($e->errors() as $field => $messages) {
-                $this->addError($field, $messages[0] ?? 'No se pudo generar el documento firmado.');
-            }
-
-            return;
-        } catch (\Throwable $e) {
-            $this->addError('signedNotification', 'No se pudo generar el PDF firmado. '.$e->getMessage());
-
-            return;
-        }
-
-        $filename = $type === CitationEvidenceType::SIGNED
-            ? 'FO-GJ-03-notificacion-firmada-'.$case->case_number.'.pdf'
-            : 'FO-GJ-03-notificacion-rechazo-testigos-'.$case->case_number.'.pdf';
-
-        $path = tempnam(sys_get_temp_dir(), 'fo03_signed_');
-        file_put_contents($path, $binary);
-
-        try {
-            $uploaded = new UploadedFile(
-                $path,
-                $filename,
-                'application/pdf',
-                UPLOAD_ERR_OK,
-                true,
-            );
-
-            $stage = $case->stages()
-                ->where('stage_type', StageType::CITACION)
-                ->orderByDesc('sequence')
-                ->first();
-
-            $uploader = auth()->user();
-            $doc = $documents->upload(
-                $case,
-                $uploaded,
-                DocumentType::CITACION,
-                $uploader,
-                $stage,
-                DisciplinaryCase::NOTE_CITATION_EVIDENCE_PREFIX.' - '.$type->label(),
-            );
-
-            $case = $citationWorkflow->markEvidenceUploaded($case->fresh(), $type);
-
-            $audit->logCase(
-                $case,
-                $uploader,
-                ActionType::EVIDENCIA_CITACION_CARGADA,
-                $type === CitationEvidenceType::SIGNED
-                    ? 'Evidencia PDF de citación firmada digitalmente por el trabajador.'
-                    : 'Evidencia PDF de citación con rechazo de firma y testigos.',
-                [
-                    'evidence_type' => $type->value,
-                    'document_id' => $doc->id,
-                    'uploaded_by' => $uploader->id,
-                    'uploaded_at' => now()->toIso8601String(),
-                    'fo_gj_03_document_id' => $case->primaryFoGj03CitationDocument()?->id,
-                    'source' => 'supervisor_html_signature',
-                    'witnesses' => $type === CitationEvidenceType::REFUSED_WITNESSES ? [
-                        ['name' => $this->witness1Name, 'document' => $this->witness1Document],
-                        ['name' => $this->witness2Name, 'document' => $this->witness2Document],
-                    ] : null,
-                ],
-            );
-        } finally {
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
-
-        $this->closeNotificationModal();
-        session()->flash('success', "Notificación cargada para {$case->case_number}.");
-    }
-
     public function render(FoGj03CitationService $foGj03, DecisionComunicadoService $decisionComunicado)
     {
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
@@ -664,6 +633,18 @@ class PendingEvidenceIndex extends Component
                 ->get()
             : collect();
 
+        $signedNotificationPreviewUrl = null;
+        $signedNotificationDownloadUrl = null;
+        if ($this->signedNotificationPreviewToken !== null) {
+            $signedNotificationPreviewUrl = route('disciplinary.evidences-pending.signed-preview', [
+                'token' => $this->signedNotificationPreviewToken,
+            ]);
+            $signedNotificationDownloadUrl = route('disciplinary.evidences-pending.signed-preview', [
+                'token' => $this->signedNotificationPreviewToken,
+                'download' => 1,
+            ]);
+        }
+
         return view('livewire.disciplinary.supervisor.pending-evidence-index', [
             'tasks' => $tasks,
             'decisionTasks' => $decisionTasks,
@@ -673,6 +654,10 @@ class PendingEvidenceIndex extends Component
             'decisionNotificationViewData' => $decisionNotificationViewData,
             'decisionNotificationCaseId' => $this->decisionNotificationCaseId,
             'evidencePreviewUrl' => $evidencePreviewUrl,
+            'signedNotificationPreviewToken' => $this->signedNotificationPreviewToken,
+            'signedNotificationPreviewUrl' => $signedNotificationPreviewUrl,
+            'signedNotificationDownloadUrl' => $signedNotificationDownloadUrl,
+            'signedNotificationPreviewFilename' => $this->signedNotificationPreviewFilename,
         ]);
     }
 
@@ -716,6 +701,96 @@ class PendingEvidenceIndex extends Component
         $this->witness2Document = '';
         $this->signaturePadTarget = 'worker';
         $this->showSignaturePadModal = false;
+        $this->signedNotificationPreviewToken = null;
+        $this->signedNotificationPreviewFilename = null;
+    }
+
+    private function clearSignedNotificationPreview(): void
+    {
+        if ($this->signedNotificationPreviewToken === null) {
+            return;
+        }
+
+        app(SupervisorSignedNotificationPreviewStore::class)->forget($this->signedNotificationPreviewToken);
+        $this->signedNotificationPreviewToken = null;
+        $this->signedNotificationPreviewFilename = null;
+    }
+
+    /**
+     * @return array{
+     *     context: string,
+     *     case: DisciplinaryCase,
+     *     binary: string,
+     *     filename: string,
+     *     type: CitationEvidenceType,
+     * }
+     */
+    private function buildSignedNotificationPackage(
+        CitationNotificationSigningService $citationSigning,
+        DecisionNotificationSigningService $decisionSigning,
+    ): array {
+        $inputPayload = [
+            'evidence_type' => $this->notificationEvidenceType,
+            'worker_signature' => $this->workerSignatureDataUri,
+            'witnesses' => [
+                [
+                    'signature' => $this->witness1SignatureDataUri,
+                    'name' => $this->witness1Name,
+                    'document' => $this->witness1Document,
+                ],
+                [
+                    'signature' => $this->witness2SignatureDataUri,
+                    'name' => $this->witness2Name,
+                    'document' => $this->witness2Document,
+                ],
+            ],
+        ];
+
+        if ($this->decisionNotificationCaseId !== null) {
+            $case = $this->resolveDecisionPendingCase($this->decisionNotificationCaseId);
+            Gate::authorize('uploadDecisionEvidence', $case);
+            Gate::authorize('viewDecisionComunicadoForSupervisor', $case);
+            app(DisciplinaryDecisionWorkflowService::class)->assertDecisionEvidenceUploadAllowed($case, auth()->user());
+
+            $payload = $decisionSigning->validateNotificationPayload($inputPayload);
+            $binary = $decisionSigning->renderNotificationPdf($case, $payload);
+            $type = CitationEvidenceType::from($payload['evidence_type']);
+            $filename = $type === CitationEvidenceType::SIGNED
+                ? 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf'
+                : 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf';
+
+            return [
+                'context' => 'decision',
+                'case' => $case,
+                'binary' => $binary,
+                'filename' => $filename,
+                'type' => $type,
+            ];
+        }
+
+        if ($this->notificationCaseId === null) {
+            throw new \InvalidArgumentException('No hay notificación activa.');
+        }
+
+        $case = $this->resolveSupervisorPendingCase($this->notificationCaseId);
+        Gate::authorize('uploadCitationEvidence', $case);
+        Gate::authorize('viewFoGj03NotificationForSupervisor', $case);
+        app(DisciplinaryCitationWorkflowService::class)->assertCitationEvidenceUploadAllowed($case, auth()->user());
+
+        $payload = $citationSigning->validateNotificationPayload($inputPayload);
+        $binary = $citationSigning->renderNotificationPdf($case, $payload);
+        $type = CitationEvidenceType::from($payload['evidence_type']);
+        $filename = $type === CitationEvidenceType::SIGNED
+            ? 'FO-GJ-03-notificacion-firmada-'.$case->case_number.'.pdf'
+            : 'FO-GJ-03-notificacion-rechazo-testigos-'.$case->case_number.'.pdf';
+
+        return [
+            'context' => 'citation',
+            'case' => $case,
+            'binary' => $binary,
+            'filename' => $filename,
+            'type' => $type,
+        ];
     }
 
     private function resolveSupervisorPendingCase(int $caseId): DisciplinaryCase

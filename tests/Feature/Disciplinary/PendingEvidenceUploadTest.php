@@ -71,7 +71,8 @@ class PendingEvidenceUploadTest extends TestCase
             ->call('saveCapturedSignature', $signature)
             ->call('openWitnessSignaturePad', 2)
             ->call('saveCapturedSignature', $signature)
-            ->call('uploadSignedNotification')
+            ->call('acceptSignedNotificationPreview')
+            ->call('confirmSignedNotificationUpload')
             ->assertHasNoErrors();
 
         $case->refresh();
@@ -94,7 +95,8 @@ class PendingEvidenceUploadTest extends TestCase
             ->assertSet('notificationCaseId', $case->id)
             ->call('saveWorkerSignature', $signature)
             ->assertSet('workerSignatureDataUri', $signature)
-            ->call('uploadSignedNotification')
+            ->call('acceptSignedNotificationPreview')
+            ->call('confirmSignedNotificationUpload')
             ->assertHasNoErrors();
 
         $case->refresh();
