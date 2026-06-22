@@ -9,8 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         if (! Schema::hasColumn('disciplinary_cases', 'decision_coordination_started_at')) {
-            Schema::table('disciplinary_cases', function (Blueprint $table) {
-                $table->timestamp('decision_coordination_started_at')->nullable()->after('comite_generated_by');
+            $anchor = $this->decisionWorkflowAnchorColumn();
+
+            Schema::table('disciplinary_cases', function (Blueprint $table) use ($anchor) {
+                $coordinationStarted = $table->timestamp('decision_coordination_started_at')->nullable();
+                if ($anchor !== null) {
+                    $coordinationStarted->after($anchor);
+                }
                 $table->unsignedBigInteger('decision_coordination_started_by')->nullable()->after('decision_coordination_started_at');
 
                 $table->json('decision_payload')->nullable()->after('decision_coordination_started_by');
@@ -88,6 +93,22 @@ return new class extends Migration
                 ]);
             }
         });
+    }
+
+    private function decisionWorkflowAnchorColumn(): ?string
+    {
+        foreach ([
+            'comite_generated_by',
+            'fo_gj_54_generated_by',
+            'fo_gj_44_generated_by',
+            'diligence_attendance',
+        ] as $column) {
+            if (Schema::hasColumn('disciplinary_cases', $column)) {
+                return $column;
+            }
+        }
+
+        return null;
     }
 
     private function addForeignKeyIfMissing(string $column, string $name): void
