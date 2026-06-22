@@ -45,6 +45,11 @@ enum ActionType: string
     case COMITE_REMITIDO = 'comite_remitido';
     case COMITE_ACTA_GENERADO = 'comite_acta_generado';
     case DECISION_TOMADA = 'decision_tomada';
+    case DECISION_COORDINACION_INICIADA = 'decision_coordinacion_iniciada';
+    case DECISION_COMUNICADO_GENERADO = 'decision_comunicado_generado';
+    case DECISION_NOTIFICACION_COORDINADA = 'decision_notificacion_coordinada';
+    case DECISION_EVIDENCIA_CARGADA = 'decision_evidencia_cargada';
+    case DECISION_RRHH_COMPLETADA = 'decision_rrhh_completada';
     case APELACION_INTERPUESTA = 'apelacion_interpuesta';
     case SEGUNDA_INSTANCIA_RESUELTA = 'segunda_instancia_resuelta';
     case CASO_FINALIZADO = 'caso_finalizado';

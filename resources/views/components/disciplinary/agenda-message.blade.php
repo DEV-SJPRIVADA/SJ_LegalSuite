@@ -8,6 +8,8 @@
         AgendaMessageKind::PLANNING_RESPONSE => ['Respuesta de Planeación', 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100'],
         AgendaMessageKind::LAWYER_NOTIFICATION_REQUEST => ['Solicitud de notificación', 'bg-amber-100 text-amber-950 dark:bg-amber-900/40 dark:text-amber-100'],
         AgendaMessageKind::NOTIFICATION_COORDINATION => ['Notificación coordinada', 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-100'],
+        AgendaMessageKind::DECISION_PLANNING_RESPONSE => ['Planeación · decisión', 'bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/40 dark:text-fuchsia-100'],
+        AgendaMessageKind::DECISION_NOTIFICATION_COORDINATION => ['Notificación decisión', 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-100'],
         default => ['Mensaje', 'bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-slate-200'],
     };
     $slots = $message->normalizedProposedSlots();

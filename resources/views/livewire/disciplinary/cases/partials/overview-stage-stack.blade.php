@@ -2,10 +2,22 @@
 <div class="md:col-span-2 xl:col-span-3 space-y-6" data-case-stage-stack>
     @foreach ($overviewStageStack as $stageKey)
         @switch($stageKey)
+            @case('d')
+                @include('livewire.disciplinary.cases.partials.stage-d-decision', [
+                    'case' => $case,
+                    'showsDecisionStagePanel' => $showsDecisionStagePanel ?? false,
+                    'decisionStageSteps' => $decisionStageSteps ?? collect(),
+                    'decisionCurrentStep' => $decisionCurrentStep ?? null,
+                    'decisionCurrentStepNumber' => $decisionCurrentStepNumber ?? null,
+                    'decisionTotalSteps' => $decisionTotalSteps ?? 6,
+                    'decisionBranch' => $decisionBranch ?? null,
+                ])
+                @break
             @case('c')
                 @include('livewire.disciplinary.cases.partials.stage-c-diligence', [
                     'case' => $case,
                     'isDiligenciaActive' => $isDiligenciaActive ?? false,
+                    'diligenceReadOnly' => $diligenceReadOnly ?? false,
                     'diligenceStageSteps' => $diligenceStageSteps ?? collect(),
                     'diligenceCurrentStep' => $diligenceCurrentStep ?? null,
                     'diligenceCurrentStepNumber' => $diligenceCurrentStepNumber ?? null,

@@ -18,6 +18,9 @@ use App\Models\User;
 use App\Services\Disciplinary\CitationNotificationSigningService;
 use App\Services\Disciplinary\ComiteActaService;
 use App\Services\Disciplinary\ComiteDraftService;
+use App\Services\Disciplinary\DecisionComunicadoService;
+use App\Services\Disciplinary\DecisionDraftService;
+use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Services\Disciplinary\DiligenceAttendanceService;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryAuditService;
@@ -35,12 +38,16 @@ use App\Services\Disciplinary\FoGj44ConstanciaService;
 use App\Services\Disciplinary\FoGj44DraftService;
 use App\Services\Disciplinary\FoGj54DraftService;
 use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Enums\Disciplinary\Decision;
+use App\Support\Disciplinary\DecisionBranch;
+use App\Support\Disciplinary\DecisionStageProgress;
 use App\Support\Disciplinary\CaseOverviewStageStack;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Support\Disciplinary\DiligenceStageProgress;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -232,6 +239,28 @@ class CaseDetail extends Component
     public ?int $comiteSignatureAttendeeIndex = null;
 
     public ?string $comiteSignaturePendingDataUri = null;
+
+    public string $decisionBranchSelection = '';
+
+    public string $decisionTypeSelection = '';
+
+    public bool $showDecisionTypeModal = false;
+
+    public bool $showDecisionDraftModal = false;
+
+    public string $decisionSubject = '';
+
+    public string $decisionBodyNarrative = '';
+
+    public string $decisionSuspensionStart = '';
+
+    public string $decisionSuspensionEnd = '';
+
+    public string $decisionReliefNotes = '';
+
+    public bool $showDecisionPdfPreviewModal = false;
+
+    public bool $showDecisionFinalizeConfirm = false;
 
     public ?int $documentPreviewId = null;
 
@@ -1497,6 +1526,146 @@ class CaseDetail extends Component
         $this->showComitePdfPreviewModal = false;
     }
 
+    public function openDecisionTypeModal(): void
+    {
+        Gate::authorize('selectDecisionType', $this->case);
+        $this->decisionBranchSelection = '';
+        $this->decisionTypeSelection = '';
+        $this->resetErrorBag(['decisionBranchSelection', 'decisionTypeSelection']);
+        $this->showDecisionTypeModal = true;
+    }
+
+    public function closeDecisionTypeModal(): void
+    {
+        $this->showDecisionTypeModal = false;
+    }
+
+    public function confirmDecisionType(DisciplinaryDecisionWorkflowService $workflow): void
+    {
+        Gate::authorize('selectDecisionType', $this->case);
+
+        $this->validate([
+            'decisionBranchSelection' => ['required', Rule::in([
+                DecisionBranch::SUSPENSION,
+                DecisionBranch::NOTICE,
+                DecisionBranch::TERMINATION,
+            ])],
+            'decisionTypeSelection' => ['required', 'string'],
+        ], [], [
+            'decisionBranchSelection' => 'rama de decisión',
+            'decisionTypeSelection' => 'tipo de decisión',
+        ]);
+
+        $choices = DecisionBranch::choicesForBranch($this->decisionBranchSelection);
+        $decision = Decision::tryFrom($this->decisionTypeSelection);
+        if ($decision === null || ! in_array($decision, $choices, true)) {
+            $this->addError('decisionTypeSelection', 'Seleccione un tipo de decisión válido para la rama elegida.');
+
+            return;
+        }
+
+        try {
+            $this->case = $workflow->selectDecisionType($this->case->fresh(), auth()->user(), $decision);
+        } catch (\Throwable $e) {
+            $this->addError('decisionTypeSelection', $e->getMessage());
+
+            return;
+        }
+
+        $this->showDecisionTypeModal = false;
+        session()->flash('success', 'Tipo de decisión registrado. Coordine con planeación la programación.');
+    }
+
+    public function openDecisionDraftModal(DecisionDraftService $drafts): void
+    {
+        Gate::authorize('editDecisionDraft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->decisionSubject = (string) ($defaults['subject'] ?? '');
+        $this->decisionBodyNarrative = (string) ($defaults['body_narrative'] ?? '');
+        $this->decisionSuspensionStart = (string) ($defaults['suspension_start'] ?? '');
+        $this->decisionSuspensionEnd = (string) ($defaults['suspension_end'] ?? '');
+        $this->decisionReliefNotes = (string) ($defaults['relief_notes'] ?? '');
+        $this->resetErrorBag(['decisionSubject', 'decisionBodyNarrative', 'decisionSuspensionStart', 'decisionSuspensionEnd', 'decisionReliefNotes']);
+        $this->showDecisionDraftModal = true;
+    }
+
+    public function closeDecisionDraftModal(): void
+    {
+        $this->showDecisionDraftModal = false;
+    }
+
+    public function saveDecisionDraft(DecisionDraftService $drafts): void
+    {
+        Gate::authorize('editDecisionDraft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'subject' => $this->decisionSubject,
+                'body_narrative' => $this->decisionBodyNarrative,
+                'suspension_start' => $this->decisionSuspensionStart,
+                'suspension_end' => $this->decisionSuspensionEnd,
+                'relief_notes' => $this->decisionReliefNotes,
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
+        $this->showDecisionDraftModal = false;
+        session()->flash('success', 'Borrador del comunicado guardado.');
+    }
+
+    public function generateDecisionComunicado(DecisionComunicadoService $service): void
+    {
+        Gate::authorize('generateDecisionComunicado', $this->case);
+
+        try {
+            $this->case = $service->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->addError('decisionBodyNarrative', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('success', 'Comunicado de decisión generado y guardado en el expediente.');
+    }
+
+    public function openDecisionPdfPreview(): void
+    {
+        Gate::authorize('previewDecisionComunicado', $this->case);
+        $this->resetErrorBag('decisionBodyNarrative');
+        $this->showDecisionPdfPreviewModal = true;
+    }
+
+    public function closeDecisionPdfPreview(): void
+    {
+        $this->showDecisionPdfPreviewModal = false;
+    }
+
+    public function requestFinalizeDecision(): void
+    {
+        Gate::authorize('finalizeDecisionCase', $this->case);
+        $this->showDecisionFinalizeConfirm = true;
+    }
+
+    public function cancelFinalizeDecision(): void
+    {
+        $this->showDecisionFinalizeConfirm = false;
+    }
+
+    public function confirmFinalizeDecision(DisciplinaryDecisionWorkflowService $workflow): void
+    {
+        try {
+            $this->case = $workflow->finalizeCase($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
+        $this->showDecisionFinalizeConfirm = false;
+        session()->flash('success', 'Proceso disciplinario finalizado.');
+    }
+
     public function openDocumentPreview(int $documentId): void
     {
         Gate::authorize('view', $this->case);
@@ -1605,9 +1774,12 @@ class CaseDetail extends Component
         $notificationService = app(DisciplinaryCitationNotificationService::class);
         $stageProgress = app(CitationStageProgress::class);
         $diligenceStageProgress = app(DiligenceStageProgress::class);
+        $decisionStageProgress = app(DecisionStageProgress::class);
         $citationSlotChoices = $this->buildCitationSlotChoices();
         $citationReadOnly = $this->case->showsCitationStageReadOnly();
         $showsDiligenceStagePanel = $this->case->showsDiligenceStagePanel();
+        $showsDiligenceStageReadOnly = $this->case->showsDiligenceStageReadOnly();
+        $showsDecisionStagePanel = $this->case->showsDecisionStagePanel();
 
         if ($citationReadOnly) {
             $citationStageSteps = $stageProgress->completedSteps();
@@ -1644,11 +1816,18 @@ class CaseDetail extends Component
             'citationCurrentStep' => $citationCurrentStep,
             'citationCurrentStepNumber' => $citationCurrentStepNumber,
             'citationTotalSteps' => $stageProgress->totalSteps(),
-            'isDiligenciaActive' => $showsDiligenceStagePanel,
-            'showsDiligenceStagePanel' => $showsDiligenceStagePanel,
-            'diligenceStageSteps' => $showsDiligenceStagePanel ? $diligenceStageProgress->steps($this->case) : collect(),
-            'diligenceCurrentStep' => $showsDiligenceStagePanel ? $diligenceStageProgress->currentStep($this->case) : null,
-            'diligenceCurrentStepNumber' => $showsDiligenceStagePanel ? $diligenceStageProgress->currentStepNumber($this->case) : null,
+            'isDiligenciaActive' => $showsDiligenceStagePanel || $showsDiligenceStageReadOnly,
+            'showsDiligenceStagePanel' => $showsDiligenceStagePanel || $showsDiligenceStageReadOnly,
+            'diligenceReadOnly' => $showsDiligenceStageReadOnly && ! $showsDiligenceStagePanel,
+            'showsDecisionStagePanel' => $showsDecisionStagePanel,
+            'decisionStageSteps' => $showsDecisionStagePanel ? $decisionStageProgress->steps($this->case) : collect(),
+            'decisionCurrentStep' => $showsDecisionStagePanel ? $decisionStageProgress->currentStep($this->case) : null,
+            'decisionCurrentStepNumber' => $showsDecisionStagePanel ? $decisionStageProgress->currentStepNumber($this->case) : null,
+            'decisionTotalSteps' => $showsDecisionStagePanel ? $decisionStageProgress->totalSteps($this->case) : 0,
+            'decisionBranch' => DecisionBranch::forDecision($this->case->decision),
+            'diligenceStageSteps' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->steps($this->case) : collect(),
+            'diligenceCurrentStep' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->currentStep($this->case) : null,
+            'diligenceCurrentStepNumber' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->currentStepNumber($this->case) : null,
             'diligenceTotalSteps' => $diligenceStageProgress->totalSteps($this->case),
             'diligenceAdvanceTargetLabel' => StageType::DECISION->label(),
             'diligenceSlotDisplay' => $this->resolveDiligenceSlotDisplay(),

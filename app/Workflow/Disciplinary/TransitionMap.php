@@ -63,6 +63,7 @@ final class TransitionMap
             CaseStatus::DECISION->value => [
                 CaseStatus::APELACION,
                 CaseStatus::FINALIZADO,
+                CaseStatus::ARCHIVADO,
             ],
             CaseStatus::APELACION->value => [
                 CaseStatus::SEGUNDA_INSTANCIA,

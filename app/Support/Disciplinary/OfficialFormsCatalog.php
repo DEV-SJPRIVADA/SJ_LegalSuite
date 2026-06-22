@@ -67,7 +67,7 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-04-acta-diligencia.pdf'),
             ],
             [
-                'code' => null,
+                'code' => 'FO-GJ-DECISION',
                 'title' => 'Comunicado de decisión de sanción o cierre del proceso',
                 'phase' => 'D · Decisión / cierre',
                 'summary' => 'Comunicación al trabajador de la decisión (sanción) o del cierre del proceso cuando aplique.',
@@ -145,6 +145,11 @@ final class OfficialFormsCatalog
                 'inline' => 'ACTA-COMITE-en-blanco.pdf',
                 'download' => 'ACTA-COMITE-en-blanco.pdf',
             ],
+            'FO-GJ-DECISION' => [
+                'view' => 'disciplinary.forms.decision-comunicado-blank-download',
+                'inline' => 'FO-GJ-DECISION-en-blanco.pdf',
+                'download' => 'FO-GJ-DECISION-en-blanco.pdf',
+            ],
         ];
     }
 
@@ -215,6 +220,11 @@ final class OfficialFormsCatalog
                 $bodyPath = resource_path('views/disciplinary/forms/'.$relativePath);
                 $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
             }
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-DECISION') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/decision-comunicado-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 
         return $mtime;

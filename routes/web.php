@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Disciplinary\ComiteActaCaseController;
+use App\Http\Controllers\Disciplinary\DecisionComunicadoCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentDownloadController;
@@ -28,6 +29,7 @@ use App\Livewire\Disciplinary\Coordinations\Index as CoordinationsIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
+use App\Livewire\Disciplinary\Administrativa\PendingDecisionHrIndex;
 use App\Livewire\Disciplinary\Supervisor\PendingEvidenceIndex;
 use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
@@ -90,6 +92,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
         Route::get('evidences-pending', PendingEvidenceIndex::class)->name('evidences-pending.index');
+        Route::get('decision-hr-pending', PendingDecisionHrIndex::class)->name('decision-hr-pending.index');
         Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
         Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)
             ->name('coordinations.attachments.inline');
@@ -113,6 +116,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.fo-gj-54.pdf');
         Route::get('cases/{case}/comite-acta/pdf', [ComiteActaCaseController::class, 'download'])
             ->name('cases.comite-acta.pdf');
+        Route::get('cases/{case}/decision-comunicado/pdf', [DecisionComunicadoCaseController::class, 'download'])
+            ->name('cases.decision-comunicado.pdf');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
 

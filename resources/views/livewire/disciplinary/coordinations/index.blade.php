@@ -101,16 +101,28 @@
                                         error-field="agendaPlanningBody"
                                         class="border-t border-slate-200 dark:border-white/10" />
                                     <div class="flex flex-wrap gap-2 border-t border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-white/10 dark:bg-indigo-950/30">
-                                        @if ($awaitingDiligenceDates)
+                                        @if ($awaitingDiligenceDates ?? false)
                                             <button type="button" wire:click="openDiligenceModal"
                                                 class="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
                                                 Proponer fechas de diligencia
+                                            </button>
+                                        @endif
+                                        @if ($awaitingDecisionPlanning ?? false)
+                                            <button type="button" wire:click="openDecisionPlanningModal"
+                                                class="rounded-md bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800">
+                                                Programar decisión
                                             </button>
                                         @endif
                                         @if ($canRegisterNotification ?? false)
                                             <button type="button" wire:click="openNotificationModal"
                                                 class="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
                                                 Registrar notificación y supervisor
+                                            </button>
+                                        @endif
+                                        @if ($canRegisterDecisionNotification ?? false)
+                                            <button type="button" wire:click="openNotificationModal"
+                                                class="rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
+                                                Registrar notificación de decisión
                                             </button>
                                         @endif
                                     </div>
@@ -154,8 +166,12 @@
                         @if ($showNotificationModal)
                             <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeNotificationModal">
                                 <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
-                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Notificación física y supervisor</h3>
-                                    <p class="text-xs text-slate-600 dark:text-slate-400">Datos para FO-GJ-03 y asignación al supervisor que notificará.</p>
+                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                                        {{ ($isDecisionCase ?? false) ? 'Notificación de decisión y supervisor' : 'Notificación física y supervisor' }}
+                                    </h3>
+                                    <p class="text-xs text-slate-600 dark:text-slate-400">
+                                        {{ ($isDecisionCase ?? false) ? 'Datos para notificar la decisión disciplinaria al trabajador.' : 'Datos para FO-GJ-03 y asignación al supervisor que notificará.' }}
+                                    </p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Fecha ingreso trabajador</label>
@@ -197,7 +213,54 @@
                                     @enderror
                                     <div class="flex justify-end gap-2 pt-2">
                                         <button type="button" wire:click="closeNotificationModal" class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">Cancelar</button>
-                                        <button type="button" wire:click="submitNotificationModal" class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">Aceptar y publicar</button>
+                                        @if ($isDecisionCase ?? false)
+                                            <button type="button" wire:click="submitDecisionNotificationModal" class="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-md hover:bg-violet-700">Aceptar y publicar</button>
+                                        @else
+                                            <button type="button" wire:click="submitNotificationModal" class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">Aceptar y publicar</button>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if ($showDecisionPlanningModal ?? false)
+                            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionPlanningModal">
+                                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10 space-y-4 max-h-[90vh] overflow-y-auto">
+                                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Programación de decisión</h3>
+                                    @if ($decisionBranch && \App\Support\Disciplinary\DecisionBranch::requiresSuspensionDates($decisionBranch))
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label class="text-xs font-semibold">Inicio suspensión</label>
+                                                <input type="date" wire:model="decisionSuspensionStart" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="text-xs font-semibold">Fin suspensión</label>
+                                                <input type="date" wire:model="decisionSuspensionEnd" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            </div>
+                                        </div>
+                                    @endif
+                                    @if ($decisionBranch === \App\Support\Disciplinary\DecisionBranch::TERMINATION)
+                                        <div>
+                                            <label class="text-xs font-semibold">Relevo</label>
+                                            <textarea wire:model="decisionReliefNotes" rows="2" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"></textarea>
+                                        </div>
+                                    @endif
+                                    <textarea wire:model="agendaPlanningBody" rows="2" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Comentario opcional…"></textarea>
+                                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Turnos / fechas para notificar al trabajador</p>
+                                    @foreach ($planningSlots as $i => $slot)
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <input type="date" wire:model="planningSlots.{{ $i }}.date" required class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="time" wire:model="planningSlots.{{ $i }}.time" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                            <input type="text" wire:model="planningSlots.{{ $i }}.notes" placeholder="Turno / notas" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                        </div>
+                                    @endforeach
+                                    <button type="button" wire:click="addPlanningSlotRow" class="text-xs font-semibold text-violet-700 dark:text-violet-300">+ Otra fecha</button>
+                                    @error('decisionPlanningModal')
+                                        <p class="text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                    <div class="flex justify-end gap-2 pt-2">
+                                        <button type="button" wire:click="closeDecisionPlanningModal" class="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">Cancelar</button>
+                                        <button type="button" wire:click="submitDecisionPlanningModal" class="px-4 py-2 bg-violet-700 text-white text-sm font-semibold rounded-md hover:bg-violet-800">Aceptar y publicar</button>
                                     </div>
                                 </div>
                             </div>

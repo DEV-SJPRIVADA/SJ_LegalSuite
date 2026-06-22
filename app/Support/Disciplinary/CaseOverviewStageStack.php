@@ -11,16 +11,21 @@ use App\Models\Disciplinary\DisciplinaryCase;
  */
 final class CaseOverviewStageStack
 {
-    /** @return list<string> Claves: c, b, a (y futuras d, e, f) de arriba hacia abajo. */
+    /** @return list<string> Claves: d, c, b, a de arriba hacia abajo. */
     public function stagesForCase(DisciplinaryCase $case): array
     {
         $stack = [];
 
-        if ($case->showsDiligenceStagePanel()) {
+        if ($case->showsDecisionStagePanel()) {
+            $stack[] = 'd';
+        }
+
+        if ($case->showsDiligenceStagePanel() || $case->showsDiligenceStageReadOnly()) {
             $stack[] = 'c';
         }
 
         if ($case->current_status !== CaseStatus::COMITE_DISCIPLINARIO
+            && $case->current_status !== CaseStatus::DECISION
             && ($case->current_status === CaseStatus::CITACION_PROGRAMADA
                 || $case->showsCitationStageReadOnly())) {
             $stack[] = 'b';

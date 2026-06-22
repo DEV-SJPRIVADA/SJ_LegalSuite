@@ -8,6 +8,10 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Disciplinary\ComiteActaService;
 use App\Services\Disciplinary\ComiteDraftService;
+use App\Services\Disciplinary\DecisionComunicadoService;
+use App\Services\Disciplinary\DecisionDraftService;
+use App\Services\Disciplinary\DisciplinaryDecisionNotificationService;
+use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Services\Disciplinary\DiligenceAttendanceService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\FoGj03DraftService;
@@ -17,6 +21,7 @@ use App\Services\Disciplinary\FoGj44ConstanciaService;
 use App\Services\Disciplinary\FoGj44DraftService;
 use App\Services\Disciplinary\FoGj54DraftService;
 use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Support\Disciplinary\DecisionBranch;
 
 /**
  * Autorización del módulo disciplinario:
@@ -460,6 +465,136 @@ class DisciplinaryCasePolicy
         return app(ComiteActaService::class)->canGenerate($case);
     }
 
+    public function selectDecisionType(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::DECISION
+            && $case->decision_coordination_started_at === null;
+    }
+
+    public function editDecisionDraft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DECISION) {
+            return false;
+        }
+
+        return $case->decision_comunicado_generated_at === null
+            && $case->decision !== null
+            && $case->decision_notification_completed_at !== null;
+    }
+
+    public function previewDecisionComunicado(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(DecisionDraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateDecisionComunicado(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewDecisionComunicado($user, $case)) {
+            return false;
+        }
+
+        return app(DecisionComunicadoService::class)->canGenerate($case);
+    }
+
+    public function finalizeDecisionCase(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::DECISION
+            && app(DisciplinaryDecisionWorkflowService::class)->missingFinalizeRequirements($case) === [];
+    }
+
+    public function postDecisionNotificationCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin')) {
+            return false;
+        }
+
+        if ($case->agendaThread?->isClosed()) {
+            return false;
+        }
+
+        return app(DisciplinaryDecisionNotificationService::class)->canPlanningRegisterNotification($case);
+    }
+
+    public function uploadDecisionEvidence(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $case->canUserUploadDecisionEvidence($user);
+    }
+
+    public function completeDecisionHrReview(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return app(DisciplinaryDecisionWorkflowService::class)->userCanCompleteHrReview($user)
+            && $case->current_status === CaseStatus::DECISION
+            && $case->decision_hr_review_completed_at === null
+            && $case->hasDecisionHrAnnex();
+    }
+
+    public function uploadDecisionHrAnnex(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! app(DisciplinaryDecisionWorkflowService::class)->userCanCompleteHrReview($user)) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DECISION) {
+            return false;
+        }
+
+        if ($case->decision_hr_review_completed_at !== null) {
+            return false;
+        }
+
+        $branch = DecisionBranch::forDecision($case->decision);
+
+        return $branch !== null && DecisionBranch::requiresHrReview($branch);
+    }
+
     public function captureFoGj04WorkerSignature(User $user, DisciplinaryCase $case): bool
     {
         if (! $this->previewFoGj04($user, $case)) {
@@ -561,6 +696,25 @@ class DisciplinaryCasePolicy
         return $case->fo_gj_03_generated_at !== null
             && $case->citation_evidence_uploaded_at === null
             && $case->fo_gj_03_draft_completed_at !== null;
+    }
+
+    public function viewDecisionComunicadoForSupervisor(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('supervisor')) {
+            return false;
+        }
+
+        if ((int) $case->decision_notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->decision_comunicado_generated_at !== null
+            && $case->decision_evidence_uploaded_at === null
+            && $case->canReceiveDecisionEvidence();
     }
 
     public function uploadCitationEvidence(User $user, DisciplinaryCase $case): bool

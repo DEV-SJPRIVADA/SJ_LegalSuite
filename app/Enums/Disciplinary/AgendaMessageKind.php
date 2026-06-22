@@ -9,4 +9,6 @@ enum AgendaMessageKind: string
     case PLANNING_RESPONSE = 'planning_response';
     case LAWYER_NOTIFICATION_REQUEST = 'lawyer_notification_request';
     case NOTIFICATION_COORDINATION = 'notification_coordination';
+    case DECISION_PLANNING_RESPONSE = 'decision_planning_response';
+    case DECISION_NOTIFICATION_COORDINATION = 'decision_notification_coordination';
 }

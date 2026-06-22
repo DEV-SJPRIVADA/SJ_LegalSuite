@@ -39,6 +39,7 @@
     $comiteDraftCompleted = $case->comite_draft_completed_at !== null;
     $comiteDoc = $case->latestComiteActaDocument();
     $isComitePanel = $case->current_status === CaseStatus::COMITE_DISCIPLINARIO;
+    $diligenceReadOnly = $diligenceReadOnly ?? false;
     $comiteActaGenerated = $case->comite_generated_at !== null || $comiteDoc !== null;
     $canAdvanceToDecision = ($case->current_status === CaseStatus::DILIGENCIA && $workerAttended)
         || ($isComitePanel && $comiteActaGenerated);
@@ -61,7 +62,9 @@
                 </h4>
                 <p class="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
                     Paso {{ $stepNumber }} de {{ $totalSteps }}
-                    @if ($attendanceRegistered)
+                    @if ($diligenceReadOnly)
+                        · <strong>Completada · Solo lectura</strong>
+                    @elseif ($attendanceRegistered)
                         · Asistencia: <strong>{{ $attendance->label() }}</strong>
                     @endif
                 </p>
@@ -89,7 +92,7 @@
                 </ol>
             </nav>
 
-            @if ($canAdvanceToDecision)
+            @if ($canAdvanceToDecision && ! $diligenceReadOnly)
                 @can('transition', $case)
                     <button type="button" wire:click="requestAdvanceFromDiligencia"
                         class="shrink-0 inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40 dark:hover:bg-white/15">
@@ -120,7 +123,9 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
-                @if (! $attendanceRegistered && $canRegisterAttendance && $isAssignedLawyer)
+                @if ($diligenceReadOnly)
+                    {{-- Solo lectura: sin acciones --}}
+                @elseif (! $attendanceRegistered && $canRegisterAttendance && $isAssignedLawyer)
                     <button type="button" wire:click="requestRegisterDiligenceAttendance('attended')"
                         class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                         Asistió

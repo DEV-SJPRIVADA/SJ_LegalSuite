@@ -39,6 +39,15 @@
         ];
     }
 
+    if (auth()->user()->hasAnyRole(['administrativa', 'admin'])) {
+        $links[] = [
+            'key' => 'decision-hr',
+            'label' => 'Gestión humana',
+            'route' => route('disciplinary.decision-hr-pending.index'),
+            'active' => request()->routeIs('disciplinary.decision-hr-pending.*'),
+        ];
+    }
+
     if (auth()->user()->can('viewOfficialForms', $disciplinaryCaseModel)) {
         $links[] = ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false];
     }

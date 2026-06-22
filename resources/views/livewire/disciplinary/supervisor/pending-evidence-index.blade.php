@@ -8,7 +8,7 @@
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Supervision · Tareas</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Evidencias pendientes</h1>
-                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Cargue la evidencia de notificación FO-GJ-03 (PDF escaneado o firmado en pantalla).</p>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Cargue la evidencia de notificación FO-GJ-03 o del comunicado de decisión (PDF escaneado o firmado en pantalla).</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1]) }}"
@@ -86,10 +86,40 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="p-4 border-t border-slate-200 dark:border-white/10">
-                    {{ $tasks->links() }}
-                </div>
             </div>
+
+            @if (($decisionTasks ?? collect())->isNotEmpty())
+                <div class="bg-white shadow-sm rounded-lg ring-1 ring-violet-200 overflow-hidden dark:bg-white/[0.04] dark:ring-violet-500/20">
+                    <div class="border-b border-violet-200 px-4 py-3 dark:border-white/10">
+                        <h2 class="text-sm font-semibold text-violet-900 dark:text-violet-200">Evidencias de decisión pendientes</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10">
+                            <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
+                                @foreach ($decisionTasks as $task)
+                                    <tr wire:key="pending-decision-evidence-{{ $task->id }}">
+                                        <td class="px-4 py-3 font-mono text-xs">{{ $task->case_number }}</td>
+                                        <td class="px-4 py-3">{{ $task->employee?->first_name }} {{ $task->employee?->last_name }}</td>
+                                        <td class="px-4 py-3 text-violet-700 dark:text-violet-300">Comunicado de decisión</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                                <input type="file" id="decision-evidence-{{ $task->id }}" class="sr-only" accept="application/pdf" wire:model.live="citationEvidenceFileByCase.{{ $task->id }}">
+                                                <label for="decision-evidence-{{ $task->id }}" class="inline-flex cursor-pointer rounded-md bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800">Cargar evidencia PDF</label>
+                                                @can('viewDecisionComunicadoForSupervisor', $task)
+                                                    <button type="button" wire:click="openDecisionNotificationModal({{ $task->id }})"
+                                                        class="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-200 dark:ring-violet-400/40">
+                                                        Notificación
+                                                    </button>
+                                                @endcan
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -99,6 +129,9 @@
         'notificationCaseId' => $notificationCaseId,
         'notificationCase' => $notificationCase,
         'notificationViewData' => $notificationViewData,
+        'decisionNotificationCaseId' => $decisionNotificationCaseId,
+        'decisionNotificationCase' => $decisionNotificationCase,
+        'decisionNotificationViewData' => $decisionNotificationViewData,
         'notificationEvidenceType' => $notificationEvidenceType,
         'workerSignatureDataUri' => $workerSignatureDataUri,
         'witness1SignatureDataUri' => $witness1SignatureDataUri,

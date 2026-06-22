@@ -235,6 +235,189 @@
     </div>
 @endif
 
+{{-- Fase B (decisión): comunicado FO-GJ-DECISION + firma del trabajador o testigos --}}
+@if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null))
+    <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
+        x-data="{ scale: 1 }"
+        x-on:keydown.escape.window="$wire.closeDecisionNotificationModal()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="decision-notification-modal-title"
+        wire:key="decision-notification-modal-{{ $decisionNotificationCaseId }}">
+        <div class="absolute inset-0 bg-black/55 dark:bg-black/65" wire:click="closeDecisionNotificationModal" aria-hidden="true"></div>
+        <div class="relative flex h-[min(96dvh,calc(100dvh-1rem))] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-violet-200 dark:bg-dash-ink dark:ring-violet-500/30">
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+                <div>
+                    <h2 id="decision-notification-modal-title" class="text-base font-bold text-slate-900 dark:text-white">
+                        Comunicado de decisión · {{ $decisionNotificationCase->case_number }}
+                    </h2>
+                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {{ $decisionNotificationCase->employee?->first_name }} {{ $decisionNotificationCase->employee?->last_name }}
+                        · Revise el documento y registre la recepción según el tipo de evidencia.
+                    </p>
+                </div>
+                <button type="button" wire:click="closeDecisionNotificationModal"
+                    class="shrink-0 rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Cerrar">✕</button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-3 dark:bg-black/30 sm:p-4"
+                x-ref="decisionLetterScroller"
+                x-init="
+                    const updateScale = () => {
+                        const sheet = $refs.decisionLetterSheet;
+                        const scroller = $refs.decisionLetterScroller;
+                        if (! sheet || ! scroller) return;
+                        const available = scroller.clientWidth - 24;
+                        const sheetWidth = sheet.offsetWidth;
+                        scale = sheetWidth > available ? Math.max(available / sheetWidth, 0.45) : 1;
+                    };
+                    $nextTick(updateScale);
+                    window.addEventListener('resize', updateScale);
+                ">
+                <div class="ogj-letter-screen-scaler">
+                    <div class="ogj-letter-screen-sheet" x-ref="decisionLetterSheet" :style="`transform: scale(${scale});`">
+                        @include('disciplinary.forms.partials.official-letter-pdf-styles')
+                        <div class="ogj-wrap">
+                            <div class="ogj-page ogj-page--screen-preview">
+                                <table class="ogj-tbl ogj-head-grid" role="presentation">
+                                    <colgroup>
+                                        <col style="width:102px">
+                                        <col>
+                                        <col style="width:114px">
+                                    </colgroup>
+                                    <tbody>
+                                        <tr>
+                                            <td class="ogj-logo-cell">
+                                                <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
+                                            </td>
+                                            <td class="ogj-title">Comunicado de decisión de sanción o cierre del proceso</td>
+                                            <td class="ogj-meta">
+                                                <table class="ogj-meta-grid" role="presentation">
+                                                    <tr><td class="ogj-meta-code">FO-GJ-DECISION</td></tr>
+                                                    <tr><td>{{ $decisionNotificationViewData['issuedDate'] ?? '' }}</td></tr>
+                                                    <tr><td>Versión 01</td></tr>
+                                                    <tr><td>Página 1 de 1</td></tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                @include('disciplinary.forms.partials.decision-comunicado-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shrink-0 space-y-3 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
+                <fieldset>
+                    <legend class="text-xs font-semibold text-slate-700 dark:text-slate-300">Tipo de evidencia</legend>
+                    <div class="mt-2 flex flex-wrap gap-4 text-sm">
+                        <label class="inline-flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                            <input type="radio" wire:model.live="notificationEvidenceType" value="signed" class="text-violet-600">
+                            Comunicado firmado
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                            <input type="radio" wire:model.live="notificationEvidenceType" value="refused_witnesses" class="text-violet-600">
+                            Rechazo con testigos
+                        </label>
+                    </div>
+                </fieldset>
+
+                @if ($notificationEvidenceType === 'signed')
+                    @if ($workerSignatureDataUri)
+                        <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">✓ Firma del trabajador capturada.</p>
+                    @else
+                        <p class="text-xs text-amber-700 dark:text-amber-300">Capture la firma del trabajador antes de cargar el documento.</p>
+                    @endif
+                @else
+                    <p class="text-xs text-amber-700 dark:text-amber-300">
+                        El trabajador se registra como «Se niega a firmar». Capture las firmas y datos de los dos testigos.
+                    </p>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-md border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5">
+                            <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Testigo 1</p>
+                            <div class="mt-2 space-y-2">
+                                <input type="text" wire:model.live="witness1Name" placeholder="Nombre"
+                                    class="w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                <input type="text" wire:model.live="witness1Document" placeholder="Cédula" inputmode="numeric"
+                                    class="w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" wire:click="openWitnessSignaturePad(1)"
+                                        class="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-200 dark:ring-violet-400/40">
+                                        Firma testigo 1
+                                    </button>
+                                    @if ($witness1SignatureDataUri)
+                                        <button type="button" wire:click="clearWitnessSignature(1)"
+                                            class="inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">
+                                            Borrar firma
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                            @error('witness1Name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('witness1Document')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('witness1Signature')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                        <div class="rounded-md border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5">
+                            <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Testigo 2</p>
+                            <div class="mt-2 space-y-2">
+                                <input type="text" wire:model.live="witness2Name" placeholder="Nombre"
+                                    class="w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                <input type="text" wire:model.live="witness2Document" placeholder="Cédula" inputmode="numeric"
+                                    class="w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" wire:click="openWitnessSignaturePad(2)"
+                                        class="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-200 dark:ring-violet-400/40">
+                                        Firma testigo 2
+                                    </button>
+                                    @if ($witness2SignatureDataUri)
+                                        <button type="button" wire:click="clearWitnessSignature(2)"
+                                            class="inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">
+                                            Borrar firma
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                            @error('witness2Name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('witness2Document')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('witness2Signature')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+                @endif
+
+                @error('workerSignature')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                @error('signedDecisionNotification')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <button type="button" wire:click="closeDecisionNotificationModal"
+                        class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        Cerrar
+                    </button>
+                    @if ($notificationEvidenceType === 'signed')
+                        @if ($workerSignatureDataUri)
+                            <button type="button" wire:click="clearWorkerSignature"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
+                                Borrar firma
+                            </button>
+                        @endif
+                        <button type="button" wire:click="openWorkerSignaturePad"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-200 dark:ring-violet-400/40">
+                            Firma trabajador
+                        </button>
+                    @endif
+                    <button type="button" wire:click="uploadSignedDecisionNotification" wire:loading.attr="disabled"
+                        @disabled(! $this->notificationUploadReady())
+                        class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-violet-500 dark:hover:bg-violet-400">
+                        <span wire:loading.remove wire:target="uploadSignedDecisionNotification">Cargar firmado</span>
+                        <span wire:loading wire:target="uploadSignedDecisionNotification">Generando PDF…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @if ($showSignaturePadModal)
     @php
         $signaturePadTitle = match ($signaturePadTarget) {
