@@ -37,6 +37,8 @@ use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -142,5 +144,39 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::post('cases/{case}/transition', [DisciplinaryCaseController::class, 'transition'])->name('cases.transition');
     });
 });
+
+Route::post('/deploy/{token}', function (string $token) {
+    $expected = (string) config('app.deploy_webhook_token');
+
+    if ($expected === '' || ! hash_equals($expected, $token)) {
+        abort(403, 'Unauthorized');
+    }
+
+    $gitPull = Process::path(base_path())->run('git pull origin main');
+
+    if (! $gitPull->successful()) {
+        Log::error('Deploy webhook: git pull failed', [
+            'output' => $gitPull->output(),
+            'error' => $gitPull->errorOutput(),
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'git pull failed',
+        ], 500);
+    }
+
+    $artisanClear = Process::path(base_path())->run('php artisan optimize:clear');
+
+    Log::info('Deploy webhook executed', [
+        'git' => $gitPull->output(),
+        'artisan' => $artisanClear->output(),
+    ]);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Código actualizado con éxito en Hostinger.',
+    ]);
+})->name('deploy.webhook');
 
 require __DIR__.'/auth.php';

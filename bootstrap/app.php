@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ShareUiTheme::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'deploy/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

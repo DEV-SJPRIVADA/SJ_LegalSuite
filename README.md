@@ -415,6 +415,49 @@ php artisan db:seed --class="Database\Seeders\WorkflowSmokeTest"
 
 Esto crea un caso ficticio y lo recorre por las 8 transiciones del workflow, validando que todo funciona.
 
+### Despliegue en Hostinger (subdominio de pruebas)
+
+Entorno de staging recomendado **aislado** del sitio principal (p. ej. `sjlegalsuite.sjregistrycat.com` → carpeta propia, BD MySQL propia, repo Git propio). No mezclar con el `public_html` raíz ni con el deploy de otra app en el mismo hosting.
+
+| Elemento | Valor típico |
+|----------|----------------|
+| **Código Git** | `public_html/sjlegalsuite/` (raíz Laravel: `app`, `vendor`, `.env`) |
+| **Document root** | `public_html/sjlegalsuite/public` (aquí está `index.php`) |
+| **Assets Vite** | `public/build/` — **no** va en Git (`.gitignore`); compilar en PC con `npm run build` y subir la carpeta `build` al hosting |
+| **Enlace storage** | `public/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
+
+**`.env` en hosting (resumen):**
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://sjlegalsuite.sjregistrycat.com
+APP_USE_REQUEST_URL=false
+
+DB_HOST=localhost
+DB_DATABASE=uXXXXX_legalsuite
+DB_USERNAME=uXXXXX_usuario
+DB_PASSWORD=***
+
+SANCTUM_STATEFUL_DOMAINS=sjlegalsuite.sjregistrycat.com
+
+DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
+```
+
+Tras editar `.env`: `php artisan config:cache`. Primera vez: `composer install --no-dev`, `php artisan migrate --force`, `php artisan db:seed --force`.
+
+**Git en hPanel:** segundo repositorio apuntando solo a la carpeta `sjlegalsuite` (deploy key en GitHub del repo `SJ_LegalSuite`). El sitio principal puede seguir con su propio repo sin interferencia.
+
+**Despliegue automático al hacer push:**
+
+1. Defina `DEPLOY_WEBHOOK_TOKEN` en `.env` del servidor (vacío en local = ruta deshabilitada).
+2. Ruta **`POST /deploy/{token}`** (`routes/web.php`): ejecuta `git pull origin main` y `php artisan optimize:clear`; exenta de CSRF (`deploy/*`).
+3. En GitHub → **Settings → Webhooks**: URL `https://sjlegalsuite.sjregistrycat.com/deploy/TU_TOKEN`, evento **push** en `main`.
+
+Alternativa o respaldo: **hPanel → Git → Desplegar** o **Despliegue automático** en el repo `sjlegalsuite`. Si PHP no puede ejecutar `git` en el servidor, use solo el deploy nativo de Hostinger.
+
+> **Nota:** los PDF con Browsershot en hosting compartido suelen requerir Node/Chrome en el servidor o generación en otro entorno; la UI web y el flujo disciplinario funcionan sin ello.
+
 ## 👥 Usuarios demo (entorno local)
 
 | Email | Rol | Capacidades |
