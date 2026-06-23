@@ -448,15 +448,46 @@ Tras editar `.env`: `php artisan config:cache`. Primera vez: `composer install -
 
 **Git en hPanel:** segundo repositorio apuntando solo a la carpeta `sjlegalsuite` (deploy key en GitHub del repo `SJ_LegalSuite`). El sitio principal puede seguir con su propio repo sin interferencia.
 
-**Despliegue automático al hacer push:**
-
-1. Defina `DEPLOY_WEBHOOK_TOKEN` en `.env` del servidor (vacío en local = ruta deshabilitada).
-2. Ruta **`POST /deploy/{token}`** (`routes/web.php`): ejecuta `git pull origin main` y `php artisan optimize:clear`; exenta de CSRF (`deploy/*`).
-3. En GitHub → **Settings → Webhooks**: URL `https://sjlegalsuite.sjregistrycat.com/deploy/TU_TOKEN`, evento **push** en `main`.
-
-Alternativa o respaldo: **hPanel → Git → Desplegar** o **Despliegue automático** en el repo `sjlegalsuite`. Si PHP no puede ejecutar `git` en el servidor, use solo el deploy nativo de Hostinger.
-
 > **Nota:** los PDF con Browsershot en hosting compartido suelen requerir Node/Chrome en el servidor o generación en otro entorno; la UI web y el flujo disciplinario funcionan sin ello.
+
+## Sistema de despliegue continuo (Webhook CD)
+
+El proyecto cuenta con automatización para desplegar cambios en el servidor de producción (Hostinger) cada vez que se hace **`git push`** a la rama **`main`** en GitHub.
+
+### Arquitectura y ajustes en producción
+
+Por restricciones de seguridad y el entorno LiteSpeed/Hostinger, la solución en producción usa un **archivo puente físico** además de la ruta Laravel opcional `POST /deploy/{token}`:
+
+1. **Evasión de redirecciones virtuales (HTTP 301/302):** Hostinger puede interceptar peticiones `POST` a rutas amigables de Laravel y convertirlas en `GET` al home. Para evitarlo, en el servidor existe un archivo real **`public/deploy.php`** (accesible como `https://sjlegalsuite.sjregistrycat.com/deploy.php`). Al ser un script PHP físico, el servidor no aplica redirecciones automáticas de rewrite sobre la URL del webhook.
+
+2. **Bypass de restricciones de consola (`proc_open`):** `shell_exec()` y `exec()` suelen estar deshabilitados en `php.ini` del hosting. El script de despliegue usa **`proc_open`** con descriptores aislados para ejecutar `git pull` sin disparar los filtros que bloquean otras funciones.
+
+3. **Rutas absolutas en producción:** el comando Git se ejecuta desde el directorio raíz del repositorio en el servidor, por ejemplo:
+   `/home/u348559544/domains/sjregistrycat.com/public_html/sjlegalsuite`
+   (o el dominio dedicado del subdominio si Hostinger lo provisionó como sitio aparte).
+
+4. **Sincronización del estado de Git:** si hubo cambios locales en el servidor durante pruebas, usar `git stash` antes del primer despliegue automático para permitir un **fast-forward** limpio desde `origin/main`.
+
+### Configuración del webhook en GitHub
+
+En el repositorio → **Settings → Webhooks**:
+
+| Campo | Valor |
+|--------|--------|
+| **Payload URL** | `https://sjlegalsuite.sjregistrycat.com/deploy.php?token=Legalsuite.2026` |
+| **Content type** | `application/json` |
+| **Events** | Just the push event |
+
+### Seguridad
+
+`deploy.php` valida el parámetro **`?token=`** en la URL. Sin el token correcto, responde **`HTTP 403 Unauthorized`** y aborta el proceso.
+
+> Cambie el token de producción si el repositorio es público o si el webhook se expuso. No versionar `deploy.php` con credenciales en Git si el repo es abierto.
+
+### Ruta Laravel alternativa (respaldo)
+
+En `routes/web.php` existe **`POST /deploy/{token}`** con `DEPLOY_WEBHOOK_TOKEN` en `.env`, que ejecuta `git pull origin main` y `php artisan optimize:clear`. En Hostinger compartido suele fallar por redirecciones; use **`deploy.php`** como mecanismo principal. Respaldo manual: **hPanel → Git → Desplegar**.
+
 
 ## 👥 Usuarios demo (entorno local)
 
