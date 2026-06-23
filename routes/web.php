@@ -152,7 +152,11 @@ Route::post('/deploy/{token}', function (string $token) {
         abort(403, 'Unauthorized');
     }
 
-    $gitPull = Process::path(base_path())->run('git pull origin main');
+    $gitPull = Process::path(base_path())
+        ->withEnvironmentVariables([
+            'GIT_SSH_COMMAND' => 'ssh -i /home/u348559544/.ssh/id_ed25519 -o StrictHostKeyChecking=no',
+        ])
+        ->run('git pull origin main');
 
     if (! $gitPull->successful()) {
         Log::error('Deploy webhook: git pull failed', [
@@ -163,6 +167,8 @@ Route::post('/deploy/{token}', function (string $token) {
         return response()->json([
             'status' => 'error',
             'message' => 'git pull failed',
+            'git_error' => $gitPull->errorOutput(),
+            'git_output' => $gitPull->output(),
         ], 500);
     }
 
