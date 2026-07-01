@@ -18,6 +18,18 @@ final class HtmlLetterPdfGenerator
 
     public static function fromHtml(string $html, bool $zeroPageMargins = false): string
     {
+        if (config('services.pdf.via_artisan_cli') && ! app()->runningInConsole()) {
+            return HtmlLetterPdfArtisanCliRenderer::render($html, $zeroPageMargins);
+        }
+
+        return self::renderDirect($html, $zeroPageMargins);
+    }
+
+    /**
+     * Generación directa vía Browsershot (CLI local o comando render-pdf en hosting).
+     */
+    public static function renderDirect(string $html, bool $zeroPageMargins = false): string
+    {
         $shot = Browsershot::html($html)
             ->format('Letter')
             ->showBackground()
@@ -61,8 +73,9 @@ final class HtmlLetterPdfGenerator
         $configDir = $runtimeDir.'/config';
         $cacheDir = $runtimeDir.'/cache';
         $chromeProfile = $runtimeDir.'/chrome-profile';
+        $tmpDir = storage_path('app/browsershot/tmp');
 
-        foreach ([$runtimeDir, $configDir, $cacheDir, $chromeProfile] as $dir) {
+        foreach ([$runtimeDir, $configDir, $cacheDir, $chromeProfile, $tmpDir] as $dir) {
             if (! is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }
@@ -73,6 +86,9 @@ final class HtmlLetterPdfGenerator
                 'HOME' => $runtimeDir,
                 'XDG_CONFIG_HOME' => $configDir,
                 'XDG_CACHE_HOME' => $cacheDir,
+                'TMPDIR' => $tmpDir,
+                'TEMP' => $tmpDir,
+                'TMP' => $tmpDir,
             ])
             ->addChromiumArguments([
                 'disable-dev-shm-usage',

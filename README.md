@@ -386,7 +386,7 @@ Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático
 
 1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
 2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
-3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT`, `PDF_NO_SANDBOX` (detalle en `.env.example`). En Windows/Laragon suele bastar la detección automática (`PDF_NO_SANDBOX=false`). En **hosting Linux compartido** defina rutas absolutas a Node/npm y `PDF_NO_SANDBOX=true` (ver sección Hostinger).
+3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT`, `PDF_NO_SANDBOX`, `PDF_VIA_ARTISAN_CLI`, `PDF_CLI_PHP` (detalle en `.env.example`). En Windows/Laragon suele bastar la detección automática (`PDF_NO_SANDBOX=false`, `PDF_VIA_ARTISAN_CLI=false`). En **hosting Linux compartido** defina rutas absolutas, `PDF_NO_SANDBOX=true` y **`PDF_VIA_ARTISAN_CLI=true`** (ver sección Hostinger).
 4. Tras cambiar vistas Blade o CSS de formatos, ejecute **`npm run build`** y, si la vista previa no refleja cambios, **`php artisan view:clear`**.
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
@@ -449,10 +449,15 @@ NODE_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/node
 NPM_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/npm
 PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/puppeteer-cache/chrome/linux-XXX/chrome-linux64/chrome
 PDF_NO_SANDBOX=true
+PDF_VIA_ARTISAN_CLI=true
 PDF_BROWSER_TIMEOUT=120
 ```
 
 **PDF en hosting compartido (Hostinger):**
+
+En Hostinger el **document root** es `public_html/` (no `public/`), pero Laravel vive en la **raíz del dominio** (`app/`, `storage/`, `artisan/`). Las rutas `storage/...` son correctas aunque el navegador sirva desde `public_html`.
+
+El **PHP de la web (LiteSpeed)** no puede lanzar Chrome aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). Por eso en hosting se activa **`PDF_VIA_ARTISAN_CLI=true`**: la web delega a `php artisan disciplinary:render-pdf`, mismo motor que ya funciona en SSH.
 
 1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
 2. En la raíz del proyecto: `rm -rf node_modules && npm install` (Chromium para Linux; no suba `node_modules` desde Windows).
@@ -469,7 +474,7 @@ PDF_BROWSER_TIMEOUT=120
 
    Use esa ruta en `PDF_CHROME_PATH` (debe quedar bajo `storage/app/puppeteer-cache/...`).
 
-5. Añada al `.env` **`PDF_NO_SANDBOX=true`** y las rutas anteriores.
+5. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Opcional: `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (resultado de `which php` en SSH; debe ser el binario **CLI**, no el de LiteSpeed).
 6. Permisos de escritura para el runtime de Chrome:
 
    ```bash
