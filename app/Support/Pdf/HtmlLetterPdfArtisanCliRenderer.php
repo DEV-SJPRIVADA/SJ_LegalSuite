@@ -36,7 +36,7 @@ final class HtmlLetterPdfArtisanCliRenderer
             $process = new Process(
                 $command,
                 base_path(),
-                self::subprocessEnvironment(),
+                null,
                 null,
                 (int) config('services.pdf.timeout', 120) + 15,
             );
@@ -77,20 +77,5 @@ final class HtmlLetterPdfArtisanCliRenderer
         }
 
         return $dir;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function subprocessEnvironment(): array
-    {
-        $runtimeDir = storage_path('app/browsershot/runtime');
-
-        return array_filter([
-            'HOME' => $runtimeDir,
-            'TMPDIR' => self::tmpDir(),
-            'TEMP' => self::tmpDir(),
-            'TMP' => self::tmpDir(),
-        ]);
     }
 }

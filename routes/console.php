@@ -50,6 +50,11 @@ Artisan::command('disciplinary:pdf-check', function () {
         $this->warn('PDF_CHROME_PATH está fuera del proyecto; open_basedir del PHP web puede bloquearlo. Instale Chromium en storage/app/puppeteer-cache (ver README Hostinger).');
     }
 
+    $nodePath = BrowsershotBinaryResolver::nodeBinary();
+    if ($nodePath !== null && PHP_OS_FAMILY !== 'Windows' && ! pathIsWithinProject($nodePath)) {
+        $this->warn('NODE_BINARY está fuera del proyecto (~/.nvm). El PHP web de LiteSpeed no puede ejecutarlo: copie Node a storage/app/node-v20 (ver README Hostinger).');
+    }
+
     $viaCli = (bool) config('services.pdf.via_artisan_cli');
     $viaCli
         ? $this->line('PDF_VIA_ARTISAN_CLI: activo (PHP web delega a artisan CLI)')

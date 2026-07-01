@@ -445,9 +445,9 @@ SANCTUM_STATEFUL_DOMAINS=sjlegalsuite.sjregistrycat.com
 DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
 
 # PDF digital (Browsershot) — obligatorio en hosting compartido para FO-GJ-51, citaciones, etc.
-NODE_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/node
-NPM_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/npm
-PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/puppeteer-cache/chrome/linux-XXX/chrome-linux64/chrome
+NODE_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/node
+NPM_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/npm
+PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell
 PDF_NO_SANDBOX=true
 PDF_VIA_ARTISAN_CLI=true
 PDF_BROWSER_TIMEOUT=120
@@ -460,37 +460,34 @@ En Hostinger el **document root** es `public_html/` (no `public/`), pero Laravel
 El **PHP de la web (LiteSpeed)** no puede lanzar Chrome aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). Por eso en hosting se activa **`PDF_VIA_ARTISAN_CLI=true`**: la web delega a `php artisan disciplinary:render-pdf`, mismo motor que ya funciona en SSH.
 
 1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
-2. En la raíz del proyecto: `rm -rf node_modules && npm install` (Chromium para Linux; no suba `node_modules` desde Windows).
-3. Obtenga rutas: `readlink -f $(which node)`, `readlink -f $(which npm)`.
-4. **Chromium dentro del proyecto** (evita `open_basedir` del PHP web sobre `~/.cache`):
+2. **Copie Node dentro del proyecto** (obligatorio: el PHP web no ejecuta binarios fuera de `domains/.../`):
 
    ```bash
    cd ~/domains/sjlegalsuite.sjregistrycat.com
-   mkdir -p storage/app/puppeteer-cache
-   export PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache"
-   npx puppeteer browsers install chrome
-   node -e "console.log(require('puppeteer').executablePath())"
+   cp -a ~/.nvm/versions/node/v20.20.2 storage/app/node-v20
    ```
 
-   Use esa ruta en `PDF_CHROME_PATH` (debe quedar bajo `storage/app/puppeteer-cache/...`).
+   En `.env`: `NODE_BINARY=.../storage/app/node-v20/bin/node` y `NPM_BINARY=.../storage/app/node-v20/bin/npm`.
 
-   Si aparece **`ptrace: Operation not permitted`**, instale **chrome-headless-shell** (más ligero, sin Crashpad) y apunte `PDF_CHROME_PATH` a ese binario:
+3. En la raíz del proyecto: `npm install` (Chromium para Linux; no suba `node_modules` desde Windows).
+4. Obtenga rutas: `readlink -f storage/app/node-v20/bin/node`.
+5. **chrome-headless-shell** (obligatorio en Hostinger; Chrome completo falla por `ptrace`):
 
    ```bash
-   export PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache"
    npx @puppeteer/browsers install chrome-headless-shell@stable
-   find storage/app/puppeteer-cache -type f -name 'chrome-headless-shell'
    ```
 
-5. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Use `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (binario CLI real; `readlink -f $(which php)`).
-6. Permisos de escritura para el runtime de Chrome:
+   Ruta típica: `chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell` en la raíz del proyecto.
+
+6. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Use `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (binario CLI real; `readlink -f $(which php)`).
+7. Permisos de escritura para el runtime de Chrome:
 
    ```bash
-   chmod -R 775 storage/app/browsershot storage/app/puppeteer-cache
+   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell
    ```
 
-7. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
-8. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
+8. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
+9. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
 
 En local (Laragon) deje `PDF_NO_SANDBOX=false` o sin definir. El modal **Cargar informe en PDF (externo)** no usa Browsershot.
 
