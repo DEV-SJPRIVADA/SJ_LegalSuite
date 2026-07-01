@@ -130,7 +130,7 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 
 **Disciplinario — bandeja de abogados (etapa INFORME):** `DisciplinaryCase::scopeInInformePool()` / `isInInformePool()` identifican expedientes en estado **informe** sin titular. El alcance de listados para **abogado** (`forDisciplinaryActor`) une casos propios y pool. Política `claim` autoriza tomar gestión; `view` permite consulta del pool; `update` / `transition` exigen titular asignado. Concurrencia: `claimByLawyer()` actualiza solo si `assigned_lawyer_id` sigue nulo; si falla, `CaseAlreadyClaimedException`. Tests: `tests/Feature/Disciplinary/DisciplinaryLawyerPoolClaimTest.php`.
 
-**Disciplinario — FO-GJ-51 (informe disciplinario):** formulario HTML (`fo-gj-51-informe-body` → `POST disciplinary.forms.informe.process`). Vista `fo-gj-51-preview` + PDF `fo-gj-51-filled-download`. **Grilla datos del trabajador** (tabla de 4 columnas, etiqueta inline en mayúsculas): fila 1 **CC:** (25%) + **NOMBRE:** (`colspan="3"`, 75%); fila 2 **CARGO:** | **CIUDAD:** | **TURNO:** | **PUESTO:** (25% c/u). El layout horizontal usa `fo51-personal-inner` (flex dentro del `<td>`, nunca en el `<td>`) para no romper la tabla en PC ni en PDF. En pantalla interactiva, `fo51-interactive` + `fo-gj-51-screen-mobile` apilan las celdas solo en móvil (`@media max-width: 767px`). Acciones: **Generar PDF**, **Enviar a revisión** (revisor operaciones obligatorio) o **Cargar PDF externo** (sin lienzo de firma en pantalla). **Evidencias fotográficas** opcionales (hasta 10): botón **Agregar evidencias** / **Gestionar evidencias** abre modal; los `input[type=file]` usan `form="fo51-informe-form"` fuera del `<form>` para no tapar el envío en móvil; el modal se cierra al pulsar **Enviar a revisión**. **Supervisor:** `GET …/informe-fo-gj-51?vista_completa=1`; si falla validación sin permiso `viewAny` de casos, `FoGj51ProcessRequest` redirige al formulario completo (evita 403 en el listado). Nombre y cargo del elaborador desde sesión; columna **FIRMA** con captura gráfica (`fo51_preparer_signature` como `data:image/png;base64,…`). Modal Alpine **`signature-capture-modal-alpine`** + factory **`sjFo51PreparerSignature()`** (mismo `worker-signature-pad.js` que FO-GJ-03/04). Validación: `PngSignatureDataUri` en `StoreFoGj51InformePdfRequest`; obligatoria en `FoGj51ProcessRequest` para acciones `pdf` y `enviar`. Tests: `FoGj51PreparerSignatureTest.php`.
+**Disciplinario — FO-GJ-51 (informe disciplinario):** formulario HTML (`fo-gj-51-informe-body` → `POST disciplinary.forms.informe.process`). Vista `fo-gj-51-preview` + PDF `fo-gj-51-filled-download`. **Grilla datos del trabajador** (tabla de 4 columnas, etiqueta inline en mayúsculas): fila 1 **CC:** (25%) + **NOMBRE:** (`colspan="3"`, 75%); fila 2 **CARGO:** | **CIUDAD:** | **TURNO:** | **PUESTO:** (25% c/u). El layout horizontal usa `fo51-personal-inner` (flex dentro del `<td>`, nunca en el `<td>`) para no romper la tabla en PC ni en PDF. En pantalla interactiva, `fo51-interactive` + `fo-gj-51-screen-mobile` apilan las celdas solo en móvil (`@media max-width: 767px`). Acciones: **Generar PDF**, **Enviar a revisión** (revisor operaciones obligatorio) o **Cargar PDF externo** (sin lienzo de firma en pantalla; no usa Browsershot). **Evidencias fotográficas** opcionales (hasta 10): botón **Agregar evidencias** / **Gestionar evidencias** abre modal; los `input[type=file]` usan `form="fo51-informe-form"` fuera del `<form>` para no tapar el envío en móvil; el modal se cierra al pulsar **Enviar a revisión**. **Supervisor:** `GET …/informe-fo-gj-51?vista_completa=1`; si falla validación sin permiso `viewAny` de casos, `FoGj51ProcessRequest` redirige al formulario completo (evita 403 en el listado). Nombre y cargo del elaborador desde sesión; columna **FIRMA** con captura gráfica (`fo51_preparer_signature` como `data:image/png;base64,…`). Modal Alpine **`signature-capture-modal-alpine`** + factory **`sjFo51PreparerSignature()`** (mismo `worker-signature-pad.js` que FO-GJ-03/04). Validación: `PngSignatureDataUri` en `StoreFoGj51InformePdfRequest`; obligatoria en `FoGj51ProcessRequest` para acciones `pdf` y `enviar`. **Hosting compartido (Hostinger):** con `PDF_USE_QUEUE=true`, **Generar PDF** y **Enviar a revisión** encolan `ProcessFoGj51PdfJob`; la web muestra pantalla *Generando PDF* (`fo-gj-51-pdf-queue-wait`) y un worker CLI/cron ejecuta Browsershot (ver sección PDF en Hostinger). Tras **Enviar a revisión**, el informe queda en **Revisión informes** (`InformeSubmission`, estado pendiente); no aparece aún en evidencias pendientes hasta que operaciones lo autorice. Tests: `FoGj51PreparerSignatureTest.php`.
 
 **Disciplinario — Etapa B (citación):** chat libre abogado ↔ planeación (`AgendaMessageKind::GENERAL`); adjuntos en mensajes (imágenes/PDF) con miniaturas en el hilo y lightbox (`agenda-attachment-lightbox.js`). Planeación publica fechas con **`proposed_slots`** (`PLANNING_RESPONSE`) — bloque **Fechas propuestas** en `agenda-message.blade.php`. Orden: (1) coordinación + chat, (2) modal **Proponer fechas de diligencia** en coordinaciones, (3) abogado confirma slot en el hilo, (4) al publicar slots se habilita **Registrar notificación y supervisor** (`canPlanningRegisterNotification`, sin botón del abogado), (5) datos de notificación en la barra del expediente, (6) **diligenciar FO-GJ-03** (`fo_gj_03_payload`, políticas `editFoGj03Draft` / `previewFoGj03` / `generateFoGj03`), (7) vista previa y generación PDF (`FoGj03CitationService`), (8) evidencia. El chat permanece visible durante FO-GJ-03/evidencia (no depende del paso del stepper). Migraciones: `2026_06_03_120000_reclassify_informal_agenda_messages_as_general.php`, `2026_06_04_100000_fo_gj_03_draft_and_user_signature.php`. Tests: `DisciplinaryCitationStageFlowTest.php`, `DisciplinaryCitationNotificationTest.php`, `FoGj03DraftTest.php`, `DisciplinaryCoordinationsIndexTest.php`, `DisciplinaryOperacionesCaseScopeTest.php`.
 
@@ -393,7 +393,145 @@ Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
 
-### Mapa Colombia (dashboard disciplinario)
+#### Entornos: local (Laragon) vs hosting compartido (Hostinger)
+
+| Aspecto | Local (Laragon / Windows) | Hostinger (LiteSpeed + CageFS) |
+|---------|---------------------------|--------------------------------|
+| PHP web lanza Chrome | Sí (o autodetecta Node) | **No** (`Failed to launch the browser process`) |
+| PHP CLI (`artisan`) lanza Chrome | Sí | Sí (`disciplinary:pdf-smoke` OK) |
+| FO-GJ-51 desde navegador | Síncrono (Browsershot directo) | **Cola** (`PDF_USE_QUEUE=true`) |
+| Node/npm | PATH o Laragon | Copia en `storage/app/node-v20/` |
+| Chromium | Puppeteer o Chrome sistema | **chrome-headless-shell** en raíz del proyecto |
+| Worker de cola | No necesario | **Cron** `schedule:run` cada minuto |
+| `PDF_NO_SANDBOX` | `false` | `true` |
+| `PDF_USE_QUEUE` | `false` | `true` |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (obsoleto si usa cola) |
+
+#### Variables `.env` (PDF)
+
+| Variable | Local típico | Hostinger | Descripción |
+|----------|--------------|-----------|-------------|
+| `NODE_BINARY` | vacío (autodetect) | ruta absoluta a `storage/app/node-v20/bin/node` | Binario Node ejecutable por CLI |
+| `NPM_BINARY` | vacío | ruta absoluta a `.../bin/npm` | npm (Puppeteer puede usarlo) |
+| `PDF_CHROME_PATH` | vacío | ruta a `chrome-headless-shell` | Chrome completo falla por `ptrace` en Hostinger |
+| `PDF_NO_SANDBOX` | `false` | `true` | Flags `--no-sandbox`, `single-process`, etc. |
+| `PDF_USE_QUEUE` | `false` | `true` | FO-GJ-51 web encola job en tabla `jobs` |
+| `QUEUE_CONNECTION` | `database` | `database` | Driver de cola (requiere migración `jobs`) |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` | Alternativa anterior; no usar con cola |
+| `PDF_CLI_PHP` | vacío | `/opt/alt/php83/usr/bin/php` | Solo relevante si `PDF_VIA_ARTISAN_CLI=true` |
+| `PDF_BROWSER_TIMEOUT` | `120` | `120` | Segundos de espera de Browsershot |
+
+#### Cola FO-GJ-51 en hosting (`PDF_USE_QUEUE=true`)
+
+Cuando un supervisor pulsa **Generar PDF** o **Enviar a revisión** desde el navegador:
+
+```mermaid
+sequenceDiagram
+    participant U as Navegador (PHP web)
+    participant Q as Tabla jobs
+    participant W as Worker CLI (cron)
+    participant B as Browsershot + Chrome
+
+    U->>U: Guarda payload en storage/app/fo-gj-51-pdf-queue/{token}
+    U->>Q: Dispatch ProcessFoGj51PdfJob
+    U->>U: Pantalla "Generando PDF" (polling cada 2s)
+    W->>Q: queue:work (vía schedule:run)
+    W->>B: FoGj51PdfBuilder → HtmlLetterPdfGenerator
+    B-->>W: PDF binario
+    alt Acción pdf
+        W->>U: status=ready → descarga output.pdf
+    else Acción enviar
+        W->>W: InformeSubmissionService.storePending
+        W->>U: status=submitted → mensaje éxito
+    end
+```
+
+**Componentes:**
+
+| Pieza | Ubicación |
+|-------|-----------|
+| Controlador | `FoGj51InformeController` (`dispatchQueuedPdf`, rutas `pdf-queue/*`) |
+| Job | `App\Jobs\Disciplinary\ProcessFoGj51PdfJob` |
+| Builder PDF | `App\Services\Disciplinary\FoGj51PdfBuilder` |
+| Estado en disco | `App\Support\Pdf\FoGj51PdfQueueStore` → `storage/app/fo-gj-51-pdf-queue/` |
+| Vista espera | `resources/views/disciplinary/forms/fo-gj-51-pdf-queue-wait.blade.php` |
+| Scheduler | `bootstrap/app.php` → cada minuto `queue:work database --stop-when-empty --max-time=55` |
+
+**Rutas web (autenticadas):**
+
+- `GET /disciplinary/forms/informe-fo-gj-51/pdf-queue/{token}` — pantalla de espera
+- `GET …/pdf-queue/{token}/status` — JSON `{ status, error?, redirect_url? }`
+- `GET …/pdf-queue/{token}/download` — PDF cuando `status=ready`
+- `GET …/pdf-queue/{token}/complete` — redirect con flash tras envío a revisión
+
+#### Comandos Artisan (PDF)
+
+```bash
+# Diagnóstico completo (.env, Node, Chrome, logo, flags)
+php artisan disciplinary:pdf-check
+
+# Prueba real Browsershot vía CLI (debe dar OK en Hostinger)
+php artisan disciplinary:pdf-smoke
+
+# Procesar cola manualmente (pruebas; no dejar SSH abierto en producción)
+php artisan queue:work database --verbose
+
+# Tras cambiar .env
+php artisan config:clear
+```
+
+#### Cron en producción (obligatorio con `PDF_USE_QUEUE=true`)
+
+**No** deje `queue:work` corriendo en una terminal SSH permanente. Configure en **hPanel → Cron Jobs**, cada minuto:
+
+```bash
+* * * * * cd /home/u348559544/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
+```
+
+`schedule:run` ejecuta el worker de cola definido en `bootstrap/app.php`. Latencia típica: unos segundos (máximo ~1 minuto si el cron acaba de pasar).
+
+#### Ejemplo `.env` verificado (staging `sjlegalsuite.sjregistrycat.com`)
+
+```env
+NODE_BINARY=/home/u348559544/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/node
+NPM_BINARY=/home/u348559544/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/npm
+PDF_CHROME_PATH=/home/u348559544/domains/sjlegalsuite.sjregistrycat.com/chrome-headless-shell/linux-150.0.7871.46/chrome-headless-shell-linux64/chrome-headless-shell
+PDF_NO_SANDBOX=true
+PDF_VIA_ARTISAN_CLI=false
+PDF_USE_QUEUE=true
+QUEUE_CONNECTION=database
+PDF_CLI_PHP=/opt/alt/php83/usr/bin/php
+PDF_BROWSER_TIMEOUT=120
+```
+
+Salida esperada de `php artisan disciplinary:pdf-check`:
+
+```text
+PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)
+PDF_VIA_ARTISAN_CLI: inactivo (Browsershot directo)
+PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
+```
+
+#### Limitaciones en hosting compartido
+
+- **FO-GJ-51** (generar / enviar desde web): resuelto con cola + cron.
+- **Cargar PDF externo** (modal): no usa Browsershot; funciona en web.
+- **Otros PDF desde web** (FO-GJ-03, FO-GJ-04, acta comité, etc.): siguen llamando Browsershot **síncrono** desde PHP web; pueden fallar en Hostinger igual que antes. Alternativas: VPS, o ampliar el patrón de cola a esos formatos.
+- Cambiar `PDF_NO_SANDBOX=false` **no** arregla el bloqueo de CageFS en PHP web.
+
+#### Errores frecuentes y solución
+
+| Síntoma | Causa | Solución |
+|---------|-------|----------|
+| `node: command not found` | Node fuera del proyecto o sin `NODE_BINARY` | Copiar Node a `storage/app/node-v20`, definir rutas en `.env` |
+| `ptrace: Operation not permitted` | Chrome completo | Usar **chrome-headless-shell** |
+| `Failed to launch the browser process` en **web** | CageFS bloquea Chrome en LiteSpeed | `PDF_USE_QUEUE=true` + cron |
+| `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
+| `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
+| Pantalla *Generando PDF* infinita | Sin cron ni worker | Configurar cron o `queue:work --verbose` |
+| Pegar historial de terminal en bash | Copiar prompts `[user@host]$` | Ejecutar **solo** el comando, una línea |
+| Informe enviado pero no en evidencias | Flujo normal | Va primero a **Revisión informes**; operaciones debe autorizar |
+
 
 1. Descargue los GeoJSON GADM al árbol público del proyecto:
 
@@ -462,11 +600,15 @@ QUEUE_CONNECTION=database
 
 En Hostinger el **document root** es `public_html/` (no `public/`), pero Laravel vive en la **raíz del dominio** (`app/`, `storage/`, `artisan/`). Las rutas `storage/...` son correctas aunque el navegador sirva desde `public_html`.
 
-El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). Cambiar `PDF_NO_SANDBOX` a `false` **no soluciona** el error web. La solución es **`PDF_USE_QUEUE=true`**: la web encola el FO-GJ-51 y un **worker CLI** (cron) genera el PDF con Browsershot.
+El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). La solución desplegada y verificada en staging es **`PDF_USE_QUEUE=true`** + cron (detalle completo en la sección **PDF disciplinarios** más arriba: variables, flujo, comandos, limitaciones).
 
-**Flujo con cola (FO-GJ-51):** el usuario envía el formulario → pantalla *Generando PDF* → job `ProcessFoGj51PdfJob` en tabla `jobs` → worker CLI (`schedule:run` o `queue:work`) ejecuta Browsershot → descarga del PDF o envío a revisión.
+**Resumen operativo:**
 
-`PDF_VIA_ARTISAN_CLI` ya no es necesario si usa cola; déjelo en `false`.
+1. Instalar Node (NVM) + copiar a `storage/app/node-v20`.
+2. `npm install` + `chrome-headless-shell` en la raíz del proyecto.
+3. `.env` con rutas absolutas, `PDF_NO_SANDBOX=true`, `PDF_USE_QUEUE=true`, `QUEUE_CONNECTION=database`.
+4. Cron cada minuto → `php artisan schedule:run`.
+5. `php artisan disciplinary:pdf-check` debe mostrar **`PDF_USE_QUEUE: activo`**.
 
 **Diagnóstico rápido:**
 
@@ -477,7 +619,7 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 | `pdf-smoke` OK pero web falla | Normal sin cola; active `PDF_USE_QUEUE=true` y cron |
 | Pantalla *Generando PDF* indefinida | Falta cron o `queue:work` en SSH |
 
-1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
+**Instalación paso a paso (primera vez):**
 2. **Copie Node dentro del proyecto** (obligatorio: el PHP web no ejecuta binarios fuera de `domains/.../`):
 
    ```bash
