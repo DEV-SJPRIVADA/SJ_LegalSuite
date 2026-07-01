@@ -94,6 +94,8 @@ final class HtmlLetterPdfGenerator
                 'disable-dev-shm-usage',
                 'disable-gpu',
                 'disable-setuid-sandbox',
+                'disable-crash-reporter',
+                'disable-breakpad',
                 'no-zygote',
                 'user-data-dir='.$chromeProfile,
             ]);
