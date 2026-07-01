@@ -447,7 +447,7 @@ DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
 # PDF digital (Browsershot) — obligatorio en hosting compartido para FO-GJ-51, citaciones, etc.
 NODE_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/node
 NPM_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/npm
-PDF_CHROME_PATH=/home/uXXXXX/.cache/puppeteer/chrome/linux-XXX/chrome-linux64/chrome
+PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/puppeteer-cache/chrome/linux-XXX/chrome-linux64/chrome
 PDF_NO_SANDBOX=true
 PDF_BROWSER_TIMEOUT=120
 ```
@@ -456,10 +456,28 @@ PDF_BROWSER_TIMEOUT=120
 
 1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
 2. En la raíz del proyecto: `rm -rf node_modules && npm install` (Chromium para Linux; no suba `node_modules` desde Windows).
-3. Obtenga rutas: `readlink -f $(which node)`, `readlink -f $(which npm)` y `node -e "console.log(require('puppeteer').executablePath())"`.
-4. Añada las variables anteriores al `.env` con **`PDF_NO_SANDBOX=true`** (obligatorio en Linux compartido; el código aplica `--no-sandbox` y flags de `/dev/shm`).
-5. Verifique: `php artisan config:clear` y `php artisan disciplinary:pdf-check` (debe mostrar `PDF_NO_SANDBOX: activo`).
-6. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
+3. Obtenga rutas: `readlink -f $(which node)`, `readlink -f $(which npm)`.
+4. **Chromium dentro del proyecto** (evita `open_basedir` del PHP web sobre `~/.cache`):
+
+   ```bash
+   cd ~/domains/sjlegalsuite.sjregistrycat.com
+   mkdir -p storage/app/puppeteer-cache
+   export PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache"
+   npx puppeteer browsers install chrome
+   node -e "console.log(require('puppeteer').executablePath())"
+   ```
+
+   Use esa ruta en `PDF_CHROME_PATH` (debe quedar bajo `storage/app/puppeteer-cache/...`).
+
+5. Añada al `.env` **`PDF_NO_SANDBOX=true`** y las rutas anteriores.
+6. Permisos de escritura para el runtime de Chrome:
+
+   ```bash
+   chmod -R 775 storage/app/browsershot storage/app/puppeteer-cache
+   ```
+
+7. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
+8. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
 
 En local (Laragon) deje `PDF_NO_SANDBOX=false` o sin definir. El modal **Cargar informe en PDF (externo)** no usa Browsershot.
 

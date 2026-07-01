@@ -44,8 +44,44 @@ Artisan::command('disciplinary:pdf-check', function () {
         $this->warn('En Linux sin PDF_NO_SANDBOX=true, Chromium headless suele fallar en hosting compartido.');
     }
 
+    $chromePath = BrowsershotBinaryResolver::chromeBinary();
+    if ($chromePath !== null && PHP_OS_FAMILY !== 'Windows' && ! pathIsWithinProject($chromePath)) {
+        $this->warn('PDF_CHROME_PATH está fuera del proyecto; open_basedir del PHP web puede bloquearlo. Instale Chromium en storage/app/puppeteer-cache (ver README Hostinger).');
+    }
+
     return ($node && $puppeteerOk && $logoOk) ? 0 : 1;
 })->purpose('Verifica Node/npm/Chrome/logo para generar PDF disciplinarios');
+
+Artisan::command('disciplinary:pdf-smoke', function () {
+    $this->info('Generando PDF de prueba (HTML mínimo)...');
+
+    try {
+        $binary = \App\Support\Pdf\HtmlLetterPdfGenerator::fromHtml(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><p>Smoke test SJ LegalSuite</p></body></html>',
+        );
+    } catch (\Throwable $e) {
+        $this->error('Falló: '.$e->getMessage());
+
+        return 1;
+    }
+
+    $this->line('OK: PDF generado ('.strlen($binary).' bytes).');
+
+    return 0;
+})->purpose('Prueba real de generación PDF vía Browsershot');
+
+function pathIsWithinProject(string $path): bool
+{
+    $base = realpath(base_path()) ?: base_path();
+    $resolved = realpath($path);
+
+    if ($resolved === false) {
+        return str_starts_with($path, $base);
+    }
+
+    return str_starts_with($resolved, $base.DIRECTORY_SEPARATOR)
+        || $resolved === $base;
+}
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

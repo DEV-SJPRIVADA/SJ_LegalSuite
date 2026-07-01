@@ -49,13 +49,37 @@ final class HtmlLetterPdfGenerator
         }
 
         if (config('services.pdf.no_sandbox')) {
-            $shot->noSandbox()
-                ->addChromiumArguments([
-                    'disable-dev-shm-usage',
-                    'disable-gpu',
-                ]);
+            $shot = self::applySharedHostingChromeOptions($shot);
         }
 
         return $shot->pdf();
+    }
+
+    private static function applySharedHostingChromeOptions(Browsershot $shot): Browsershot
+    {
+        $runtimeDir = storage_path('app/browsershot/runtime');
+        $configDir = $runtimeDir.'/config';
+        $cacheDir = $runtimeDir.'/cache';
+        $chromeProfile = $runtimeDir.'/chrome-profile';
+
+        foreach ([$runtimeDir, $configDir, $cacheDir, $chromeProfile] as $dir) {
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+        }
+
+        return $shot->noSandbox()
+            ->setEnvironmentOptions([
+                'HOME' => $runtimeDir,
+                'XDG_CONFIG_HOME' => $configDir,
+                'XDG_CACHE_HOME' => $cacheDir,
+            ])
+            ->addChromiumArguments([
+                'disable-dev-shm-usage',
+                'disable-gpu',
+                'disable-setuid-sandbox',
+                'no-zygote',
+                'user-data-dir='.$chromeProfile,
+            ]);
     }
 }
