@@ -20,6 +20,8 @@ final class HtmlLetterPdfArtisanCliRenderer
 
         file_put_contents($inputPath, $html);
 
+        $previousTemp = HtmlLetterPdfGenerator::overrideTempDirForHosting($tmpDir);
+
         try {
             $command = [
                 PdfCliPhpBinaryResolver::resolve(),
@@ -44,7 +46,8 @@ final class HtmlLetterPdfArtisanCliRenderer
             $process->run();
 
             if (! $process->isSuccessful()) {
-                throw new \RuntimeException(trim($process->getErrorOutput() ?: $process->getOutput()) ?: 'Falló artisan disciplinary:render-pdf.');
+                $detail = trim($process->getErrorOutput()."\n".$process->getOutput());
+                throw new \RuntimeException($detail !== '' ? $detail : 'Falló artisan disciplinary:render-pdf.');
             }
 
             if (! is_file($outputPath)) {
@@ -59,6 +62,7 @@ final class HtmlLetterPdfArtisanCliRenderer
 
             return $binary;
         } finally {
+            HtmlLetterPdfGenerator::restoreTempDirForHosting($previousTemp);
             if (is_file($inputPath)) {
                 @unlink($inputPath);
             }

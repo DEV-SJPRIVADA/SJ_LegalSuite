@@ -30,44 +30,112 @@ final class HtmlLetterPdfGenerator
      */
     public static function renderDirect(string $html, bool $zeroPageMargins = false): string
     {
-        $shot = Browsershot::html($html)
-            ->format('Letter')
-            ->showBackground()
-            ->emulateMedia('print')
-            ->timeout((int) config('services.pdf.timeout', 120))
-            ->windowSize(
-                (int) config('services.pdf.viewport_width', 1280),
-                (int) config('services.pdf.viewport_height', 1650),
-            );
-
-        if (! config('services.pdf.no_sandbox')) {
-            $shot->newHeadless();
+        $tmpDir = storage_path('app/browsershot/tmp');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
         }
 
-        if ($zeroPageMargins) {
-            $shot->margins(0, 0, 0, 0, 'in');
+        $previousTemp = config('services.pdf.no_sandbox')
+            ? self::overrideTempDir($tmpDir)
+            : null;
+
+        try {
+            $shot = Browsershot::html($html)
+                ->format('Letter')
+                ->showBackground()
+                ->emulateMedia('print')
+                ->timeout((int) config('services.pdf.timeout', 120))
+                ->windowSize(
+                    (int) config('services.pdf.viewport_width', 1280),
+                    (int) config('services.pdf.viewport_height', 1650),
+                );
+
+            if (! config('services.pdf.no_sandbox')) {
+                $shot->newHeadless();
+            }
+
+            if ($zeroPageMargins) {
+                $shot->margins(0, 0, 0, 0, 'in');
+            }
+
+            $chromePath = BrowsershotBinaryResolver::chromeBinary();
+            if ($chromePath !== null) {
+                $shot->setChromePath($chromePath);
+            }
+
+            $nodeBinary = BrowsershotBinaryResolver::nodeBinary();
+            if ($nodeBinary !== null) {
+                $shot->setNodeBinary($nodeBinary);
+            }
+
+            $npmBinary = BrowsershotBinaryResolver::npmBinary();
+            if ($npmBinary !== null) {
+                $shot->setNpmBinary($npmBinary);
+            }
+
+            if (config('services.pdf.no_sandbox')) {
+                $shot = self::applySharedHostingChromeOptions($shot);
+            }
+
+            return $shot->pdf();
+        } finally {
+            if ($previousTemp !== null) {
+                self::restoreTempDir($previousTemp);
+            }
+        }
+    }
+
+    /**
+     * @return array{TMPDIR: ?string, TEMP: ?string, TMP: ?string}
+     */
+    public static function overrideTempDirForHosting(string $dir): array
+    {
+        return self::overrideTempDir($dir);
+    }
+
+    /**
+     * @param  array{TMPDIR: ?string, TEMP: ?string, TMP: ?string}  $previous
+     */
+    public static function restoreTempDirForHosting(array $previous): void
+    {
+        self::restoreTempDir($previous);
+    }
+
+    /**
+     * @return array{TMPDIR: ?string, TEMP: ?string, TMP: ?string}
+     */
+    private static function overrideTempDir(string $dir): array
+    {
+        $previous = [
+            'TMPDIR' => getenv('TMPDIR') ?: null,
+            'TEMP' => getenv('TEMP') ?: null,
+            'TMP' => getenv('TMP') ?: null,
+        ];
+
+        foreach (array_keys($previous) as $key) {
+            putenv($key.'='.$dir);
+            $_ENV[$key] = $dir;
+            $_SERVER[$key] = $dir;
         }
 
-        $chromePath = BrowsershotBinaryResolver::chromeBinary();
-        if ($chromePath !== null) {
-            $shot->setChromePath($chromePath);
-        }
+        return $previous;
+    }
 
-        $nodeBinary = BrowsershotBinaryResolver::nodeBinary();
-        if ($nodeBinary !== null) {
-            $shot->setNodeBinary($nodeBinary);
+    /**
+     * @param  array{TMPDIR: ?string, TEMP: ?string, TMP: ?string}  $previous
+     */
+    private static function restoreTempDir(array $previous): void
+    {
+        foreach ($previous as $key => $value) {
+            if ($value === null) {
+                putenv($key);
+                unset($_ENV[$key], $_SERVER[$key]);
+            } else {
+                putenv($key.'='.$value);
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            }
         }
-
-        $npmBinary = BrowsershotBinaryResolver::npmBinary();
-        if ($npmBinary !== null) {
-            $shot->setNpmBinary($npmBinary);
-        }
-
-        if (config('services.pdf.no_sandbox')) {
-            $shot = self::applySharedHostingChromeOptions($shot);
-        }
-
-        return $shot->pdf();
     }
 
     private static function applySharedHostingChromeOptions(Browsershot $shot): Browsershot
