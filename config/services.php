@@ -39,6 +39,7 @@ return [
     | PDF desde HTML (Spatie Browsershot). Siempre tamaño Letter desde HtmlLetterPdfGenerator.
     | Sin NODE_BINARY: en Windows se intenta Laragon (carpeta bin/nodejs, carpetas node-vXX) y PATH.
     | Sin PDF_CHROME_PATH: se intenta Chrome de sistema en Windows; si no, Puppeteer usa su Chromium.
+    | PDF_NO_SANDBOX=true: hosting Linux compartido (p. ej. Hostinger) — desactiva sandbox y /dev/shm pequeño.
     */
     'pdf' => [
         'chrome_path' => env('PDF_CHROME_PATH'),
@@ -47,6 +48,7 @@ return [
         'timeout' => (int) env('PDF_BROWSER_TIMEOUT', 120),
         'viewport_width' => (int) env('PDF_VIEWPORT_WIDTH', 1280),
         'viewport_height' => (int) env('PDF_VIEWPORT_HEIGHT', 1650),
+        'no_sandbox' => filter_var(env('PDF_NO_SANDBOX', false), FILTER_VALIDATE_BOOL),
     ],
 
 ];

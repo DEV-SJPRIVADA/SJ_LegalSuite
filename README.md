@@ -386,7 +386,7 @@ Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático
 
 1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
 2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
-3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT` (detalle en `.env.example`). En Windows suele bastar la detección automática (Laragon en `C:\laragon\bin\nodejs\…`, Chrome en Program Files).
+3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT`, `PDF_NO_SANDBOX` (detalle en `.env.example`). En Windows/Laragon suele bastar la detección automática (`PDF_NO_SANDBOX=false`). En **hosting Linux compartido** defina rutas absolutas a Node/npm y `PDF_NO_SANDBOX=true` (ver sección Hostinger).
 4. Tras cambiar vistas Blade o CSS de formatos, ejecute **`npm run build`** y, si la vista previa no refleja cambios, **`php artisan view:clear`**.
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
@@ -421,10 +421,11 @@ Entorno de staging recomendado **aislado** del sitio principal (p. ej. `sjlegals
 
 | Elemento | Valor típico |
 |----------|----------------|
-| **Código Git** | `public_html/sjlegalsuite/` (raíz Laravel: `app`, `vendor`, `.env`) |
-| **Document root** | `public_html/sjlegalsuite/public` (aquí está `index.php`) |
-| **Assets Vite** | `public/build/` — **no** va en Git (`.gitignore`); compilar en PC con `npm run build` y subir la carpeta `build` al hosting |
-| **Enlace storage** | `public/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
+| **Código Git** | `~/domains/sjlegalsuite.sjregistrycat.com/` (raíz Laravel: `app`, `vendor`, `.env`) |
+| **Document root** | `~/domains/sjlegalsuite.sjregistrycat.com/public_html` (aquí está `index.php`; en Hostinger el web root es `public_html`, no `public`) |
+| **Assets Vite** | `public_html/build/` — **no** va en Git (`.gitignore`); compilar en PC con `npm run build` y subir la carpeta `build` junto a `index.php` |
+| **Enlace storage** | `public_html/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
+| **Node (PDF)** | NVM en el home del usuario + `npm install` en la raíz del repo (ver abajo) |
 
 **`.env` en hosting (resumen):**
 
@@ -442,13 +443,29 @@ DB_PASSWORD=***
 SANCTUM_STATEFUL_DOMAINS=sjlegalsuite.sjregistrycat.com
 
 DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
+
+# PDF digital (Browsershot) — obligatorio en hosting compartido para FO-GJ-51, citaciones, etc.
+NODE_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/node
+NPM_BINARY=/home/uXXXXX/.nvm/versions/node/v20.x.x/bin/npm
+PDF_CHROME_PATH=/home/uXXXXX/.cache/puppeteer/chrome/linux-XXX/chrome-linux64/chrome
+PDF_NO_SANDBOX=true
+PDF_BROWSER_TIMEOUT=120
 ```
+
+**PDF en hosting compartido (Hostinger):**
+
+1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
+2. En la raíz del proyecto: `rm -rf node_modules && npm install` (Chromium para Linux; no suba `node_modules` desde Windows).
+3. Obtenga rutas: `readlink -f $(which node)`, `readlink -f $(which npm)` y `node -e "console.log(require('puppeteer').executablePath())"`.
+4. Añada las variables anteriores al `.env` con **`PDF_NO_SANDBOX=true`** (obligatorio en Linux compartido; el código aplica `--no-sandbox` y flags de `/dev/shm`).
+5. Verifique: `php artisan config:clear` y `php artisan disciplinary:pdf-check` (debe mostrar `PDF_NO_SANDBOX: activo`).
+6. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
+
+En local (Laragon) deje `PDF_NO_SANDBOX=false` o sin definir. El modal **Cargar informe en PDF (externo)** no usa Browsershot.
 
 Tras editar `.env`: `php artisan config:cache`. Primera vez: `composer install --no-dev`, `php artisan migrate --force`, `php artisan db:seed --force`.
 
 **Git en hPanel:** segundo repositorio apuntando solo a la carpeta `sjlegalsuite` (deploy key en GitHub del repo `SJ_LegalSuite`). El sitio principal puede seguir con su propio repo sin interferencia.
-
-> **Nota:** los PDF con Browsershot en hosting compartido suelen requerir Node/Chrome en el servidor o generación en otro entorno; la UI web y el flujo disciplinario funcionan sin ello.
 
 ## Sistema de despliegue continuo (Webhook CD)
 
@@ -463,10 +480,12 @@ Por restricciones de seguridad y el entorno LiteSpeed/Hostinger, la solución en
 2. **Bypass de restricciones de consola (`proc_open`):** `shell_exec()` y `exec()` suelen estar deshabilitados en `php.ini` del hosting. El script de despliegue usa **`proc_open`** con descriptores aislados para ejecutar `git pull` sin disparar los filtros que bloquean otras funciones.
 
 3. **Rutas absolutas en producción:** el comando Git se ejecuta desde el directorio raíz del repositorio en el servidor, por ejemplo:
-   `/home/u348559544/domains/sjregistrycat.com/public_html/sjlegalsuite`
-   (o el dominio dedicado del subdominio si Hostinger lo provisionó como sitio aparte).
+   `/home/u348559544/domains/sjlegalsuite.sjregistrycat.com`
+   (subdominio provisionado como sitio aparte en hPanel).
 
-4. **Sincronización del estado de Git:** si hubo cambios locales en el servidor durante pruebas, usar `git stash` antes del primer despliegue automático para permitir un **fast-forward** limpio desde `origin/main`.
+4. **PDF tras deploy:** si el `.env` ya tiene `NODE_BINARY`, `PDF_CHROME_PATH` y `PDF_NO_SANDBOX=true`, no hace falta reinstalar Node; basta `php artisan config:clear` y probar un FO-GJ-51. Primera vez: ver sección **PDF en hosting compartido** arriba.
+
+5. **Sincronización del estado de Git:** si hubo cambios locales en el servidor durante pruebas, usar `git stash` antes del primer despliegue automático para permitir un **fast-forward** limpio desde `origin/main`.
 
 ### Configuración del webhook en GitHub
 

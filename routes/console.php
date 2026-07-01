@@ -35,6 +35,15 @@ Artisan::command('disciplinary:pdf-check', function () {
         ? $this->line('Logo PDF: OK (prioridad: images/logo solo.png)')
         : $this->error('Logo PDF: falta images/logo solo.png (u otros candidatos en EmbeddedPublicAsset).');
 
+    $noSandbox = (bool) config('services.pdf.no_sandbox');
+    $noSandbox
+        ? $this->line('PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)')
+        : $this->line('PDF_NO_SANDBOX: inactivo (modo local / Windows)');
+
+    if (PHP_OS_FAMILY !== 'Windows' && ! $noSandbox) {
+        $this->warn('En Linux sin PDF_NO_SANDBOX=true, Chromium headless suele fallar en hosting compartido.');
+    }
+
     return ($node && $puppeteerOk && $logoOk) ? 0 : 1;
 })->purpose('Verifica Node/npm/Chrome/logo para generar PDF disciplinarios');
 

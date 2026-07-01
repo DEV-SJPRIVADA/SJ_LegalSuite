@@ -48,6 +48,14 @@ final class HtmlLetterPdfGenerator
             $shot->setNpmBinary($npmBinary);
         }
 
+        if (config('services.pdf.no_sandbox')) {
+            $shot->noSandbox()
+                ->addChromiumArguments([
+                    'disable-dev-shm-usage',
+                    'disable-gpu',
+                ]);
+        }
+
         return $shot->pdf();
     }
 }
