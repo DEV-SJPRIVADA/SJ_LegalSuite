@@ -474,7 +474,15 @@ El **PHP de la web (LiteSpeed)** no puede lanzar Chrome aunque **PHP CLI (SSH)**
 
    Use esa ruta en `PDF_CHROME_PATH` (debe quedar bajo `storage/app/puppeteer-cache/...`).
 
-5. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Opcional: `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (resultado de `which php` en SSH; debe ser el binario **CLI**, no el de LiteSpeed).
+   Si aparece **`ptrace: Operation not permitted`**, instale **chrome-headless-shell** (más ligero, sin Crashpad) y apunte `PDF_CHROME_PATH` a ese binario:
+
+   ```bash
+   export PUPPETEER_CACHE_DIR="$PWD/storage/app/puppeteer-cache"
+   npx @puppeteer/browsers install chrome-headless-shell@stable
+   find storage/app/puppeteer-cache -type f -name 'chrome-headless-shell'
+   ```
+
+5. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Use `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (binario CLI real; `readlink -f $(which php)`).
 6. Permisos de escritura para el runtime de Chrome:
 
    ```bash

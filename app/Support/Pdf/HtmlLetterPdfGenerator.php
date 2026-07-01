@@ -34,12 +34,15 @@ final class HtmlLetterPdfGenerator
             ->format('Letter')
             ->showBackground()
             ->emulateMedia('print')
-            ->newHeadless()
             ->timeout((int) config('services.pdf.timeout', 120))
             ->windowSize(
                 (int) config('services.pdf.viewport_width', 1280),
                 (int) config('services.pdf.viewport_height', 1650),
             );
+
+        if (! config('services.pdf.no_sandbox')) {
+            $shot->newHeadless();
+        }
 
         if ($zeroPageMargins) {
             $shot->margins(0, 0, 0, 0, 'in');
@@ -91,12 +94,14 @@ final class HtmlLetterPdfGenerator
                 'TMP' => $tmpDir,
             ])
             ->addChromiumArguments([
+                'headless=old',
                 'disable-dev-shm-usage',
                 'disable-gpu',
                 'disable-setuid-sandbox',
                 'disable-crash-reporter',
                 'disable-breakpad',
-                'no-zygote',
+                'disable-features=Crashpad',
+                'single-process',
                 'user-data-dir='.$chromeProfile,
             ]);
     }
