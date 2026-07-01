@@ -64,6 +64,15 @@ Artisan::command('disciplinary:pdf-check', function () {
         $this->line('PHP CLI: '.PdfCliPhpBinaryResolver::resolve());
     }
 
+    $useQueue = (bool) config('services.pdf.use_queue');
+    $useQueue
+        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)')
+        : $this->line('PDF_USE_QUEUE: inactivo (generación síncrona)');
+
+    if ($useQueue && env('QUEUE_CONNECTION', 'database') === 'sync') {
+        $this->warn('QUEUE_CONNECTION=sync no procesará jobs en segundo plano. Use database y cron schedule:run.');
+    }
+
     return ($node && $puppeteerOk && $logoOk) ? 0 : 1;
 })->purpose('Verifica Node/npm/Chrome/logo para generar PDF disciplinarios');
 

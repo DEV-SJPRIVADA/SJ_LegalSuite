@@ -84,6 +84,14 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('forms.informe-fo-gj-51');
         Route::post('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'process'])
             ->name('forms.informe.process');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}', [FoGj51InformeController::class, 'pdfQueueWait'])
+            ->name('forms.informe-fo-gj-51.pdf-queue');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/status', [FoGj51InformeController::class, 'pdfQueueStatus'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.status');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/download', [FoGj51InformeController::class, 'pdfQueueDownload'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.download');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/complete', [FoGj51InformeController::class, 'pdfQueueComplete'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.complete');
 
         Route::get('informes-pendientes', InformesPendientes::class)->name('informes-pendientes.index');
         Route::get('informes-pendientes/{submission}/pdf', [FoGj51InformeController::class, 'pendingPdf'])

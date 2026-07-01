@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureMustChangePassword;
 use App\Http\Middleware\ForceRequestRootUrl;
 use App\Http\Middleware\ShareUiTheme;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -33,4 +34,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        if (config('services.pdf.use_queue')) {
+            $schedule->command('queue:work database --stop-when-empty --max-time=55')
+                ->everyMinute()
+                ->withoutOverlapping();
+        }
     })->create();

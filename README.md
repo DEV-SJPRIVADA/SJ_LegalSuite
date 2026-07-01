@@ -261,8 +261,10 @@ app/
     Notifications/             Trait BroadcastsInAppDatabaseNotification (canal `broadcast` además de `database` cuando Pusher está activo)
     Pdf/
       HtmlLetterPdfGenerator.php HTML → PDF tamaño Letter (Browsershot)
+      FoGj51PdfQueueStore.php     Cola en disco para FO-GJ-51 en hosting (PDF_USE_QUEUE)
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
+  Jobs/Disciplinary/             ProcessFoGj51PdfJob (worker CLI genera PDF encolado desde web)
   Models/
     User.php / Employee.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
@@ -386,7 +388,7 @@ Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático
 
 1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
 2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
-3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT`, `PDF_NO_SANDBOX`, `PDF_VIA_ARTISAN_CLI`, `PDF_CLI_PHP` (detalle en `.env.example`). En Windows/Laragon suele bastar la detección automática (`PDF_NO_SANDBOX=false`, `PDF_VIA_ARTISAN_CLI=false`). En **hosting Linux compartido** defina rutas absolutas, `PDF_NO_SANDBOX=true` y **`PDF_VIA_ARTISAN_CLI=true`** (ver sección Hostinger).
+3. Opcional en `.env`: `NODE_BINARY`, `NPM_BINARY`, `PDF_CHROME_PATH`, `PDF_BROWSER_TIMEOUT`, `PDF_NO_SANDBOX`, `PDF_USE_QUEUE`, `PDF_VIA_ARTISAN_CLI`, `PDF_CLI_PHP` (detalle en `.env.example`). En Windows/Laragon suele bastar la detección automática (`PDF_NO_SANDBOX=false`, `PDF_USE_QUEUE=false`). En **hosting Linux compartido** defina rutas absolutas, `PDF_NO_SANDBOX=true` y **`PDF_USE_QUEUE=true`** con cron/`queue:work` (ver sección Hostinger).
 4. Tras cambiar vistas Blade o CSS de formatos, ejecute **`npm run build`** y, si la vista previa no refleja cambios, **`php artisan view:clear`**.
 
 El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/logo solo.png`** (referencia única: `App\Support\Disciplinary\DisciplinaryAssets::LOGO_RELATIVE_PATH`).
@@ -449,15 +451,31 @@ NODE_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node
 NPM_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/npm
 PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell
 PDF_NO_SANDBOX=true
-PDF_VIA_ARTISAN_CLI=true
+PDF_VIA_ARTISAN_CLI=false
+PDF_USE_QUEUE=true
+PDF_CLI_PHP=/opt/alt/php83/usr/bin/php
 PDF_BROWSER_TIMEOUT=120
+QUEUE_CONNECTION=database
 ```
 
 **PDF en hosting compartido (Hostinger):**
 
 En Hostinger el **document root** es `public_html/` (no `public/`), pero Laravel vive en la **raíz del dominio** (`app/`, `storage/`, `artisan/`). Las rutas `storage/...` son correctas aunque el navegador sirva desde `public_html`.
 
-El **PHP de la web (LiteSpeed)** no puede lanzar Chrome aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). Por eso en hosting se activa **`PDF_VIA_ARTISAN_CLI=true`**: la web delega a `php artisan disciplinary:render-pdf`, mismo motor que ya funciona en SSH.
+El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **PHP CLI (SSH)** sí (`pdf-smoke` OK). Cambiar `PDF_NO_SANDBOX` a `false` **no soluciona** el error web. La solución es **`PDF_USE_QUEUE=true`**: la web encola el FO-GJ-51 y un **worker CLI** (cron) genera el PDF con Browsershot.
+
+**Flujo con cola (FO-GJ-51):** el usuario envía el formulario → pantalla *Generando PDF* → job `ProcessFoGj51PdfJob` en tabla `jobs` → worker CLI (`schedule:run` o `queue:work`) ejecuta Browsershot → descarga del PDF o envío a revisión.
+
+`PDF_VIA_ARTISAN_CLI` ya no es necesario si usa cola; déjelo en `false`.
+
+**Diagnóstico rápido:**
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| `pdf-check` no muestra línea `PDF_USE_QUEUE` | Código viejo: haga `git pull origin main` |
+| `queue:work` termina al instante sin jobs | `PDF_USE_QUEUE=false` en `.env`, o no generó PDF desde la web mientras el worker corría |
+| `pdf-smoke` OK pero web falla | Normal sin cola; active `PDF_USE_QUEUE=true` y cron |
+| Pantalla *Generando PDF* indefinida | Falta cron o `queue:work` en SSH |
 
 1. Por SSH, instale Node con **NVM** en el home del usuario (`nvm install 20`).
 2. **Copie Node dentro del proyecto** (obligatorio: el PHP web no ejecuta binarios fuera de `domains/.../`):
@@ -479,15 +497,26 @@ El **PHP de la web (LiteSpeed)** no puede lanzar Chrome aunque **PHP CLI (SSH)**
 
    Ruta típica: `chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell` en la raíz del proyecto.
 
-6. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_VIA_ARTISAN_CLI=true`** y las rutas anteriores. Use `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (binario CLI real; `readlink -f $(which php)`).
-7. Permisos de escritura para el runtime de Chrome:
+6. Añada al `.env` **`PDF_NO_SANDBOX=true`**, **`PDF_USE_QUEUE=true`**, **`QUEUE_CONNECTION=database`** y las rutas anteriores. Use `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` (binario CLI real; `readlink -f $(which php)`).
+7. **Cron** (hPanel → Cron Jobs, cada minuto) para procesar la cola vía PHP CLI:
 
    ```bash
-   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell
+   * * * * * cd /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
    ```
 
-8. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
-9. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
+   Para probar de inmediato por SSH (sin esperar al cron), en **otra terminal** deje corriendo mientras prueba desde el navegador:
+
+   ```bash
+   php artisan queue:work database --verbose
+   ```
+8. Permisos de escritura para el runtime de Chrome:
+
+   ```bash
+   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue
+   ```
+
+9. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
+10. Tras cada deploy con cambios de config, repita `php artisan config:clear` si no usa `config:cache`.
 
 En local (Laragon) deje `PDF_NO_SANDBOX=false` o sin definir. El modal **Cargar informe en PDF (externo)** no usa Browsershot.
 
@@ -511,7 +540,7 @@ Por restricciones de seguridad y el entorno LiteSpeed/Hostinger, la solución en
    `/home/u348559544/domains/sjlegalsuite.sjregistrycat.com`
    (subdominio provisionado como sitio aparte en hPanel).
 
-4. **PDF tras deploy:** si el `.env` ya tiene `NODE_BINARY`, `PDF_CHROME_PATH` y `PDF_NO_SANDBOX=true`, no hace falta reinstalar Node; basta `php artisan config:clear` y probar un FO-GJ-51. Primera vez: ver sección **PDF en hosting compartido** arriba.
+4. **PDF tras deploy:** si el `.env` ya tiene `NODE_BINARY`, `PDF_CHROME_PATH`, `PDF_NO_SANDBOX=true` y **`PDF_USE_QUEUE=true`**, no hace falta reinstalar Node; basta `php artisan config:clear`, confirmar cron de `schedule:run` y probar FO-GJ-51. Primera vez: ver sección **PDF en hosting compartido** arriba.
 
 5. **Sincronización del estado de Git:** si hubo cambios locales en el servidor durante pruebas, usar `git stash` antes del primer despliegue automático para permitir un **fast-forward** limpio desde `origin/main`.
 
