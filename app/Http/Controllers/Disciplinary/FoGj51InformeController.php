@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Disciplinary;
 
 use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Http\Requests\Disciplinary\FoGj51ProcessRequest;
-use App\Models\ColombianMunicipality;
+use App\Jobs\Disciplinary\ProcessFoGj51PdfJob;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
+use App\Services\Disciplinary\FoGj51PdfBuilder;
 use App\Services\Employees\EmployeeResolver;
-use App\Support\Pdf\EmbeddedPublicAsset;
-use App\Support\Pdf\HtmlLetterPdfGenerator;
+use App\Support\Pdf\FoGj51PdfQueueStore;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -20,11 +21,16 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class FoGj51InformeController
 {
+    public function __construct(
+        private readonly FoGj51PdfBuilder $pdfBuilder,
+    ) {}
+
     public function show(Request $request): RedirectResponse|View
     {
         if (! Gate::allows('create', DisciplinaryCase::class)
@@ -57,11 +63,87 @@ class FoGj51InformeController
 
     public function process(FoGj51ProcessRequest $request): Response|RedirectResponse
     {
-        return match ($request->validated('fo51_action')) {
+        $action = (string) $request->validated('fo51_action');
+
+        if ($this->shouldQueuePdf() && in_array($action, ['pdf', 'enviar'], true)) {
+            return $this->dispatchQueuedPdf($request, $action);
+        }
+
+        return match ($action) {
             'pdf' => $this->respondPdfDownload($request),
             'enviar' => $this->submitToRevisionQueue($request),
             'cargar' => $this->uploadToRevisionQueue($request),
+            default => abort(400),
         };
+    }
+
+    public function pdfQueueWait(Request $request, string $token): View
+    {
+        abort_unless(FoGj51PdfQueueStore::belongsToUser($token, (int) $request->user()->id), 404);
+
+        $meta = FoGj51PdfQueueStore::meta($token);
+        abort_if($meta === null, 404);
+
+        return view('disciplinary.forms.fo-gj-51-pdf-queue-wait', [
+            'token' => $token,
+            'intent' => (string) ($meta['intent'] ?? 'pdf'),
+            'statusUrl' => route('disciplinary.forms.informe-fo-gj-51.pdf-queue.status', ['token' => $token]),
+            'downloadUrl' => route('disciplinary.forms.informe-fo-gj-51.pdf-queue.download', ['token' => $token]),
+        ]);
+    }
+
+    public function pdfQueueStatus(Request $request, string $token): JsonResponse
+    {
+        abort_unless(FoGj51PdfQueueStore::belongsToUser($token, (int) $request->user()->id), 404);
+
+        $meta = FoGj51PdfQueueStore::meta($token);
+        abort_if($meta === null, 404);
+
+        $status = (string) ($meta['status'] ?? FoGj51PdfQueueStore::STATUS_PENDING);
+        $payload = [
+            'status' => $status,
+            'error' => $meta['error'] ?? null,
+        ];
+
+        if ($status === FoGj51PdfQueueStore::STATUS_SUBMITTED) {
+            $payload['redirect_url'] = route('disciplinary.forms.informe-fo-gj-51.pdf-queue.complete', ['token' => $token]);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function pdfQueueComplete(Request $request, string $token): RedirectResponse
+    {
+        abort_unless(FoGj51PdfQueueStore::belongsToUser($token, (int) $request->user()->id), 404);
+
+        $meta = FoGj51PdfQueueStore::meta($token);
+        abort_if($meta === null || ($meta['status'] ?? '') !== FoGj51PdfQueueStore::STATUS_SUBMITTED, 404);
+
+        $routeName = (string) ($meta['redirect_route'] ?? 'disciplinary.evidences-pending.index');
+
+        return redirect()
+            ->route(Route::has($routeName) ? $routeName : 'disciplinary.evidences-pending.index')
+            ->with('success', 'Su informe quedó en cola para revisión de dirección. Cuando sea autorizado se creará el expediente.');
+    }
+
+    public function pdfQueueDownload(Request $request, string $token): Response
+    {
+        abort_unless(FoGj51PdfQueueStore::belongsToUser($token, (int) $request->user()->id), 404);
+
+        $meta = FoGj51PdfQueueStore::meta($token);
+        abort_if($meta === null || ($meta['status'] ?? '') !== FoGj51PdfQueueStore::STATUS_READY, 404);
+
+        $path = FoGj51PdfQueueStore::outputPath($token);
+        abort_unless(is_readable($path), 404);
+
+        return response(
+            (string) file_get_contents($path),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="FO-GJ-51-informe-disciplinario.pdf"',
+            ],
+        );
     }
 
     public function pendingPdf(Request $request, InformeSubmission $submission)
@@ -102,6 +184,68 @@ class FoGj51InformeController
         );
     }
 
+    private function shouldQueuePdf(): bool
+    {
+        return (bool) config('services.pdf.use_queue') && ! app()->runningInConsole();
+    }
+
+    private function dispatchQueuedPdf(FoGj51ProcessRequest $request, string $intent): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        if ($intent === 'enviar') {
+            try {
+                app(EmployeeResolver::class)->resolveById(
+                    isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
+                    (string) ($validated['fo51_worker_document'] ?? ''),
+                );
+            } catch (\InvalidArgumentException $e) {
+                if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
+                    return redirect()
+                        ->route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1])
+                        ->withInput()
+                        ->withErrors(['fo51_worker_document' => $e->getMessage()]);
+                }
+
+                return redirect()
+                    ->route('disciplinary.cases.index', ['informe_modal' => 1])
+                    ->withInput()
+                    ->withErrors(['fo51_worker_document' => $e->getMessage()]);
+            }
+        }
+
+        $formFields = $this->onlyFo51FormFields($validated);
+        $token = FoGj51PdfQueueStore::create($intent, (int) $request->user()->id, [
+            'form_fields' => $formFields,
+            'assigned_reviewer_id' => isset($validated['fo51_assigned_reviewer_id'])
+                ? (int) $validated['fo51_assigned_reviewer_id']
+                : null,
+            'evidence_files' => [],
+        ]);
+
+        $evidenceFiles = collect($request->file('evidence_images', []))
+            ->filter(fn ($f) => $f instanceof UploadedFile && $f->isValid())
+            ->take(10)
+            ->values()
+            ->all();
+
+        if ($evidenceFiles !== []) {
+            $storedEvidence = FoGj51PdfQueueStore::storeEvidenceFiles($token, $evidenceFiles);
+            $payload = FoGj51PdfQueueStore::payload($token);
+            if ($payload !== null) {
+                $payload['evidence_files'] = $storedEvidence;
+                file_put_contents(
+                    FoGj51PdfQueueStore::directoryFor($token).'/payload.json',
+                    json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+                );
+            }
+        }
+
+        ProcessFoGj51PdfJob::dispatch($token);
+
+        return redirect()->route('disciplinary.forms.informe-fo-gj-51.pdf-queue', ['token' => $token]);
+    }
+
     private function submitToRevisionQueue(FoGj51ProcessRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -126,7 +270,7 @@ class FoGj51InformeController
         }
 
         $v = $this->onlyFo51FormFields($validated);
-        $binary = $this->buildFilledPdfBinary($v, $employee);
+        $binary = $this->pdfBuilder->buildBinary($v, $employee);
 
         $path = tempnam(sys_get_temp_dir(), 'fo51_');
         if ($path === false) {
@@ -218,7 +362,7 @@ class FoGj51InformeController
         $validated = $request->validated();
         $v = $this->onlyFo51FormFields($validated);
         $employee = $this->tryResolveEmployeeForFo51($validated);
-        $binary = $this->buildFilledPdfBinary($v, $employee);
+        $binary = $this->pdfBuilder->buildBinary($v, $employee);
 
         return response($binary, 200, [
             'Content-Type' => 'application/pdf',
@@ -245,81 +389,7 @@ class FoGj51InformeController
      */
     private function tryResolveEmployeeForFo51(array $validated): ?Employee
     {
-        try {
-            return app(EmployeeResolver::class)->resolveById(
-                isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
-                (string) ($validated['fo51_worker_document'] ?? ''),
-            );
-        } catch (\InvalidArgumentException) {
-            return null;
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $v
-     */
-    private function buildFilledPdfBinary(array $v, ?Employee $employee = null): string
-    {
-        $embeddedLogo = EmbeddedPublicAsset::disciplinaryLogoDataUri();
-
-        $code = isset($v['fo51_municipality_code']) ? trim((string) $v['fo51_municipality_code']) : '';
-        $cityLabel = $code !== ''
-            ? (string) (ColombianMunicipality::query()->where('municipality_code', $code)->value('municipality_name') ?? '')
-            : '';
-
-        $workerCargo = $this->resolveWorkerCargoForPdf($v, $employee);
-
-        return HtmlLetterPdfGenerator::fromView('disciplinary.forms.fo-gj-51-filled-download', [
-            'embeddedLogoSrc' => $embeddedLogo,
-            'workerName' => $v['fo51_worker_name'] ?? '',
-            'workerDocument' => $v['fo51_worker_document'] ?? '',
-            'workerCargo' => $workerCargo,
-            'city' => $cityLabel,
-            'shift' => $v['fo51_shift'] ?? '',
-            'position' => $v['fo51_position'] ?? '',
-            'faultOtherDetail' => $v['fo51_fault_other_detail'] ?? '',
-            'observations' => $v['fo51_observations'] ?? '',
-            'preparerName' => $v['fo51_preparer_name'] ?? '',
-            'preparerRole' => $v['fo51_preparer_role'] ?? '',
-            'preparerSignature' => $v['fo51_preparer_signature'] ?? '',
-            'reportDay' => $v['fo51_report_dd'] ?? null,
-            'reportMonth' => $v['fo51_report_mm'] ?? null,
-            'reportYear' => $v['fo51_report_yyyy'] ?? null,
-            'faultLeftChecked' => $v['fo51_fault_left'] ?? [],
-            'faultRightChecked' => $v['fo51_fault_right'] ?? [],
-            'faultOtherChecked' => (bool) ($v['fo51_fault_other_chk'] ?? false),
-            'jurPd' => $v['fo51_jur_pd'] ?? '',
-            'entregaGh' => $v['fo51_entrega_gh'] ?? '',
-            'jurDd' => $v['fo51_jur_dd'] ?? '',
-            'jurMm' => $v['fo51_jur_mm'] ?? '',
-            'jurYyyy' => $v['fo51_jur_yyyy'] ?? '',
-        ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $v
-     */
-    private function resolveWorkerCargoForPdf(array $v, ?Employee $employee): string
-    {
-        if ($employee !== null) {
-            return trim((string) ($employee->job_title ?? ''));
-        }
-
-        $employeeId = isset($v['fo51_employee_id']) ? (int) $v['fo51_employee_id'] : 0;
-        if ($employeeId > 0) {
-            return trim((string) (Employee::query()->whereKey($employeeId)->value('job_title') ?? ''));
-        }
-
-        $document = trim((string) ($v['fo51_worker_document'] ?? ''));
-        if ($document === '') {
-            return '';
-        }
-
-        try {
-            return trim((string) (app(EmployeeResolver::class)->resolveByDocument($document)->job_title ?? ''));
-        } catch (\InvalidArgumentException) {
-            return '';
-        }
+        return $this->pdfBuilder->resolveEmployee($this->onlyFo51FormFields($validated));
     }
 
     private function postSubmitRouteName(): string

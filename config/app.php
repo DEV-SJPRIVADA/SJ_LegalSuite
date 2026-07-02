@@ -137,4 +137,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Deploy webhook (Git push → hosting)
+    |--------------------------------------------------------------------------
+    |
+    | Token secreto para POST /deploy/{token}. Vacío = ruta deshabilitada.
+    |
+    */
+
+    'deploy_webhook_token' => env('DEPLOY_WEBHOOK_TOKEN'),
+
 ];

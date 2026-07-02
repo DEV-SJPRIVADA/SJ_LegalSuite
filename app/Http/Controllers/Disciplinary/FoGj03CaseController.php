@@ -4,20 +4,23 @@ namespace App\Http\Controllers\Disciplinary;
 
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Services\Disciplinary\FoGj03CitationService;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 class FoGj03CaseController
 {
-    public function download(DisciplinaryCase $case, FoGj03CitationService $service): Response
+    public function download(DisciplinaryCase $case, FoGj03CitationService $service, Request $request): Response
     {
-        Gate::authorize('generateFoGj03', $case);
+        Gate::authorize('previewFoGj03', $case);
 
         $binary = $service->downloadPdf($case, auth()->user());
+        $filename = 'FO-GJ-03-'.str_replace(['/', '\\', '"'], '-', $case->case_number).'.pdf';
+        $inline = $request->boolean('inline');
 
         return response($binary, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="FO-GJ-03-'.$case->case_number.'.pdf"',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="'.$filename.'"',
         ]);
     }
 

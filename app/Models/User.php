@@ -34,6 +34,8 @@ class User extends Authenticatable
         'read_only',
         'must_change_password',
         'theme',
+        'signature_path',
+        'signature_disk',
     ];
 
     protected $hidden = [
@@ -76,6 +78,22 @@ class User extends Authenticatable
     public function assignedOperatorCases(): HasMany
     {
         return $this->hasMany(DisciplinaryCase::class, 'assigned_operator_id');
+    }
+
+    public function hasSignature(): bool
+    {
+        return filled($this->signature_path);
+    }
+
+    public function displayJobTitle(): string
+    {
+        $this->loadMissing('jobPosition');
+
+        if ($this->jobPosition?->name) {
+            return (string) $this->jobPosition->name;
+        }
+
+        return filled($this->position) ? (string) $this->position : 'Analista de Relaciones Laborales';
     }
 
     public function assignedPlannerCases(): HasMany

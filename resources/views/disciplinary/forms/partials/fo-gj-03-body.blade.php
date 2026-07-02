@@ -1,18 +1,34 @@
 @props([
     'blankForDownload' => true,
     'fecha' => '',
+    'caseNumber' => '',
     'expedienteGj' => '',
     'workerName' => '',
     'workerDocument' => '',
     'workerPosition' => '',
     'hearingDay' => '',
     'hearingTime' => '',
+    'modality' => 'presencial',
+    'locationText' => '',
+    'informeReportDate' => '',
+    'breachDate' => '',
+    'chargesDescription' => '',
+    'article66Numerals' => '',
+    'article68Numerals' => '',
+    'article76Numerals' => '',
+    'signerName' => '',
+    'signerRole' => '',
+    'signatureDataUri' => null,
+    'workerSignatureDataUri' => null,
+    'evidenceType' => 'signed',
+    'witnesses' => [],
     'conductMonth' => '',
     'conductDays' => '',
-    'informeSignedBy' => '',
 ])
 
 @php
+    $displayCaseNumber = filled($caseNumber) ? $caseNumber : (filled($expedienteGj) ? 'GJ-PD:'.$expedienteGj : '');
+
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -33,7 +49,7 @@
 <div class="ogj-03-body">
     <div class="ogj-03-ref">
         <p>Fecha: {!! $blank($fecha, 'lg') !!}</p>
-        <p>GJ- {!! $blank($expedienteGj, 'lg') !!}</p>
+        <p>{!! $blank($displayCaseNumber, 'lg') !!}</p>
     </div>
 
     <div class="ogj-03-recipient">
@@ -49,40 +65,76 @@
         {!! $blank($hearingDay, 'lg') !!}
         a las
         {!! $blank($hearingTime, 'sm') !!}
-        horas, en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
+        horas,
+        @if ($blankForDownload)
+            en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente
+        @else
+            {{ filled($locationText) ? e($locationText) : '—' }}
+        @endif
+        con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
     </p>
 
     <p class="ogj-03-section-title">Formulación de cargos</p>
 
-    <p>
+    <p class="ogj-03-justify">
         <span class="ogj-03-underline">Conductas posibles de sanción:</span>
-        los presuntos incumplimientos a consignas, en el mes de
-        @if (filled($conductMonth))
-            {{ $conductMonth }}
+        El presunto incumplimiento de sus obligaciones laborales. Según el informe disciplinario del
+        {!! $blank($informeReportDate, 'sm') !!}
+        se reporta que el día
+        {!! $blank($breachDate, 'sm') !!}:
+        @if ($blankForDownload)
+            <span class="ogj-03-guide ogj-03-guide-lg" aria-hidden="true">{{ $guidePattern('lg') }}</span>.
+        @elseif (filled($chargesDescription))
+            {{ $chargesDescription }}.
         @else
-            <span class="ogj-03-guide ogj-03-guide-sm" aria-hidden="true">{{ $guidePattern('sm') }}</span>
+            —.
         @endif
-        , los días
-        @if (filled($conductDays))
-            {{ $conductDays }}
-        @else
-            <span class="ogj-03-guide ogj-03-guide-md" aria-hidden="true">{{ $guidePattern('md') }}</span>
-        @endif
-        del presente año, fechas en las cuales, usted no diligencio en el libro de la minuta por las rondas realizadas al dispositivo durante su jornada laboral de dichas fechas anteriormente indicadas sin autorización alguna. Hecho que está comprendido:
+        Estos hechos de comprobarse podrían constituir faltas graves y grave incumplimiento de las obligaciones contractuales, legales y reglamentarias, vulnerando lo dispuesto en el Reglamento de Trabajo y contrato laboral.
     </p>
 
     <p class="ogj-03-underline">Faltas disciplinarias:</p>
 
     <ul class="ogj-03-list">
-        <li>Artículo 66, numeral 1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42, del Reglamento Interno de Trabajo, referente a las obligaciones especiales de los trabajadores</li>
-        <li>Artículo 68, numerales 10, 34, parágrafo primero numeral 4 y 5 del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.,</li>
-        <li>Artículo 76, numerales 3, 12, 15, 22, 25, 36, 64, 98, 103, 112, del Reglamento Interno de Trabajo, referente a las faltas graves</li>
+        <li>
+            Artículo 66, numeral
+            @if ($blankForDownload)
+                1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42
+            @else
+                {{ filled($article66Numerals) ? e($article66Numerals) : '—' }}
+            @endif
+            , del Reglamento Interno de Trabajo, referente a las obligaciones especiales de los trabajadores
+        </li>
+        <li>
+            Artículo 68, numerales
+            @if ($blankForDownload)
+                10, 34
+            @else
+                {{ filled($article68Numerals) ? e($article68Numerals) : '—' }}
+            @endif
+            , del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.
+        </li>
+        <li>
+            Artículo 76, numerales
+            @if ($blankForDownload)
+                3, 12, 15, 22, 25, 36, 64, 98, 103, 112
+            @else
+                {{ filled($article76Numerals) ? e($article76Numerals) : '—' }}
+            @endif
+            , del Reglamento Interno de Trabajo, referente a las faltas graves
+        </li>
     </ul>
 
     <p>Los elementos probatorios que dan lugar al inicio del proceso disciplinario radican en:</p>
 
     <ul class="ogj-03-list">
-        <li>Informes Disciplinarios suscrito por {!! $blank($informeSignedBy, 'md') !!}</li>
+        <li>
+            Informes Disciplinarios
+            @if ($blankForDownload)
+                del {!! $blank($informeReportDate, 'sm') !!}
+            @elseif (filled($informeReportDate))
+                del {{ $informeReportDate }}
+            @endif
+        </li>
     </ul>
 
     <p>
@@ -91,19 +143,92 @@
 
     <table class="ogj-03-signatures" role="presentation">
         <tr>
+            <td><p>Cordialmente;</p></td>
+            <td><p>Recibido por;</p></td>
+        </tr>
+        <tr class="ogj-03-signatures-capture-row">
             <td>
-                <p>Cordialmente;</p>
-                <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Analista de Relaciones Laborales</p>
-                <p>SJ Seguridad Privada Ltda</p>
+                <div class="ogj-03-signature-block">
+                    <div class="ogj-03-signature-slot-area">
+                        @if (! $blankForDownload && filled($signatureDataUri))
+                            <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
+                        @endif
+                    </div>
+                    <div class="ogj-03-sign-line"></div>
+                </div>
             </td>
             <td>
-                <p>Recibido por;</p>
-                <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Cargo:</p>
+                <div class="ogj-03-signature-block">
+                    <div class="ogj-03-signature-slot-area">
+                        @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+                            <p class="ogj-03-refusal-text">Se niega a firmar</p>
+                        @elseif (! $blankForDownload && filled($workerSignatureDataUri))
+                            <img src="{{ $workerSignatureDataUri }}" alt="Firma del trabajador" class="ogj-03-signature-img">
+                        @endif
+                    </div>
+                    <div class="ogj-03-sign-line"></div>
+                </div>
             </td>
         </tr>
+        <tr>
+            <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
+            <td>
+                <p>Nombre:
+                    @if (! $blankForDownload && filled($workerName) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
+                        {{ e($workerName) }}
+                    @endif
+                </p>
+                @if (! $blankForDownload && $evidenceType === 'signed' && filled($workerDocument))
+                    <p>C.C. {{ e($workerDocument) }}</p>
+                @endif
+            </td>
+        </tr>
+        <tr>
+            <td><p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p></td>
+            <td>
+                <p>Cargo:
+                    @if (! $blankForDownload && filled($workerPosition) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
+                        {{ e($workerPosition) }}
+                    @endif
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td><p>SJ Seguridad Privada Ltda</p></td>
+            <td></td>
+        </tr>
     </table>
+
+    @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+        <table class="ogj-03-signatures ogj-03-witnesses" role="presentation">
+            <tr>
+                @foreach (array_slice($witnesses, 0, 2) as $witness)
+                    <td>
+                        <p>Testigo</p>
+                        <div class="ogj-03-signature-block">
+                            <div class="ogj-03-signature-slot-area">
+                                @if (filled($witness['signatureDataUri'] ?? null))
+                                    <img src="{{ $witness['signatureDataUri'] }}" alt="Firma testigo" class="ogj-03-signature-img">
+                                @endif
+                            </div>
+                            <div class="ogj-03-sign-line"></div>
+                        </div>
+                        <p>Nombre:@if (filled($witness['name'] ?? null)) {{ e($witness['name']) }}@endif</p>
+                        <p>Cédula:@if (filled($witness['document'] ?? null)) {{ e($witness['document']) }}@endif</p>
+                    </td>
+                @endforeach
+                @for ($i = count($witnesses); $i < 2; $i++)
+                    <td>
+                        <p>Testigo</p>
+                        <div class="ogj-03-signature-block">
+                            <div class="ogj-03-signature-slot-area"></div>
+                            <div class="ogj-03-sign-line"></div>
+                        </div>
+                        <p>Nombre:</p>
+                        <p>Cédula:</p>
+                    </td>
+                @endfor
+            </tr>
+        </table>
+    @endif
 </div>

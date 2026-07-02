@@ -1,5 +1,11 @@
 {{-- Estilos compartidos para plantillas FO-GJ en PDF (Letter, Browsershot). --}}
 <style>
+    :root {
+        --ogj-font-body: 12px;
+        --ogj-font-meta: 11px;
+        --ogj-font-title: 13px;
+        --ogj-font-micro: 10px;
+    }
     @page { size: Letter; margin: 0.45in; }
     html, body { margin: 0; padding: 0; background: #fff; }
     .ogj-wrap {
@@ -9,7 +15,7 @@
         box-sizing: border-box;
         margin: 0 auto;
         font-family: Arial, Helvetica, sans-serif;
-        font-size: 10px;
+        font-size: var(--ogj-font-body);
         line-height: 1.25;
         color: #000;
         background: #fff;
@@ -22,6 +28,24 @@
         padding: 0.38in 0.44in 0.34in;
         background: #fff;
         min-height: 0;
+    }
+    .ogj-letter-screen-scaler {
+        display: flex;
+        justify-content: center;
+        padding: 0.5rem 0 1rem;
+    }
+    .ogj-letter-screen-sheet {
+        width: 8.5in;
+        min-height: 11in;
+        box-sizing: border-box;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+        transform-origin: top center;
+    }
+    .ogj-page--screen-preview {
+        width: 8.5in;
+        min-height: 11in;
+        box-sizing: border-box;
     }
     .ogj-block {
         border: 1px solid #000;
@@ -45,14 +69,14 @@
         background: #e8e8e8;
         font-weight: bold;
         text-transform: uppercase;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-align: left;
     }
     .ogj-lbl {
         font-weight: bold;
         width: 26%;
         background: #f3f3f3;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         text-transform: uppercase;
     }
     .ogj-line {
@@ -66,7 +90,7 @@
     }
     .ogj-code {
         font-weight: bold;
-        font-size: 11px;
+        font-size: var(--ogj-font-title);
     }
     .ogj-head-grid {
         margin-bottom: 10px;
@@ -77,7 +101,7 @@
     }
     .ogj-title {
         font-weight: bold;
-        font-size: 11px;
+        font-size: var(--ogj-font-title);
         text-align: center;
         vertical-align: middle;
         padding: 10px 8px !important;
@@ -92,7 +116,7 @@
         width: 100%;
         border-collapse: collapse;
         border-spacing: 0;
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
     }
     .ogj-meta-grid td {
         border: none;
@@ -107,10 +131,10 @@
     }
     .ogj-meta-grid td.ogj-meta-code {
         font-weight: bold;
-        font-size: 10px;
+        font-size: var(--ogj-font-body);
     }
     .ogj-phase {
-        font-size: 9px;
+        font-size: var(--ogj-font-meta);
         margin: 0 0 8px;
         padding: 5px 8px;
         border: 1px solid #666;
@@ -133,14 +157,14 @@
         margin: 0 auto;
     }
     .ogj-micro {
-        font-size: 8px;
+        font-size: var(--ogj-font-micro);
         text-align: center;
         margin-top: 10px;
         color: #333;
     }
     /* FO-GJ-03 · Citación a diligencia disciplinaria */
     .ogj-03-body {
-        font-size: 10px;
+        font-size: var(--ogj-font-body);
         line-height: 1.35;
         color: #000;
         margin-top: 12px;
@@ -218,6 +242,10 @@
         font-weight: bold;
         margin: 10px 0 8px !important;
     }
+    .ogj-03-justify {
+        text-align: justify;
+        margin: 0 0 8px;
+    }
     .ogj-03-underline {
         font-weight: bold;
         text-decoration: underline;
@@ -240,7 +268,7 @@
         width: 50%;
         vertical-align: top;
         padding: 0 12px 0 0;
-        font-size: 10px;
+        font-size: var(--ogj-font-body);
     }
     .ogj-03-signatures td:last-child {
         padding: 0 0 0 12px;
@@ -249,9 +277,55 @@
         margin: 0 0 4px;
         text-align: left;
     }
+    .ogj-03-signatures-capture-row td {
+        vertical-align: bottom;
+    }
+    .ogj-03-signature-block {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-height: 52px;
+    }
+    .ogj-03-signature-slot-area {
+        flex: 1 1 auto;
+        min-height: 44px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-start;
+    }
+    .ogj-03-signature-block .ogj-03-sign-line {
+        flex-shrink: 0;
+        border-bottom: 1px solid #000;
+        margin: 0 0 6px;
+    }
+    .ogj-03-signature-img {
+        display: block;
+        max-height: 44px;
+        max-width: 180px;
+        margin: 0;
+        object-fit: contain;
+        object-position: left bottom;
+    }
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
-        min-height: 36px;
         margin: 28px 0 6px;
+    }
+    .ogj-03-refusal-text {
+        margin: 0 0 1px;
+        padding: 0;
+        font-size: var(--ogj-font-body);
+        font-style: italic;
+        text-align: left;
+    }
+    .ogj-03-witnesses {
+        margin-top: 20px;
+    }
+    .ogj-03-witnesses td {
+        vertical-align: top;
+        padding-right: 12px;
+    }
+    .ogj-03-witnesses td:last-child {
+        padding-right: 0;
+        padding-left: 12px;
     }
 </style>

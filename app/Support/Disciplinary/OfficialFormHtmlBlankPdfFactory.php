@@ -2,6 +2,7 @@
 
 namespace App\Support\Disciplinary;
 
+use App\Services\Settings\OrganizationLetterheadService;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\Response;
@@ -23,9 +24,25 @@ final class OfficialFormHtmlBlankPdfFactory
             abort(404);
         }
 
-        return HtmlLetterPdfGenerator::fromView($view, [
+        $data = [
             'embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri(),
-        ]);
+        ];
+
+        if (strtoupper($normalizedCode) === 'ACTA-COMITE') {
+            $letterheadBackgroundSrc = app(OrganizationLetterheadService::class)->imageDataUri();
+            $data['letterheadBackgroundSrc'] = $letterheadBackgroundSrc;
+            if ($letterheadBackgroundSrc !== null) {
+                $data['embeddedLogoSrc'] = null;
+            }
+
+            return HtmlLetterPdfGenerator::fromView(
+                $view,
+                $data,
+                zeroPageMargins: $letterheadBackgroundSrc !== null,
+            );
+        }
+
+        return HtmlLetterPdfGenerator::fromView($view, $data);
     }
 
     public static function toResponse(string $normalizedCode, bool $inline): Response

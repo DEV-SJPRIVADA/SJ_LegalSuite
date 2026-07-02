@@ -8,7 +8,7 @@
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Supervision · Tareas</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Evidencias pendientes</h1>
-                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Solo carga de evidencia de citacion FO-GJ-03.</p>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Cargue la evidencia de notificación FO-GJ-03 o del comunicado de decisión (PDF escaneado o firmado en pantalla).</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('disciplinary.forms.informe-fo-gj-51', ['vista_completa' => 1]) }}"
@@ -40,36 +40,37 @@
                                 <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Trabajador</th>
                                 <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Estado</th>
                                 <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Citación generada</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Accion</th>
+                                <th class="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
                             @forelse ($tasks as $task)
-                                <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.04]">
+                                <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.04]" wire:key="pending-evidence-row-{{ $task->id }}">
                                     <td class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{{ $task->case_number }}</td>
                                     <td class="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                                         {{ $task->employee?->first_name }} {{ $task->employee?->last_name }}
                                     </td>
                                     <td class="px-4 py-3 text-amber-700 dark:text-amber-300 font-medium">Evidencia de citacion pendiente</td>
-                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $task->fo_gj_03_generated_at?->format('Y-m-d H:i') ?? '-' }}</td>
+                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $task->fo_gj_03_generated_at?->timezone('America/Bogota')->format('d/m/Y H:i') ?? '-' }}</td>
                                     <td class="px-4 py-3">
                                         <div class="flex flex-wrap items-center justify-end gap-2">
-                                            <select wire:model="citationEvidenceTypeByCase.{{ $task->id }}"
-                                                class="rounded-md border-slate-300 text-xs dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                                                <option value="">- Tipo -</option>
-                                                <option value="signed">Citacion firmada</option>
-                                                <option value="refused_witnesses">Rechazo con testigos</option>
-                                            </select>
-                                            <input type="file" wire:model="citationEvidenceFileByCase.{{ $task->id }}" accept="application/pdf"
-                                                class="text-xs">
-                                            <button type="button" wire:click="uploadCitationEvidence({{ $task->id }})"
-                                                class="inline-flex items-center px-3 py-1.5 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">
-                                                Cargar evidencia
-                                            </button>
+                                            <input type="file"
+                                                id="evidence-file-{{ $task->id }}"
+                                                class="sr-only"
+                                                accept="application/pdf"
+                                                wire:model.live="citationEvidenceFileByCase.{{ $task->id }}">
+                                            <label for="evidence-file-{{ $task->id }}"
+                                                class="inline-flex cursor-pointer items-center rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                                                Cargar evidencia PDF
+                                            </label>
+
+                                            @can('viewFoGj03NotificationForSupervisor', $task)
+                                                <button type="button" wire:click="openNotificationModal({{ $task->id }})"
+                                                    class="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:bg-white/10 dark:text-indigo-200 dark:ring-indigo-400/40">
+                                                    Notificación
+                                                </button>
+                                            @endcan
                                         </div>
-                                        @error('citationEvidenceTypeByCase.'.$task->id)
-                                            <p class="mt-1 text-right text-xs text-red-600">{{ $message }}</p>
-                                        @enderror
                                         @error('citationEvidenceFileByCase.'.$task->id)
                                             <p class="mt-1 text-right text-xs text-red-600">{{ $message }}</p>
                                         @enderror
@@ -85,10 +86,61 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="p-4 border-t border-slate-200 dark:border-white/10">
-                    {{ $tasks->links() }}
-                </div>
             </div>
+
+            @if (($decisionTasks ?? collect())->isNotEmpty())
+                <div class="bg-white shadow-sm rounded-lg ring-1 ring-violet-200 overflow-hidden dark:bg-white/[0.04] dark:ring-violet-500/20">
+                    <div class="border-b border-violet-200 px-4 py-3 dark:border-white/10">
+                        <h2 class="text-sm font-semibold text-violet-900 dark:text-violet-200">Evidencias de decisión pendientes</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10">
+                            <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
+                                @foreach ($decisionTasks as $task)
+                                    <tr wire:key="pending-decision-evidence-{{ $task->id }}">
+                                        <td class="px-4 py-3 font-mono text-xs">{{ $task->case_number }}</td>
+                                        <td class="px-4 py-3">{{ $task->employee?->first_name }} {{ $task->employee?->last_name }}</td>
+                                        <td class="px-4 py-3 text-violet-700 dark:text-violet-300">Comunicado de decisión</td>
+                                        <td class="px-4 py-3 text-right">
+                                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                                <input type="file" id="decision-evidence-{{ $task->id }}" class="sr-only" accept="application/pdf" wire:model.live="citationEvidenceFileByCase.{{ $task->id }}">
+                                                <label for="decision-evidence-{{ $task->id }}" class="inline-flex cursor-pointer rounded-md bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800">Cargar evidencia PDF</label>
+                                                @can('viewDecisionComunicadoForSupervisor', $task)
+                                                    <button type="button" wire:click="openDecisionNotificationModal({{ $task->id }})"
+                                                        class="inline-flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-200 dark:ring-violet-400/40">
+                                                        Notificación
+                                                    </button>
+                                                @endcan
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
+
+    @include('livewire.disciplinary.supervisor.partials.pending-evidence-modals', [
+        'evidencePreviewCaseId' => $evidencePreviewCaseId,
+        'evidencePreviewUrl' => $evidencePreviewUrl,
+        'notificationCaseId' => $notificationCaseId,
+        'notificationCase' => $notificationCase,
+        'notificationViewData' => $notificationViewData,
+        'decisionNotificationCaseId' => $decisionNotificationCaseId,
+        'decisionNotificationCase' => $decisionNotificationCase,
+        'decisionNotificationViewData' => $decisionNotificationViewData,
+        'signedNotificationPreviewToken' => $signedNotificationPreviewToken,
+        'signedNotificationPreviewUrl' => $signedNotificationPreviewUrl,
+        'signedNotificationDownloadUrl' => $signedNotificationDownloadUrl,
+        'signedNotificationPreviewFilename' => $signedNotificationPreviewFilename,
+        'notificationEvidenceType' => $notificationEvidenceType,
+        'workerSignatureDataUri' => $workerSignatureDataUri,
+        'witness1SignatureDataUri' => $witness1SignatureDataUri,
+        'witness2SignatureDataUri' => $witness2SignatureDataUri,
+        'signaturePadTarget' => $signaturePadTarget,
+        'showSignaturePadModal' => $showSignaturePadModal,
+    ])
 </div>

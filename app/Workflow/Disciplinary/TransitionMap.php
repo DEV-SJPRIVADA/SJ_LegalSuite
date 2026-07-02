@@ -11,7 +11,7 @@ use App\Enums\Disciplinary\CaseStatus;
  * **A.** Falta e informe disciplinario (FO-GJ-51).
  * **B.** Citación a diligencia disciplinaria por escrito (FO-GJ-03). Si no asiste: constancia de inasistencia
  *     y **2 días calendario** para justificar; si justifica → reprogramación (FO-GJ-54); si no → comité disciplinario para decisión.
- * **C.** Diligencia disciplinaria y levantamiento de acta (FO-GJ-42).
+ * **C.** Diligencia disciplinaria y levantamiento de acta (FO-GJ-04).
  * **D.** Comunicado de decisión de sanción o cierre del proceso (`DECISION`).
  * **E.** Recurso de apelación (`APELACION`).
  * **F.** Decisión de segunda instancia (`SEGUNDA_INSTANCIA`).
@@ -58,10 +58,12 @@ final class TransitionMap
             ],
             CaseStatus::DILIGENCIA->value => [
                 CaseStatus::DECISION,
+                CaseStatus::JUSTIFICACION_PENDIENTE,
             ],
             CaseStatus::DECISION->value => [
                 CaseStatus::APELACION,
                 CaseStatus::FINALIZADO,
+                CaseStatus::ARCHIVADO,
             ],
             CaseStatus::APELACION->value => [
                 CaseStatus::SEGUNDA_INSTANCIA,

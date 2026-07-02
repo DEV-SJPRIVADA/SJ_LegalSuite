@@ -7,11 +7,13 @@ use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Services\Users\UserSignatureService;
+use App\Support\Disciplinary\FoGj03Modality;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class FoGj03CitationService
@@ -20,44 +22,66 @@ class FoGj03CitationService
         private readonly DisciplinaryAuditService $audit,
         private readonly DisciplinaryDocumentService $documents,
         private readonly DisciplinaryCitationNotificationService $notification,
+        private readonly FoGj03DraftService $drafts,
+        private readonly UserSignatureService $signatures,
     ) {}
 
     public function canGenerate(DisciplinaryCase $case): bool
     {
         return $case->citation_confirmed_date !== null
             && $case->assigned_lawyer_id !== null
-            && $this->notification->canGenerateFoGj03($case);
+            && $this->notification->canGenerateFoGj03($case)
+            && $this->drafts->isReadyForPdf($case);
     }
 
     public function buildViewData(DisciplinaryCase $case): array
     {
-        $case->loadMissing(['employee', 'faults']);
+        $case->loadMissing(['employee', 'faults', 'assignedLawyer.jobPosition', 'informeSubmission.reviewer']);
 
-        $date = $case->citation_confirmed_date?->format('d/m/Y') ?? '';
-        $time = $case->citation_confirmed_time
-            ? substr((string) $case->citation_confirmed_time, 0, 5)
-            : '';
+        $payload = $this->drafts->payloadForPdf($case);
+        $lawyer = $case->assignedLawyer;
+
+        $hearingDate = $case->citation_confirmed_date?->format('d/m/Y') ?? '';
+        $hearingTimeRaw = (string) ($payload['hearing_time'] ?? '');
+        $hearingTime = $hearingTimeRaw;
+        try {
+            $hearingTime = Carbon::parse($hearingTimeRaw)->format('h:i A');
+        } catch (\Throwable) {
+            // keep raw HH:MM
+        }
+
+        $modality = FoGj03Modality::tryFrom((string) ($payload['modality'] ?? '')) ?? FoGj03Modality::Presencial;
+        $locationText = $modality === FoGj03Modality::Virtual
+            ? (string) ($payload['virtual_meeting_link'] ?? '')
+            : FoGj03DraftService::PRESENCIAL_LOCATION;
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
-        $faultSummary = $case->faults->map(fn ($f) => $f->code.' '.$f->name)->join('; ');
-
         return [
             'fecha' => now()->timezone('America/Bogota')->format('d/m/Y'),
-            'expedienteGj' => Str::after($case->case_number, 'DISC-') ?: $case->case_number,
+            'caseNumber' => (string) $case->case_number,
             'workerName' => $workerName,
             'workerDocument' => (string) ($case->employee?->document_number ?? ''),
             'workerPosition' => (string) ($case->employee?->job_title ?? ''),
-            'hearingDay' => $date,
-            'hearingTime' => $time,
-            'conductMonth' => '',
-            'conductDays' => '',
-            'informeSignedBy' => $case->assignedLawyer?->name ?? '',
-            'faultSummary' => $faultSummary,
+            'hearingDay' => $hearingDate,
+            'hearingTime' => $hearingTime,
+            'modality' => $modality->value,
+            'locationText' => $locationText,
+            'informeReportDate' => (string) ($payload['informe_report_date'] ?? $this->drafts->resolveInformeReportDate($case)),
+            'breachDate' => (string) ($payload['breach_date_display'] ?? ''),
+            'chargesDescription' => (string) ($payload['charges_description'] ?? ''),
+            'article66Numerals' => (string) ($payload['article_66_numerals'] ?? ''),
+            'article68Numerals' => (string) ($payload['article_68_numerals'] ?? ''),
+            'article76Numerals' => (string) ($payload['article_76_numerals'] ?? ''),
+            'signerName' => $lawyer?->name ?? '',
+            'signerRole' => $lawyer?->displayJobTitle() ?? 'Analista de Relaciones Laborales',
+            'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
         ];
     }
 
     public function downloadPdf(DisciplinaryCase $case, User $actor): string
     {
+        $this->drafts->payloadForPdf($case);
+
         return HtmlLetterPdfGenerator::fromView('disciplinary.forms.fo-gj-03-filled-download', array_merge(
             $this->buildViewData($case),
             ['embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri()],
@@ -67,11 +91,14 @@ class FoGj03CitationService
     public function generateAndStore(DisciplinaryCase $case, User $actor): DisciplinaryCase
     {
         if (! $this->canGenerate($case)) {
-            $missing = $this->notification->missingFoGj03GenerationRequirements($case);
+            $missing = array_merge(
+                $this->notification->missingFoGj03GenerationRequirements($case),
+                $this->drafts->missingDraftRequirements($case),
+            );
             throw ValidationException::withMessages([
                 'fo_gj_03' => $missing !== []
                     ? 'No es posible generar FO-GJ-03. Falta: '.implode(', ', $missing)
-                    : 'Seleccione la fecha definitiva de citación antes de generar el FO-GJ-03.',
+                    : 'Complete el diligenciamiento del FO-GJ-03 antes de generar el documento.',
             ]);
         }
 

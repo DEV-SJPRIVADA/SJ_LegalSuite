@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Disciplinary\ComiteActaCaseController;
+use App\Http\Controllers\Disciplinary\DecisionComunicadoCaseController;
 use App\Http\Controllers\Licitaciones\LicitacionAdjuntoInlineController;
 use App\Http\Controllers\Licitaciones\LicitacionInformesExportController;
 use App\Http\Controllers\Licitaciones\LicitacionesPortalController;
-use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaThreadAttachmentDownloadController;
@@ -12,11 +13,17 @@ use App\Http\Controllers\Disciplinary\DisciplinaryCaseController;
 use App\Http\Controllers\Disciplinary\DisciplinaryCaseDocumentInlineController;
 use App\Http\Controllers\Disciplinary\DisciplinaryDashboardController;
 use App\Http\Controllers\Disciplinary\DisciplinaryGeoJsonController;
+use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
 use App\Http\Controllers\Disciplinary\FoGj03CaseController;
+use App\Http\Controllers\Disciplinary\FoGj04CaseController;
+use App\Http\Controllers\Disciplinary\FoGj44CaseController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
+use App\Http\Controllers\Disciplinary\FoGj54CaseController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
+use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
+use App\Http\Controllers\Disciplinary\SupervisorSignedNotificationPreviewController;
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
@@ -32,6 +39,7 @@ use App\Livewire\Disciplinary\Coordinations\Index as CoordinationsIndex;
 use App\Livewire\Disciplinary\Dashboard;
 use App\Livewire\Disciplinary\FormatsCatalog;
 use App\Livewire\Disciplinary\InformesPendientes;
+use App\Livewire\Disciplinary\Administrativa\PendingDecisionHrIndex;
 use App\Livewire\Disciplinary\Supervisor\PendingEvidenceIndex;
 use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
@@ -39,7 +47,10 @@ use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
 use App\Livewire\Users\UsersIndex;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::view('/', 'welcome');
 
@@ -49,6 +60,13 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'must-change-password'])->group(function () {
     Route::view('profile', 'profile')->name('profile');
+
+    Route::get('profile/signature', function () {
+        $user = auth()->user();
+        abort_unless($user && $user->hasSignature(), 404);
+
+        return Storage::disk($user->signature_disk ?? 'local')->response((string) $user->signature_path);
+    })->name('profile.signature');
 });
 
 Route::middleware(['auth', 'must-change-password', 'verified'])->group(function () {
@@ -69,11 +87,21 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::get('formats/preview/{code}', OfficialFormPreviewController::class)
             ->where('code', '[A-Za-z0-9\-]+')
             ->name('formats.preview');
+        Route::get('formats/membrete', [OrganizationLetterheadController::class, 'show'])
+            ->name('formats.letterhead');
 
         Route::get('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'show'])
             ->name('forms.informe-fo-gj-51');
         Route::post('forms/informe-fo-gj-51', [FoGj51InformeController::class, 'process'])
             ->name('forms.informe.process');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}', [FoGj51InformeController::class, 'pdfQueueWait'])
+            ->name('forms.informe-fo-gj-51.pdf-queue');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/status', [FoGj51InformeController::class, 'pdfQueueStatus'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.status');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/download', [FoGj51InformeController::class, 'pdfQueueDownload'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.download');
+        Route::get('forms/informe-fo-gj-51/pdf-queue/{token}/complete', [FoGj51InformeController::class, 'pdfQueueComplete'])
+            ->name('forms.informe-fo-gj-51.pdf-queue.complete');
 
         Route::get('informes-pendientes', InformesPendientes::class)->name('informes-pendientes.index');
         Route::get('informes-pendientes/{submission}/pdf', [FoGj51InformeController::class, 'pendingPdf'])
@@ -84,6 +112,9 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
 
         Route::get('cases', CasesIndex::class)->name('cases.index');
         Route::get('evidences-pending', PendingEvidenceIndex::class)->name('evidences-pending.index');
+        Route::get('evidences-pending/signed-preview/{token}', SupervisorSignedNotificationPreviewController::class)
+            ->name('evidences-pending.signed-preview');
+        Route::get('decision-hr-pending', PendingDecisionHrIndex::class)->name('decision-hr-pending.index');
         Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
         Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)
             ->name('coordinations.attachments.inline');
@@ -99,6 +130,16 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.fo-gj-03.pdf');
         Route::post('cases/{case}/fo-gj-03/generate', [FoGj03CaseController::class, 'generate'])
             ->name('cases.fo-gj-03.generate');
+        Route::get('cases/{case}/fo-gj-04/pdf', [FoGj04CaseController::class, 'download'])
+            ->name('cases.fo-gj-04.pdf');
+        Route::get('cases/{case}/fo-gj-44/pdf', [FoGj44CaseController::class, 'download'])
+            ->name('cases.fo-gj-44.pdf');
+        Route::get('cases/{case}/fo-gj-54/pdf', [FoGj54CaseController::class, 'download'])
+            ->name('cases.fo-gj-54.pdf');
+        Route::get('cases/{case}/comite-acta/pdf', [ComiteActaCaseController::class, 'download'])
+            ->name('cases.comite-acta.pdf');
+        Route::get('cases/{case}/decision-comunicado/pdf', [DecisionComunicadoCaseController::class, 'download'])
+            ->name('cases.decision-comunicado.pdf');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
     });
 
@@ -133,5 +174,45 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::post('cases/{case}/transition', [DisciplinaryCaseController::class, 'transition'])->name('cases.transition');
     });
 });
+
+Route::post('/deploy/{token}', function (string $token) {
+    $expected = (string) config('app.deploy_webhook_token');
+
+    if ($expected === '' || ! hash_equals($expected, $token)) {
+        abort(403, 'Unauthorized');
+    }
+
+    $gitPull = Process::path(base_path())
+        ->withEnvironmentVariables([
+            'GIT_SSH_COMMAND' => 'ssh -i /home/u348559544/.ssh/id_ed25519 -o StrictHostKeyChecking=no',
+        ])
+        ->run('git pull origin main');
+
+    if (! $gitPull->successful()) {
+        Log::error('Deploy webhook: git pull failed', [
+            'output' => $gitPull->output(),
+            'error' => $gitPull->errorOutput(),
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'git pull failed',
+            'git_error' => $gitPull->errorOutput(),
+            'git_output' => $gitPull->output(),
+        ], 500);
+    }
+
+    $artisanClear = Process::path(base_path())->run('php artisan optimize:clear');
+
+    Log::info('Deploy webhook executed', [
+        'git' => $gitPull->output(),
+        'artisan' => $artisanClear->output(),
+    ]);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Código actualizado con éxito en Hostinger.',
+    ]);
+})->name('deploy.webhook');
 
 require __DIR__.'/auth.php';

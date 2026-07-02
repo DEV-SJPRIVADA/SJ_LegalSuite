@@ -40,11 +40,12 @@
     <iframe name="{{ $pdfIframeName }}" title="Ventana interna PDF" class="fixed -left-[9999px] h-px w-px opacity-0 pointer-events-none" aria-hidden="true"></iframe>
 
     <div @class([
-        'overflow-x-auto',
-        'rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card sm:p-6' => ! $embedInModal,
+        'overflow-x-hidden md:overflow-x-auto',
+        'rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card sm:p-6' => ! $embedInModal,
         'rounded-none bg-transparent p-0 shadow-none ring-0 dark:bg-transparent dark:shadow-none' => $embedInModal,
     ])>
-        <form method="post" action="{{ route('disciplinary.forms.informe.process') }}" enctype="multipart/form-data" class="space-y-6">
+        <form id="fo51-informe-form" method="post" action="{{ route('disciplinary.forms.informe.process') }}" enctype="multipart/form-data" class="space-y-6"
+            @submit="evidenceModalOpen = false">
             @csrf
 
             <x-disciplinary.forms.fo-gj-51-preview
@@ -56,6 +57,9 @@
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
             @error('fo51_worker_document')
+                <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+            @error('fo51_preparer_signature')
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
 
@@ -85,6 +89,7 @@
                     Generar PDF (carta)
                 </button>
                 <button type="submit" name="fo51_action" value="enviar"
+                    @click="evidenceModalOpen = false"
                     class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
                     Enviar a revisión (dirección)
                 </button>
@@ -105,13 +110,16 @@
             </div>
 
             <div class="rounded-lg ring-1 ring-slate-200 bg-slate-50/80 px-4 py-3 dark:bg-white/[0.05] dark:ring-white/10">
-                <label class="flex flex-wrap items-center gap-3 cursor-pointer select-none">
-                    <input type="checkbox" x-model="evidenceModalOpen"
-                        class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
-                    <span class="text-sm font-semibold text-slate-800 dark:text-white">Cargar evidencia</span>
-                    <span class="text-xs text-slate-600 dark:text-slate-400">Hasta 10 imágenes opcionales con el envío a revisión.</span>
-                </label>
-                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400 pl-8">Desmarque la casilla para omitir evidencias; puede abrir de nuevo para cambiar los archivos antes de enviar.</p>
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <button type="button"
+                        @click="evidenceModalOpen = true"
+                        class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-emerald-600/40 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-white/5 dark:text-emerald-200 dark:hover:bg-emerald-500/10">
+                        <span x-text="urls.filter(Boolean).length ? `Gestionar evidencias (${urls.filter(Boolean).length})` : 'Agregar evidencias (opcional)'"></span>
+                    </button>
+                    <p class="text-xs text-slate-600 dark:text-slate-400">
+                        Hasta 10 imágenes opcionales. Se envían junto con «Enviar a revisión».
+                    </p>
+                </div>
                 <div class="mt-3 space-y-1 border-t border-slate-200/80 pt-3 dark:border-white/10">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Imágenes seleccionadas
@@ -132,77 +140,78 @@
             @error('evidence_images')
                 <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
+        </form>
+    </div>
 
-            {{-- Modal evidencias (mismo formulario que «Enviar a revisión») --}}
-            <div x-show="evidenceModalOpen"
-                x-transition.opacity.duration.200ms
-                x-cloak
-                class="fixed inset-0 z-[72] flex items-center justify-center bg-black/50 p-4 dark:bg-black/60"
-                style="display: none;"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="evidence-modal-title"
-                x-on:click.self="evidenceModalOpen = false">
-                <div x-show="evidenceModalOpen"
-                    x-transition
-                    @click.stop
-                    class="flex max-h-[min(92vh,780px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
-                    <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-5 py-4 dark:border-white/10">
-                        <div>
-                            <p class="text-[11px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300/90">Cargar evidencia</p>
-                            <h2 id="evidence-modal-title" class="mt-1 text-lg font-bold text-slate-900 dark:text-white">Evidencia fotográfica</h2>
-                            <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                                Seleccione la imagen o tome la foto. Hasta 10 archivos (JPEG, PNG, WebP, GIF). No son obligatorias.
-                            </p>
+    {{-- Modal evidencias (fuera del form; inputs enlazados con form="fo51-informe-form") --}}
+    <div x-show="evidenceModalOpen"
+        x-transition.opacity.duration.200ms
+        x-cloak
+        class="fixed inset-0 z-[95] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 dark:bg-black/60"
+        style="display: none;"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidence-modal-title"
+        x-on:click.self="evidenceModalOpen = false">
+        <div x-show="evidenceModalOpen"
+            x-transition
+            @click.stop
+            class="flex max-h-[min(92vh,780px)] w-full max-w-2xl flex-col overflow-hidden rounded-t-xl bg-white shadow-xl ring-1 ring-slate-200 sm:rounded-xl dark:bg-dash-ink dark:ring-white/15">
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-4 py-4 sm:px-5 dark:border-white/10">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300/90">Cargar evidencia</p>
+                    <h2 id="evidence-modal-title" class="mt-1 text-lg font-bold text-slate-900 dark:text-white">Evidencia fotográfica</h2>
+                    <p class="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                        Seleccione la imagen o tome la foto. Hasta 10 archivos (JPEG, PNG, WebP, GIF). No son obligatorias.
+                    </p>
+                </div>
+                <button type="button" @click="evidenceModalOpen = false"
+                    class="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
+                    aria-label="Cerrar">
+                    ✕
+                </button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    @for ($i = 0; $i < 10; $i++)
+                        <div class="relative aspect-[5/4] overflow-hidden rounded-xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/25 via-slate-900/20 to-slate-900/50 shadow-inner ring-1 ring-emerald-500/10 dark:from-emerald-950/50 dark:via-dash-void/80 dark:to-slate-950/90 dark:ring-emerald-400/20">
+                            <input type="file"
+                                id="evidence_in_{{ $i }}"
+                                form="fo51-informe-form"
+                                name="evidence_images[]"
+                                accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                                class="sr-only"
+                                x-on:change="setPreview({{ $i }}, $event)" />
+                            <label for="evidence_in_{{ $i }}"
+                                class="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 p-2 text-center">
+                                <span class="sr-only">Seleccionar imagen {{ $i + 1 }}</span>
+                                <img x-show="urls[{{ $i }}]"
+                                    x-bind:src="urls[{{ $i }}]"
+                                    alt=""
+                                    class="absolute inset-0 h-full w-full object-cover" />
+                                <span x-show="! urls[{{ $i }}]"
+                                    class="select-none text-3xl font-extralight leading-none text-white/90 drop-shadow-sm dark:text-emerald-100/90">+</span>
+                            </label>
+                            <button type="button"
+                                x-show="urls[{{ $i }}]"
+                                x-on:click.prevent.stop="clear({{ $i }})"
+                                class="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white shadow-md ring-1 ring-white/20 hover:bg-rose-700"
+                                title="Quitar imagen">
+                                ×
+                            </button>
                         </div>
-                        <button type="button" @click="evidenceModalOpen = false"
-                            class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"
-                            aria-label="Cerrar">
-                            ✕
-                        </button>
-                    </div>
-
-                    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                            @for ($i = 0; $i < 10; $i++)
-                                <div class="relative aspect-[5/4] overflow-hidden rounded-xl border border-emerald-400/25 bg-gradient-to-br from-emerald-900/25 via-slate-900/20 to-slate-900/50 shadow-inner ring-1 ring-emerald-500/10 dark:from-emerald-950/50 dark:via-dash-void/80 dark:to-slate-950/90 dark:ring-emerald-400/20">
-                                    <input type="file"
-                                        id="evidence_in_{{ $i }}"
-                                        name="evidence_images[]"
-                                        accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
-                                        class="sr-only"
-                                        x-on:change="setPreview({{ $i }}, $event)" />
-                                    <label for="evidence_in_{{ $i }}"
-                                        class="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-1 p-2 text-center">
-                                        <span class="sr-only">Seleccionar imagen {{ $i + 1 }}</span>
-                                        <img x-show="urls[{{ $i }}]"
-                                            x-bind:src="urls[{{ $i }}]"
-                                            alt=""
-                                            class="absolute inset-0 h-full w-full object-cover" />
-                                        <span x-show="! urls[{{ $i }}]"
-                                            class="select-none text-3xl font-extralight leading-none text-white/90 drop-shadow-sm dark:text-emerald-100/90">+</span>
-                                    </label>
-                                    <button type="button"
-                                        x-show="urls[{{ $i }}]"
-                                        x-on:click.prevent.stop="clear({{ $i }})"
-                                        class="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-xs font-bold text-white shadow-md ring-1 ring-white/20 hover:bg-rose-700"
-                                        title="Quitar imagen">
-                                        ×
-                                    </button>
-                                </div>
-                            @endfor
-                        </div>
-                    </div>
-
-                    <div class="flex shrink-0 justify-end border-t border-slate-200/80 px-5 py-4 dark:border-white/10">
-                        <button type="button" @click="evidenceModalOpen = false"
-                            class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
-                            Listo
-                        </button>
-                    </div>
+                    @endfor
                 </div>
             </div>
-        </form>
+
+            <div class="flex shrink-0 justify-end border-t border-slate-200/80 px-4 py-4 sm:px-5 dark:border-white/10">
+                <button type="button" @click="evidenceModalOpen = false"
+                    class="inline-flex min-h-[44px] items-center justify-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                    Listo
+                </button>
+            </div>
+        </div>
     </div>
 
     {{-- Modal: cargar PDF externo (z alto si está dentro del modal principal) --}}

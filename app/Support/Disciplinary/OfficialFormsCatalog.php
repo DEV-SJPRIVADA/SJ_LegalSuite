@@ -53,21 +53,21 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-54-reprogramacion.pdf'),
             ],
             [
-                'code' => null,
+                'code' => 'ACTA-COMITE',
                 'title' => 'Comité disciplinario para decisión',
-                'phase' => 'B · Sin justificación (u otro ingreso a comité)',
+                'phase' => 'C · Comité disciplinario',
                 'summary' => 'Cuando no justifica en el plazo o la justificación no procede, el caso puede llevarse al comité disciplinario para decisión.',
                 'pdf' => null,
             ],
             [
-                'code' => 'FO-GJ-42',
+                'code' => 'FO-GJ-04',
                 'title' => 'Acta de diligencia disciplinaria',
                 'phase' => 'C · Diligencia y acta',
                 'summary' => 'Constancia del desarrollo de la diligencia disciplinaria y levantamiento del acta.',
-                'pdf' => self::pdfIfExists('FO-GJ-42-acta-diligencia.pdf'),
+                'pdf' => self::pdfIfExists('FO-GJ-04-acta-diligencia.pdf'),
             ],
             [
-                'code' => null,
+                'code' => 'FO-GJ-DECISION',
                 'title' => 'Comunicado de decisión de sanción o cierre del proceso',
                 'phase' => 'D · Decisión / cierre',
                 'summary' => 'Comunicación al trabajador de la decisión (sanción) o del cierre del proceso cuando aplique.',
@@ -135,10 +135,20 @@ final class OfficialFormsCatalog
                 'inline' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
                 'download' => 'FO-GJ-44-constancia-inasistencia-en-blanco.pdf',
             ],
-            'FO-GJ-42' => [
-                'view' => 'disciplinary.forms.fo-gj-42-blank-download',
-                'inline' => 'FO-GJ-42-acta-en-blanco.pdf',
-                'download' => 'FO-GJ-42-acta-en-blanco.pdf',
+            'FO-GJ-04' => [
+                'view' => 'disciplinary.forms.fo-gj-04-blank-download',
+                'inline' => 'FO-GJ-04-acta-en-blanco.pdf',
+                'download' => 'FO-GJ-04-acta-en-blanco.pdf',
+            ],
+            'ACTA-COMITE' => [
+                'view' => 'disciplinary.forms.comite-acta-blank-download',
+                'inline' => 'ACTA-COMITE-en-blanco.pdf',
+                'download' => 'ACTA-COMITE-en-blanco.pdf',
+            ],
+            'FO-GJ-DECISION' => [
+                'view' => 'disciplinary.forms.decision-comunicado-blank-download',
+                'inline' => 'FO-GJ-DECISION-en-blanco.pdf',
+                'download' => 'FO-GJ-DECISION-en-blanco.pdf',
             ],
         ];
     }
@@ -193,6 +203,27 @@ final class OfficialFormsCatalog
 
         if (strtoupper($normalizedCode) === 'FO-GJ-44') {
             $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-44-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-04') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-04-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'ACTA-COMITE') {
+            foreach ([
+                'partials/comite-acta-body.blade.php',
+                'partials/comite-acta-pdf-document.blade.php',
+                'partials/comite-acta-pdf-styles.blade.php',
+            ] as $relativePath) {
+                $bodyPath = resource_path('views/disciplinary/forms/'.$relativePath);
+                $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+            }
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-DECISION') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/decision-comunicado-body.blade.php');
             $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 

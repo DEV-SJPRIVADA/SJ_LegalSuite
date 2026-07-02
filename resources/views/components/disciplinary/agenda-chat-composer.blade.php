@@ -24,21 +24,33 @@
         <div class="mb-2 flex flex-wrap gap-2">
             @foreach ($uploads as $index => $file)
                 @if ($file instanceof TemporaryUploadedFile)
+                    @php
+                        $previewUrl = $file->temporaryUrl();
+                        $previewName = $file->getClientOriginalName();
+                        $isImage = str_starts_with((string) $file->getMimeType(), 'image/');
+                        $previewKind = $isImage ? 'image' : 'pdf';
+                    @endphp
                     <div class="relative shrink-0" wire:key="agenda-upload-preview-{{ $index }}-{{ $file->getFilename() }}">
-                        @if (str_starts_with((string) $file->getMimeType(), 'image/'))
-                            <img src="{{ $file->temporaryUrl() }}" alt=""
-                                class="h-14 w-14 rounded-md border border-slate-200 object-cover dark:border-white/15">
-                        @else
-                            <div class="flex h-14 w-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-white px-1 dark:border-white/15 dark:bg-dash-lift">
-                                <svg class="h-6 w-6 text-red-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2 5 5h-4V4zM8 12h8v2H8v-2zm0 4h5v2H8v-2z"/>
-                                </svg>
-                                <span class="mt-0.5 max-w-full truncate text-[9px] font-semibold text-slate-600 dark:text-slate-300">PDF</span>
-                            </div>
-                        @endif
+                        <button type="button"
+                            title="{{ $previewName }} — clic para ampliar"
+                            class="group block overflow-hidden rounded-md border border-slate-200 ring-indigo-500/0 transition hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-white/15"
+                            x-on:click="$dispatch('open-agenda-lightbox', { src: @js($previewUrl), alt: @js($previewName), kind: @js($previewKind), downloadUrl: @js($previewUrl) })">
+                            @if ($isImage)
+                                <img src="{{ $previewUrl }}" alt=""
+                                    class="pointer-events-none h-14 w-14 object-cover transition group-hover:brightness-95 dark:group-hover:brightness-110">
+                            @else
+                                <span class="flex h-14 w-14 flex-col items-center justify-center bg-white px-1 dark:bg-dash-lift">
+                                    <svg class="h-6 w-6 text-red-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2 5 5h-4V4zM8 12h8v2H8v-2zm0 4h5v2H8v-2z"/>
+                                    </svg>
+                                    <span class="mt-0.5 max-w-full truncate text-[9px] font-semibold text-slate-600 dark:text-slate-300">PDF</span>
+                                </span>
+                            @endif
+                        </button>
                         <button type="button"
                             wire:click="{{ $removeUploadMethod }}({{ $index }})"
-                            class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white hover:bg-slate-900 dark:bg-slate-200 dark:text-slate-900"
+                            x-on:click.stop
+                            class="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white hover:bg-slate-900 dark:bg-slate-200 dark:text-slate-900"
                             title="Quitar adjunto"
                             aria-label="Quitar adjunto">
                             ×

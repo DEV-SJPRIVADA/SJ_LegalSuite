@@ -20,15 +20,23 @@
         @include('disciplinary.forms.partials.fo-gj-03-body', [
             'blankForDownload' => false,
             'fecha' => $fecha ?? '',
-            'expedienteGj' => $expedienteGj ?? '',
+            'caseNumber' => $caseNumber ?? '',
             'workerName' => $workerName ?? '',
             'workerDocument' => $workerDocument ?? '',
             'workerPosition' => $workerPosition ?? '',
             'hearingDay' => $hearingDay ?? '',
             'hearingTime' => $hearingTime ?? '',
-            'conductMonth' => $conductMonth ?? '',
-            'conductDays' => $conductDays ?? '',
-            'informeSignedBy' => $informeSignedBy ?? '',
+            'modality' => $modality ?? 'presencial',
+            'locationText' => $locationText ?? '',
+            'informeReportDate' => $informeReportDate ?? '',
+            'breachDate' => $breachDate ?? '',
+            'chargesDescription' => $chargesDescription ?? '',
+            'article66Numerals' => $article66Numerals ?? '',
+            'article68Numerals' => $article68Numerals ?? '',
+            'article76Numerals' => $article76Numerals ?? '',
+            'signerName' => $signerName ?? '',
+            'signerRole' => $signerRole ?? '',
+            'signatureDataUri' => $signatureDataUri ?? null,
         ])
     </x-disciplinary.forms.official-letter-pdf-shell>
 </body>

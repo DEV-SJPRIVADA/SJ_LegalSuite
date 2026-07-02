@@ -16,6 +16,12 @@
 
             <div class="p-4 sm:p-8 bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
                 <div class="max-w-xl">
+                    <livewire:profile.update-signature-form />
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-8 bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
+                <div class="max-w-xl">
                     <livewire:profile.update-password-form />
                 </div>
             </div>

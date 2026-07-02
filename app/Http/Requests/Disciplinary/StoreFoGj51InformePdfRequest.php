@@ -4,6 +4,7 @@ namespace App\Http\Requests\Disciplinary;
 
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Employee;
+use App\Rules\PngSignatureDataUri;
 use App\Support\Disciplinary\FoGj51Catalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -58,7 +59,7 @@ class StoreFoGj51InformePdfRequest extends FormRequest
             'fo51_observations' => ['nullable', 'string', 'max:10000'],
             'fo51_preparer_name' => ['nullable', 'string', 'max:300'],
             'fo51_preparer_role' => ['nullable', 'string', 'max:300'],
-            'fo51_preparer_signature' => ['nullable', 'string', 'max:300'],
+            'fo51_preparer_signature' => ['nullable', 'string', 'max:524288', new PngSignatureDataUri],
             'fo51_jur_pd' => ['nullable', 'string', 'max:120'],
             'fo51_entrega_gh' => ['nullable', 'string', 'max:120'],
             'fo51_jur_dd' => ['nullable', 'string', 'max:2'],

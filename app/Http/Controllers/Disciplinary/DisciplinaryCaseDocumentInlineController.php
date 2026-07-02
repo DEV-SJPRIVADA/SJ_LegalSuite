@@ -30,7 +30,7 @@ class DisciplinaryCaseDocumentInlineController
             abort(404);
         }
 
-        $filename = str_replace(["\r", "\n", '"'], '', (string) ($document->original_name ?: 'documento')) ?: 'documento';
+        $filename = str_replace(["\r", "\n", '"'], '', $document->displayName()) ?: 'documento';
 
         if ($request->boolean('download')) {
             return Storage::disk($disk)->download(

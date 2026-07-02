@@ -16,6 +16,8 @@ use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\FoGj03CitationService;
+use App\Services\Disciplinary\FoGj03DraftService;
+use Illuminate\Support\Facades\Storage;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -144,10 +146,36 @@ class DisciplinaryCitationNotificationTest extends TestCase
 
     public function test_fo_gj_03_can_generate_when_notification_complete(): void
     {
-        ['case' => $case] = $this->makeCitacionCaseWithNotificationCompleted();
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeCitacionCaseWithNotificationCompleted();
+        $this->completeFoGj03DraftForLawyer($case, $lawyer);
         $service = app(FoGj03CitationService::class);
 
         $this->assertTrue($service->canGenerate($case->fresh()));
+    }
+
+    /** @param  array<string, mixed>  $overrides */
+    private function completeFoGj03DraftForLawyer(DisciplinaryCase $case, User $lawyer, array $overrides = []): void
+    {
+        Storage::fake('local');
+        $path = 'signatures/'.$lawyer->id.'/signature.png';
+        Storage::disk('local')->put($path, base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        ));
+        $lawyer->forceFill([
+            'signature_path' => $path,
+            'signature_disk' => 'local',
+        ])->save();
+
+        app(FoGj03DraftService::class)->saveDraft($case->fresh(), $lawyer, array_merge([
+            'hearing_time' => '09:00',
+            'modality' => 'presencial',
+            'virtual_meeting_link' => '',
+            'breach_date' => now()->subDays(5)->toDateString(),
+            'charges_description' => 'Hechos objeto de la citación disciplinaria.',
+            'article_66_numerals' => '1, 3',
+            'article_68_numerals' => '10',
+            'article_76_numerals' => '3, 12',
+        ], $overrides));
     }
 
     public function test_assigned_supervisor_can_upload_citation_evidence(): void

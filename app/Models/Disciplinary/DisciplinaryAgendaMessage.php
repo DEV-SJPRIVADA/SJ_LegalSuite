@@ -28,7 +28,7 @@ class DisciplinaryAgendaMessage extends Model
         ];
     }
 
-    /** @return list<array{date: string, time?: string|null, notes?: string|null}> */
+    /** @return list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int, supervisor_name?: string|null}> */
     public function normalizedProposedSlots(): array
     {
         $slots = $this->proposed_slots ?? [];

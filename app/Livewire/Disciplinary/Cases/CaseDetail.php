@@ -5,6 +5,7 @@ namespace App\Livewire\Disciplinary\Cases;
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\CitationEvidenceType;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
@@ -14,18 +15,39 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryStage;
 use App\Models\OrganizationalArea;
 use App\Models\User;
+use App\Services\Disciplinary\CitationNotificationSigningService;
+use App\Services\Disciplinary\ComiteActaService;
+use App\Services\Disciplinary\ComiteDraftService;
+use App\Services\Disciplinary\DecisionComunicadoService;
+use App\Services\Disciplinary\DecisionDraftService;
+use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
+use App\Services\Disciplinary\DiligenceAttendanceService;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryAuditService;
 use App\Services\Disciplinary\DisciplinaryCaseService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
+use App\Services\Disciplinary\DisciplinaryDiligenceWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\DisciplinaryWorkflowService;
-use App\Support\Disciplinary\CitationStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
+use App\Services\Disciplinary\FoGj03DraftService;
+use App\Services\Disciplinary\FoGj04DiligenceActaService;
+use App\Services\Disciplinary\FoGj04DraftService;
+use App\Services\Disciplinary\FoGj44ConstanciaService;
+use App\Services\Disciplinary\FoGj44DraftService;
+use App\Services\Disciplinary\FoGj54DraftService;
+use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Enums\Disciplinary\Decision;
+use App\Support\Disciplinary\DecisionBranch;
+use App\Support\Disciplinary\DecisionStageProgress;
+use App\Support\Disciplinary\CaseOverviewStageStack;
+use App\Support\Disciplinary\CitationStageProgress;
+use App\Support\Disciplinary\DiligenceStageProgress;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -100,6 +122,8 @@ class CaseDetail extends Component
 
     public bool $showCitationAdvanceConfirm = false;
 
+    public bool $showDiligenceAdvanceConfirm = false;
+
     /** Abogado muestra u oculta el panel de chat (no cierra el hilo; cierre definitivo al cambiar de etapa). */
     public bool $coordinationChatVisible = true;
 
@@ -115,6 +139,130 @@ class CaseDetail extends Component
 
     /** Vista previa del PDF FO-GJ-51 ya incorporado al expediente. */
     public ?int $fo51PdfPreviewDocumentId = null;
+
+    public bool $showFoGj03DraftModal = false;
+
+    public string $foGj03HearingTime = '';
+
+    public string $foGj03Modality = 'presencial';
+
+    public string $foGj03VirtualLink = '';
+
+    public string $foGj03BreachDate = '';
+
+    public string $foGj03ChargesDescription = '';
+
+    public string $foGj03Article66Numerals = '';
+
+    public string $foGj03Article68Numerals = '';
+
+    public string $foGj03Article76Numerals = '';
+
+    public string $foGj03InformeReportDate = '';
+
+    public bool $showFoGj03PdfPreviewModal = false;
+
+    public bool $showFoGj04DraftModal = false;
+
+    public string $foGj04WorkerManifestation = '';
+
+    public string $foGj04OpeningTime = '';
+
+    public string $foGj04ClosingTime = '';
+
+    /** @var array<int, array{question: string, answer: string}> */
+    public array $foGj04Questions = [];
+
+    public bool $showFoGj04PdfPreviewModal = false;
+
+    public bool $showDiligenceAttendanceConfirm = false;
+
+    public string $diligenceAttendancePending = '';
+
+    public bool $showFoGj44DraftModal = false;
+
+    public string $foGj44SignTime = '';
+
+    public string $foGj44SignDay = '';
+
+    public string $foGj44SignMonth = '';
+
+    public string $foGj44SignYearSuffix = '';
+
+    public string $foGj44Witness1Name = '';
+
+    public string $foGj44Witness1Cargo = '';
+
+    public string $foGj44Witness1Date = '';
+
+    public string $foGj44Witness2Name = '';
+
+    public string $foGj44Witness2Cargo = '';
+
+    public string $foGj44Witness2Date = '';
+
+    public bool $showFoGj44PdfPreviewModal = false;
+
+    public bool $showFoGj54DraftModal = false;
+
+    public string $foGj54ClientSite = '';
+
+    public string $foGj54ShiftStart = '';
+
+    public string $foGj54ShiftEnd = '';
+
+    public string $foGj54NewHearingDate = '';
+
+    public string $foGj54NewHearingTime = '';
+
+    public string $foGj54NewHearingPlace = '';
+
+    public bool $showFoGj54PdfPreviewModal = false;
+
+    public bool $showFoGj04SignaturePadModal = false;
+
+    public ?string $foGj04WorkerSignatureDataUri = null;
+
+    public bool $showJustificationRejectConfirm = false;
+
+    public string $justificationRejectNote = '';
+
+    public bool $showComiteDraftModal = false;
+
+    public string $comiteDecisionNarrative = '';
+
+    /** @var array<int, array{name: string, cargo: string, signature_data_uri: ?string}> */
+    public array $comiteAttendees = [];
+
+    public bool $showComitePdfPreviewModal = false;
+
+    public ?int $comiteSignatureAttendeeIndex = null;
+
+    public ?string $comiteSignaturePendingDataUri = null;
+
+    public string $decisionBranchSelection = '';
+
+    public string $decisionTypeSelection = '';
+
+    public bool $showDecisionTypeModal = false;
+
+    public bool $showDecisionDraftModal = false;
+
+    public string $decisionSubject = '';
+
+    public string $decisionBodyNarrative = '';
+
+    public string $decisionSuspensionStart = '';
+
+    public string $decisionSuspensionEnd = '';
+
+    public string $decisionReliefNotes = '';
+
+    public bool $showDecisionPdfPreviewModal = false;
+
+    public bool $showDecisionFinalizeConfirm = false;
+
+    public ?int $documentPreviewId = null;
 
     public function mount(DisciplinaryCase $case): void
     {
@@ -463,7 +611,7 @@ class CaseDetail extends Component
         }
 
         $upload = $files[$index];
-        if ($upload instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+        if ($upload instanceof TemporaryUploadedFile) {
             $upload->delete();
         }
 
@@ -635,6 +783,107 @@ class CaseDetail extends Component
         $this->showCitationAdvanceConfirm = false;
     }
 
+    public function requestAdvanceFromDiligencia(DisciplinaryDiligenceWorkflowService $diligence): void
+    {
+        Gate::authorize('transition', $this->case);
+
+        if (! in_array($this->case->current_status, [CaseStatus::DILIGENCIA, CaseStatus::COMITE_DISCIPLINARIO], true)) {
+            $this->addError('diligenceAdvance', 'Esta acción solo está disponible en diligencia o comité disciplinario.');
+
+            return;
+        }
+
+        try {
+            $diligence->assertCanAdvanceToDecision($this->case->fresh());
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'No puede avanzar a decisión.');
+            }
+
+            return;
+        }
+
+        $this->showDiligenceAdvanceConfirm = true;
+    }
+
+    public function closeDiligenceAdvanceConfirm(): void
+    {
+        $this->showDiligenceAdvanceConfirm = false;
+    }
+
+    public function confirmAdvanceFromDiligencia(
+        DisciplinaryWorkflowService $workflow,
+        DisciplinaryDiligenceWorkflowService $diligence,
+    ): void {
+        Gate::authorize('transition', $this->case);
+        $this->showDiligenceAdvanceConfirm = false;
+
+        try {
+            $freshCase = $this->case->fresh();
+            $diligence->assertCanAdvanceToDecision($freshCase);
+            $this->applyCaseTransition(
+                $workflow,
+                CaseStatus::DECISION,
+                $diligence->advanceNoteFor($freshCase),
+            );
+            session()->flash('success', 'El expediente pasó a etapa D: comunicado de decisión.');
+        } catch (InvalidStateTransitionException $e) {
+            $this->addError('diligenceAdvance', $e->getMessage());
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'No puede avanzar a decisión.');
+            }
+        }
+    }
+
+    public function requestRegisterDiligenceAttendance(string $attendance): void
+    {
+        Gate::authorize('registerDiligenceAttendance', $this->case);
+
+        if (! in_array($attendance, [DiligenceAttendance::ATTENDED->value, DiligenceAttendance::ABSENT->value], true)) {
+            $this->addError('diligenceAttendance', 'Seleccione una opción de asistencia válida.');
+
+            return;
+        }
+
+        $this->diligenceAttendancePending = $attendance;
+        $this->showDiligenceAttendanceConfirm = true;
+    }
+
+    public function closeDiligenceAttendanceConfirm(): void
+    {
+        $this->showDiligenceAttendanceConfirm = false;
+        $this->diligenceAttendancePending = '';
+    }
+
+    public function confirmRegisterDiligenceAttendance(DiligenceAttendanceService $attendance): void
+    {
+        Gate::authorize('registerDiligenceAttendance', $this->case);
+        $this->showDiligenceAttendanceConfirm = false;
+
+        $enum = DiligenceAttendance::tryFrom($this->diligenceAttendancePending);
+        $this->diligenceAttendancePending = '';
+
+        if ($enum === null) {
+            $this->addError('diligenceAttendance', 'Seleccione una opción de asistencia válida.');
+
+            return;
+        }
+
+        try {
+            $this->case = $attendance->register($this->case->fresh(), auth()->user(), $enum);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'No fue posible registrar la asistencia.');
+            }
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Asistencia registrada: '.$enum->label().'. Esta decisión no puede modificarse.');
+    }
+
     public function confirmAdvanceFromCitacion(
         DisciplinaryWorkflowService $workflow,
         DisciplinaryCitationWorkflowService $citation,
@@ -669,6 +918,57 @@ class CaseDetail extends Component
         }
 
         return [(int) $m[1], (int) $m[2]];
+    }
+
+    public function openFoGj03DraftModal(FoGj03DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj03Draft', $this->case);
+        $this->syncCaseFromDb();
+
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->foGj03HearingTime = (string) ($defaults['hearing_time'] ?? '');
+        $this->foGj03Modality = (string) ($defaults['modality'] ?? 'presencial');
+        $this->foGj03VirtualLink = (string) ($defaults['virtual_meeting_link'] ?? '');
+        $this->foGj03BreachDate = (string) ($defaults['breach_date'] ?? '');
+        $this->foGj03ChargesDescription = (string) ($defaults['charges_description'] ?? '');
+        $this->foGj03Article66Numerals = (string) ($defaults['article_66_numerals'] ?? '');
+        $this->foGj03Article68Numerals = (string) ($defaults['article_68_numerals'] ?? '');
+        $this->foGj03Article76Numerals = (string) ($defaults['article_76_numerals'] ?? '');
+        $this->foGj03InformeReportDate = (string) ($defaults['informe_report_date'] ?? '');
+        $this->showFoGj03DraftModal = true;
+    }
+
+    public function closeFoGj03DraftModal(): void
+    {
+        $this->showFoGj03DraftModal = false;
+    }
+
+    public function saveFoGj03Draft(FoGj03DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj03Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'hearing_time' => $this->foGj03HearingTime,
+                'modality' => $this->foGj03Modality,
+                'virtual_meeting_link' => $this->foGj03VirtualLink,
+                'breach_date' => $this->foGj03BreachDate,
+                'charges_description' => $this->foGj03ChargesDescription,
+                'article_66_numerals' => $this->foGj03Article66Numerals,
+                'article_68_numerals' => $this->foGj03Article68Numerals,
+                'article_76_numerals' => $this->foGj03Article76Numerals,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj03DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-03 diligenciado. Ya puede previsualizar o generar el documento.');
     }
 
     public function generateFoGj03(FoGj03CitationService $fo03): void
@@ -775,13 +1075,625 @@ class CaseDetail extends Component
         $this->fo51PdfPreviewDocumentId = null;
     }
 
+    public function openFoGj03PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj03', $this->case);
+        $this->resetErrorBag('fo_gj_03');
+        $this->showFoGj03PdfPreviewModal = true;
+    }
+
+    public function closeFoGj03PdfPreview(): void
+    {
+        $this->showFoGj03PdfPreviewModal = false;
+    }
+
+    public function openFoGj04DraftModal(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj04Draft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case->fresh(['employee', 'assignedLawyer']));
+        $this->foGj04WorkerManifestation = (string) ($defaults['worker_manifestation'] ?? '');
+        $this->foGj04OpeningTime = (string) ($defaults['opening_time'] ?? '');
+        $this->foGj04ClosingTime = (string) ($defaults['closing_time'] ?? '');
+        $this->foGj04Questions = $defaults['questions'] ?? [];
+        $this->showFoGj04DraftModal = true;
+    }
+
+    public function closeFoGj04DraftModal(): void
+    {
+        $this->showFoGj04DraftModal = false;
+    }
+
+    public function addFoGj04Question(): void
+    {
+        $this->foGj04Questions[] = ['question' => '', 'answer' => ''];
+    }
+
+    public function removeFoGj04Question(int $index): void
+    {
+        if (! isset($this->foGj04Questions[$index])) {
+            return;
+        }
+
+        unset($this->foGj04Questions[$index]);
+        $this->foGj04Questions = array_values($this->foGj04Questions);
+    }
+
+    public function saveFoGj04Draft(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj04Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'worker_manifestation' => $this->foGj04WorkerManifestation,
+                'opening_time' => $this->foGj04OpeningTime,
+                'closing_time' => $this->foGj04ClosingTime,
+                'questions' => $this->foGj04Questions,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj04DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-04 diligenciado. Ya puede previsualizar o generar el acta.');
+    }
+
+    public function generateFoGj04(FoGj04DiligenceActaService $fo04): void
+    {
+        Gate::authorize('generateFoGj04', $this->case);
+
+        try {
+            $this->case = $fo04->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_04', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-04 generado y almacenado en el expediente.');
+    }
+
+    public function openFoGj04PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj04', $this->case);
+        $this->resetErrorBag('fo_gj_04');
+        $this->showFoGj04PdfPreviewModal = true;
+    }
+
+    public function closeFoGj04PdfPreview(): void
+    {
+        $this->showFoGj04PdfPreviewModal = false;
+    }
+
+    public function openFoGj04WorkerSignaturePad(): void
+    {
+        Gate::authorize('captureFoGj04WorkerSignature', $this->case);
+        $payload = $this->case->fo_gj_04_payload ?? [];
+        $this->foGj04WorkerSignatureDataUri = $payload['worker_signature_data_uri'] ?? null;
+        $this->showFoGj04SignaturePadModal = true;
+    }
+
+    public function closeFoGj04WorkerSignaturePad(): void
+    {
+        $this->showFoGj04SignaturePadModal = false;
+    }
+
+    public function saveFoGj04WorkerSignature(string $dataUri, CitationNotificationSigningService $signing, FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('captureFoGj04WorkerSignature', $this->case);
+
+        try {
+            $valid = $signing->assertValidWorkerSignatureDataUri($dataUri);
+            $this->case = $drafts->saveWorkerSignature($this->case->fresh(), auth()->user(), $valid);
+            $this->foGj04WorkerSignatureDataUri = $valid;
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Firma no válida.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj04SignaturePadModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Firma del trabajador registrada en el acta.');
+    }
+
+    public function clearFoGj04WorkerSignature(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('captureFoGj04WorkerSignature', $this->case);
+
+        if ($this->case->fo_gj_04_generated_at !== null) {
+            return;
+        }
+
+        $payload = $this->case->fo_gj_04_payload ?? [];
+        unset($payload['worker_signature_data_uri']);
+        $this->case->forceFill(['fo_gj_04_payload' => $payload])->save();
+        $this->foGj04WorkerSignatureDataUri = null;
+        $this->syncCaseFromDb();
+    }
+
+    public function openFoGj44DraftModal(FoGj44DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj44Draft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case->fresh(['employee', 'assignedLawyer']));
+        $this->foGj44SignTime = (string) ($defaults['sign_time'] ?? '');
+        $this->foGj44SignDay = (string) ($defaults['sign_day'] ?? '');
+        $this->foGj44SignMonth = (string) ($defaults['sign_month'] ?? '');
+        $this->foGj44SignYearSuffix = (string) ($defaults['sign_year_suffix'] ?? '');
+        $this->foGj44Witness1Name = (string) ($defaults['witness1_name'] ?? '');
+        $this->foGj44Witness1Cargo = (string) ($defaults['witness1_cargo'] ?? '');
+        $this->foGj44Witness1Date = (string) ($defaults['witness1_date'] ?? '');
+        $this->foGj44Witness2Name = (string) ($defaults['witness2_name'] ?? '');
+        $this->foGj44Witness2Cargo = (string) ($defaults['witness2_cargo'] ?? '');
+        $this->foGj44Witness2Date = (string) ($defaults['witness2_date'] ?? '');
+        $this->showFoGj44DraftModal = true;
+    }
+
+    public function closeFoGj44DraftModal(): void
+    {
+        $this->showFoGj44DraftModal = false;
+    }
+
+    public function saveFoGj44Draft(FoGj44DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj44Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'sign_time' => $this->foGj44SignTime,
+                'sign_day' => $this->foGj44SignDay,
+                'sign_month' => $this->foGj44SignMonth,
+                'sign_year_suffix' => $this->foGj44SignYearSuffix,
+                'witness1_name' => $this->foGj44Witness1Name,
+                'witness1_cargo' => $this->foGj44Witness1Cargo,
+                'witness1_date' => $this->foGj44Witness1Date,
+                'witness2_name' => $this->foGj44Witness2Name,
+                'witness2_cargo' => $this->foGj44Witness2Cargo,
+                'witness2_date' => $this->foGj44Witness2Date,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj44DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-44 diligenciado. Ya puede previsualizar o generar la constancia.');
+    }
+
+    public function generateFoGj44(FoGj44ConstanciaService $fo44): void
+    {
+        Gate::authorize('generateFoGj44', $this->case);
+
+        try {
+            $this->case = $fo44->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_44', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-44 generado. Se abrió la ventana de 2 días para justificación.');
+    }
+
+    public function openFoGj44PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj44', $this->case);
+        $this->resetErrorBag('fo_gj_44');
+        $this->showFoGj44PdfPreviewModal = true;
+    }
+
+    public function closeFoGj44PdfPreview(): void
+    {
+        $this->showFoGj44PdfPreviewModal = false;
+    }
+
+    public function openFoGj54DraftModal(FoGj54DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj54Draft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case->fresh(['employee', 'assignedLawyer']));
+        $this->foGj54ClientSite = (string) ($defaults['client_site'] ?? '');
+        $this->foGj54ShiftStart = (string) ($defaults['shift_start'] ?? '');
+        $this->foGj54ShiftEnd = (string) ($defaults['shift_end'] ?? '');
+        $this->foGj54NewHearingDate = (string) ($defaults['new_hearing_date'] ?? '');
+        $this->foGj54NewHearingTime = (string) ($defaults['new_hearing_time'] ?? '');
+        $this->foGj54NewHearingPlace = (string) ($defaults['new_hearing_place'] ?? '');
+        $this->showFoGj54DraftModal = true;
+    }
+
+    public function closeFoGj54DraftModal(): void
+    {
+        $this->showFoGj54DraftModal = false;
+    }
+
+    public function saveFoGj54Draft(FoGj54DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj54Draft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'client_site' => $this->foGj54ClientSite,
+                'shift_start' => $this->foGj54ShiftStart,
+                'shift_end' => $this->foGj54ShiftEnd,
+                'new_hearing_date' => $this->foGj54NewHearingDate,
+                'new_hearing_time' => $this->foGj54NewHearingTime,
+                'new_hearing_place' => $this->foGj54NewHearingPlace,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj54DraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-54 diligenciado. Ya puede previsualizar o generar la reprogramación.');
+    }
+
+    public function generateFoGj54AndAcceptJustification(FoGj54ReprogramacionService $fo54): void
+    {
+        Gate::authorize('generateFoGj54', $this->case);
+
+        try {
+            $this->case = $fo54->generateAcceptJustificationAndStore($this->case->fresh(), auth()->user());
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_54', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Justificación aceptada. FO-GJ-54 generado y diligencia reprogramada.');
+    }
+
+    public function openFoGj54PdfPreview(): void
+    {
+        Gate::authorize('previewFoGj54', $this->case);
+        $this->resetErrorBag('fo_gj_54');
+        $this->showFoGj54PdfPreviewModal = true;
+    }
+
+    public function closeFoGj54PdfPreview(): void
+    {
+        $this->showFoGj54PdfPreviewModal = false;
+    }
+
+    public function requestRejectDiligenceJustification(): void
+    {
+        Gate::authorize('manageDiligenceJustification', $this->case);
+        $this->showJustificationRejectConfirm = true;
+    }
+
+    public function closeJustificationRejectConfirm(): void
+    {
+        $this->showJustificationRejectConfirm = false;
+        $this->justificationRejectNote = '';
+    }
+
+    public function confirmRejectDiligenceJustification(DisciplinaryWorkflowService $workflow): void
+    {
+        Gate::authorize('manageDiligenceJustification', $this->case);
+        $this->showJustificationRejectConfirm = false;
+
+        try {
+            $note = trim($this->justificationRejectNote) !== ''
+                ? trim($this->justificationRejectNote)
+                : 'Justificación rechazada o no presentada dentro del plazo.';
+            $this->case = $workflow->rejectJustification($this->case->fresh(), auth()->user(), $note);
+            $this->justificationRejectNote = '';
+            $this->syncCaseFromDb();
+            session()->flash('success', 'El expediente fue remitido a comité disciplinario.');
+        } catch (InvalidStateTransitionException $e) {
+            $this->addError('justification', $e->getMessage());
+        }
+    }
+
+    public function openComiteDraftModal(ComiteDraftService $drafts): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->comiteDecisionNarrative = (string) ($defaults['decision_narrative'] ?? '');
+        $this->comiteAttendees = is_array($defaults['attendees'] ?? null) ? $defaults['attendees'] : [];
+        $this->resetErrorBag(['comiteDecisionNarrative', 'comiteAttendees']);
+        $this->showComiteDraftModal = true;
+    }
+
+    public function closeComiteDraftModal(): void
+    {
+        $this->showComiteDraftModal = false;
+    }
+
+    public function saveComiteDraft(ComiteDraftService $drafts): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'decision_narrative' => $this->comiteDecisionNarrative,
+                'attendees' => $this->comiteAttendees,
+            ]);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showComiteDraftModal = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Acta de comité diligenciada. Ya puede previsualizar o generar el PDF.');
+    }
+
+    public function addComiteAttendee(): void
+    {
+        $this->comiteAttendees[] = ['name' => '', 'cargo' => '', 'signature_data_uri' => null];
+    }
+
+    public function removeComiteAttendee(int $index): void
+    {
+        if (! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        unset($this->comiteAttendees[$index]);
+        $this->comiteAttendees = array_values($this->comiteAttendees);
+    }
+
+    public function openComiteAttendeeSignaturePad(int $index): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        if (! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        $this->comiteSignatureAttendeeIndex = $index;
+        $this->comiteSignaturePendingDataUri = $this->comiteAttendees[$index]['signature_data_uri'] ?? null;
+    }
+
+    public function closeComiteAttendeeSignaturePad(): void
+    {
+        $this->comiteSignatureAttendeeIndex = null;
+        $this->comiteSignaturePendingDataUri = null;
+    }
+
+    public function saveComiteAttendeeSignature(string $dataUri, CitationNotificationSigningService $signing): void
+    {
+        Gate::authorize('editComiteDraft', $this->case);
+        $index = $this->comiteSignatureAttendeeIndex;
+        if ($index === null || ! isset($this->comiteAttendees[$index])) {
+            return;
+        }
+
+        try {
+            $valid = $signing->assertValidWorkerSignatureDataUri($dataUri);
+            $this->comiteAttendees[$index]['signature_data_uri'] = $valid;
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Firma no válida.');
+            }
+
+            return;
+        }
+
+        $this->closeComiteAttendeeSignaturePad();
+    }
+
+    public function generateComiteActa(ComiteActaService $comite): void
+    {
+        Gate::authorize('generateComite', $this->case);
+
+        try {
+            $this->case = $comite->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        } catch (\Throwable $e) {
+            $this->addError('comiteDecisionNarrative', $e->getMessage());
+
+            return;
+        }
+
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Acta de comité generada y guardada en el expediente.');
+    }
+
+    public function openComitePdfPreview(): void
+    {
+        Gate::authorize('previewComite', $this->case);
+        $this->resetErrorBag('comiteDecisionNarrative');
+        $this->showComitePdfPreviewModal = true;
+    }
+
+    public function closeComitePdfPreview(): void
+    {
+        $this->showComitePdfPreviewModal = false;
+    }
+
+    public function openDecisionTypeModal(): void
+    {
+        Gate::authorize('selectDecisionType', $this->case);
+        $this->decisionBranchSelection = '';
+        $this->decisionTypeSelection = '';
+        $this->resetErrorBag(['decisionBranchSelection', 'decisionTypeSelection']);
+        $this->showDecisionTypeModal = true;
+    }
+
+    public function closeDecisionTypeModal(): void
+    {
+        $this->showDecisionTypeModal = false;
+    }
+
+    public function confirmDecisionType(DisciplinaryDecisionWorkflowService $workflow): void
+    {
+        Gate::authorize('selectDecisionType', $this->case);
+
+        $this->validate([
+            'decisionBranchSelection' => ['required', Rule::in([
+                DecisionBranch::SUSPENSION,
+                DecisionBranch::NOTICE,
+                DecisionBranch::TERMINATION,
+            ])],
+            'decisionTypeSelection' => ['required', 'string'],
+        ], [], [
+            'decisionBranchSelection' => 'rama de decisión',
+            'decisionTypeSelection' => 'tipo de decisión',
+        ]);
+
+        $choices = DecisionBranch::choicesForBranch($this->decisionBranchSelection);
+        $decision = Decision::tryFrom($this->decisionTypeSelection);
+        if ($decision === null || ! in_array($decision, $choices, true)) {
+            $this->addError('decisionTypeSelection', 'Seleccione un tipo de decisión válido para la rama elegida.');
+
+            return;
+        }
+
+        try {
+            $this->case = $workflow->selectDecisionType($this->case->fresh(), auth()->user(), $decision);
+        } catch (\Throwable $e) {
+            $this->addError('decisionTypeSelection', $e->getMessage());
+
+            return;
+        }
+
+        $this->showDecisionTypeModal = false;
+        session()->flash('success', 'Tipo de decisión registrado. Coordine con planeación la programación.');
+    }
+
+    public function openDecisionDraftModal(DecisionDraftService $drafts): void
+    {
+        Gate::authorize('editDecisionDraft', $this->case);
+        $defaults = $drafts->defaultsForCase($this->case);
+        $this->decisionSubject = (string) ($defaults['subject'] ?? '');
+        $this->decisionBodyNarrative = (string) ($defaults['body_narrative'] ?? '');
+        $this->decisionSuspensionStart = (string) ($defaults['suspension_start'] ?? '');
+        $this->decisionSuspensionEnd = (string) ($defaults['suspension_end'] ?? '');
+        $this->decisionReliefNotes = (string) ($defaults['relief_notes'] ?? '');
+        $this->resetErrorBag(['decisionSubject', 'decisionBodyNarrative', 'decisionSuspensionStart', 'decisionSuspensionEnd', 'decisionReliefNotes']);
+        $this->showDecisionDraftModal = true;
+    }
+
+    public function closeDecisionDraftModal(): void
+    {
+        $this->showDecisionDraftModal = false;
+    }
+
+    public function saveDecisionDraft(DecisionDraftService $drafts): void
+    {
+        Gate::authorize('editDecisionDraft', $this->case);
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'subject' => $this->decisionSubject,
+                'body_narrative' => $this->decisionBodyNarrative,
+                'suspension_start' => $this->decisionSuspensionStart,
+                'suspension_end' => $this->decisionSuspensionEnd,
+                'relief_notes' => $this->decisionReliefNotes,
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
+        $this->showDecisionDraftModal = false;
+        session()->flash('success', 'Borrador del comunicado guardado.');
+    }
+
+    public function generateDecisionComunicado(DecisionComunicadoService $service): void
+    {
+        Gate::authorize('generateDecisionComunicado', $this->case);
+
+        try {
+            $this->case = $service->generateAndStore($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->addError('decisionBodyNarrative', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('success', 'Comunicado de decisión generado y guardado en el expediente.');
+    }
+
+    public function openDecisionPdfPreview(): void
+    {
+        Gate::authorize('previewDecisionComunicado', $this->case);
+        $this->resetErrorBag('decisionBodyNarrative');
+        $this->showDecisionPdfPreviewModal = true;
+    }
+
+    public function closeDecisionPdfPreview(): void
+    {
+        $this->showDecisionPdfPreviewModal = false;
+    }
+
+    public function requestFinalizeDecision(): void
+    {
+        Gate::authorize('finalizeDecisionCase', $this->case);
+        $this->showDecisionFinalizeConfirm = true;
+    }
+
+    public function cancelFinalizeDecision(): void
+    {
+        $this->showDecisionFinalizeConfirm = false;
+    }
+
+    public function confirmFinalizeDecision(DisciplinaryDecisionWorkflowService $workflow): void
+    {
+        try {
+            $this->case = $workflow->finalizeCase($this->case->fresh(), auth()->user());
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
+        $this->showDecisionFinalizeConfirm = false;
+        session()->flash('success', 'Proceso disciplinario finalizado.');
+    }
+
+    public function openDocumentPreview(int $documentId): void
+    {
+        Gate::authorize('view', $this->case);
+        $this->case->loadMissing('documents');
+        $doc = $this->case->documents->firstWhere('id', $documentId);
+        if (! $doc || $doc->path === '') {
+            $this->addError('documents', 'No se encontró el documento en el expediente.');
+
+            return;
+        }
+
+        $this->resetErrorBag('documents');
+        $this->documentPreviewId = $documentId;
+    }
+
+    public function closeDocumentPreview(): void
+    {
+        $this->documentPreviewId = null;
+    }
+
     private function syncCaseFromDb(): void
     {
         $this->case = $this->case->fresh([
             'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
-            'assignedLawyer:id,name',
+            'assignedLawyer:id,name,signature_path,signature_disk,job_position_id,position',
+            'assignedLawyer.jobPosition:id,name',
             'informeSubmission.submitter:id,name,job_position_id,position',
             'informeSubmission.submitter.jobPosition:id,name',
             'informeSubmission.reviewer:id,name,job_position_id,position',
@@ -812,11 +1724,20 @@ class CaseDetail extends Component
             }
         }
 
+        if ($this->documentPreviewId !== null) {
+            $this->case->loadMissing('documents');
+            $previewDoc = $this->case->documents->firstWhere('id', $this->documentPreviewId);
+            if (! $previewDoc || $previewDoc->path === '') {
+                $this->documentPreviewId = null;
+            }
+        }
+
         $this->case->load([
             'employee',
             'reporter:id,name,job_position_id,position',
             'reporter.jobPosition:id,name',
-            'assignedLawyer:id,name',
+            'assignedLawyer:id,name,signature_path,signature_disk,job_position_id,position',
+            'assignedLawyer.jobPosition:id,name',
             'informeSubmission.submitter:id,name,job_position_id,position',
             'informeSubmission.submitter.jobPosition:id,name',
             'informeSubmission.reviewer:id,name,job_position_id,position',
@@ -852,9 +1773,28 @@ class CaseDetail extends Component
         $citationWorkflow = app(DisciplinaryCitationWorkflowService::class);
         $notificationService = app(DisciplinaryCitationNotificationService::class);
         $stageProgress = app(CitationStageProgress::class);
+        $diligenceStageProgress = app(DiligenceStageProgress::class);
+        $decisionStageProgress = app(DecisionStageProgress::class);
         $citationSlotChoices = $this->buildCitationSlotChoices();
+        $citationReadOnly = $this->case->showsCitationStageReadOnly();
+        $showsDiligenceStagePanel = $this->case->showsDiligenceStagePanel();
+        $showsDiligenceStageReadOnly = $this->case->showsDiligenceStageReadOnly();
+        $showsDecisionStagePanel = $this->case->showsDecisionStagePanel();
+
+        if ($citationReadOnly) {
+            $citationStageSteps = $stageProgress->completedSteps();
+            $citationCurrentStep = $citationStageSteps->last() ?? $stageProgress->currentStep($this->case);
+            $citationCurrentStepNumber = $stageProgress->totalSteps();
+        } else {
+            $citationStageSteps = $stageProgress->steps($this->case);
+            $citationCurrentStep = $stageProgress->currentStep($this->case);
+            $citationCurrentStepNumber = $stageProgress->currentStepNumber($this->case);
+        }
+
+        $overviewStageStack = app(CaseOverviewStageStack::class)->stagesForCase($this->case);
 
         return view('livewire.disciplinary.cases.show', [
+            'overviewStageStack' => $overviewStageStack,
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
@@ -871,10 +1811,25 @@ class CaseDetail extends Component
             'foGj03GenerationLabels' => DisciplinaryCitationNotificationService::foGj03GenerationLabels(),
             'notificationPending' => $notificationService->hasPendingNotificationRequest($this->case),
             'notificationCompleted' => $notificationService->hasNotificationInformationCompleted($this->case),
-            'citationStageSteps' => $stageProgress->steps($this->case),
-            'citationCurrentStep' => $stageProgress->currentStep($this->case),
-            'citationCurrentStepNumber' => $stageProgress->currentStepNumber($this->case),
+            'citationReadOnly' => $citationReadOnly,
+            'citationStageSteps' => $citationStageSteps,
+            'citationCurrentStep' => $citationCurrentStep,
+            'citationCurrentStepNumber' => $citationCurrentStepNumber,
             'citationTotalSteps' => $stageProgress->totalSteps(),
+            'isDiligenciaActive' => $showsDiligenceStagePanel || $showsDiligenceStageReadOnly,
+            'showsDiligenceStagePanel' => $showsDiligenceStagePanel || $showsDiligenceStageReadOnly,
+            'diligenceReadOnly' => $showsDiligenceStageReadOnly && ! $showsDiligenceStagePanel,
+            'showsDecisionStagePanel' => $showsDecisionStagePanel,
+            'decisionStageSteps' => $showsDecisionStagePanel ? $decisionStageProgress->steps($this->case) : collect(),
+            'decisionCurrentStep' => $showsDecisionStagePanel ? $decisionStageProgress->currentStep($this->case) : null,
+            'decisionCurrentStepNumber' => $showsDecisionStagePanel ? $decisionStageProgress->currentStepNumber($this->case) : null,
+            'decisionTotalSteps' => $showsDecisionStagePanel ? $decisionStageProgress->totalSteps($this->case) : 0,
+            'decisionBranch' => DecisionBranch::forDecision($this->case->decision),
+            'diligenceStageSteps' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->steps($this->case) : collect(),
+            'diligenceCurrentStep' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->currentStep($this->case) : null,
+            'diligenceCurrentStepNumber' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->currentStepNumber($this->case) : null,
+            'diligenceTotalSteps' => $diligenceStageProgress->totalSteps($this->case),
+            'diligenceAdvanceTargetLabel' => StageType::DECISION->label(),
             'diligenceSlotDisplay' => $this->resolveDiligenceSlotDisplay(),
             'notificationSlotDisplay' => $this->resolveNotificationSlotDisplay(),
             'diligenceDateRequestStatus' => $stageProgress->diligenceDateRequestStatusLabel($this->case),
@@ -889,18 +1844,9 @@ class CaseDetail extends Component
     public function resolveDiligenceSlotDisplay(): array
     {
         if ($this->case->citation_confirmed_date) {
-            $timeLabel = '—';
-            if ($this->case->citation_confirmed_time) {
-                try {
-                    $timeLabel = \Illuminate\Support\Carbon::parse($this->case->citation_confirmed_time)->format('h:i A');
-                } catch (\Throwable) {
-                    $timeLabel = (string) $this->case->citation_confirmed_time;
-                }
-            }
-
             return [
                 'date' => $this->case->citation_confirmed_date->format('d/m/Y'),
-                'time' => $timeLabel,
+                'time' => $this->case->resolvedDiligenceHearingTimeLabel() ?? '—',
                 'confirmed' => true,
             ];
         }

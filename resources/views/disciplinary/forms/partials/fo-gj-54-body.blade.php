@@ -18,6 +18,8 @@
     'newHearingYear' => '',
     'newHearingTime' => '',
     'newHearingPlace' => '',
+    'employerName' => '',
+    'signatureDataUri' => null,
 ])
 
 @php
@@ -96,15 +98,19 @@
         <tr>
             <td>
                 <p>Representantes del empleador;</p>
-                <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
+                <div class="ogj-03-sign-line">
+                    @if (! $blankForDownload && filled($signatureDataUri))
+                        <img src="{{ $signatureDataUri }}" alt="Firma empleador" class="ogj-03-signature-img">
+                    @endif
+                </div>
+                <p>Nombre: {!! $blank($employerName, 'md') !!}</p>
                 <p>Área Jurídica – SJ Seguridad Privada Ltda.</p>
             </td>
             <td>
                 <p>El Trabajador;</p>
                 <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Cargo:</p>
+                <p>Nombre: {!! $blank($workerName, 'md') !!}</p>
+                <p>Cargo: {!! $blank($workerPosition, 'md') !!}</p>
             </td>
         </tr>
     </table>

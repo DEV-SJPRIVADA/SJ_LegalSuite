@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Disciplinary\Coordinations;
 
+use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
+use App\Services\Disciplinary\DisciplinaryDecisionNotificationService;
+use App\Support\Disciplinary\DecisionBranch;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -31,6 +34,11 @@ class Index extends Component
         ['date' => '', 'time' => '', 'notes' => ''],
     ];
 
+    /** @var array<int, array{date: string, time: string, notes: string, zone: string, supervisor_user_id: int|string|null}> */
+    public array $decisionNotificationSlots = [
+        ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+    ];
+
     /** @var array<int, mixed> */
     public array $agendaPlanningUploads = [];
 
@@ -47,6 +55,14 @@ class Index extends Component
     public bool $showDiligenceModal = false;
 
     public bool $showNotificationModal = false;
+
+    public bool $showDecisionPlanningModal = false;
+
+    public string $decisionSuspensionStart = '';
+
+    public string $decisionSuspensionEnd = '';
+
+    public string $decisionReliefNotes = '';
 
     public function mount(): void
     {
@@ -71,6 +87,127 @@ class Index extends Component
         $this->resetComposer();
         $this->showDiligenceModal = false;
         $this->showNotificationModal = false;
+        $this->showDecisionPlanningModal = false;
+    }
+
+    public function openDecisionPlanningModal(): void
+    {
+        $this->showDecisionPlanningModal = true;
+        $this->showDiligenceModal = false;
+        $this->showNotificationModal = false;
+        $this->decisionNotificationSlots = [
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+        ];
+    }
+
+    public function closeDecisionPlanningModal(): void
+    {
+        $this->showDecisionPlanningModal = false;
+        $this->reset('decisionSuspensionStart', 'decisionSuspensionEnd', 'decisionReliefNotes');
+        $this->decisionNotificationSlots = [
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+        ];
+    }
+
+    public function submitDecisionPlanningModal(DisciplinaryAgendaThreadService $agenda): void
+    {
+        $thread = $this->resolveSelectedThread();
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            $this->addError('decisionPlanningModal', 'Seleccione una coordinación abierta.');
+
+            return;
+        }
+
+        $case = $thread->case()->firstOrFail();
+        Gate::authorize('postAgendaPlanning', $case);
+
+        $this->validate([
+            'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
+            'decisionNotificationSlots' => ['required', 'array', 'min:1', 'max:5'],
+            'decisionNotificationSlots.*.date' => ['required', 'date'],
+            'decisionNotificationSlots.*.time' => ['nullable', 'date_format:H:i'],
+            'decisionNotificationSlots.*.notes' => ['required', 'string', 'max:80'],
+            'decisionNotificationSlots.*.zone' => ['required', 'string', 'max:120'],
+            'decisionNotificationSlots.*.supervisor_user_id' => ['required', 'integer', 'exists:users,id'],
+            'decisionSuspensionStart' => ['nullable', 'date'],
+            'decisionSuspensionEnd' => ['nullable', 'date', 'after_or_equal:decisionSuspensionStart'],
+            'decisionReliefNotes' => ['nullable', 'string', 'max:2000'],
+        ], [], [
+            'decisionNotificationSlots.*.date' => 'fecha de notificación',
+            'decisionNotificationSlots.*.notes' => 'turno',
+            'decisionNotificationSlots.*.zone' => 'zona',
+            'decisionNotificationSlots.*.supervisor_user_id' => 'supervisor de turno',
+        ]);
+
+        $branch = DecisionBranch::forDecision($case->decision);
+        if ($branch !== null && DecisionBranch::requiresSuspensionDates($branch)) {
+            $this->validate([
+                'decisionSuspensionStart' => ['required', 'date'],
+                'decisionSuspensionEnd' => ['required', 'date', 'after_or_equal:decisionSuspensionStart'],
+            ]);
+        }
+
+        try {
+            $agenda->postDecisionPlanningMessage(
+                $case->fresh(['agendaThread']),
+                auth()->user(),
+                trim($this->agendaPlanningBody),
+                $this->decisionNotificationSlots,
+                array_filter([
+                    'suspension_start' => $this->decisionSuspensionStart ?: null,
+                    'suspension_end' => $this->decisionSuspensionEnd ?: null,
+                    'relief_notes' => $this->decisionReliefNotes !== '' ? $this->decisionReliefNotes : null,
+                ]),
+                array_values(array_filter($this->agendaPlanningUploads)),
+            );
+        } catch (\Throwable $e) {
+            $this->addError('decisionPlanningModal', $e->getMessage());
+
+            return;
+        }
+
+        $this->closeDecisionPlanningModal();
+        $this->resetComposer();
+        session()->flash('success', 'Programación de decisión publicada en el chat.');
+    }
+
+    public function submitDecisionNotificationModal(DisciplinaryDecisionNotificationService $notification): void
+    {
+        $thread = $this->resolveSelectedThread();
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            $this->addError('notificationDate', 'Seleccione una coordinación abierta.');
+
+            return;
+        }
+
+        $case = $thread->case()->firstOrFail();
+        Gate::authorize('postDecisionNotificationCoordination', $case);
+
+        $this->validate([
+            'notificationDate' => ['required', 'date'],
+            'notificationShift' => ['required', 'string', 'max:80'],
+            'notificationZone' => ['required', 'string', 'max:120'],
+            'notificationSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'notificationNotes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $notification->completeNotificationInformation($case->fresh(['agendaThread']), auth()->user(), [
+                'notification_date' => $this->notificationDate,
+                'notification_shift' => $this->notificationShift,
+                'notification_zone' => $this->notificationZone,
+                'notification_supervisor_user_id' => (int) $this->notificationSupervisorUserId,
+                'notification_notes' => $this->notificationNotes !== '' ? $this->notificationNotes : null,
+            ]);
+        } catch (\Throwable $e) {
+            $this->addError('notificationDate', $e->getMessage());
+
+            return;
+        }
+
+        $this->showNotificationModal = false;
+        $this->resetNotificationForm();
+        session()->flash('success', 'Notificación de decisión registrada.');
     }
 
     public function openDiligenceModal(): void
@@ -101,6 +238,20 @@ class Index extends Component
             return;
         }
         $this->planningSlots[] = ['date' => '', 'time' => '', 'notes' => ''];
+    }
+
+    public function addDecisionNotificationSlotRow(): void
+    {
+        if (count($this->decisionNotificationSlots) >= 5) {
+            return;
+        }
+        $this->decisionNotificationSlots[] = [
+            'date' => '',
+            'time' => '',
+            'notes' => '',
+            'zone' => '',
+            'supervisor_user_id' => null,
+        ];
     }
 
     public function removeAgendaPlanningUploadAt(int $index): void
@@ -258,15 +409,28 @@ class Index extends Component
         }
 
         $selectedThreadModel = $this->resolveSelectedThread();
-        $notificationService = app(DisciplinaryCitationNotificationService::class);
+        $citationNotificationService = app(DisciplinaryCitationNotificationService::class);
+        $decisionNotificationService = app(DisciplinaryDecisionNotificationService::class);
         $pendingNotificationCase = $selectedThreadModel?->case;
+        $isDecisionCase = $pendingNotificationCase?->current_status === CaseStatus::DECISION;
         $canPostPlanning = $pendingNotificationCase
             && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
         $awaitingDiligenceDates = $pendingNotificationCase
+            && ! $isDecisionCase
             && $pendingNotificationCase->awaitingPlanningDiligenceSlots();
+        $awaitingDecisionPlanning = $pendingNotificationCase
+            && $isDecisionCase
+            && $pendingNotificationCase->awaitingDecisionPlanningSlots();
         $canRegisterNotification = $pendingNotificationCase
+            && ! $isDecisionCase
             && auth()->user()->can('postNotificationCoordination', $pendingNotificationCase);
-        $hasPendingNotification = $canRegisterNotification;
+        $canRegisterDecisionNotification = $pendingNotificationCase
+            && $isDecisionCase
+            && auth()->user()->can('postDecisionNotificationCoordination', $pendingNotificationCase);
+        $hasPendingNotification = $canRegisterNotification || $canRegisterDecisionNotification;
+        $decisionBranch = $pendingNotificationCase?->decision
+            ? DecisionBranch::forDecision($pendingNotificationCase->decision)
+            : null;
         $liveCaseId = $pendingNotificationCase?->getKey();
 
         return view('livewire.disciplinary.coordinations.index', [
@@ -275,7 +439,11 @@ class Index extends Component
             'hasPendingNotification' => $hasPendingNotification,
             'canPostPlanning' => $canPostPlanning,
             'awaitingDiligenceDates' => $awaitingDiligenceDates,
+            'awaitingDecisionPlanning' => $awaitingDecisionPlanning,
             'canRegisterNotification' => $canRegisterNotification,
+            'canRegisterDecisionNotification' => $canRegisterDecisionNotification,
+            'isDecisionCase' => $isDecisionCase,
+            'decisionBranch' => $decisionBranch,
             'liveCaseId' => $liveCaseId,
             'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
         ]);
@@ -303,7 +471,7 @@ class Index extends Component
         return DisciplinaryAgendaThread::query()
             ->where('coordination_status', 'open')
             ->with([
-                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at,current_status',
+                'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at,current_status,decision,decision_coordination_started_at,decision_notification_completed_at',
                 'case.employee:id,first_name,last_name,document_number',
                 'case.municipality:municipality_code,municipality_name',
                 'messages.author:id,name',

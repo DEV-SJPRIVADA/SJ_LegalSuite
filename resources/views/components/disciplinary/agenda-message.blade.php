@@ -8,10 +8,25 @@
         AgendaMessageKind::PLANNING_RESPONSE => ['Respuesta de Planeación', 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-100'],
         AgendaMessageKind::LAWYER_NOTIFICATION_REQUEST => ['Solicitud de notificación', 'bg-amber-100 text-amber-950 dark:bg-amber-900/40 dark:text-amber-100'],
         AgendaMessageKind::NOTIFICATION_COORDINATION => ['Notificación coordinada', 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-100'],
+        AgendaMessageKind::DECISION_PLANNING_RESPONSE => ['Planeación · decisión', 'bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/40 dark:text-fuchsia-100'],
+        AgendaMessageKind::DECISION_NOTIFICATION_COORDINATION => ['Notificación decisión', 'bg-violet-100 text-violet-900 dark:bg-violet-900/40 dark:text-violet-100'],
         default => ['Mensaje', 'bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-slate-200'],
     };
     $slots = $message->normalizedProposedSlots();
     $payload = $message->normalizedNotificationPayload();
+    $isDecisionPlanning = $kind === AgendaMessageKind::DECISION_PLANNING_RESPONSE;
+    $isNotificationCoordination = in_array($kind, [
+        AgendaMessageKind::NOTIFICATION_COORDINATION,
+        AgendaMessageKind::DECISION_NOTIFICATION_COORDINATION,
+    ], true);
+    $decisionMeasurePayload = $isDecisionPlanning ? array_filter([
+        'suspension_start' => $payload['suspension_start'] ?? null,
+        'suspension_end' => $payload['suspension_end'] ?? null,
+        'relief_notes' => $payload['relief_notes'] ?? null,
+    ]) : [];
+    $slotsHeading = $isDecisionPlanning
+        ? 'Opciones para notificar al trabajador'
+        : 'Fechas propuestas';
     $bodyForDisplay = trim((string) $message->body);
     if ($slots !== []) {
         $commentLines = collect(preg_split('/\r\n|\n/', $bodyForDisplay) ?: [])
@@ -38,7 +53,7 @@
 
     @if ($slots !== [])
         <div class="mt-3 rounded-md bg-indigo-50/80 px-3 py-2 ring-1 ring-indigo-200/80 dark:bg-indigo-950/30 dark:ring-indigo-500/30">
-            <p class="text-[10px] font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">Fechas propuestas</p>
+            <p class="text-[10px] font-bold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">{{ $slotsHeading }}</p>
             <ul class="mt-2 space-y-1.5 text-sm text-indigo-900 dark:text-indigo-100">
                 @foreach ($slots as $index => $slot)
                     @php
@@ -50,6 +65,12 @@
                                 $label = \Illuminate\Support\Carbon::parse($date.' '.$time)->format('d/m/Y — h:i A');
                             } catch (\Throwable) {
                                 $label = trim($date.' '.$time);
+                            }
+                        } elseif ($date !== '') {
+                            try {
+                                $label = \Illuminate\Support\Carbon::parse($date)->format('d/m/Y');
+                            } catch (\Throwable) {
+                                $label = $date;
                             }
                         }
                         $slotKey = $message->id.'-'.$index;
@@ -63,7 +84,13 @@
                                 <span>
                                     <span class="font-semibold">{{ $label }}</span>
                                     @if (! empty($slot['notes']))
-                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">{{ $slot['notes'] }}</span>
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Turno: {{ $slot['notes'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['zone']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Zona: {{ $slot['zone'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['supervisor_name']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Supervisor: {{ $slot['supervisor_name'] }}</span>
                                     @endif
                                 </span>
                             </label>
@@ -73,7 +100,13 @@
                                 <span>
                                     <span class="font-semibold">{{ $label }}</span>
                                     @if (! empty($slot['notes']))
-                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">{{ $slot['notes'] }}</span>
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Turno: {{ $slot['notes'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['zone']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Zona: {{ $slot['zone'] }}</span>
+                                    @endif
+                                    @if (! empty($slot['supervisor_name']))
+                                        <span class="block text-xs text-indigo-700/90 dark:text-indigo-200/80">Supervisor: {{ $slot['supervisor_name'] }}</span>
                                     @endif
                                 </span>
                             </span>
@@ -84,7 +117,21 @@
         </div>
     @endif
 
-    @if ($payload !== [])
+    @if ($decisionMeasurePayload !== [])
+        <dl class="mt-3 grid gap-1 rounded-md bg-fuchsia-50/80 px-3 py-2 text-xs text-fuchsia-900 ring-1 ring-fuchsia-200/80 dark:bg-fuchsia-950/30 dark:text-fuchsia-100 dark:ring-fuchsia-500/30">
+            @if (! empty($decisionMeasurePayload['suspension_start']) || ! empty($decisionMeasurePayload['suspension_end']))
+                <div>
+                    <span class="font-semibold">Periodo de suspensión:</span>
+                    {{ $decisionMeasurePayload['suspension_start'] ?? '—' }} — {{ $decisionMeasurePayload['suspension_end'] ?? '—' }}
+                </div>
+            @endif
+            @if (! empty($decisionMeasurePayload['relief_notes']))
+                <div><span class="font-semibold">Relevo:</span> {{ $decisionMeasurePayload['relief_notes'] }}</div>
+            @endif
+        </dl>
+    @endif
+
+    @if ($isNotificationCoordination && $payload !== [])
         <dl class="mt-3 grid gap-1 rounded-md bg-violet-50/80 px-3 py-2 text-xs text-violet-900 ring-1 ring-violet-200/80 dark:bg-violet-950/30 dark:text-violet-100 dark:ring-violet-500/30">
             <div><span class="font-semibold">Fecha ingreso trabajador:</span> {{ $payload['notification_date'] ?? '—' }}</div>
             <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>
@@ -126,14 +173,15 @@
                             class="pointer-events-none h-full w-full object-cover transition group-hover:brightness-95 dark:group-hover:brightness-110">
                     </button>
                 @elseif ($downloadUrl)
-                    <a href="{{ $downloadUrl }}"
-                        class="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 text-center transition hover:ring-2 hover:ring-indigo-400/50 dark:border-white/15 dark:bg-dash-lift"
-                        title="{{ $attLabel }}">
+                    <button type="button"
+                        title="{{ $attLabel }} — clic para ver"
+                        class="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 text-center transition hover:ring-2 hover:ring-indigo-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift"
+                        x-on:click="openLightbox(@js($downloadUrl), @js($attLabel), 'pdf', @js($downloadUrl))">
                         <svg class="h-7 w-7 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2 5 5h-4V4zM8 12h8v2H8v-2zm0 4h5v2H8v-2z"/>
                         </svg>
                         <span class="mt-0.5 max-w-full truncate px-0.5 text-[9px] font-semibold text-indigo-700 dark:text-indigo-300">PDF</span>
-                    </a>
+                    </button>
                 @else
                     <span class="text-xs text-slate-600 dark:text-slate-400">{{ $attLabel }}</span>
                 @endif

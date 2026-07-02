@@ -15,6 +15,7 @@ import './disciplinary-agenda-composer';
 import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';
 import './informe-pdf-preview-lightbox';
+import './worker-signature-pad';
 import { registerApexChartsLivewireHooks } from './apex-charts-lifecycle';
 
 registerApexChartsLivewireHooks();

@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
+use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\StageType;
 use App\Events\Disciplinary\AgendaThreadMessagePosted;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
@@ -371,12 +372,143 @@ class DisciplinaryAgendaThreadService
         });
     }
 
+    public function reopenCoordinationForDecision(DisciplinaryCase $case, User $lawyer): DisciplinaryCase
+    {
+        if ($case->current_status !== CaseStatus::DECISION) {
+            throw new \RuntimeException('Solo se reabre coordinación en etapa de decisión.');
+        }
+
+        $thread = $case->agendaThread;
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            throw new \RuntimeException('No existe hilo de coordinación previo.');
+        }
+
+        if ($thread->isOpen()) {
+            return $case->fresh(['agendaThread']);
+        }
+
+        return DB::transaction(function () use ($case, $lawyer, $thread) {
+            $thread->forceFill([
+                'coordination_status' => 'open',
+                'closed_at' => null,
+                'closed_by' => null,
+            ])->save();
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $lawyer,
+                ActionType::DECISION_COORDINACION_INICIADA,
+                'Coordinación reabierta para programación de decisión.',
+                ['agenda_thread_id' => $thread->id],
+            );
+
+            return $case->fresh(['agendaThread']);
+        });
+    }
+
+    /**
+     * @param  list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int|null, supervisor_name?: string|null}>  $proposedSlots
+     * @param  array{suspension_start?: string|null, suspension_end?: string|null, relief_notes?: string|null}  $decisionPayload
+     * @param  list<UploadedFile>  $attachments
+     */
+    public function postDecisionPlanningMessage(
+        DisciplinaryCase $case,
+        User $actor,
+        string $body,
+        array $proposedSlots = [],
+        array $decisionPayload = [],
+        array $attachments = [],
+    ): DisciplinaryAgendaMessage {
+        if (! $this->userIsPlanningSide($actor, $case)) {
+            throw new \InvalidArgumentException('No tiene permiso para responder como planeación en este caso.');
+        }
+
+        if ($case->current_status !== CaseStatus::DECISION || $case->decision_coordination_started_at === null) {
+            throw new \RuntimeException('La coordinación de decisión no está activa.');
+        }
+
+        $thread = $case->agendaThread;
+        if ($thread === null || ! $thread->isOpen()) {
+            throw new \RuntimeException('La coordinación no está activa para este expediente.');
+        }
+
+        $body = trim($body);
+        $slots = $this->normalizeSlots($proposedSlots, includeNotificationContext: true);
+
+        if ($body === '' && $slots === [] && $attachments === []) {
+            throw new \InvalidArgumentException('Escriba un mensaje, proponga fechas o adjunte archivos.');
+        }
+
+        $hasStructuredSlots = $slots !== [];
+
+        return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots, $decisionPayload) {
+            $displayBody = $body !== ''
+                ? $body
+                : ($hasStructuredSlots
+                    ? 'Planeación registró programación para notificación de decisión.'
+                    : '(Archivos adjuntos)');
+
+            $message = DisciplinaryAgendaMessage::create([
+                'thread_id' => $thread->id,
+                'user_id' => $actor->id,
+                'message_kind' => AgendaMessageKind::DECISION_PLANNING_RESPONSE,
+                'body' => $displayBody,
+                'proposed_slots' => $hasStructuredSlots ? $slots : null,
+                'notification_payload' => $decisionPayload !== [] ? $decisionPayload : null,
+            ]);
+
+            foreach ($attachments as $file) {
+                if ($file instanceof UploadedFile && $file->isValid()) {
+                    $this->storeAttachment($message, $file);
+                }
+            }
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $actor,
+                ActionType::PLANEACION_RESPONDIO,
+                'Planeación registró programación para decisión disciplinaria.',
+                ['message_id' => $message->id],
+            );
+
+            if ($case->assignedLawyer instanceof User) {
+                Notification::send(
+                    $case->assignedLawyer,
+                    new DisciplinaryAgendaPlanningMessageNotification($case->fresh(['employee']), $message),
+                );
+            }
+
+            return $message->fresh(['attachments']);
+        });
+    }
+
     /**
      * @param  list<array{date?: mixed, time?: mixed, notes?: mixed}>  $raw
      * @return list<array{date: string, time?: string|null, notes?: string|null}>
      */
-    private function normalizeSlots(array $raw): array
+    /**
+     * @param  list<array<string, mixed>>  $raw
+     * @return list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int, supervisor_name?: string|null}>
+     */
+    private function normalizeSlots(array $raw, bool $includeNotificationContext = false): array
     {
+        $supervisorNames = [];
+        if ($includeNotificationContext) {
+            $ids = collect($raw)
+                ->filter(fn ($row) => is_array($row) && filled($row['supervisor_user_id'] ?? null))
+                ->map(fn (array $row) => (int) $row['supervisor_user_id'])
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids !== []) {
+                $supervisorNames = User::query()
+                    ->whereIn('id', $ids)
+                    ->pluck('name', 'id')
+                    ->all();
+            }
+        }
+
         $out = [];
         foreach ($raw as $row) {
             if (! is_array($row)) {
@@ -386,11 +518,27 @@ class DisciplinaryAgendaThreadService
             if ($date === '') {
                 continue;
             }
-            $out[] = [
+            $slot = [
                 'date' => $date,
                 'time' => isset($row['time']) && $row['time'] !== '' ? substr((string) $row['time'], 0, 5) : null,
                 'notes' => isset($row['notes']) && $row['notes'] !== '' ? (string) $row['notes'] : null,
             ];
+
+            if ($includeNotificationContext) {
+                $zone = trim((string) ($row['zone'] ?? ''));
+                if ($zone !== '') {
+                    $slot['zone'] = $zone;
+                }
+
+                $supervisorId = $row['supervisor_user_id'] ?? null;
+                if (filled($supervisorId)) {
+                    $supervisorId = (int) $supervisorId;
+                    $slot['supervisor_user_id'] = $supervisorId;
+                    $slot['supervisor_name'] = (string) ($supervisorNames[$supervisorId] ?? '');
+                }
+            }
+
+            $out[] = $slot;
         }
 
         return $out;

@@ -2,9 +2,26 @@
 
 namespace App\Policies;
 
+use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Services\Disciplinary\ComiteActaService;
+use App\Services\Disciplinary\ComiteDraftService;
+use App\Services\Disciplinary\DecisionComunicadoService;
+use App\Services\Disciplinary\DecisionDraftService;
+use App\Services\Disciplinary\DisciplinaryDecisionNotificationService;
+use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
+use App\Services\Disciplinary\DiligenceAttendanceService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
+use App\Services\Disciplinary\FoGj03DraftService;
+use App\Services\Disciplinary\FoGj04DiligenceActaService;
+use App\Services\Disciplinary\FoGj04DraftService;
+use App\Services\Disciplinary\FoGj44ConstanciaService;
+use App\Services\Disciplinary\FoGj44DraftService;
+use App\Services\Disciplinary\FoGj54DraftService;
+use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Support\Disciplinary\DecisionBranch;
 
 /**
  * Autorización del módulo disciplinario:
@@ -219,7 +236,7 @@ class DisciplinaryCasePolicy
             && $case->canStartCoordination();
     }
 
-    public function generateFoGj03(User $user, DisciplinaryCase $case): bool
+    public function previewFoGj03(User $user, DisciplinaryCase $case): bool
     {
         if ($this->deniesMutation($user)) {
             return false;
@@ -233,7 +250,392 @@ class DisciplinaryCasePolicy
             return false;
         }
 
+        $notification = app(DisciplinaryCitationNotificationService::class);
+
+        return $notification->hasNotificationInformationCompleted($case)
+            && app(FoGj03DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj03(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj03($user, $case)) {
+            return false;
+        }
+
         return app(DisciplinaryCitationNotificationService::class)->canGenerateFoGj03($case);
+    }
+
+    public function editFoGj03Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        if ($case->fo_gj_03_generated_at !== null) {
+            return false;
+        }
+
+        return app(DisciplinaryCitationNotificationService::class)
+            ->hasNotificationInformationCompleted($case);
+    }
+
+    public function editFoGj04Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DILIGENCIA) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            return false;
+        }
+
+        return $case->fo_gj_04_generated_at === null;
+    }
+
+    public function registerDiligenceAttendance(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(DiligenceAttendanceService::class)->canRegister($case);
+    }
+
+    public function editFoGj44Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DILIGENCIA) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ABSENT) {
+            return false;
+        }
+
+        return $case->fo_gj_44_generated_at === null;
+    }
+
+    public function previewFoGj44(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(FoGj44DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj44(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj44($user, $case)) {
+            return false;
+        }
+
+        return app(FoGj44ConstanciaService::class)->canGenerate($case);
+    }
+
+    public function editFoGj54Draft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::JUSTIFICACION_PENDIENTE) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ABSENT) {
+            return false;
+        }
+
+        return $case->fo_gj_54_generated_at === null;
+    }
+
+    public function previewFoGj54(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(FoGj54DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj54(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj54($user, $case)) {
+            return false;
+        }
+
+        return app(FoGj54ReprogramacionService::class)->canGenerate($case);
+    }
+
+    public function manageDiligenceJustification(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
+            && $case->diligence_attendance === DiligenceAttendance::ABSENT
+            && $case->fo_gj_44_generated_at !== null;
+    }
+
+    public function editComiteDraft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::COMITE_DISCIPLINARIO) {
+            return false;
+        }
+
+        return $case->comite_generated_at === null;
+    }
+
+    public function previewComite(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(ComiteDraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateComite(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewComite($user, $case)) {
+            return false;
+        }
+
+        return app(ComiteActaService::class)->canGenerate($case);
+    }
+
+    public function selectDecisionType(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::DECISION
+            && $case->decision_coordination_started_at === null;
+    }
+
+    public function editDecisionDraft(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DECISION) {
+            return false;
+        }
+
+        return $case->decision_comunicado_generated_at === null
+            && $case->decision !== null
+            && $case->decision_notification_completed_at !== null;
+    }
+
+    public function previewDecisionComunicado(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(DecisionDraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateDecisionComunicado(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewDecisionComunicado($user, $case)) {
+            return false;
+        }
+
+        return app(DecisionComunicadoService::class)->canGenerate($case);
+    }
+
+    public function finalizeDecisionCase(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->current_status === CaseStatus::DECISION
+            && app(DisciplinaryDecisionWorkflowService::class)->missingFinalizeRequirements($case) === [];
+    }
+
+    public function postDecisionNotificationCoordination(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin')) {
+            return false;
+        }
+
+        if ($case->agendaThread?->isClosed()) {
+            return false;
+        }
+
+        return app(DisciplinaryDecisionNotificationService::class)->canPlanningRegisterNotification($case);
+    }
+
+    public function uploadDecisionEvidence(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return $case->canUserUploadDecisionEvidence($user);
+    }
+
+    public function completeDecisionHrReview(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        return app(DisciplinaryDecisionWorkflowService::class)->userCanCompleteHrReview($user)
+            && $case->current_status === CaseStatus::DECISION
+            && $case->decision_hr_review_completed_at === null
+            && $case->hasDecisionHrAnnex();
+    }
+
+    public function uploadDecisionHrAnnex(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! app(DisciplinaryDecisionWorkflowService::class)->userCanCompleteHrReview($user)) {
+            return false;
+        }
+
+        if ($case->current_status !== CaseStatus::DECISION) {
+            return false;
+        }
+
+        if ($case->decision_hr_review_completed_at !== null) {
+            return false;
+        }
+
+        $branch = DecisionBranch::forDecision($case->decision);
+
+        return $branch !== null && DecisionBranch::requiresHrReview($branch);
+    }
+
+    public function captureFoGj04WorkerSignature(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj04($user, $case)) {
+            return false;
+        }
+
+        if ($case->fo_gj_04_generated_at !== null) {
+            return false;
+        }
+
+        return $case->diligence_attendance === DiligenceAttendance::ATTENDED;
+    }
+
+    public function previewFoGj04(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            return false;
+        }
+
+        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            return false;
+        }
+
+        return app(FoGj04DraftService::class)->isReadyForPdf($case);
+    }
+
+    public function generateFoGj04(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj04($user, $case)) {
+            return false;
+        }
+
+        return app(FoGj04DiligenceActaService::class)->canGenerate($case);
     }
 
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool
@@ -275,6 +677,44 @@ class DisciplinaryCasePolicy
         }
 
         return $this->view($user, $case);
+    }
+
+    public function viewFoGj03NotificationForSupervisor(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('supervisor')) {
+            return false;
+        }
+
+        if ((int) $case->notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->fo_gj_03_generated_at !== null
+            && $case->citation_evidence_uploaded_at === null
+            && $case->fo_gj_03_draft_completed_at !== null;
+    }
+
+    public function viewDecisionComunicadoForSupervisor(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if (! $user->hasRole('supervisor')) {
+            return false;
+        }
+
+        if ((int) $case->decision_notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        return $case->decision_comunicado_generated_at !== null
+            && $case->decision_evidence_uploaded_at === null
+            && $case->canReceiveDecisionEvidence();
     }
 
     public function uploadCitationEvidence(User $user, DisciplinaryCase $case): bool
@@ -413,5 +853,16 @@ class DisciplinaryCasePolicy
         }
 
         return $this->viewAny($user);
+    }
+
+    /** Membrete institucional del acta de comité (PNG/JPEG en Formatos). */
+    public function manageOfficialLetterhead(User $user): bool
+    {
+        if ($user->read_only ?? false) {
+            return false;
+        }
+
+        return $user->hasRole('admin')
+            || $user->hasPermissionTo('disciplinary.assign');
     }
 }

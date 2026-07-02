@@ -11,7 +11,7 @@ enum CitationEvidenceType: string
     {
         return match ($this) {
             self::SIGNED => 'Citación firmada por el trabajador',
-            self::REFUSED_WITNESSES => 'Rechazo de firma (jefe inmediato y dos testigos)',
+            self::REFUSED_WITNESSES => 'Rechazo de firma con dos testigos',
         };
     }
 }

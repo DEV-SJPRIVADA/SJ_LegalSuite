@@ -21,6 +21,10 @@ enum ActionType: string
     case PLANEACION_RESPONDIO = 'planeacion_respondio';
     case FECHA_CITACION_SELECCIONADA = 'fecha_citacion_seleccionada';
     case FO_GJ_03_GENERADO = 'fo_gj_03_generado';
+    case FO_GJ_04_GENERADO = 'fo_gj_04_generado';
+    case FO_GJ_44_GENERADO = 'fo_gj_44_generado';
+    case FO_GJ_54_GENERADO = 'fo_gj_54_generado';
+    case DILIGENCIA_ASISTENCIA_REGISTRADA = 'diligencia_asistencia_registrada';
     case NOTIFICACION_COORDINADA = 'notificacion_coordinada';
     case SUPERVISOR_NOTIFICADOR_ASIGNADO = 'supervisor_notificador_asignado';
     case SUPERVISOR_NOTIFICADOR_REASIGNADO = 'supervisor_notificador_reasignado';
@@ -39,7 +43,13 @@ enum ActionType: string
     case JUSTIFICACION_RECHAZADA = 'justificacion_rechazada';
     case REPROGRAMADO = 'reprogramado';
     case COMITE_REMITIDO = 'comite_remitido';
+    case COMITE_ACTA_GENERADO = 'comite_acta_generado';
     case DECISION_TOMADA = 'decision_tomada';
+    case DECISION_COORDINACION_INICIADA = 'decision_coordinacion_iniciada';
+    case DECISION_COMUNICADO_GENERADO = 'decision_comunicado_generado';
+    case DECISION_NOTIFICACION_COORDINADA = 'decision_notificacion_coordinada';
+    case DECISION_EVIDENCIA_CARGADA = 'decision_evidencia_cargada';
+    case DECISION_RRHH_COMPLETADA = 'decision_rrhh_completada';
     case APELACION_INTERPUESTA = 'apelacion_interpuesta';
     case SEGUNDA_INSTANCIA_RESUELTA = 'segunda_instancia_resuelta';
     case CASO_FINALIZADO = 'caso_finalizado';

@@ -15,6 +15,14 @@
     'signMonth' => '',
     'signYearSuffix' => '',
     'signTime' => '',
+    'employerName' => '',
+    'signatureDataUri' => null,
+    'witness1Name' => '',
+    'witness1Cargo' => '',
+    'witness1Date' => '',
+    'witness2Name' => '',
+    'witness2Cargo' => '',
+    'witness2Date' => '',
 ])
 
 @php
@@ -85,8 +93,12 @@
 
     <div class="ogj-44-employer-sign">
         <p>Representante del Empleador;</p>
-        <div class="ogj-03-sign-line"></div>
-        <p><strong>Nombre:</strong></p>
+        <div class="ogj-03-sign-line">
+            @if (! $blankForDownload && filled($signatureDataUri))
+                <img src="{{ $signatureDataUri }}" alt="Firma empleador" class="ogj-03-signature-img">
+            @endif
+        </div>
+        <p><strong>Nombre:</strong> {!! $blank($employerName, 'lg') !!}</p>
         <p>Área Jurídica -SJ Seguridad Privada Ltda.</p>
     </div>
 
@@ -95,16 +107,16 @@
             <td>
                 <p>Testigo 1,</p>
                 <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Cargo:</p>
-                <p>Fecha:</p>
+                <p>Nombre: {!! $blank($witness1Name, 'md') !!}</p>
+                <p>Cargo: {!! $blank($witness1Cargo, 'md') !!}</p>
+                <p>Fecha: {!! $blank($witness1Date, 'md') !!}</p>
             </td>
             <td>
                 <p>Testigo 2,</p>
                 <div class="ogj-03-sign-line"></div>
-                <p>Nombre:</p>
-                <p>Cargo:</p>
-                <p>Fecha:</p>
+                <p>Nombre: {!! $blank($witness2Name, 'md') !!}</p>
+                <p>Cargo: {!! $blank($witness2Cargo, 'md') !!}</p>
+                <p>Fecha: {!! $blank($witness2Date, 'md') !!}</p>
             </td>
         </tr>
     </table>

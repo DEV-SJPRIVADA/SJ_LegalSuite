@@ -5,8 +5,10 @@ namespace App\Http\Requests\Disciplinary;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
+use App\Rules\PngSignatureDataUri;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -34,7 +36,17 @@ class FoGj51ProcessRequest extends FormRequest
      */
     public function rules(): array
     {
-        return array_merge(StoreFoGj51InformePdfRequest::fieldRules(), [
+        $rules = StoreFoGj51InformePdfRequest::fieldRules();
+
+        $rules['fo51_preparer_signature'] = [
+            Rule::requiredIf(fn () => in_array((string) $this->input('fo51_action'), ['pdf', 'enviar'], true)),
+            'nullable',
+            'string',
+            'max:524288',
+            new PngSignatureDataUri,
+        ];
+
+        return array_merge($rules, [
             'fo51_action' => ['required', Rule::in(['pdf', 'enviar', 'cargar'])],
             'fo51_assigned_reviewer_id' => [
                 Rule::requiredIf(fn () => in_array((string) $this->input('fo51_action'), ['enviar', 'cargar'], true)),
@@ -80,6 +92,16 @@ class FoGj51ProcessRequest extends FormRequest
         ]);
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'fo51_preparer_signature.required' => 'Capture la firma de quien elabora el informe antes de continuar.',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $merge = [
@@ -109,6 +131,17 @@ class FoGj51ProcessRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         $action = (string) $this->input('fo51_action');
+
+        if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
+            $params = ['vista_completa' => 1];
+            if ($action === 'cargar') {
+                $params['cargar_pdf'] = 1;
+            }
+
+            throw (new ValidationException($validator))
+                ->redirectTo(route('disciplinary.forms.informe-fo-gj-51', $params));
+        }
+
         $params = ['informe_modal' => 1];
 
         if ($action === 'cargar') {

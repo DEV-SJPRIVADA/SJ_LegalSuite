@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\Decision;
+use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\ColombianMunicipality;
@@ -20,7 +21,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 /**
  * Caso disciplinario. Es la raíz del agregado.
@@ -62,6 +65,56 @@ class DisciplinaryCase extends Model
         'citation_selected_message_id',
         'fo_gj_03_generated_at',
         'fo_gj_03_generated_by',
+        'fo_gj_03_payload',
+        'fo_gj_03_draft_completed_at',
+        'fo_gj_03_draft_completed_by',
+        'fo_gj_04_payload',
+        'fo_gj_04_draft_completed_at',
+        'fo_gj_04_draft_completed_by',
+        'fo_gj_04_generated_at',
+        'fo_gj_04_generated_by',
+        'diligence_attendance',
+        'diligence_attendance_registered_at',
+        'diligence_attendance_registered_by',
+        'fo_gj_44_payload',
+        'fo_gj_44_draft_completed_at',
+        'fo_gj_44_draft_completed_by',
+        'fo_gj_44_generated_at',
+        'fo_gj_44_generated_by',
+        'fo_gj_54_payload',
+        'fo_gj_54_draft_completed_at',
+        'fo_gj_54_draft_completed_by',
+        'fo_gj_54_generated_at',
+        'fo_gj_54_generated_by',
+        'diligence_justification_received_at',
+        'diligence_justification_received_by',
+        'diligence_justification_notes',
+        'comite_payload',
+        'comite_draft_completed_at',
+        'comite_draft_completed_by',
+        'comite_generated_at',
+        'comite_generated_by',
+        'decision_coordination_started_at',
+        'decision_coordination_started_by',
+        'decision_payload',
+        'decision_draft_completed_at',
+        'decision_draft_completed_by',
+        'decision_comunicado_generated_at',
+        'decision_comunicado_generated_by',
+        'decision_notification_completed_at',
+        'decision_notification_message_id',
+        'decision_notification_date',
+        'decision_notification_shift',
+        'decision_notification_zone',
+        'decision_notification_supervisor_user_id',
+        'decision_notification_supervisor_name',
+        'decision_notification_notes',
+        'decision_notification_supervisor_assigned_at',
+        'decision_notification_supervisor_assigned_by',
+        'decision_evidence_type',
+        'decision_evidence_uploaded_at',
+        'decision_hr_review_completed_at',
+        'decision_hr_review_completed_by',
         'citation_evidence_type',
         'citation_evidence_uploaded_at',
         'notification_requested_at',
@@ -91,7 +144,33 @@ class DisciplinaryCase extends Model
             'coordination_started_at' => 'datetime',
             'citation_confirmed_date' => 'date',
             'citation_evidence_type' => CitationEvidenceType::class,
+            'fo_gj_03_payload' => 'array',
+            'fo_gj_03_draft_completed_at' => 'datetime',
             'fo_gj_03_generated_at' => 'datetime',
+            'fo_gj_04_payload' => 'array',
+            'fo_gj_04_draft_completed_at' => 'datetime',
+            'fo_gj_04_generated_at' => 'datetime',
+            'diligence_attendance' => DiligenceAttendance::class,
+            'diligence_attendance_registered_at' => 'datetime',
+            'fo_gj_44_payload' => 'array',
+            'fo_gj_44_draft_completed_at' => 'datetime',
+            'fo_gj_44_generated_at' => 'datetime',
+            'fo_gj_54_payload' => 'array',
+            'fo_gj_54_draft_completed_at' => 'datetime',
+            'fo_gj_54_generated_at' => 'datetime',
+            'diligence_justification_received_at' => 'datetime',
+            'comite_payload' => 'array',
+            'comite_draft_completed_at' => 'datetime',
+            'comite_generated_at' => 'datetime',
+            'decision_coordination_started_at' => 'datetime',
+            'decision_payload' => 'array',
+            'decision_draft_completed_at' => 'datetime',
+            'decision_comunicado_generated_at' => 'datetime',
+            'decision_notification_completed_at' => 'datetime',
+            'decision_notification_date' => 'date',
+            'decision_notification_supervisor_assigned_at' => 'datetime',
+            'decision_evidence_uploaded_at' => 'datetime',
+            'decision_hr_review_completed_at' => 'datetime',
             'citation_evidence_uploaded_at' => 'datetime',
             'notification_requested_at' => 'datetime',
             'notification_information_completed_at' => 'datetime',
@@ -130,6 +209,11 @@ class DisciplinaryCase extends Model
     public function notificationSupervisor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'notification_supervisor_user_id');
+    }
+
+    public function decisionNotificationSupervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'decision_notification_supervisor_user_id');
     }
 
     public function notificationRequestedBy(): BelongsTo
@@ -180,16 +264,21 @@ class DisciplinaryCase extends Model
         return [
             CaseStatus::CITACION_PROGRAMADA,
             CaseStatus::REPROGRAMADO,
+            CaseStatus::DECISION,
         ];
     }
 
     /**
-     * Hilo chat con planeación: sólo etapa citación / reprogramación y con titular asignado.
+     * Hilo chat con planeación: citación, reprogramación o decisión (con coordinación iniciada).
      */
     public function allowsAgendaThread(): bool
     {
         if ($this->assigned_lawyer_id === null) {
             return false;
+        }
+
+        if ($this->current_status === CaseStatus::DECISION) {
+            return $this->decision_coordination_started_at !== null;
         }
 
         if ($this->coordination_started_at === null) {
@@ -202,6 +291,147 @@ class DisciplinaryCase extends Model
     public function hasCoordinationStarted(): bool
     {
         return $this->coordination_started_at !== null;
+    }
+
+    /** Etapa C activa: diligencia disciplinaria y acta FO-GJ-04. */
+    public function isDiligenciaStageActive(): bool
+    {
+        return $this->current_status === CaseStatus::DILIGENCIA;
+    }
+
+    /**
+     * Panel Etapa C visible: diligencia en curso o seguimiento por inasistencia (justificación).
+     */
+    public function showsComiteStagePanel(): bool
+    {
+        return $this->current_status === CaseStatus::COMITE_DISCIPLINARIO;
+    }
+
+    /** Etapa D activa: comunicado de decisión / cierre. */
+    public function showsDecisionStagePanel(): bool
+    {
+        return $this->current_status === CaseStatus::DECISION;
+    }
+
+    /**
+     * Etapa C visible en solo lectura tras avanzar a decisión.
+     */
+    public function showsDiligenceStageReadOnly(): bool
+    {
+        if ($this->showsDiligenceStagePanel()) {
+            return false;
+        }
+
+        if ($this->current_status !== CaseStatus::DECISION) {
+            return false;
+        }
+
+        return $this->fo_gj_04_generated_at !== null
+            || $this->comite_generated_at !== null
+            || $this->latestActaDiligenciaDocument() !== null
+            || $this->latestComiteActaDocument() !== null;
+    }
+
+    public function showsDiligenceStagePanel(): bool
+    {
+        if ($this->showsComiteStagePanel()) {
+            return true;
+        }
+
+        if ($this->current_status === CaseStatus::DILIGENCIA) {
+            return true;
+        }
+
+        return $this->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
+            && $this->diligence_attendance === DiligenceAttendance::ABSENT;
+    }
+
+    /**
+     * Etapa B visible en solo lectura (coordinación cerrada al avanzar a diligencia).
+     */
+    public function showsCitationStageReadOnly(): bool
+    {
+        if ($this->showsComiteStagePanel()) {
+            return false;
+        }
+
+        if (! $this->showsDiligenceStagePanel()) {
+            return false;
+        }
+
+        return $this->hasCoordinationStarted()
+            || $this->fo_gj_03_generated_at !== null
+            || $this->citation_confirmed_date !== null;
+    }
+
+    /**
+     * Hora de diligencia para UI: prioriza FO-GJ-03 diligenciado, luego slot confirmado.
+     */
+    public function resolvedDiligenceHearingTimeLabel(): ?string
+    {
+        $raw = $this->resolveDiligenceHearingTimeRaw();
+
+        return $raw !== null ? self::formatHearingTimeLabel($raw) : null;
+    }
+
+    public static function formatHearingTimeLabel(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '—';
+        }
+
+        foreach (['H:i:s', 'H:i', 'h:i A', 'g:i A'] as $pattern) {
+            try {
+                return Carbon::createFromFormat($pattern, $raw)->format('h:i A');
+            } catch (\Throwable) {
+                // siguiente patrón
+            }
+        }
+
+        try {
+            return Carbon::parse($raw)->format('h:i A');
+        } catch (\Throwable) {
+            try {
+                return Carbon::parse('today '.$raw)->format('h:i A');
+            } catch (\Throwable) {
+                return $raw;
+            }
+        }
+    }
+
+    private function resolveDiligenceHearingTimeRaw(): ?string
+    {
+        $payload = $this->fo_gj_03_payload ?? [];
+        $fromPayload = trim((string) ($payload['hearing_time'] ?? ''));
+        if ($fromPayload !== '') {
+            return $fromPayload;
+        }
+
+        if (filled($this->citation_confirmed_time)) {
+            return (string) $this->citation_confirmed_time;
+        }
+
+        if ($this->citation_confirmed_date !== null && $this->citation_selected_message_id !== null) {
+            $this->loadMissing('agendaThread.messages');
+            $confirmedDate = $this->citation_confirmed_date->format('Y-m-d');
+
+            foreach ($this->agendaThread?->messages ?? [] as $message) {
+                if ((int) $message->id !== (int) $this->citation_selected_message_id) {
+                    continue;
+                }
+
+                foreach ($message->normalizedProposedSlots() as $slot) {
+                    if (($slot['date'] ?? '') === $confirmedDate && filled($slot['time'] ?? null)) {
+                        return (string) $slot['time'];
+                    }
+                }
+
+                break;
+            }
+        }
+
+        return null;
     }
 
     public function canStartCoordination(): bool
@@ -239,6 +469,27 @@ class DisciplinaryCase extends Model
         return $this->hasCoordinationStarted()
             && $this->citation_confirmed_date === null
             && ! $this->hasPlanningProposedSlots();
+    }
+
+    /** Planeación publicó programación de decisión en el hilo. */
+    public function hasDecisionPlanningReply(): bool
+    {
+        $this->loadMissing('agendaThread.messages');
+
+        foreach ($this->agendaThread?->messages ?? [] as $message) {
+            if ($message->message_kind === AgendaMessageKind::DECISION_PLANNING_RESPONSE) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function awaitingDecisionPlanningSlots(): bool
+    {
+        return $this->current_status === CaseStatus::DECISION
+            && $this->decision_coordination_started_at !== null
+            && ! $this->hasDecisionPlanningReply();
     }
 
     public function currentStage(): HasMany
@@ -414,7 +665,7 @@ class DisciplinaryCase extends Model
     {
         try {
             return $user->hasPermissionTo('disciplinary.review-inform-all');
-        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+        } catch (PermissionDoesNotExist) {
             return false;
         }
     }
@@ -511,7 +762,21 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_03_GENERATED = 'FO-GJ-03 generado desde expediente';
 
+    public const NOTE_FO_GJ_04_GENERATED = 'FO-GJ-04 generado desde expediente';
+
+    public const NOTE_FO_GJ_44_GENERATED = 'FO-GJ-44 generado desde expediente';
+
+    public const NOTE_FO_GJ_54_GENERATED = 'FO-GJ-54 generado desde expediente';
+
+    public const NOTE_COMITE_ACTA_GENERATED = 'Acta de comité disciplinario generada desde expediente';
+
     public const NOTE_CITATION_EVIDENCE_PREFIX = 'Evidencia notificación citación';
+
+    public const NOTE_DECISION_COMUNICADO_GENERATED = 'Comunicado de decisión generado desde expediente';
+
+    public const NOTE_DECISION_EVIDENCE_PREFIX = 'Evidencia notificación decisión';
+
+    public const NOTE_DECISION_HR_ANEXO_PREFIX = 'Anexo laboral gestión humana';
 
     /**
      * PDF de citación FO-GJ-03 generado desde el expediente (no evidencia de notificación).
@@ -528,6 +793,144 @@ class DisciplinaryCase extends Model
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Acta de diligencia disciplinaria (FO-GJ-04) más reciente en el expediente. */
+    public function latestActaDiligenciaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::ACTA_DILIGENCIA
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Constancia de inasistencia (FO-GJ-44) más reciente en el expediente. */
+    public function latestConstanciaInasistenciaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::CONSTANCIA_INASISTENCIA
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Acta de comité disciplinario más reciente en el expediente. */
+    public function latestComiteActaDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::ACTA_COMITE
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    /** Comunicado de decisión más reciente en el expediente. */
+    public function latestDecisionComunicadoDocument(): ?DisciplinaryDocument
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        $match = $docs->first(
+            fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::DECISION
+                && str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+        );
+
+        return $match instanceof DisciplinaryDocument ? $match : null;
+    }
+
+    public function canReceiveDecisionEvidence(): bool
+    {
+        return $this->decision_comunicado_generated_at !== null
+            || $this->latestDecisionComunicadoDocument() !== null;
+    }
+
+    public function hasDecisionHrAnnex(): bool
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        return $docs->contains(
+            fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+        );
+    }
+
+    /** @return \Illuminate\Support\Collection<int, DisciplinaryDocument> */
+    public function decisionHrAnnexDocuments(): \Illuminate\Support\Collection
+    {
+        $docs = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->orderByDesc('id')->get();
+
+        return $docs->filter(
+            fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+        )->values();
+    }
+
+    /**
+     * Usuarios autorizados para cargar evidencia de notificación de decisión (Etapa D).
+     */
+    public function canUserUploadDecisionEvidence(User $user): bool
+    {
+        if (! $this->canReceiveDecisionEvidence()) {
+            return false;
+        }
+
+        if ($this->decision_evidence_uploaded_at !== null) {
+            return false;
+        }
+
+        if ($user->hasRole('planeacion')) {
+            return false;
+        }
+
+        if ((int) $this->assigned_lawyer_id === (int) $user->id) {
+            return true;
+        }
+
+        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+            return true;
+        }
+
+        $this->loadMissing('informeSubmission');
+        $informe = $this->informeSubmission;
+
+        if ($informe && (int) $informe->reviewed_by === (int) $user->id) {
+            return true;
+        }
+
+        if ($this->hasReviewInformAllPermission($user)) {
+            return true;
+        }
+
+        if ((int) $this->decision_notification_supervisor_user_id === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function activeJustificationStage(): ?DisciplinaryStage
+    {
+        return $this->stages()
+            ->where('stage_type', StageType::JUSTIFICACION)
+            ->open()
+            ->orderByDesc('sequence')
+            ->first();
     }
 
     /**

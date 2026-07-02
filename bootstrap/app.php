@@ -3,10 +3,10 @@
 use App\Http\Middleware\EnsureMustChangePassword;
 use App\Http\Middleware\ForceRequestRootUrl;
 use App\Http\Middleware\ShareUiTheme;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('licitaciones:reset-fixed-solicitudes')->hourly();
+
+        if (config('services.pdf.use_queue')) {
+            $schedule->command('queue:work database --stop-when-empty --max-time=55')
+                ->everyMinute()
+                ->withoutOverlapping();
+        }
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
@@ -29,6 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             ShareUiTheme::class,
+        ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'deploy/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

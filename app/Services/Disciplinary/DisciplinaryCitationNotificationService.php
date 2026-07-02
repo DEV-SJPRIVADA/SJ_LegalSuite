@@ -19,6 +19,7 @@ class DisciplinaryCitationNotificationService
 {
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
+        private readonly FoGj03DraftService $foGj03Drafts,
     ) {}
 
     /**
@@ -72,6 +73,8 @@ class DisciplinaryCitationNotificationService
             'notification_shift' => filled($case->notification_shift),
             'notification_zone' => filled($case->notification_zone),
             'notification_supervisor' => $case->notification_supervisor_user_id !== null,
+            'fo_gj_03_draft' => $this->foGj03Drafts->hasDraftCompleted($case),
+            'lawyer_signature' => $case->assignedLawyer?->hasSignature() ?? false,
         ]);
     }
 
@@ -95,6 +98,12 @@ class DisciplinaryCitationNotificationService
         }
         if (! $checklist['notification_supervisor']) {
             $missing[] = 'Supervisor asignado';
+        }
+        if (! $checklist['fo_gj_03_draft']) {
+            $missing[] = 'Diligenciamiento del FO-GJ-03';
+        }
+        if (! $checklist['lawyer_signature']) {
+            $missing[] = 'Firma digital del abogado en Mi perfil';
         }
 
         return $missing;
@@ -124,6 +133,8 @@ class DisciplinaryCitationNotificationService
             'notification_shift' => 'Turno del trabajador',
             'notification_zone' => 'Zona',
             'notification_supervisor' => 'Supervisor asignado',
+            'fo_gj_03_draft' => 'FO-GJ-03 diligenciado',
+            'lawyer_signature' => 'Firma digital en Mi perfil',
         ];
     }
 
