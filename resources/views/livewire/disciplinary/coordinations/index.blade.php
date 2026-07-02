@@ -76,44 +76,47 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-md border border-slate-200 px-3 py-3 dark:border-white/10" wire:poll.visible.10s>
-                                <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Historial del chat</p>
-                                <ul class="space-y-3 max-h-72 overflow-y-auto">
-                                    @foreach ($selectedThreadModel->messages as $msg)
-                                        <x-disciplinary.agenda-message :message="$msg" :thread="$selectedThreadModel" wire:key="coord-msg-{{ $msg->id }}" />
-                                    @endforeach
-                                </ul>
-                            </div>
+                            <div class="overflow-hidden rounded-md border border-slate-200 dark:border-white/10"
+                                x-data="window.sjAgendaAttachmentLightbox()"
+                                wire:poll.visible.10s>
+                                <div class="px-3 py-3">
+                                    <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Historial del chat</p>
+                                    <ul class="max-h-72 space-y-3 overflow-y-auto">
+                                        @foreach ($selectedThreadModel->messages as $msg)
+                                            <x-disciplinary.agenda-message :message="$msg" :thread="$selectedThreadModel" wire:key="coord-msg-{{ $msg->id }}" />
+                                        @endforeach
+                                    </ul>
+                                </div>
 
-                            @if ($canPostPlanning ?? false)
-                                <div class="rounded-md border border-slate-200 px-3 py-3 space-y-3 dark:border-white/10">
-                                    <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Escribir en el chat</label>
-                                    <textarea wire:model="agendaPlanningBody" rows="2"
-                                        class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white"
-                                        placeholder="Mensaje para el abogado..."></textarea>
-                                    @error('agendaPlanningBody')
-                                        <p class="text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                    <div class="flex flex-wrap gap-2">
-                                        <button type="button" wire:click="postPlanningChat"
-                                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">
-                                            Enviar mensaje
-                                        </button>
+                                @if ($canPostPlanning ?? false)
+                                    <x-disciplinary.agenda-chat-composer
+                                        body-model="agendaPlanningBody"
+                                        uploads-property="agendaPlanningUploads"
+                                        send-action="postPlanningChat"
+                                        remove-upload-method="removeAgendaPlanningUploadAt"
+                                        :uploads="$agendaPlanningUploads"
+                                        placeholder="Mensaje para el abogado…"
+                                        input-id="agenda-planning-body-coord"
+                                        error-field="agendaPlanningBody"
+                                        class="border-t border-slate-200 dark:border-white/10" />
+                                    <div class="flex flex-wrap gap-2 border-t border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-white/10 dark:bg-indigo-950/30">
                                         @if ($awaitingDiligenceDates)
                                             <button type="button" wire:click="openDiligenceModal"
-                                                class="px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-md hover:bg-emerald-800">
+                                                class="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
                                                 Proponer fechas de diligencia
                                             </button>
                                         @endif
                                         @if ($canRegisterNotification ?? false)
                                             <button type="button" wire:click="openNotificationModal"
-                                                class="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700">
+                                                class="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
                                                 Registrar notificación y supervisor
                                             </button>
                                         @endif
                                     </div>
-                                </div>
-                            @endif
+                                @endif
+
+                                <x-disciplinary.agenda-attachment-lightbox-modal />
+                            </div>
                         </div>
 
                         {{-- Modal fechas diligencia --}}

@@ -2,10 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Licitaciones\Licitacion;
+use App\Models\Licitaciones\LicitacionSolicitud;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Policies\LicitacionPolicy;
+use App\Policies\LicitacionSolicitudPolicy;
 use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\InformeSubmissionPolicy;
@@ -20,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected array $policies = [
+        Licitacion::class => LicitacionPolicy::class,
+        LicitacionSolicitud::class => LicitacionSolicitudPolicy::class,
         DisciplinaryCase::class => DisciplinaryCasePolicy::class,
         InformeSubmission::class => InformeSubmissionPolicy::class,
         Employee::class => EmployeePolicy::class,

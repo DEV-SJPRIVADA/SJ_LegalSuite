@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Licitaciones\LicitacionAdjuntoInlineController;
+use App\Http\Controllers\Licitaciones\LicitacionInformesExportController;
+use App\Http\Controllers\Licitaciones\LicitacionesPortalController;
 use App\Http\Controllers\Disciplinary\DisciplinaryPortalController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentInlineController;
@@ -17,6 +20,12 @@ use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
+use App\Livewire\Licitaciones\Informes\InformesIndex as LicitacionesInformesIndex;
+use App\Livewire\Licitaciones\Dashboard as LicitacionesDashboard;
+use App\Livewire\Licitaciones\Procesos\ProcesoShow;
+use App\Livewire\Licitaciones\Procesos\ProcesosIndex;
+use App\Livewire\Licitaciones\Solicitudes\SolicitudesIndex;
+use App\Livewire\Licitaciones\Solicitudes\SolicitudShow;
 use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Livewire\Disciplinary\Cases\CasesIndex;
 use App\Livewire\Disciplinary\Coordinations\Index as CoordinationsIndex;
@@ -91,6 +100,18 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::post('cases/{case}/fo-gj-03/generate', [FoGj03CaseController::class, 'generate'])
             ->name('cases.fo-gj-03.generate');
         Route::get('cases/{case}', CaseDetail::class)->name('cases.show');
+    });
+
+    Route::prefix('licitaciones')->name('licitaciones.')->group(function () {
+        Route::get('/', LicitacionesPortalController::class)->name('index');
+        Route::get('dashboard', LicitacionesDashboard::class)->name('dashboard');
+        Route::get('procesos', ProcesosIndex::class)->name('procesos.index');
+        Route::get('procesos/{licitacion}', ProcesoShow::class)->name('procesos.show');
+        Route::get('solicitudes', SolicitudesIndex::class)->name('solicitudes.index');
+        Route::get('solicitudes/{solicitud}', SolicitudShow::class)->name('solicitudes.show');
+        Route::get('informes', LicitacionesInformesIndex::class)->name('informes.index');
+        Route::get('informes/export', LicitacionInformesExportController::class)->name('informes.export');
+        Route::get('adjuntos/{adjunto}/file', LicitacionAdjuntoInlineController::class)->name('adjuntos.file');
     });
 
     Route::get('employees', EmployeesIndex::class)->name('employees.index');

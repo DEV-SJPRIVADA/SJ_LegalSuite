@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\UserArea;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\Licitaciones\Licitacion;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -166,6 +167,30 @@ class User extends Authenticatable
 
         return $this->can('viewDashboard', DisciplinaryCase::class)
             || $this->can('viewAny', DisciplinaryCase::class);
+    }
+
+    public function licitacionesPortalUrl(): string
+    {
+        if ($this->can('viewDashboard', Licitacion::class)) {
+            return route('licitaciones.dashboard');
+        }
+
+        if ($this->can('viewAny', Licitacion::class)) {
+            return route('licitaciones.procesos.index');
+        }
+
+        if ($this->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class)) {
+            return route('licitaciones.solicitudes.index');
+        }
+
+        return route('dashboard');
+    }
+
+    public function hasLicitacionesPortalAccess(): bool
+    {
+        return $this->can('viewDashboard', Licitacion::class)
+            || $this->can('viewAny', Licitacion::class)
+            || $this->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class);
     }
 
     /**

@@ -9,6 +9,8 @@
     $disciplinaryAvailable = $u->hasDisciplinaryPortalAccess();
     $disciplinaryRoute = $u->disciplinaryPortalUrl();
     $disciplinaryCasesNavRoute = $u->disciplinaryCasesNavUrl();
+    $licitacionesAvailable = $u->hasLicitacionesPortalAccess();
+    $licitacionesRoute = $u->licitacionesPortalUrl();
 
     $fullAppSidebar = $u->canSeeFullAppSidebar();
 
@@ -54,7 +56,14 @@
         ];
 
         $modules = array_merge($modules, [
-            ['key' => 'licitaciones', 'label' => 'Licitaciones', 'icon' => 'briefcase', 'available' => false],
+            [
+                'key' => 'licitaciones',
+                'label' => 'Licitaciones',
+                'route' => $licitacionesRoute,
+                'active' => request()->routeIs('licitaciones.*'),
+                'icon' => 'briefcase',
+                'available' => $licitacionesAvailable,
+            ],
             ['key' => 'tutelas', 'label' => 'Acciones de tutela', 'icon' => 'shield-check', 'available' => false],
             ['key' => 'demandas', 'label' => 'Demandas', 'icon' => 'document-text', 'available' => false],
             ['key' => 'negociacion', 'label' => 'Negociación colectiva', 'icon' => 'chat-bubbles', 'available' => false],

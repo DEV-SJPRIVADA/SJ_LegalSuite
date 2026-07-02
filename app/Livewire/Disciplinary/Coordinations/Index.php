@@ -132,16 +132,27 @@ class Index extends Component
         Gate::authorize('postAgendaPlanning', $case);
 
         $this->validate([
-            'agendaPlanningBody' => ['required', 'string', 'max:8000'],
+            'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
+            'agendaPlanningUploads' => ['nullable', 'array', 'max:6'],
+            'agendaPlanningUploads.*' => ['nullable', 'file', 'max:10240', 'mimes:jpeg,jpg,png,gif,webp,pdf'],
         ]);
+
+        $body = trim($this->agendaPlanningBody);
+        $files = array_values(array_filter($this->agendaPlanningUploads));
+
+        if ($body === '' && $files === []) {
+            $this->addError('agendaPlanningBody', 'Escriba un mensaje o adjunte al menos un archivo.');
+
+            return;
+        }
 
         try {
             $agenda->postPlanningMessage(
                 $thread->case()->firstOrFail(),
                 auth()->user(),
-                trim($this->agendaPlanningBody),
+                $body,
                 [],
-                [],
+                $files,
             );
         } catch (\Throwable $e) {
             $this->addError('agendaPlanningBody', $e->getMessage());
@@ -149,7 +160,7 @@ class Index extends Component
             return;
         }
 
-        $this->reset('agendaPlanningBody');
+        $this->reset('agendaPlanningBody', 'agendaPlanningUploads');
         session()->flash('success', 'Mensaje publicado en el chat.');
     }
 
@@ -249,15 +260,13 @@ class Index extends Component
         $selectedThreadModel = $this->resolveSelectedThread();
         $notificationService = app(DisciplinaryCitationNotificationService::class);
         $pendingNotificationCase = $selectedThreadModel?->case;
-        $hasPendingNotification = $pendingNotificationCase
-            && $notificationService->hasPendingNotificationRequest($pendingNotificationCase);
         $canPostPlanning = $pendingNotificationCase
             && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
         $awaitingDiligenceDates = $pendingNotificationCase
             && $pendingNotificationCase->awaitingPlanningDiligenceSlots();
         $canRegisterNotification = $pendingNotificationCase
-            && $hasPendingNotification
             && auth()->user()->can('postNotificationCoordination', $pendingNotificationCase);
+        $hasPendingNotification = $canRegisterNotification;
         $liveCaseId = $pendingNotificationCase?->getKey();
 
         return view('livewire.disciplinary.coordinations.index', [

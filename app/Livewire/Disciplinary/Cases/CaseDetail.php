@@ -20,6 +20,7 @@ use App\Services\Disciplinary\DisciplinaryCaseService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
+use App\Services\Disciplinary\DisciplinaryWorkflowService;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Services\Disciplinary\FoGj03CitationService;
 use Illuminate\Database\Eloquent\Collection;
@@ -78,6 +79,9 @@ class CaseDetail extends Component
     /** Coordinación citación FO-GJ-03 — solicitud abogado ↔ planeación */
     public string $agendaLawyerBody = '';
 
+    /** @var array<int, mixed> */
+    public array $agendaLawyerUploads = [];
+
     /** Respuesta planeación (campo aparte para no chocar con admin que ve ambos formularios) */
     public string $agendaPlanningBody = '';
 
@@ -96,10 +100,8 @@ class CaseDetail extends Component
 
     public bool $showCitationAdvanceConfirm = false;
 
-    public bool $showCloseCoordinationConfirm = false;
-
-    /** @var list<string> */
-    public array $closeCoordinationBlockers = [];
+    /** Abogado muestra u oculta el panel de chat (no cierra el hilo; cierre definitivo al cambiar de etapa). */
+    public bool $coordinationChatVisible = true;
 
     public string $citationEvidenceType = '';
 
@@ -395,49 +397,23 @@ class CaseDetail extends Component
             return;
         }
 
+        $this->coordinationChatVisible = true;
         $this->syncCaseFromDb();
         session()->flash('success', 'Coordinación iniciada. Planeación fue notificada.');
     }
 
-    public function openCloseCoordinationConfirm(CitationStageProgress $progress): void
+    public function showCoordinationChat(): void
     {
-        Gate::authorize('closeCoordination', $this->case);
-        $this->closeCoordinationBlockers = $progress->blockersBeforeClosingCoordination($this->case->fresh(['agendaThread.messages']));
-        $this->showCloseCoordinationConfirm = true;
-    }
-
-    public function closeCloseCoordinationConfirm(): void
-    {
-        $this->showCloseCoordinationConfirm = false;
-        $this->closeCoordinationBlockers = [];
-    }
-
-    public function confirmCloseCoordination(
-        DisciplinaryAgendaThreadService $agenda,
-        CitationStageProgress $progress,
-    ): void {
-        Gate::authorize('closeCoordination', $this->case);
-
-        $blockers = $progress->blockersBeforeClosingCoordination($this->case->fresh(['agendaThread.messages']));
-        if ($blockers !== []) {
-            $this->closeCoordinationBlockers = $blockers;
-            $this->addError('coordination', 'Complete los pasos pendientes antes de cerrar la coordinación.');
-
+        if (! $this->case->hasCoordinationStarted() || ! $this->case->allowsAgendaThread()) {
             return;
         }
 
-        try {
-            $this->case = $agenda->closeCoordination($this->case->fresh(['agendaThread']), auth()->user());
-        } catch (\Throwable $e) {
-            $this->addError('coordination', $e->getMessage());
+        $this->coordinationChatVisible = true;
+    }
 
-            return;
-        }
-
-        $this->showCloseCoordinationConfirm = false;
-        $this->closeCoordinationBlockers = [];
-        $this->syncCaseFromDb();
-        session()->flash('success', 'Coordinación cerrada. Planeación ya no verá este caso en su bandeja.');
+    public function hideCoordinationChat(): void
+    {
+        $this->coordinationChatVisible = false;
     }
 
     public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
@@ -445,15 +421,26 @@ class CaseDetail extends Component
         Gate::authorize('postAgendaLawyer', $this->case);
 
         $this->validate([
-            'agendaLawyerBody' => ['required', 'string', 'max:8000'],
+            'agendaLawyerBody' => ['nullable', 'string', 'max:8000'],
+            'agendaLawyerUploads' => ['nullable', 'array', 'max:6'],
+            'agendaLawyerUploads.*' => ['nullable', 'file', 'max:10240', 'mimes:jpeg,jpg,png,gif,webp,pdf'],
         ]);
+
+        $body = trim($this->agendaLawyerBody);
+        $files = array_values(array_filter($this->agendaLawyerUploads));
+
+        if ($body === '' && $files === []) {
+            $this->addError('agendaLawyerBody', 'Escriba un mensaje o adjunte al menos un archivo.');
+
+            return;
+        }
 
         try {
             $agenda->postLawyerMessage(
                 $this->case->fresh(['agendaThread']),
                 auth()->user(),
-                $this->agendaLawyerBody,
-                [],
+                $body,
+                $files,
             );
         } catch (\Throwable $e) {
             $this->addError('agendaLawyerBody', $e->getMessage());
@@ -461,9 +448,27 @@ class CaseDetail extends Component
             return;
         }
 
-        $this->reset('agendaLawyerBody');
+        $this->reset('agendaLawyerBody', 'agendaLawyerUploads');
         $this->syncCaseFromDb();
         session()->flash('success', 'Mensaje enviado a Planeación.');
+    }
+
+    public function removeAgendaLawyerUploadAt(int $index): void
+    {
+        Gate::authorize('postAgendaLawyer', $this->case);
+
+        $files = $this->agendaLawyerUploads;
+        if (! is_array($files) || ! isset($files[$index])) {
+            return;
+        }
+
+        $upload = $files[$index];
+        if ($upload instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            $upload->delete();
+        }
+
+        unset($files[$index]);
+        $this->agendaLawyerUploads = array_values($files);
     }
 
     public function addPlanningSlotRow(): void
@@ -633,6 +638,7 @@ class CaseDetail extends Component
     public function confirmAdvanceFromCitacion(
         DisciplinaryWorkflowService $workflow,
         DisciplinaryCitationWorkflowService $citation,
+        DisciplinaryAgendaThreadService $agenda,
     ): void {
         Gate::authorize('transition', $this->case);
         $this->showCitationAdvanceConfirm = false;
@@ -644,6 +650,7 @@ class CaseDetail extends Component
                 CaseStatus::DILIGENCIA,
                 'Avance a diligencia disciplinaria tras completar la etapa de citación.',
             );
+            $this->closeCoordinationThreadIfOpen($agenda);
             session()->flash('success', 'El expediente pasó a etapa C: diligencia disciplinaria.');
         } catch (InvalidStateTransitionException $e) {
             $this->addError('citationAdvance', $e->getMessage());
@@ -865,8 +872,110 @@ class CaseDetail extends Component
             'notificationPending' => $notificationService->hasPendingNotificationRequest($this->case),
             'notificationCompleted' => $notificationService->hasNotificationInformationCompleted($this->case),
             'citationStageSteps' => $stageProgress->steps($this->case),
+            'citationCurrentStep' => $stageProgress->currentStep($this->case),
+            'citationCurrentStepNumber' => $stageProgress->currentStepNumber($this->case),
+            'citationTotalSteps' => $stageProgress->totalSteps(),
+            'diligenceSlotDisplay' => $this->resolveDiligenceSlotDisplay(),
+            'notificationSlotDisplay' => $this->resolveNotificationSlotDisplay(),
             'diligenceDateRequestStatus' => $stageProgress->diligenceDateRequestStatusLabel($this->case),
         ]);
+    }
+
+    /**
+     * Fecha/hora mostrada en la barra de Etapa B (confirmada o selección pendiente en chat).
+     *
+     * @return array{date: string, time: string, confirmed: bool}
+     */
+    public function resolveDiligenceSlotDisplay(): array
+    {
+        if ($this->case->citation_confirmed_date) {
+            $timeLabel = '—';
+            if ($this->case->citation_confirmed_time) {
+                try {
+                    $timeLabel = \Illuminate\Support\Carbon::parse($this->case->citation_confirmed_time)->format('h:i A');
+                } catch (\Throwable) {
+                    $timeLabel = (string) $this->case->citation_confirmed_time;
+                }
+            }
+
+            return [
+                'date' => $this->case->citation_confirmed_date->format('d/m/Y'),
+                'time' => $timeLabel,
+                'confirmed' => true,
+            ];
+        }
+
+        if (preg_match('/^(\d+)-(\d+)$/', $this->selectedCitationSlotKey, $matches) === 1) {
+            $messageId = (int) $matches[1];
+            $slotIndex = (int) $matches[2];
+            $this->case->loadMissing('agendaThread.messages');
+
+            foreach ($this->case->agendaThread?->messages ?? [] as $message) {
+                if ((int) $message->id !== $messageId) {
+                    continue;
+                }
+
+                $slot = $message->normalizedProposedSlots()[$slotIndex] ?? null;
+                if ($slot === null) {
+                    break;
+                }
+
+                $date = (string) ($slot['date'] ?? '');
+                $timeRaw = (string) ($slot['time'] ?? '09:00');
+
+                try {
+                    $dt = \Illuminate\Support\Carbon::parse($date.' '.$timeRaw);
+
+                    return [
+                        'date' => $dt->format('d/m/Y'),
+                        'time' => $dt->format('h:i A'),
+                        'confirmed' => false,
+                    ];
+                } catch (\Throwable) {
+                    return [
+                        'date' => $date !== '' ? $date : '—',
+                        'time' => $timeRaw !== '' ? $timeRaw : '—',
+                        'confirmed' => false,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'date' => '—',
+            'time' => '—',
+            'confirmed' => false,
+        ];
+    }
+
+    /**
+     * Notificación física en la barra de Etapa B (registrada por Planeación).
+     *
+     * @return array{date: string, shift: string, zone: string, supervisor: string, completed: bool}
+     */
+    public function resolveNotificationSlotDisplay(): array
+    {
+        $empty = [
+            'date' => '—',
+            'shift' => '—',
+            'zone' => '—',
+            'supervisor' => '—',
+            'completed' => false,
+        ];
+
+        if (! app(DisciplinaryCitationNotificationService::class)->hasNotificationInformationCompleted($this->case)) {
+            return $empty;
+        }
+
+        return [
+            'date' => $this->case->notification_date?->format('d/m/Y') ?? '—',
+            'shift' => filled($this->case->notification_shift) ? (string) $this->case->notification_shift : '—',
+            'zone' => filled($this->case->notification_zone) ? (string) $this->case->notification_zone : '—',
+            'supervisor' => filled($this->case->notification_supervisor_name)
+                ? (string) $this->case->notification_supervisor_name
+                : '—',
+            'completed' => true,
+        ];
     }
 
     /**
@@ -925,6 +1034,22 @@ class CaseDetail extends Component
             $note,
         );
         $this->syncCaseFromDb();
+    }
+
+    private function closeCoordinationThreadIfOpen(DisciplinaryAgendaThreadService $agenda): void
+    {
+        $case = $this->case->fresh(['agendaThread']);
+        if ($case->agendaThread === null || $case->agendaThread->isClosed()) {
+            return;
+        }
+
+        try {
+            $this->case = $agenda->closeCoordination($case, auth()->user());
+            $this->coordinationChatVisible = false;
+            $this->syncCaseFromDb();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function relatedCasesSameDocument()

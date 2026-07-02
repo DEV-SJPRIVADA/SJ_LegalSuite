@@ -44,33 +44,3 @@
     </div>
 @endif
 
-@if ($showCloseCoordinationConfirm ?? false)
-    <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="coordination-close-confirm">
-        <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Cerrar coordinación</h2>
-            <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                Planeación dejará de ver este caso en su bandeja y no podrá responder más en el chat.
-            </p>
-            @if (!empty($closeCoordinationBlockers))
-                <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/40 dark:bg-amber-950/40">
-                    <p class="text-sm font-semibold text-amber-950 dark:text-amber-100">Complete antes de cerrar:</p>
-                    <ul class="mt-2 list-disc pl-5 text-sm text-amber-900 dark:text-amber-100 space-y-1">
-                        @foreach ($closeCoordinationBlockers as $blocker)
-                            <li>{{ $blocker }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @else
-                <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">Todos los pasos de coordinación con Planeación están completos.</p>
-            @endif
-            <div class="mt-6 flex flex-wrap justify-end gap-2">
-                <button type="button" wire:click="closeCloseCoordinationConfirm" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
-                <button type="button" wire:click="confirmCloseCoordination"
-                    @disabled(!empty($closeCoordinationBlockers))
-                    class="px-4 py-2 text-sm font-semibold text-white bg-slate-700 rounded-md hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Confirmar cierre
-                </button>
-            </div>
-        </div>
-    </div>
-@endif

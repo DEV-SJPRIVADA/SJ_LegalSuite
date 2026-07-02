@@ -21,10 +21,40 @@ class DisciplinaryCitationNotificationService
         private readonly DisciplinaryAuditService $audit,
     ) {}
 
+    /**
+     * Planeación puede registrar notificación (ingreso, turno, zona, supervisor).
+     * Se habilita al publicar fechas de diligencia, sin solicitud manual del abogado.
+     */
+    public function canPlanningRegisterNotification(DisciplinaryCase $case): bool
+    {
+        if ($this->hasNotificationInformationCompleted($case)) {
+            return false;
+        }
+
+        if (! $case->hasCoordinationStarted()) {
+            return false;
+        }
+
+        $case->loadMissing('agendaThread');
+
+        if ($case->agendaThread?->isClosed()) {
+            return false;
+        }
+
+        return $case->hasPlanningProposedSlots();
+    }
+
     public function hasPendingNotificationRequest(DisciplinaryCase $case): bool
     {
-        return $case->notification_requested_at !== null
-            && $case->notification_information_completed_at === null;
+        if ($this->hasNotificationInformationCompleted($case)) {
+            return false;
+        }
+
+        if ($case->notification_requested_at !== null) {
+            return true;
+        }
+
+        return $this->canPlanningRegisterNotification($case);
     }
 
     public function hasNotificationInformationCompleted(DisciplinaryCase $case): bool
@@ -103,7 +133,11 @@ class DisciplinaryCitationNotificationService
             throw new \InvalidArgumentException('Confirme la fecha de diligencia antes de solicitar información de notificación.');
         }
 
-        if ($this->hasPendingNotificationRequest($case)) {
+        if ($this->canPlanningRegisterNotification($case)) {
+            throw new \InvalidArgumentException('Planeación ya puede registrar la notificación desde Coordinaciones (fechas de diligencia publicadas).');
+        }
+
+        if ($case->notification_requested_at !== null) {
             throw new \InvalidArgumentException('Ya existe una solicitud de notificación pendiente de respuesta.');
         }
 
@@ -141,8 +175,8 @@ class DisciplinaryCitationNotificationService
         User $planner,
         array $data,
     ): DisciplinaryAgendaMessage {
-        if (! $this->hasPendingNotificationRequest($case)) {
-            throw new \InvalidArgumentException('No hay solicitud de notificación pendiente para este expediente.');
+        if (! $this->canPlanningRegisterNotification($case)) {
+            throw new \InvalidArgumentException('Planeación debe publicar fechas de diligencia en el hilo antes de registrar la notificación.');
         }
 
         $supervisor = User::query()

@@ -320,6 +320,11 @@
                                 'notificationCompleted' => $notificationCompleted,
                                 'supervisorCandidates' => $supervisorCandidates,
                                 'citationStageSteps' => $citationStageSteps,
+                                'citationCurrentStep' => $citationCurrentStep,
+                                'citationCurrentStepNumber' => $citationCurrentStepNumber,
+                                'citationTotalSteps' => $citationTotalSteps,
+                                'diligenceSlotDisplay' => $diligenceSlotDisplay,
+                                'notificationSlotDisplay' => $notificationSlotDisplay,
                                 'diligenceDateRequestStatus' => $diligenceDateRequestStatus,
                             ])
 

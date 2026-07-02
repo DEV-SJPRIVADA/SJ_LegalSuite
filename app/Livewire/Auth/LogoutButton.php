@@ -13,7 +13,8 @@ class LogoutButton extends Component
     public function logout(Logout $logout): void
     {
         $logout();
-        $this->redirect('/', navigate: true);
+        // Recarga completa: tras invalidate() el token CSRF del DOM queda inválido y wire:navigate devuelve 419.
+        $this->redirect('/', navigate: false);
     }
 
     public function render()

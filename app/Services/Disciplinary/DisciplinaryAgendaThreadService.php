@@ -133,11 +133,15 @@ class DisciplinaryAgendaThreadService
         }
 
         $body = trim($body);
-        if ($body === '') {
-            throw new \InvalidArgumentException('Escriba el contenido del mensaje.');
+        $attachments = array_values(array_filter($attachments));
+
+        if ($body === '' && $attachments === []) {
+            throw new \InvalidArgumentException('Escriba un mensaje o adjunte al menos un archivo.');
         }
 
-        return DB::transaction(function () use ($case, $lawyer, $body, $attachments) {
+        $displayBody = $body !== '' ? $body : '(Archivos adjuntos)';
+
+        return DB::transaction(function () use ($case, $lawyer, $displayBody, $attachments) {
             $thread = $case->agendaThread;
             if ($thread === null) {
                 throw new \RuntimeException('No existe hilo de coordinación.');
@@ -147,7 +151,7 @@ class DisciplinaryAgendaThreadService
                 'thread_id' => $thread->id,
                 'user_id' => $lawyer->id,
                 'message_kind' => AgendaMessageKind::GENERAL,
-                'body' => $body,
+                'body' => $displayBody,
             ]);
 
             foreach ($attachments as $file) {
@@ -229,6 +233,8 @@ class DisciplinaryAgendaThreadService
                 $displayBody = $body !== ''
                     ? $body
                     : 'Planeación propone fechas de diligencia disponibles.';
+            } elseif ($displayBody === '' && $attachments !== []) {
+                $displayBody = '(Archivos adjuntos)';
             }
 
             $message = DisciplinaryAgendaMessage::create([

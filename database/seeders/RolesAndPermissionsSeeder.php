@@ -38,6 +38,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.manage',
 
             'settings.manage-territory',
+
+            'licitaciones.view',
+            'licitaciones.view-dashboard',
+            'licitaciones.create',
+            'licitaciones.update',
+            'licitaciones.delete',
+            'licitaciones.manage-solicitudes',
+            'licitaciones.upload-document',
         ];
 
         foreach ($permissions as $perm) {
@@ -56,6 +64,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.transition',
             'disciplinary.upload-document',
             'disciplinary.download-pdf',
+            'licitaciones.view',
+            'licitaciones.view-dashboard',
+            'licitaciones.create',
+            'licitaciones.update',
+            'licitaciones.delete',
+            'licitaciones.manage-solicitudes',
+            'licitaciones.upload-document',
         ]);
 
         /** Planeación (dirección): vista completa + fechas; responde en hilo de agenda Etapa A. */
@@ -87,9 +102,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'employees.view',
             'users.view',
             'disciplinary.download-pdf',
+            'licitaciones.view',
+            'licitaciones.view-dashboard',
         ]);
 
-        /** Operaciones (dirección / central): gestión completa del frente operativo. */
+        /** Operaciones: revisión FO-GJ-51 y expedientes propios; `review-inform-all` solo por permiso directo (dirección). */
         $admin_op = Role::firstOrCreate(['name' => 'operaciones', 'guard_name' => 'web']);
         $admin_op->syncPermissions([
             'disciplinary.view',
@@ -97,11 +114,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.upload-document',
             'disciplinary.generate-inform',
             'disciplinary.review-inform',
-            'disciplinary.review-inform-all',
             'employees.view',
             'employees.manage',
             'disciplinary.upload-notification',
             'disciplinary.download-pdf',
+            'licitaciones.view',
+            'licitaciones.upload-document',
         ]);
 
         /** Supervisor de campo: pool por turno — informe FO-GJ-51 y evidencias en expedientes ya formalizados. */
