@@ -192,8 +192,8 @@ class User extends Authenticatable
     }
 
     /**
-     * Enlace del menú «Disciplinarios» / listado de expedientes (no el tablero).
-     * Abogado y auditor: listado; el tablero sigue en {@see disciplinaryPortalUrl()} al ingresar.
+     * Enlace del sub-nav «Disciplinarios» → listado de expedientes (no el tablero).
+     * La entrada al módulo en el sidebar usa {@see disciplinaryPortalUrl()}.
      */
     public function disciplinaryCasesNavUrl(): string
     {

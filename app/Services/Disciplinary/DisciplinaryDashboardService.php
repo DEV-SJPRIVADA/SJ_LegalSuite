@@ -21,15 +21,106 @@ use Illuminate\Support\Facades\DB;
  */
 class DisciplinaryDashboardService
 {
+    public function usesAssignedOnlyScope(User $actor): bool
+    {
+        return $actor->hasRole('abogado') && ! $actor->hasRole('admin');
+    }
+
+    /**
+     * @return array{
+     *     assignedOnly: bool,
+     *     kpis: array<string, mixed>,
+     *     workflowDonuts: array<string, mixed>,
+     *     byFault: list<array<string, mixed>>,
+     *     caseMapPins: list<array<string, mixed>>,
+     *     topMunicipalities: list<array<string, mixed>>,
+     *     myWorkload: ?array<string, mixed>,
+     *     lawyerWorkloadTop: list<array<string, mixed>>,
+     * }
+     */
+    public function build(User $actor): array
+    {
+        $assignedOnly = $this->usesAssignedOnlyScope($actor);
+        $pins = $this->casesByMunicipalityMapPins($actor, $assignedOnly);
+
+        $byFault = $this->casesByFault($actor, $assignedOnly);
+
+        $lawyerRows = array_values(array_filter(
+            $this->lawyerWorkload($actor),
+            fn (array $row) => $row['total'] > 0
+        ));
+
+        return [
+            'assignedOnly' => $assignedOnly,
+            'kpis' => $this->kpis($actor, $assignedOnly),
+            'workflowDonuts' => $this->workflowStageDonuts($actor, $assignedOnly),
+            'byFault' => $byFault,
+            'caseMapPins' => $pins,
+            'topMunicipalities' => $this->topMunicipalitiesFromPins($pins, 5),
+            'myWorkload' => $assignedOnly ? ($lawyerRows[0] ?? $this->emptyWorkloadRow($actor)) : null,
+            'lawyerWorkloadTop' => $assignedOnly ? [] : array_slice($lawyerRows, 0, 5),
+        ];
+    }
+
+    /**
+     * @param  list<array{code:string, label:string, lat:float, lon:float, count:int}>  $pins
+     * @return list<array{code:string, label:string, count:int}>
+     */
+    public function topMunicipalitiesFromPins(array $pins, int $limit = 5): array
+    {
+        $sorted = $pins;
+        usort($sorted, fn (array $a, array $b) => $b['count'] <=> $a['count'] ?: strcmp($a['label'], $b['label']));
+
+        return array_map(
+            fn (array $pin) => [
+                'code' => $pin['code'],
+                'label' => $pin['label'],
+                'count' => $pin['count'],
+            ],
+            array_slice($sorted, 0, $limit)
+        );
+    }
+
+    /**
+     * @return array{lawyer_id:int, lawyer_name:string, total:int, pendientes:int, en_proceso:int, finalizados:int}
+     */
+    private function emptyWorkloadRow(User $actor): array
+    {
+        return [
+            'lawyer_id' => $actor->id,
+            'lawyer_name' => (string) $actor->name,
+            'total' => 0,
+            'pendientes' => 0,
+            'en_proceso' => 0,
+            'finalizados' => 0,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<DisciplinaryCase>  $query
+     */
+    private function applyCaseScope($query, ?User $actor, bool $assignedOnly): void
+    {
+        if ($assignedOnly && $actor) {
+            $query->where('disciplinary_cases.assigned_lawyer_id', $actor->id);
+
+            return;
+        }
+
+        if ($actor) {
+            $query->forDisciplinaryActor($actor);
+        }
+    }
+
     /**
      * KPIs principales en un único query agrupado.
      *
      * @return array{total:int, pendientes:int, en_proceso:int, finalizados:int, por_estado:array<string,int>}
      */
-    public function kpis(?User $actor = null): array
+    public function kpis(?User $actor = null, bool $assignedOnly = false): array
     {
         $rows = DisciplinaryCase::query()
-            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
+            ->when(true, fn ($q) => $this->applyCaseScope($q, $actor, $assignedOnly))
             ->select('current_status', DB::raw('COUNT(*) as total'))
             ->groupBy('current_status')
             ->pluck('total', 'current_status');
@@ -72,10 +163,10 @@ class DisciplinaryDashboardService
      *     }>
      * }
      */
-    public function workflowStageDonuts(?User $actor = null): array
+    public function workflowStageDonuts(?User $actor = null, bool $assignedOnly = false): array
     {
         $byStage = DisciplinaryCase::query()
-            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
+            ->when(true, fn ($q) => $this->applyCaseScope($q, $actor, $assignedOnly))
             ->select('current_stage_type', DB::raw('COUNT(*) as c'))
             ->groupBy('current_stage_type')
             ->get()
@@ -159,31 +250,45 @@ class DisciplinaryDashboardService
     }
 
     /**
-     * Distribución por tipo de falta (ranking para gráfica).
+     * Catálogo completo de faltas activas con conteo en el alcance del actor (incluye ceros).
      *
-     * @return list<array{fault_id:int, code:string, name:string, total:int}>
+     * @return list<array{fault_id:int, code:string, name:string, total:int, sort_order:int}>
      */
-    public function casesByFault(int $limit = 10, ?User $actor = null): array
+    public function casesByFault(?User $actor = null, bool $assignedOnly = false): array
     {
-        return Fault::query()
-            ->select(['faults.id', 'faults.code', 'faults.name'])
+        $rows = Fault::query()
+            ->active()
+            ->select(['faults.id', 'faults.code', 'faults.name', 'faults.sort_order'])
             ->withCount([
-                'disciplinaryCases as total' => function ($q) use ($actor) {
+                'disciplinaryCases as total' => function ($q) use ($actor, $assignedOnly) {
+                    if ($assignedOnly && $actor) {
+                        $q->where('assigned_lawyer_id', $actor->id);
+
+                        return;
+                    }
                     if ($actor) {
                         $q->forDisciplinaryActor($actor);
                     }
                 },
             ])
-            ->orderByDesc('total')
-            ->limit($limit)
+            ->ordered()
             ->get()
             ->map(fn ($r) => [
                 'fault_id' => (int) $r->id,
                 'code' => $r->code,
                 'name' => $r->name,
                 'total' => (int) $r->total,
+                'sort_order' => (int) $r->sort_order,
             ])
             ->all();
+
+        usort($rows, function (array $a, array $b) {
+            return $b['total'] <=> $a['total']
+                ?: $a['sort_order'] <=> $b['sort_order']
+                ?: strcmp($a['name'], $b['name']);
+        });
+
+        return $rows;
     }
 
     /**
@@ -191,10 +296,10 @@ class DisciplinaryDashboardService
      *
      * @return list<array{code:string, label:string, lat:float, lon:float, count:int}>
      */
-    public function casesByMunicipalityMapPins(?User $actor = null): array
+    public function casesByMunicipalityMapPins(?User $actor = null, bool $assignedOnly = false): array
     {
         $rows = DisciplinaryCase::query()
-            ->when($actor, fn ($q) => $q->forDisciplinaryActor($actor))
+            ->when(true, fn ($q) => $this->applyCaseScope($q, $actor, $assignedOnly))
             ->whereNotNull('disciplinary_cases.municipality_code')
             ->join(
                 'colombian_municipalities as m',

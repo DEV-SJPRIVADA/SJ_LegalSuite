@@ -41,6 +41,26 @@ class DisciplinaryPortalRouteTest extends TestCase
         $this->assertSame(route('disciplinary.cases.index'), $user->disciplinaryCasesNavUrl());
     }
 
+    public function test_app_sidebar_disciplinarios_links_to_portal_url(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('abogado');
+
+        $this->actingAs($user);
+
+        $html = view('components.app-sidebar', ['variant' => 'light'])->render();
+        $portal = $user->disciplinaryPortalUrl();
+
+        $this->assertMatchesRegularExpression(
+            '#<a[^>]*href="'.preg_quote($portal, '#').'"[^>]*>.*?Disciplinarios.*?</a>#s',
+            $html
+        );
+        $this->assertSame(route('disciplinary.dashboard'), $portal);
+    }
+
     public function test_disciplinary_index_redirects_planeacion_to_coordinations(): void
     {
         $user = User::factory()->create([
