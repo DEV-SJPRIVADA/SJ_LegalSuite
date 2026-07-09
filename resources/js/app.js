@@ -16,6 +16,7 @@ import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';
 import './informe-pdf-preview-lightbox';
 import './worker-signature-pad';
+import './home-command-center';
 import { registerApexChartsLivewireHooks } from './apex-charts-lifecycle';
 
 registerApexChartsLivewireHooks();
@@ -64,6 +65,11 @@ document.addEventListener('livewire:navigating', () => {
         window.__disciplinaryColombiaMapTeardown();
         window.__disciplinaryColombiaMapTeardown = null;
     }
+    document.querySelectorAll('[data-pins]').forEach((el) => {
+        if (typeof el.__disciplinaryColombiaMapTeardown === 'function') {
+            el.__disciplinaryColombiaMapTeardown();
+        }
+    });
 });
 
 /** BFCache restore (p. ej. mismo URL tras cambio de tema): Leaflet queda inválido si no se remonta. */

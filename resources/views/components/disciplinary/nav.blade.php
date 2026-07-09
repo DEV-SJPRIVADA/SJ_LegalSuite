@@ -4,7 +4,8 @@
 
     $links = [];
 
-    if (! auth()->user()->isMinimalDisciplinaryPortalUser() && auth()->user()->canSeeFullAppSidebar()) {
+    if (! auth()->user()->isMinimalDisciplinaryPortalUser()
+        && auth()->user()->canViewHomeCommandCenter()) {
         $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
 

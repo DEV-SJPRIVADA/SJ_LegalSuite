@@ -1,274 +1,287 @@
 @php
+    use App\Models\Disciplinary\DisciplinaryCase;
+
     $chartDark = ($uiTheme ?? 'light') === 'dark';
+    $firstName = explode(' ', auth()->user()->name)[0];
+    $kpis = $kpis ?? [];
+    $workflow = $workflow ?? ['total' => 0, 'stages' => []];
+    $lawyerWorkload = $lawyerWorkload ?? [];
+    $caseMapPins = $caseMapPins ?? [];
+    $topMunicipalities = $topMunicipalities ?? [];
+    $casesWithoutMunicipalityCount = (int) ($casesWithoutMunicipalityCount ?? 0);
+    $criticalAlerts = (int) ($dashboard['criticalAlertCount'] ?? 0);
+    $totalAlerts = (int) ($dashboard['totalAlerts'] ?? 0);
+
+    $alertBuckets = [
+        ['key' => 'vencidos', 'title' => 'Plazos vencidos', 'subtitle' => 'Deadline pasado', 'icon' => 'clock', 'color' => 'rose'],
+        ['key' => 'proximos', 'title' => 'Próximos a vencer', 'subtitle' => '≤ 3 días', 'icon' => 'flag', 'color' => 'amber'],
+        ['key' => 'sin_asignar', 'title' => 'Sin abogado', 'subtitle' => 'Sin titular', 'icon' => 'inbox', 'color' => 'indigo'],
+        ['key' => 'pendientes_decision', 'title' => 'Pend. decisión', 'subtitle' => 'En resolución', 'icon' => 'scale', 'color' => 'sky'],
+    ];
+
+    $moduleRoadmap = [
+        'Licitaciones', 'Tutelas', 'Demandas', 'Neg. colectiva', 'Investigaciones',
+        'Cartera', 'Req. legales', 'Contratos', 'Pólizas', 'Auditoría',
+    ];
+
+    $chartConfig = [
+        'chartDark' => $chartDark,
+        'trend' => $trend,
+        'workflow' => $workflow,
+        'lawyerWorkload' => $lawyerWorkload,
+        'summary' => $summary,
+    ];
 @endphp
-<div>
-    <div class="py-8 sm:py-10">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
-                <x-dashboard.page-heading
-                    eyebrow="Inicio · SJ LegalSuite"
-                    title="Hola, {{ explode(' ', auth()->user()->name)[0] }}"
-                    description="Resumen operativo con datos en vivo del sistema y alertas que requieren tu atención." />
 
-                <div class="text-right">
-                    <p class="text-[11px] font-bold uppercase tracking-widest text-indigo-600 dark:text-cyan-400/90">Hoy</p>
-                    <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">{{ now()->locale('es')->translatedFormat('l, d \\d\\e F \\d\\e Y') }}</p>
-                </div>
-            </div>
+<div class="home-command-center mx-auto flex h-[calc(100dvh-3.25rem)] max-h-[calc(100dvh-3.25rem)] w-full max-w-[1600px] flex-col overflow-hidden px-3 py-2 sm:px-5 sm:py-3 lg:px-6"
+    x-data="homeCommandCenter(@js($chartConfig))"
+    x-init="init()"
+    @destroy.window="destroy()">
 
-            <section class="mb-10">
-                <h2 class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-4 flex items-center gap-2 dark:text-dash-muted">
-                    <span class="h-2 w-2 rounded-full bg-indigo-500 dark:bg-fuchsia-500 {{ $chartDark ? 'shadow-dash-glow-fuchsia' : '' }}"></span>
-                    Alertas en tiempo real
-                </h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <x-home.alert-card
-                        variant="{{ $chartDark ? 'dash' : 'light' }}"
-                        :count="$summary['vencidos']['count']"
-                        title="Plazos vencidos"
-                        subtitle="Etapas con deadline pasado"
-                        icon="clock"
-                        color="rose"
-                        :items="$summary['vencidos']['items']" />
-                    <x-home.alert-card
-                        variant="{{ $chartDark ? 'dash' : 'light' }}"
-                        :count="$summary['proximos']['count']"
-                        title="Próximos a vencer"
-                        subtitle="Plazo en 3 días o menos"
-                        icon="flag"
-                        color="amber"
-                        :items="$summary['proximos']['items']" />
-                    <x-home.alert-card
-                        variant="{{ $chartDark ? 'dash' : 'light' }}"
-                        :count="$summary['sin_asignar']['count']"
-                        title="Sin abogado"
-                        subtitle="Casos sin asignar"
-                        icon="inbox"
-                        color="indigo"
-                        :items="$summary['sin_asignar']['items']" />
-                    <x-home.alert-card
-                        variant="{{ $chartDark ? 'dash' : 'light' }}"
-                        :count="$summary['pendientes_decision']['count']"
-                        title="Pend. decisión"
-                        subtitle="Esperando resolución"
-                        icon="scale"
-                        color="sky"
-                        :items="$summary['pendientes_decision']['items']" />
-                </div>
-            </section>
-
-            <section class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                <x-dashboard.card class="lg:col-span-2 xl:col-span-3" title="Tendencia mensual · casos abiertos"
-                    subtitle="Últimos 6 meses · aperturas registradas (disciplinario). Barras con tus datos en vivo.">
-                    @if (collect($trend)->sum('total') === 0)
-                        <p class="text-sm text-slate-500 py-14 text-center dark:text-dash-muted">Aún no hay datos suficientes para graficar.</p>
-                    @else
-                        @php
-                            $trendLabels = collect($trend)->pluck('month')->all();
-                            $trendValues = collect($trend)->pluck('total')->all();
-                            $n = count($trendValues);
-                            $barNeonTop = ['#22d3ee', '#f472b6', '#fb923c', '#c084fc', '#34d399', '#38bdf8', '#fcd34d', '#e879f9', '#2dd4bf', '#818cf8'];
-                            $barNeonBottom = ['#0e7490', '#9f1239', '#c2410c', '#6d28d9', '#047857', '#0369a1', '#b45309', '#a21caf', '#0f766e', '#3730a3'];
-                            $colorsFrom = array_slice($barNeonTop, 0, $n);
-                            $colorsTo = array_slice($barNeonBottom, 0, $n);
-                        @endphp
-                        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-dash-muted">Por mes · aperturas</p>
-                            <span class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold tabular-nums text-indigo-900 dark:border-transparent dark:bg-gradient-to-r dark:from-fuchsia-500/15 dark:to-cyan-500/15 dark:text-fuchsia-200 dark:ring-1 dark:ring-fuchsia-400/25 dark:shadow-[0_0_20px_-8px_rgba(217,70,239,0.55)]">
-                                Total {{ number_format(collect($trend)->sum('total')) }} en el periodo
-                            </span>
-                        </div>
-                        <div wire:ignore class="relative"
-                             x-data="{
-                                chart: null,
-                                init() {
-                                    const el = this.$refs.target;
-                                    let tries = 0;
-                                    const mount = () => {
-                                        tries++;
-                                        if (!el || !el.isConnected) {
-                                            if (tries < 72) {
-                                                requestAnimationFrame(mount);
-                                            }
-                                            return;
-                                        }
-                                        const wRaw = Math.max(
-                                            el.offsetWidth || 0,
-                                            el.getBoundingClientRect?.().width || 0,
-                                        );
-                                        const w = Number.isFinite(wRaw) ? Math.floor(wRaw) : 0;
-                                        if (w < 64 && tries < 72) {
-                                            requestAnimationFrame(mount);
-                                            return;
-                                        }
-                                        if (this.chart) {
-                                            try {
-                                                delete el._apexChart;
-                                                this.chart.destroy();
-                                            } catch (e) {
-                                            }
-                                            this.chart = null;
-                                        }
-                                        const chartW = Math.max(200, w || 320);
-                                    const chartDark = @json($chartDark);
-                                    const values = @js($trendValues);
-                                    const labels = @js($trendLabels);
-                                    const colorsFrom = @js($colorsFrom);
-                                    const colorsTo = @js($colorsTo);
-                                    const fg = chartDark ? '#94a3b8' : '#64748b';
-                                    const grid = chartDark ? 'rgba(148,163,184,0.1)' : '#e2e8f0';
-                                    const opts = {
-                                        chart: {
-                                            type: 'bar',
-                                            height: 352,
-                                            width: chartW,
-                                            toolbar: { show: false },
-                                            zoom: { enabled: false },
-                                            fontFamily: 'Figtree, ui-sans-serif, system-ui',
-                                            foreColor: fg,
-                                            background: 'transparent',
-                                            dropShadow: chartDark ? {
-                                                enabled: true,
-                                                top: 14,
-                                                left: 0,
-                                                blur: 18,
-                                                opacity: 0.35,
-                                                color: '#e879f9',
-                                            } : { enabled: false },
-                                        },
-                                        theme: { mode: chartDark ? 'dark' : 'light' },
-                                        grid: {
-                                            borderColor: grid,
-                                            strokeDashArray: 4,
-                                            padding: { top: 36, right: 12, bottom: 4, left: 8 },
-                                        },
-                                        plotOptions: {
-                                            bar: {
-                                                borderRadius: 14,
-                                                columnWidth: '62%',
-                                                distributed: true,
-                                                rangeBarOverlap: false,
-                                            },
-                                        },
-                                        colors: colorsFrom,
-                                        fill: {
-                                            type: 'gradient',
-                                            gradient: {
-                                                shade: 'dark',
-                                                type: 'vertical',
-                                                shadeIntensity: chartDark ? 0.85 : 0.55,
-                                                opacityFrom: 1,
-                                                opacityTo: chartDark ? 0.82 : 0.88,
-                                                stops: [0, 55, 100],
-                                                inverseColors: false,
-                                                gradientToColors: colorsTo,
-                                            },
-                                        },
-                                        states: {
-                                            hover: { filter: { type: 'lighten', value: 0.12 } },
-                                            active: { filter: { type: 'none', value: 0 } },
-                                        },
-                                        dataLabels: {
-                                            enabled: true,
-                                            formatter: (val) => (val > 0 ? val : ''),
-                                            offsetY: -26,
-                                            style: {
-                                                fontSize: '12px',
-                                                fontWeight: 700,
-                                                colors: chartDark ? ['#f8fafc'] : ['#0f172a'],
-                                            },
-                                            dropShadow: chartDark ? {
-                                                enabled: true,
-                                                top: 1,
-                                                blur: 4,
-                                                opacity: 0.55,
-                                                color: '#000',
-                                            } : { enabled: false },
-                                        },
-                                        series: [{ name: 'Aperturas del mes', data: values }],
-                                        xaxis: {
-                                            categories: labels,
-                                            labels: {
-                                                style: { colors: chartDark ? '#9ca3c9' : '#475569', fontSize: '11px', fontWeight: 600 },
-                                            },
-                                            axisBorder: { show: false },
-                                            axisTicks: { show: false },
-                                        },
-                                        yaxis: {
-                                            labels: {
-                                                style: { colors: chartDark ? '#8b93b3' : '#64748b' },
-                                                formatter: (val) => Math.round(val),
-                                            },
-                                            tickAmount: 5,
-                                        },
-                                        tooltip: {
-                                            theme: chartDark ? 'dark' : 'light',
-                                            y: {
-                                                formatter: (val) => val + ' caso(s)',
-                                            },
-                                        },
-                                    };
-                                    this.chart = new ApexCharts(el, opts);
-                                    this.chart.render();
-                                    el._apexChart = this.chart;
-                                    requestAnimationFrame(() => {
-                                        try {
-                                            this.chart.resize();
-                                        } catch (e) {
-                                        }
-                                    });
-                                    setTimeout(() => {
-                                        try {
-                                            this.chart.resize();
-                                        } catch (e) {
-                                        }
-                                    }, 120);
-                                    };
-                                    requestAnimationFrame(() => requestAnimationFrame(mount));
-                                },
-                             }">
-                            <div x-ref="target" data-apex-chart-root class="min-h-[360px] w-full min-w-0"></div>
-                        </div>
+    {{-- Cabecera compacta --}}
+    <header class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2 dark:border-white/10">
+        <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Dirección jurídica · Command center</p>
+            <div class="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">
+                    Hola, {{ $firstName }}
+                </h1>
+                <span class="text-xs text-slate-500 dark:text-dash-muted">
+                    <span class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ number_format((int) ($kpis['total'] ?? 0)) }}</span> casos
+                    · <span class="font-semibold tabular-nums text-amber-600 dark:text-amber-300">{{ number_format((int) ($kpis['en_proceso'] ?? 0)) }}</span> en proceso
+                    @if ($totalAlerts > 0)
+                        · <span class="font-semibold tabular-nums text-rose-600 dark:text-rose-300">{{ $totalAlerts }}</span> alertas
                     @endif
-                </x-dashboard.card>
-
-                @php
-                    $disciplinaryCaseModel = \App\Models\Disciplinary\DisciplinaryCase::class;
-                @endphp
-                <x-dashboard.card title="Acceso rápido" subtitle="Módulos activos">
-                    <div class="space-y-3">
-                        @can('viewDashboard', $disciplinaryCaseModel)
-                            <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
-                               class="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-indigo-300 hover:bg-white hover:shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-cyan-400/45 dark:hover:shadow-dash-glow-cyan">
-                                <div class="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 ring-1 ring-indigo-200 flex items-center justify-center dark:bg-gradient-to-br dark:from-cyan-400/25 dark:to-fuchsia-500/20 dark:text-cyan-200 dark:ring-cyan-400/30">
-                                    <x-app-sidebar-icon name="chart-bar" class="h-5 w-5" />
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-slate-900 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-cyan-200">Dashboard disciplinario</p>
-                                    <p class="text-xs text-slate-500 mt-0.5 dark:text-dash-muted">KPIs y distribución por falta y ciudad</p>
-                                </div>
-                            </a>
-                        @endcan
-                        @can('viewAny', $disciplinaryCaseModel)
-                            <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
-                               class="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:border-indigo-300 hover:bg-white hover:shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-fuchsia-400/45 dark:hover:shadow-dash-glow-fuchsia">
-                                <div class="h-10 w-10 rounded-xl bg-rose-100 text-rose-600 ring-1 ring-rose-200 flex items-center justify-center dark:bg-gradient-to-br dark:from-fuchsia-500/25 dark:to-orange-400/15 dark:text-fuchsia-200 dark:ring-fuchsia-400/30">
-                                    <x-app-sidebar-icon name="scale" class="h-5 w-5" />
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-slate-900 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-fuchsia-200">Casos disciplinarios</p>
-                                    <p class="text-xs text-slate-500 mt-0.5 dark:text-dash-muted">Listado, filtros y gestión del proceso</p>
-                                </div>
-                            </a>
-                        @endcan
-                    </div>
-
-                    <p class="text-xs text-slate-500 mt-5 leading-relaxed border-t border-slate-100 pt-4 dark:border-white/10 dark:text-slate-500">
-                        Más módulos jurídicos se sumarán al mismo tablero cuando estén disponibles.
-                    </p>
-                </x-dashboard.card>
-            </section>
+                </span>
+            </div>
         </div>
+        <p class="text-right text-[11px] text-slate-500 dark:text-dash-muted">
+            {{ now()->locale('es')->translatedFormat('l, d \\d\\e M \\d\\e Y') }}
+        </p>
+    </header>
+
+    {{-- KPI alertas (chips) --}}
+    <div class="mb-2 grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
+        @foreach ($alertBuckets as $bucket)
+            <x-home.kpi-chip
+                :count="$summary[$bucket['key']]['count'] ?? 0"
+                :title="$bucket['title']"
+                :subtitle="$bucket['subtitle']"
+                :icon="$bucket['icon']"
+                :color="$bucket['color']"
+                x-bind:class="activeBucket === @js($bucket['key']) ? 'ring-2' : ''"
+                x-on:click="openBucket(@js($bucket['key']))" />
+        @endforeach
     </div>
 
+    {{-- Cuerpo principal --}}
+    <div class="flex min-h-0 flex-1 flex-col gap-2">
+        <div class="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-12 lg:gap-3">
+
+            {{-- Columna izquierda: etapas + tendencia --}}
+            <div class="flex min-h-0 flex-col gap-2 lg:col-span-4">
+                <section class="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm">
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                        <h2 class="text-[10px] font-bold uppercase tracking-[0.14em] text-dash-muted">Casos por etapa del flujo</h2>
+                        <span class="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-bold tabular-nums text-cyan-300 ring-1 ring-cyan-400/20">
+                            {{ number_format((int) ($workflow['total'] ?? 0)) }} total
+                        </span>
+                    </div>
+                    @if ((int) ($workflow['total'] ?? 0) === 0)
+                        <p class="flex flex-1 items-center justify-center text-xs text-slate-500">Sin casos en el alcance.</p>
+                    @else
+                        <div wire:ignore class="min-h-0 flex-1">
+                            <div x-ref="stagesChart" data-chart-key="stages" data-apex-chart-root class="h-[130px] w-full min-w-0"></div>
+                        </div>
+                    @endif
+                </section>
+
+                <section class="shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm">
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                        <h2 class="text-[10px] font-bold uppercase tracking-[0.14em] text-dash-muted">Tendencia · aperturas (6 meses)</h2>
+                        <span class="text-[10px] font-semibold tabular-nums text-fuchsia-300/90">
+                            {{ number_format(collect($trend)->sum('total')) }} en periodo
+                        </span>
+                    </div>
+                    @if (collect($trend)->sum('total') === 0)
+                        <p class="py-6 text-center text-xs text-slate-500">Sin aperturas en el periodo.</p>
+                    @else
+                        <div wire:ignore>
+                            <div x-ref="trendChart" data-chart-key="trend" data-apex-chart-root class="h-[118px] w-full min-w-0"></div>
+                        </div>
+                    @endif
+                </section>
+            </div>
+
+            {{-- Columna central: mapa por ciudad --}}
+            <section class="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm lg:col-span-5">
+                <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-[10px] font-bold uppercase tracking-[0.14em] text-dash-muted">Casos por ciudad</h2>
+                        <p class="mt-0.5 text-[10px] text-slate-500 dark:text-dash-muted">
+                            Pins por municipio (DIVIPOLA) · zoom ≥8 muestra límites municipales
+                        </p>
+                    </div>
+                    <span class="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-bold tabular-nums text-cyan-300 ring-1 ring-cyan-400/20">
+                        {{ number_format(count($caseMapPins)) }} municipio(s)
+                    </span>
+                </div>
+
+                <div class="flex min-h-0 flex-1 gap-2">
+                    <div wire:ignore class="relative min-h-[188px] min-w-0 flex-1">
+                        <div x-ref="homeMap"
+                             class="h-full min-h-[188px] w-full rounded-xl border border-slate-200/80 bg-slate-950/40 ring-1 ring-cyan-500/15 dark:border-white/10 dark:bg-black/30 dark:ring-fuchsia-500/20 z-0"
+                             data-pins='@json($caseMapPins)'
+                             data-chart-dark="{{ $chartDark ? '1' : '0' }}"
+                             data-compact="1"
+                             data-geo-dept="{{ route('disciplinary.map-geo', ['file' => 'gadm41_COL_1.json'], absolute: false) }}"
+                             data-geo-mun="{{ route('disciplinary.map-geo', ['file' => 'gadm41_COL_2.json'], absolute: false) }}"
+                             role="presentation"
+                             aria-label="Mapa de casos por municipio en Colombia">
+                        </div>
+                        @if (count($caseMapPins) === 0)
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/50 px-4 text-center backdrop-blur-[1px] dark:bg-black/45">
+                                <p class="max-w-xs text-[11px] leading-relaxed text-slate-200">
+                                    Sin casos georreferenciados en su alcance.
+                                    @can('viewAny', \App\Models\User::class)
+                                        <a href="{{ route('settings.territory-import') }}" wire:navigate class="pointer-events-auto font-semibold text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200">Ver DIVIPOLA</a>
+                                    @endcan
+                                </p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="flex w-[7.5rem] shrink-0 flex-col sm:w-36">
+                        <p class="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-dash-muted">Top municipios</p>
+                        @if ($topMunicipalities === [])
+                            <p class="flex flex-1 items-center text-[10px] leading-snug text-slate-500">Sin datos con coordenadas.</p>
+                        @else
+                            <ul class="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
+                                @foreach ($topMunicipalities as $index => $mun)
+                                    <li>
+                                        <button type="button"
+                                            x-on:click="focusMunicipality(@js($mun['code']))"
+                                            x-bind:class="highlightedMunicipality === @js($mun['code']) ? 'border-cyan-400/50 bg-cyan-500/10 text-cyan-200' : 'border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-slate-200'"
+                                            class="flex w-full items-start gap-1.5 rounded-md border px-1.5 py-1 text-left transition">
+                                            <span class="mt-0.5 w-3 shrink-0 text-[9px] font-bold tabular-nums text-fuchsia-400/90">{{ $index + 1 }}</span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="block truncate text-[10px] font-medium leading-tight">{{ $mun['label'] }}</span>
+                                                <span class="text-[9px] tabular-nums text-slate-500">{{ number_format($mun['count']) }} caso(s)</span>
+                                            </span>
+                                        </button>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="mt-2 grid grid-cols-3 gap-2 border-t border-white/10 pt-2">
+                    <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center ring-1 ring-white/5">
+                        <p class="text-[9px] font-bold uppercase tracking-wide text-dash-muted">Pendientes</p>
+                        <p class="text-lg font-bold tabular-nums text-amber-300">{{ number_format((int) ($kpis['pendientes'] ?? 0)) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center ring-1 ring-white/5">
+                        <p class="text-[9px] font-bold uppercase tracking-wide text-dash-muted">En proceso</p>
+                        <p class="text-lg font-bold tabular-nums text-cyan-300">{{ number_format((int) ($kpis['en_proceso'] ?? 0)) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white/[0.03] px-2 py-1.5 text-center ring-1 ring-white/5">
+                        <p class="text-[9px] font-bold uppercase tracking-wide text-dash-muted">Finalizados</p>
+                        <p class="text-lg font-bold tabular-nums text-emerald-300">{{ number_format((int) ($kpis['finalizados'] ?? 0)) }}</p>
+                    </div>
+                </div>
+
+                @if ($casesWithoutMunicipalityCount > 0)
+                    <p class="mt-1.5 text-[10px] text-slate-500 dark:text-dash-muted">
+                        {{ number_format($casesWithoutMunicipalityCount) }} caso(s) sin municipio DIVIPOLA asignado.
+                    </p>
+                @endif
+            </section>
+
+        {{-- Columna derecha: acciones + roadmap --}}
+        <aside class="flex min-h-0 flex-col gap-2 lg:col-span-3">
+            <section class="shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm">
+                <h2 class="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-dash-muted">Acceso rápido</h2>
+                <div class="grid grid-cols-1 gap-2">
+                    @can('viewDashboard', DisciplinaryCase::class)
+                        <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-800 transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-200 dark:hover:border-cyan-400/40 dark:hover:bg-cyan-500/10">
+                            <x-app-sidebar-icon name="chart-bar" class="h-4 w-4 text-cyan-400" />
+                            Dashboard disciplinario
+                        </a>
+                    @endcan
+                    @can('viewAny', DisciplinaryCase::class)
+                        <a href="{{ route('disciplinary.cases.index') }}" wire:navigate
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-800 transition hover:border-fuchsia-300 hover:bg-fuchsia-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-200 dark:hover:border-fuchsia-400/40 dark:hover:bg-fuchsia-500/10">
+                            <x-app-sidebar-icon name="scale" class="h-4 w-4 text-fuchsia-400" />
+                            Casos disciplinarios
+                        </a>
+                    @endcan
+                    @can('viewAny', \App\Models\User::class)
+                        <a href="{{ route('users.index') }}" wire:navigate
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-semibold text-slate-800 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-200 dark:hover:border-indigo-400/40 dark:hover:bg-indigo-500/10">
+                            <x-app-sidebar-icon name="user-cog" class="h-4 w-4 text-indigo-400" />
+                            Usuarios
+                        </a>
+                    @endcan
+                </div>
+            </section>
+
+            {{-- Panel alertas (scroll interno único) --}}
+            <section class="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                    <h2 class="text-[10px] font-bold uppercase tracking-[0.14em] text-dash-muted">Detalle de alertas</h2>
+                    <span class="text-[10px] text-slate-500" x-show="!activeBucket">Seleccione un indicador</span>
+                    <button type="button" x-show="activeBucket" x-cloak @click="activeBucket = null"
+                        class="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300">Cerrar</button>
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto pr-1 text-xs" x-show="!activeBucket">
+                    <p class="text-slate-500 leading-relaxed">
+                        Pulse un indicador superior para ver expedientes vinculados.
+                        @if ($criticalAlerts > 0)
+                            <span class="mt-1 block font-semibold text-rose-400">{{ $criticalAlerts }} situación(es) crítica(s).</span>
+                        @endif
+                    </p>
+                </div>
+                <template x-for="bucket in @js(array_column($alertBuckets, 'key'))" :key="bucket">
+                    <ul class="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" x-show="activeBucket === bucket" x-cloak>
+                        <template x-if="bucketItems(bucket).length === 0">
+                            <li class="py-6 text-center text-slate-500">Sin registros en esta categoría.</li>
+                        </template>
+                        <template x-for="(item, idx) in bucketItems(bucket)" :key="idx">
+                            <li>
+                                <a :href="item.route ?? '#'" wire:navigate
+                                    class="block truncate rounded-md px-2 py-1.5 text-slate-300 ring-1 ring-transparent transition hover:bg-white/5 hover:text-cyan-200 hover:ring-white/10">
+                                    <span x-show="item.due_at" class="mr-1 font-mono text-[10px] text-fuchsia-400/90" x-text="item.due_at"></span>
+                                    <span x-text="item.label"></span>
+                                </a>
+                            </li>
+                        </template>
+                        <li x-show="bucketCount(bucket) > bucketItems(bucket).length" class="pt-1 text-[10px] text-slate-500">
+                            y más expedientes…
+                        </li>
+                    </ul>
+                </template>
+            </section>
+
+            <section class="shrink-0 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.02]">
+                <p class="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">Módulos en roadmap</p>
+                <div class="flex flex-wrap gap-1">
+                    @foreach ($moduleRoadmap as $label)
+                        <span class="rounded-md bg-white/5 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 ring-1 ring-white/10">{{ $label }}</span>
+                    @endforeach
+                </div>
+            </section>
+        </aside>
+        </div>
+
+        @if ($lawyerWorkload !== [])
+            <section class="shrink-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-dash-card dark:ring-white/5 backdrop-blur-sm">
+                <h2 class="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-dash-muted">Carga por abogado titular</h2>
+                <div wire:ignore>
+                    <div x-ref="lawyersChart" data-chart-key="lawyers" data-apex-chart-root class="w-full min-w-0"></div>
+                </div>
+            </section>
+        @endif
+    </div>
 </div>

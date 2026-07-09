@@ -37,6 +37,15 @@ class FoGj04DiligenceActaService
             && $this->drafts->hasWorkerSignature($case);
     }
 
+    public function canUploadSigned(DisciplinaryCase $case): bool
+    {
+        return $case->current_status === CaseStatus::DILIGENCIA
+            && $case->diligence_attendance === DiligenceAttendance::ATTENDED
+            && $case->assigned_lawyer_id !== null
+            && $case->fo_gj_04_generated_at === null
+            && $this->drafts->isReadyForPdf($case);
+    }
+
     /** @return array<string, mixed> */
     public function buildViewData(DisciplinaryCase $case): array
     {
@@ -160,6 +169,49 @@ class FoGj04DiligenceActaService
                 $actor,
                 ActionType::FO_GJ_04_GENERADO,
                 'FO-GJ-04 generado y almacenado en el expediente.',
+            );
+
+            return $case->fresh(['employee', 'assignedLawyer']);
+        });
+    }
+
+    public function uploadSignedAndStore(DisciplinaryCase $case, UploadedFile $file, User $actor): DisciplinaryCase
+    {
+        if (! $this->canUploadSigned($case)) {
+            $missing = $this->drafts->missingDraftRequirements($case);
+            throw ValidationException::withMessages([
+                'fo_gj_04' => $missing !== []
+                    ? 'No es posible cargar el acta firmada. Falta: '.implode(', ', $missing)
+                    : 'Complete el diligenciamiento del FO-GJ-04 antes de cargar el acta firmada.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($case, $file, $actor) {
+            $stage = $case->stages()
+                ->where('stage_type', StageType::DILIGENCIA)
+                ->orderByDesc('sequence')
+                ->first();
+
+            $this->documents->upload(
+                $case,
+                $file,
+                DocumentType::ACTA_DILIGENCIA,
+                $actor,
+                $stage,
+                DisciplinaryCase::NOTE_FO_GJ_04_UPLOADED,
+            );
+
+            $case->forceFill([
+                'fo_gj_04_generated_at' => now(),
+                'fo_gj_04_generated_by' => $actor->id,
+            ])->save();
+
+            $this->audit->logCase(
+                $case->fresh(),
+                $actor,
+                ActionType::FO_GJ_04_GENERADO,
+                'FO-GJ-04 acta firmada cargada al expediente.',
+                ['source' => 'lawyer_pdf_upload'],
             );
 
             return $case->fresh(['employee', 'assignedLawyer']);

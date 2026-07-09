@@ -69,9 +69,18 @@ class CasesIndex extends Component
 
     public function mount(): void
     {
-        Gate::authorize('viewAny', DisciplinaryCase::class);
+        $user = auth()->user();
 
-        if (auth()->user()->hasRole('planeacion')) {
+        // Roles sin acceso al listado (supervisor, planeación) se envían a su
+        // portal —p. ej. por una URL «intended» tras iniciar sesión— en lugar
+        // de un 403 abrupto.
+        if (! $user->can('viewAny', DisciplinaryCase::class) || $user->hasRole('planeacion')) {
+            if ($user->hasDisciplinaryPortalAccess()) {
+                $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
+
+                return;
+            }
+
             abort(403);
         }
 

@@ -47,6 +47,7 @@ use App\Support\Disciplinary\DiligenceStageProgress;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -222,6 +223,12 @@ class CaseDetail extends Component
     public bool $showFoGj04SignaturePadModal = false;
 
     public ?string $foGj04WorkerSignatureDataUri = null;
+
+    public $foGj04SignedUploadFile = null;
+
+    public bool $showFoGj04SignedUploadPreview = false;
+
+    public ?string $foGj04SignedUploadPreviewUrl = null;
 
     public bool $showJustificationRejectConfirm = false;
 
@@ -1217,6 +1224,79 @@ class CaseDetail extends Component
         $this->case->forceFill(['fo_gj_04_payload' => $payload])->save();
         $this->foGj04WorkerSignatureDataUri = null;
         $this->syncCaseFromDb();
+    }
+
+    public function updatedFoGj04SignedUploadFile(mixed $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        Gate::authorize('uploadFoGj04Signed', $this->case);
+
+        try {
+            $this->validate([
+                'foGj04SignedUploadFile' => ['required', 'file', 'mimes:pdf', 'max:15360'],
+            ]);
+        } catch (ValidationException $e) {
+            $this->foGj04SignedUploadFile = null;
+            $this->showFoGj04SignedUploadPreview = false;
+            $this->foGj04SignedUploadPreviewUrl = null;
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Archivo no válido.');
+            }
+
+            return;
+        }
+
+        $this->resetErrorBag('foGj04SignedUploadFile');
+        $this->showFoGj04SignedUploadPreview = true;
+        $this->foGj04SignedUploadPreviewUrl = URL::temporarySignedRoute(
+            'disciplinary.evidences-pending.scanned-preview',
+            now()->addMinutes(30),
+            ['filename' => $this->foGj04SignedUploadFile->getFilename()],
+        );
+    }
+
+    public function confirmFoGj04SignedUpload(FoGj04DiligenceActaService $fo04): void
+    {
+        if (! $this->showFoGj04SignedUploadPreview || $this->foGj04SignedUploadFile === null) {
+            return;
+        }
+
+        Gate::authorize('uploadFoGj04Signed', $this->case);
+
+        try {
+            $this->validate([
+                'foGj04SignedUploadFile' => ['required', 'file', 'mimes:pdf', 'max:15360'],
+            ]);
+            $this->case = $fo04->uploadSignedAndStore(
+                $this->case->fresh(),
+                $this->foGj04SignedUploadFile,
+                auth()->user(),
+            );
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        } catch (\Throwable $e) {
+            $this->addError('fo_gj_04', $e->getMessage());
+
+            return;
+        }
+
+        $this->cancelFoGj04SignedUpload();
+        $this->syncCaseFromDb();
+        session()->flash('success', 'FO-GJ-04 acta firmada cargada al expediente.');
+    }
+
+    public function cancelFoGj04SignedUpload(): void
+    {
+        $this->foGj04SignedUploadFile = null;
+        $this->showFoGj04SignedUploadPreview = false;
+        $this->foGj04SignedUploadPreviewUrl = null;
     }
 
     public function openFoGj44DraftModal(FoGj44DraftService $drafts): void

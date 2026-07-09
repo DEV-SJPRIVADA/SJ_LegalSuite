@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Services\AlertsService;
+use App\Services\HomeDashboardService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -15,23 +15,30 @@ class Home extends Component
     {
         $user = auth()->user();
 
-        if ($user->canSeeFullAppSidebar()) {
+        if ($user->canViewHomeCommandCenter()) {
             return;
         }
 
-        if ($user->hasDisciplinaryPortalAccess()) {
-            $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
-        }
+        $this->redirect($user->suiteLandingUrl(), navigate: true);
     }
 
-    public function render()
+    public function render(HomeDashboardService $dashboard)
     {
-        $alerts = app(AlertsService::class);
         $user = auth()->user();
+        abort_unless($user->canViewHomeCommandCenter(), 403);
+
+        $data = $dashboard->build($user);
 
         return view('livewire.home', [
-            'summary' => $alerts->summary(5, $user),
-            'trend' => $alerts->monthlyTrend(6, $user),
+            'dashboard' => $data,
+            'summary' => $data['summary'],
+            'trend' => $data['trend'],
+            'kpis' => $data['kpis'],
+            'workflow' => $data['workflow'],
+            'lawyerWorkload' => $data['lawyerWorkload'],
+            'caseMapPins' => $data['caseMapPins'],
+            'topMunicipalities' => $data['topMunicipalities'],
+            'casesWithoutMunicipalityCount' => $data['casesWithoutMunicipalityCount'],
         ]);
     }
 }

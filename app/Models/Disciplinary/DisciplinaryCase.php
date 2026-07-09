@@ -764,6 +764,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_04_GENERATED = 'FO-GJ-04 generado desde expediente';
 
+    public const NOTE_FO_GJ_04_UPLOADED = 'FO-GJ-04 acta firmada cargada desde expediente';
+
     public const NOTE_FO_GJ_44_GENERATED = 'FO-GJ-44 generado desde expediente';
 
     public const NOTE_FO_GJ_54_GENERATED = 'FO-GJ-54 generado desde expediente';

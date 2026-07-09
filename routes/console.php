@@ -155,17 +155,19 @@ Artisan::command('disciplinary:pdf-smoke', function () {
     return 0;
 })->purpose('Prueba real de generación PDF vía Browsershot');
 
-function pathIsWithinProject(string $path): bool
-{
-    $base = realpath(base_path()) ?: base_path();
-    $resolved = realpath($path);
+if (! function_exists('pathIsWithinProject')) {
+    function pathIsWithinProject(string $path): bool
+    {
+        $base = realpath(base_path()) ?: base_path();
+        $resolved = realpath($path);
 
-    if ($resolved === false) {
-        return str_starts_with($path, $base);
+        if ($resolved === false) {
+            return str_starts_with($path, $base);
+        }
+
+        return str_starts_with($resolved, $base.DIRECTORY_SEPARATOR)
+            || $resolved === $base;
     }
-
-    return str_starts_with($resolved, $base.DIRECTORY_SEPARATOR)
-        || $resolved === $base;
 }
 
 Artisan::command('inspire', function () {

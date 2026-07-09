@@ -25,6 +25,17 @@ class Dashboard extends Component
             return;
         }
 
+        // Roles con portal propio (supervisor, planeación) que llegan aquí
+        // —p. ej. por una URL «intended» tras iniciar sesión— van a su portal
+        // en lugar de un 403 abrupto.
+        $user = auth()->user();
+
+        if ($user->hasDisciplinaryPortalAccess()) {
+            $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
+
+            return;
+        }
+
         abort(403);
     }
 

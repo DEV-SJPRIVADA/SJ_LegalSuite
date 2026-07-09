@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -606,7 +607,14 @@ class PendingEvidenceIndex extends Component
         if ($this->evidencePreviewCaseId !== null) {
             $previewFile = $this->citationEvidenceFileByCase[$this->evidencePreviewCaseId] ?? null;
             if ($previewFile) {
-                $evidencePreviewUrl = $previewFile->temporaryUrl();
+                // Se sirve mediante un controlador propio con «Content-Disposition:
+                // inline» para que el PDF se previsualice en el iframe; la URL
+                // temporal nativa de Livewire lo entrega como descarga.
+                $evidencePreviewUrl = URL::temporarySignedRoute(
+                    'disciplinary.evidences-pending.scanned-preview',
+                    now()->addMinutes(30),
+                    ['filename' => $previewFile->getFilename()],
+                );
             } else {
                 $this->evidencePreviewCaseId = null;
             }

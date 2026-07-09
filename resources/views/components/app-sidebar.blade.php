@@ -12,19 +12,21 @@
 
     $fullAppSidebar = $u->canSeeFullAppSidebar();
 
-    $sidebarBrandHref = $fullAppSidebar ? route('dashboard') : ($disciplinaryAvailable ? $disciplinaryRoute : route('dashboard'));
+    $sidebarBrandHref = $u->suiteLandingUrl();
 
     if ($fullAppSidebar) {
         $modules = [];
 
-        $modules[] = [
-            'key' => 'home',
-            'label' => 'Inicio',
-            'route' => route('dashboard'),
-            'active' => request()->routeIs('dashboard'),
-            'icon' => 'home',
-            'available' => true,
-        ];
+        if ($u->canViewHomeCommandCenter()) {
+            $modules[] = [
+                'key' => 'home',
+                'label' => 'Inicio',
+                'route' => route('dashboard'),
+                'active' => request()->routeIs('dashboard'),
+                'icon' => 'home',
+                'available' => true,
+            ];
+        }
 
         $modules[] = [
             'key' => 'employees',

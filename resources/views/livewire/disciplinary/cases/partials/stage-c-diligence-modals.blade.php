@@ -133,6 +133,46 @@
     </div>
 @endif
 
+@if (($showFoGj04SignedUploadPreview ?? false) && ($foGj04SignedUploadPreviewUrl ?? null))
+    <div class="fixed inset-0 z-[87] flex items-center justify-center p-3 sm:p-4"
+        x-data
+        x-on:keydown.escape.window="$wire.cancelFoGj04SignedUpload()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fo-gj-04-signed-upload-title"
+        wire:key="fo-gj-04-signed-upload-preview-{{ $case->id }}">
+        <div class="absolute inset-0 bg-black/50 dark:bg-black/60" wire:click="cancelFoGj04SignedUpload" aria-hidden="true"></div>
+        <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
+            <div class="shrink-0 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+                <h2 id="fo-gj-04-signed-upload-title" class="text-base font-bold text-slate-900 dark:text-white">Confirmar acta firmada</h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Revise el PDF escaneado antes de cargarlo al expediente.</p>
+            </div>
+
+            <div class="min-h-0 flex-1 bg-slate-100 dark:bg-black/40">
+                <iframe wire:ignore title="Vista previa acta firmada FO-GJ-04" class="h-full min-h-[240px] w-full bg-white dark:bg-black/20"
+                    src="{{ $foGj04SignedUploadPreviewUrl }}"></iframe>
+            </div>
+
+            <div class="shrink-0 space-y-3 border-t border-slate-200 bg-slate-50 px-4 py-4 dark:border-white/10 dark:bg-dash-ink/80 sm:px-5">
+                @error('fo_gj_04')
+                    <p class="text-xs text-red-600">{{ $message }}</p>
+                @enderror
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button" wire:click="cancelFoGj04SignedUpload"
+                        class="inline-flex items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white dark:border-white/15 dark:text-white dark:hover:bg-white/10">
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="confirmFoGj04SignedUpload" wire:loading.attr="disabled"
+                        class="inline-flex items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
+                        <span wire:loading.remove wire:target="confirmFoGj04SignedUpload">Confirmar y cargar</span>
+                        <span wire:loading wire:target="confirmFoGj04SignedUpload">Cargando…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @if ($showFoGj04PdfPreviewModal ?? false)
     @php
         $foGj04PdfPreviewUrl = route('disciplinary.cases.fo-gj-04.pdf', ['case' => $case, 'inline' => 1]);

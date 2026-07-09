@@ -21,6 +21,7 @@
     $canEditFoGj04Draft = auth()->user()->can('editFoGj04Draft', $case);
     $canPreviewFoGj04 = auth()->user()->can('previewFoGj04', $case);
     $canGenerateFoGj04 = auth()->user()->can('generateFoGj04', $case);
+    $canUploadFoGj04Signed = auth()->user()->can('uploadFoGj04Signed', $case);
     $canCaptureWorkerSignature = auth()->user()->can('captureFoGj04WorkerSignature', $case);
     $foGj04DraftCompleted = $case->fo_gj_04_draft_completed_at !== null;
     $foGj04HasWorkerSignature = app(FoGj04DraftService::class)->hasWorkerSignature($case);
@@ -120,6 +121,11 @@
                         Plazo justificación: <strong>{{ $justificationStage->deadline_at->format('d/m/Y') }}</strong>
                     </p>
                 @endif
+                @if ($workerAttended && $currentStepKey === 'acta' && $canUploadFoGj04Signed && ! $case->fo_gj_04_generated_at)
+                    <p class="text-xs text-slate-600 dark:text-slate-400">
+                        Firma digital en pantalla o imprima la vista previa y cargue el PDF escaneado con la firma del trabajador.
+                    </p>
+                @endif
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -153,12 +159,26 @@
                             Vista previa PDF
                         </button>
                     @endif
+                    @if ($canUploadFoGj04Signed)
+                        <input type="file"
+                            id="fo-gj-04-signed-upload-{{ $case->id }}"
+                            class="sr-only"
+                            accept="application/pdf"
+                            wire:model.live="foGj04SignedUploadFile">
+                        <label for="fo-gj-04-signed-upload-{{ $case->id }}"
+                            class="inline-flex cursor-pointer items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                            Cargar acta firmada (PDF)
+                        </label>
+                    @endif
                     @if ($canGenerateFoGj04)
                         <button type="button" wire:click="generateFoGj04"
                             class="inline-flex items-center rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">
                             Generar y guardar
                         </button>
                     @endif
+                    @error('foGj04SignedUploadFile')
+                        <p class="w-full basis-full text-right text-xs text-red-600">{{ $message }}</p>
+                    @enderror
                 @elseif ($workerAttended && $case->fo_gj_04_generated_at && $canPreviewFoGj04)
                     <button type="button" wire:click="openFoGj04PdfPreview"
                         class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">

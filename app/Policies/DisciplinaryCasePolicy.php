@@ -638,6 +638,19 @@ class DisciplinaryCasePolicy
         return app(FoGj04DiligenceActaService::class)->canGenerate($case);
     }
 
+    public function uploadFoGj04Signed(User $user, DisciplinaryCase $case): bool
+    {
+        if (! $this->previewFoGj04($user, $case)) {
+            return false;
+        }
+
+        if ($case->fo_gj_04_generated_at !== null) {
+            return false;
+        }
+
+        return app(FoGj04DiligenceActaService::class)->canUploadSigned($case);
+    }
+
     public function requestNotificationCoordination(User $user, DisciplinaryCase $case): bool
     {
         return false;

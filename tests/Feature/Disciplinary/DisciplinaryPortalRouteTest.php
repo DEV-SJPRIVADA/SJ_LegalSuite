@@ -66,4 +66,43 @@ class DisciplinaryPortalRouteTest extends TestCase
             ->get('/disciplinary')
             ->assertRedirect(route('disciplinary.evidences-pending.index'));
     }
+
+    public function test_dashboard_redirects_supervisor_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('supervisor');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/dashboard')
+            ->assertRedirect(route('disciplinary.evidences-pending.index'));
+    }
+
+    public function test_cases_index_redirects_supervisor_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('supervisor');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/cases')
+            ->assertRedirect(route('disciplinary.evidences-pending.index'));
+    }
+
+    public function test_cases_index_redirects_planeacion_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('planeacion');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/cases')
+            ->assertRedirect(route('disciplinary.coordinations.index'));
+    }
 }

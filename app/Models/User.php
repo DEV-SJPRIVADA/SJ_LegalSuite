@@ -156,7 +156,39 @@ class User extends Authenticatable
             return route('disciplinary.cases.index');
         }
 
-        return route('dashboard');
+        return $this->suiteLandingUrl();
+    }
+
+    /**
+     * Tablero de inicio (command center): solo rol administrador del suite.
+     */
+    public function canViewHomeCommandCenter(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    /**
+     * Destino por defecto al ingresar al suite (login, logo, fallback de rutas).
+     */
+    public function suiteLandingUrl(): string
+    {
+        if ($this->canViewHomeCommandCenter()) {
+            return route('dashboard');
+        }
+
+        if ($this->hasDisciplinaryPortalAccess()) {
+            return $this->disciplinaryPortalUrl();
+        }
+
+        if ($this->can('viewAny', \App\Models\Employee::class)) {
+            return route('employees.index');
+        }
+
+        if ($this->can('viewAny', User::class)) {
+            return route('users.index');
+        }
+
+        return route('profile');
     }
 
     /**
