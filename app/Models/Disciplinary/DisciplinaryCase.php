@@ -315,6 +315,25 @@ class DisciplinaryCase extends Model
     }
 
     /**
+     * Etapa D visible en solo lectura tras finalizar o archivar el proceso.
+     */
+    public function showsDecisionStageReadOnly(): bool
+    {
+        if ($this->showsDecisionStagePanel()) {
+            return false;
+        }
+
+        if (in_array($this->current_status, [CaseStatus::FINALIZADO, CaseStatus::ARCHIVADO], true)) {
+            return $this->decision !== null
+                || $this->decision_comunicado_generated_at !== null
+                || $this->latestDecisionComunicadoDocument() !== null;
+        }
+
+        return $this->decision_comunicado_generated_at !== null
+            || $this->latestDecisionComunicadoDocument() !== null;
+    }
+
+    /**
      * Etapa C visible en solo lectura tras avanzar a decisión.
      */
     public function showsDiligenceStageReadOnly(): bool

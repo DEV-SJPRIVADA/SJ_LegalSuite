@@ -92,31 +92,6 @@
         </div>
     @endif
 
-    @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME && $case->agendaThread && $case->agendaThread->messages->isNotEmpty())
-        <div class="rounded-xl border border-slate-200 bg-slate-50/80 p-5 space-y-3 dark:border-white/15 dark:bg-slate-900/40">
-            <h4 class="text-xs uppercase tracking-wider text-slate-600 font-semibold dark:text-slate-300">Historial de mensajes (registro anterior en etapa Informe)</h4>
-            <p class="text-xs text-slate-600 dark:text-slate-400">Sólo lectura. La conversación vigente con planeación es la de <strong>citación / reprogramación</strong>.</p>
-            <ul class="space-y-3 max-h-72 overflow-y-auto pr-1 text-sm">
-                @foreach ($case->agendaThread->messages as $msg)
-                    <li class="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
-                        <div class="flex flex-wrap justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                            <span class="font-semibold text-slate-800 dark:text-slate-200">{{ $msg->author?->name ?? '—' }}</span>
-                            <span>{{ $msg->created_at->format('Y-m-d H:i') }}</span>
-                        </div>
-                        <p class="mt-1 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{{ $msg->body }}</p>
-                        @foreach ($msg->attachments as $att)
-                            @if ($att->isImage())
-                                <a href="{{ route('disciplinary.cases.agenda-attachment.inline', [$case, $att]) }}" target="_blank" rel="noopener" class="mt-2 inline-block text-xs font-semibold text-indigo-700 hover:underline dark:text-cyan-300">Ver imagen: {{ $att->original_name }}</a>
-                            @else
-                                <a href="{{ route('disciplinary.cases.agenda-attachment.download', [$case, $att]) }}" class="mt-2 inline-flex text-xs font-semibold text-indigo-700 hover:underline dark:text-cyan-300">Descargar: {{ $att->original_name }}</a>
-                            @endif
-                        @endforeach
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     @can('viewFo51InformePdf', $case)
         @php
             $fo51PdfOnCase = $case->primaryFo51InformeDocument();

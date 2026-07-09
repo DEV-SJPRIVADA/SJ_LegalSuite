@@ -3,23 +3,26 @@
         <x-disciplinary.nav />
     @endpush
 
-    <div class="bg-white border-b border-slate-200 dark:bg-dash-ink/60 dark:border-white/10">
-        <div class="max-w-[1600px] mx-auto px-4 py-3 sm:px-6 lg:px-8">
+    <div class="border-b border-slate-200 bg-white dark:border-white/10 dark:bg-dash-ink/60">
+        <div class="mx-auto max-w-[1600px] px-4 py-2 sm:px-6 lg:px-8">
             <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <h1 class="min-w-0 truncate text-xl font-bold leading-tight text-slate-900 dark:text-white">
-                    Caso <span class="font-mono">{{ $case->case_number }}</span>
-                </h1>
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Expediente</p>
+                    <h1 class="truncate text-sm font-semibold leading-tight text-slate-900 dark:text-white">
+                        Caso <span class="font-mono">{{ $case->case_number }}</span>
+                    </h1>
+                </div>
                 <div class="flex flex-wrap items-center justify-end gap-2">
-                    <x-ui.btn variant="teal" href="{{ route('disciplinary.cases.index') }}" wire:navigate>
+                    <x-ui.btn variant="teal" href="{{ route('disciplinary.cases.index') }}" wire:navigate class="!h-8 text-xs">
                         ← Volver al listado
                     </x-ui.btn>
                     <x-disciplinary.status-badge :status="$case->current_status" size="md" />
                     @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME)
                         @can('transition', $case)
-                            <x-ui.btn type="button" wire:click="openAdvanceStageConfirm">
+                            <x-ui.btn type="button" wire:click="openAdvanceStageConfirm" class="!h-8 text-xs">
                                 Cambiar de etapa
                             </x-ui.btn>
-                            <x-ui.btn type="button" variant="secondary" wire:click="openArchiveConfirm">
+                            <x-ui.btn type="button" variant="secondary" wire:click="openArchiveConfirm" class="!h-8 text-xs">
                                 Archivar
                             </x-ui.btn>
                         @endcan
@@ -29,7 +32,7 @@
         </div>
     </div>
 
-    <div class="py-8">
+    <div class="py-4 sm:py-6">
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
             @if (session('success'))
@@ -61,7 +64,7 @@
             @php
                 $actor = auth()->user();
                 $tabs = [
-                    'overview' => 'Información',
+                    'gestion' => 'Gestión',
                     'timeline' => 'Línea de tiempo',
                     'documents' => 'Documentos',
                     'history' => 'Historial (misma cédula)',
@@ -85,123 +88,16 @@
                 </div>
 
                 <div class="p-6">
-                    @if ($activeTab === 'overview')
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            <dl class="space-y-3 text-sm">
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Disciplinado</dt>
-                                    <dd class="text-gray-900 dark:text-white font-medium">
-                                        {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Documento</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->employee?->document_type }} {{ $case->employee?->document_number }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Cargo / Sede</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->employee?->job_title ?? '—' }} · {{ $case->sede ?? '—' }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Ciudad</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->city ?? '—' }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Reportado por</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->reporter?->name ?? '—' }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="sr-only">Abogado titular del caso</dt>
-                                    <dd class="text-gray-900 dark:text-white">
-                                        @can('assign', $case)
-                                            <select wire:model="assignedLawyerId" wire:change="onLawyerSelectChanged"
-                                                class="w-full max-w-md rounded-md border-gray-300 shadow-sm text-sm dark:bg-dash-lift dark:border-white/15 dark:text-slate-100">
-                                                <option value="">Seleccionar abogado</option>
-                                                @foreach ($lawyerCandidates as $law)
-                                                    <option value="{{ $law->id }}">{{ $law->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            @error('assignedLawyerId')
-                                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                            @enderror
-                                        @else
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $case->assignedLawyer?->name ?? 'Sin abogado asignado' }}</span>
-                                        @endcan
-                                    </dd>
-                                </div>
-                            </dl>
-                            <dl class="space-y-3 text-sm md:col-span-1 xl:col-span-1">
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Apertura</dt>
-                                    <dd class="text-gray-900 dark:text-white">{{ $case->opened_at?->format('Y-m-d') }}</dd>
-                                </div>
-                                @if ($case->closed_at)
-                                    <div>
-                                        <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Cierre</dt>
-                                        <dd class="text-gray-900 dark:text-white">{{ $case->closed_at?->format('Y-m-d') }}</dd>
-                                    </div>
-                                @endif
-                                @if ($case->decision)
-                                    <div>
-                                        <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Decisión</dt>
-                                        <dd class="text-gray-900 dark:text-white font-semibold">{{ $case->decision->label() }}</dd>
-                                    </div>
-                                    @if ($case->decision_notes)
-                                        <div>
-                                            <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Notas de la decisión</dt>
-                                            <dd class="text-gray-700 dark:text-slate-300 whitespace-pre-line">{{ $case->decision_notes }}</dd>
-                                        </div>
-                                    @endif
-                                @endif
-                                <div>
-                                    <dt class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted">Resumen</dt>
-                                    <dd class="text-gray-700 dark:text-slate-300 whitespace-pre-line">{{ $case->summary ?? '—' }}</dd>
-                                </div>
-                            </dl>
-
-                            {{-- Faltas: tercera columna en xl, fila completa abajo en md --}}
-                            <div class="md:col-span-2 xl:col-span-1">
-                                <h4 class="text-xs uppercase tracking-wider text-gray-500 font-semibold dark:text-dash-muted mb-2">Faltas imputadas</h4>
-                                <div class="flex flex-wrap gap-2">
-                                    @forelse ($case->faults as $f)
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/35 dark:text-rose-300 dark:ring-rose-500/30">
-                                            {{ $f->code }} · {{ $f->name }}
-                                            @if ($f->pivot->extra_info)
-                                                <span class="text-rose-500 ml-1">({{ $f->pivot->extra_info }})</span>
-                                            @endif
-                                        </span>
-                                    @empty
-                                        <span class="text-sm text-gray-500 dark:text-slate-400">Sin faltas registradas todavía.</span>
-                                    @endforelse
-                                </div>
-                            </div>
-
-                            @include('livewire.disciplinary.cases.partials.overview-stage-stack', [
+                    @if ($activeTab === 'gestion')
+                        <div class="space-y-5">
+                            @include('livewire.disciplinary.cases.partials.case-summary-strip', [
                                 'case' => $case,
-                                'overviewStageStack' => $overviewStageStack,
-                                'citationReadOnly' => $citationReadOnly ?? false,
-                                'citationReadiness' => $citationReadiness,
-                                'citationRequirementLabels' => $citationRequirementLabels,
-                                'citationSlotChoices' => $citationSlotChoices,
-                                'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel,
-                                'foGj03GenerationChecklist' => $foGj03GenerationChecklist,
-                                'foGj03GenerationLabels' => $foGj03GenerationLabels,
-                                'notificationPending' => $notificationPending,
-                                'notificationCompleted' => $notificationCompleted,
-                                'supervisorCandidates' => $supervisorCandidates,
-                                'citationStageSteps' => $citationStageSteps,
-                                'citationCurrentStep' => $citationCurrentStep,
-                                'citationCurrentStepNumber' => $citationCurrentStepNumber,
-                                'citationTotalSteps' => $citationTotalSteps,
-                                'isDiligenciaActive' => $isDiligenciaActive ?? false,
-                                'diligenceStageSteps' => $diligenceStageSteps ?? collect(),
-                                'diligenceCurrentStep' => $diligenceCurrentStep ?? null,
-                                'diligenceCurrentStepNumber' => $diligenceCurrentStepNumber ?? null,
-                                'diligenceTotalSteps' => $diligenceTotalSteps ?? 3,
-                                'diligenceAdvanceTargetLabel' => $diligenceAdvanceTargetLabel ?? null,
-                                'diligenceSlotDisplay' => $diligenceSlotDisplay,
-                                'diligenceDateRequestStatus' => $diligenceDateRequestStatus,
-                                'showDiligenceAdvanceConfirm' => $showDiligenceAdvanceConfirm ?? false,
+                                'lawyerCandidates' => $lawyerCandidates,
+                            ])
+                            @include('livewire.disciplinary.cases.partials.case-stage-cards', [
+                                'case' => $case,
+                                'stageCards' => $stageCards,
+                                'stageLetterColors' => $stageLetterColors,
                             ])
                         </div>
 
@@ -355,7 +251,7 @@
                 <div class="p-6 space-y-4">
                     <p class="text-sm text-gray-700 dark:text-slate-200 leading-relaxed">
                         Pasarás el caso a la etapa <strong class="text-gray-900 dark:text-white">{{ $advanceStageLabel }}</strong>.
-                        Podrás coordinar fechas con planeación en la pestaña Información.
+                        Podrás coordinar fechas con planeación en la pestaña Gestión.
                     </p>
                     @error('advanceStage')
                         <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -636,4 +532,34 @@
             </div>
         </div>
     @endif
+
+    @if ($planningChatFabVisible)
+        <button type="button" wire:click="openPlanningChatModal"
+            class="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-fuchsia-900/25 hover:bg-fuchsia-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 dark:focus:ring-offset-dash-ink">
+            <span aria-hidden="true">💬</span>
+            Chat planeación
+        </button>
+    @endif
+
+    @include('livewire.disciplinary.cases.partials.planning-chat-modal', [
+        'case' => $case,
+        'citationReadOnly' => $citationReadOnly ?? false,
+        'showsDecisionStageReadOnly' => $showsDecisionStageReadOnly ?? false,
+        'diligenceSlotDisplay' => $diligenceSlotDisplay,
+    ])
+
+    @include('livewire.disciplinary.cases.partials.case-stage-modal-shell', [
+        'openStageModal' => $openStageModal,
+        'stageModalReadOnly' => $stageModalReadOnly,
+    ])
+
+    @include('livewire.disciplinary.cases.partials.case-stage-foot-modals', [
+        'case' => $case,
+        'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel,
+        'supervisorCandidates' => $supervisorCandidates,
+        'citationReadOnly' => $citationReadOnly ?? false,
+        'decisionBranch' => $decisionBranch ?? null,
+        'diligenceAdvanceTargetLabel' => $diligenceAdvanceTargetLabel ?? null,
+        'showDiligenceAdvanceConfirm' => $showDiligenceAdvanceConfirm ?? false,
+    ])
 </div>

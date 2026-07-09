@@ -54,7 +54,8 @@
 @endphp
 
 @if ($showsDiligenceStagePanel ?? $isDiligenciaActive ?? false)
-    <div class="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm ring-1 ring-teal-100 dark:border-teal-400/25 dark:bg-teal-950/15 dark:ring-teal-500/20 dark:shadow-dash-card">
+    <div class="overflow-hidden rounded-xl border border-teal-200 bg-white shadow-sm ring-1 ring-teal-100 dark:border-teal-400/25 dark:bg-teal-950/15 dark:ring-teal-500/20 dark:shadow-dash-card {{ ($insideStageModal ?? false) ? '' : 'md:col-span-2 xl:col-span-3' }}"
+        data-stage-block="c">
 
         <div class="flex flex-col gap-3 border-b border-teal-200/80 bg-teal-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-teal-950/35">
             <div class="min-w-0 shrink-0">
@@ -386,55 +387,4 @@
             @endif
         </div>
     </div>
-
-    @include('livewire.disciplinary.cases.partials.stage-c-diligence-modals', ['case' => $case])
-
-    @if ($showDiligenceAttendanceConfirm ?? false)
-        <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="diligence-attendance-confirm">
-            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Confirmar asistencia</h2>
-                <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    ¿Registrar que el trabajador
-                    <strong>{{ $diligenceAttendancePending === 'attended' ? 'asistió' : 'no asistió' }}</strong>
-                    a la diligencia programada?
-                </p>
-                <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">Esta decisión no podrá modificarse después.</p>
-                <div class="mt-6 flex flex-wrap justify-end gap-2">
-                    <button type="button" wire:click="closeDiligenceAttendanceConfirm" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
-                    <button type="button" wire:click="confirmRegisterDiligenceAttendance" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700">Confirmar</button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if ($showDiligenceAdvanceConfirm ?? false)
-        <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="diligence-advance-confirm">
-            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Confirmar avance de etapa</h2>
-                <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    ¿Pasar el expediente a <strong>{{ $diligenceAdvanceTargetLabel ?? 'comunicado de decisión' }}</strong>?
-                </p>
-                <div class="mt-6 flex flex-wrap justify-end gap-2">
-                    <button type="button" wire:click="closeDiligenceAdvanceConfirm" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
-                    <button type="button" wire:click="confirmAdvanceFromDiligencia" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700">Confirmar y avanzar</button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if ($showJustificationRejectConfirm ?? false)
-        <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="justification-reject-confirm">
-            <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Rechazar justificación</h2>
-                <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                    El expediente pasará a <strong>comité disciplinario</strong>. Opcionalmente indique el motivo:
-                </p>
-                <textarea wire:model="justificationRejectNote" rows="3" class="mt-3 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white" placeholder="Motivo del rechazo (opcional)"></textarea>
-                <div class="mt-6 flex flex-wrap justify-end gap-2">
-                    <button type="button" wire:click="closeJustificationRejectConfirm" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
-                    <button type="button" wire:click="confirmRejectDiligenceJustification" class="px-4 py-2 text-sm font-semibold text-white bg-amber-600 rounded-md hover:bg-amber-700">Confirmar rechazo</button>
-                </div>
-            </div>
-        </div>
-    @endif
 @endif

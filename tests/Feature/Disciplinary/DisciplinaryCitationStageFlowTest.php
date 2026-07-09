@@ -63,6 +63,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
+            ->call('openPlanningChatModal')
             ->set('agendaLawyerBody', 'Adjunto foto')
             ->set('agendaLawyerUploads', [$file])
             ->call('postAgendaLawyer')
@@ -80,6 +81,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
+            ->call('openPlanningChatModal')
             ->assertSee('Escriba un mensaje para Planeación')
             ->assertSee('Adjuntar archivo')
             ->set('agendaLawyerBody', 'Hola planeación')
@@ -142,8 +144,9 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread.messages'])])
+            ->call('openPlanningChatModal')
             ->assertSee('Escriba un mensaje para Planeación')
-            ->assertSee('Ocultar chat')
+            ->call('openStageCard', 'b')
             ->assertSee('Fecha y usuario para notificación')
             ->assertSee('Mañana')
             ->assertSee('Norte');

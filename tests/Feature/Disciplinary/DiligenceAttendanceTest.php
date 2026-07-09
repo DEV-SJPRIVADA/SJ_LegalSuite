@@ -67,6 +67,7 @@ class DiligenceAttendanceTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Asistió')
             ->assertSee('No asistió')
             ->assertSee('Primer paso obligatorio');

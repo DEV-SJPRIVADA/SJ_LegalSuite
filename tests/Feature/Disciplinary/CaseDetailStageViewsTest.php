@@ -34,6 +34,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case])
+            ->call('openStageCard', 'b')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
             ->assertDontSee('Completada · Solo lectura')
             ->assertDontSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)');
@@ -99,8 +100,10 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
+            ->call('openStageCard', 'b')
             ->assertSee('Completada · Solo lectura')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
+            ->call('openStageCard', 'c')
             ->assertSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)')
             ->assertSee('Diligenciar FO-GJ-04')
             ->assertDontSee('Plantilla FO-GJ-04')
@@ -114,15 +117,15 @@ class CaseDetailStageViewsTest extends TestCase
             ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->html();
 
-        $posC = strpos($html, 'Etapa C · Diligencia disciplinaria (FO-GJ-04)');
-        $posB = strpos($html, 'Etapa B · Citación a diligencia (FO-GJ-03)');
-        $posA = strpos($html, 'data-stage-block="a"');
+        $posA = strpos($html, 'data-stage-card="a"');
+        $posB = strpos($html, 'data-stage-card="b"');
+        $posC = strpos($html, 'data-stage-card="c"');
 
-        $this->assertNotFalse($posC);
-        $this->assertNotFalse($posB);
         $this->assertNotFalse($posA);
-        $this->assertLessThan($posB, $posC, 'Etapa C debe aparecer antes que B en el HTML');
-        $this->assertLessThan($posA, $posB, 'Etapa B debe aparecer antes que A en el HTML');
+        $this->assertNotFalse($posB);
+        $this->assertNotFalse($posC);
+        $this->assertLessThan($posC, $posB, 'Tarjeta B debe aparecer antes que C en la rejilla');
+        $this->assertLessThan($posB, $posA, 'Tarjeta A debe aparecer antes que B en la rejilla');
     }
 
     public function test_diligence_advance_transitions_to_decision(): void
@@ -142,6 +145,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->call('confirmAdvanceFromDiligencia')
             ->assertHasNoErrors();
@@ -160,6 +164,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->assertHasErrors('diligenceAdvance');
     }
@@ -198,6 +203,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Etapa C · Comité disciplinario')
             ->assertSee('Diligenciar comité')
             ->assertDontSee('Etapa B · Citación a diligencia (FO-GJ-03)');
@@ -236,6 +242,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Siguiente etapa')
             ->call('requestAdvanceFromDiligencia')
             ->call('confirmAdvanceFromDiligencia')
@@ -257,6 +264,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->assertHasErrors('diligenceAdvance');
     }

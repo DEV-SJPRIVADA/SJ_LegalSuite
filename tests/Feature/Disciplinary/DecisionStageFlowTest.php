@@ -37,6 +37,7 @@ class DecisionStageFlowTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case])
+            ->call('openStageCard', 'd')
             ->assertSee('Etapa D · Comunicado de decisión')
             ->assertSee('Registrar tipo de decisión');
     }

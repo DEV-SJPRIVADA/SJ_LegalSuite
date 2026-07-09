@@ -65,6 +65,7 @@ class DiligenceHearingTimeDisplayTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case])
+            ->call('openStageCard', 'b')
             ->assertSee('03/06/2026')
             ->assertSee('04:00 PM');
     }

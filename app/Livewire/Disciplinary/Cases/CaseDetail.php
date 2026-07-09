@@ -42,6 +42,8 @@ use App\Enums\Disciplinary\Decision;
 use App\Support\Disciplinary\DecisionBranch;
 use App\Support\Disciplinary\DecisionStageProgress;
 use App\Support\Disciplinary\CaseOverviewStageStack;
+use App\Support\Disciplinary\CaseStageCardState;
+use App\Support\Disciplinary\WorkflowStageBuckets;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Support\Disciplinary\DiligenceStageProgress;
 use Illuminate\Database\Eloquent\Collection;
@@ -65,7 +67,7 @@ class CaseDetail extends Component
 
     public DisciplinaryCase $case;
 
-    public string $activeTab = 'overview';
+    public string $activeTab = 'gestion';
 
     /** Confirmación A → B (citación) desde etapa Informe. */
     public bool $showAdvanceStageConfirm = false;
@@ -125,8 +127,19 @@ class CaseDetail extends Component
 
     public bool $showDiligenceAdvanceConfirm = false;
 
-    /** Abogado muestra u oculta el panel de chat (no cierra el hilo; cierre definitivo al cambiar de etapa). */
+    /** @deprecated Usar showPlanningChatModal; se mantiene por compatibilidad con vistas antiguas. */
     public bool $coordinationChatVisible = true;
+
+    /** Etapa abierta en modal (a–d). */
+    public string $openStageModal = '';
+
+    public bool $stageModalReadOnly = false;
+
+    public bool $showPlanningChatModal = false;
+
+    public ?string $stageCardAlert = null;
+
+    public bool $showCaseDetailsExpanded = false;
 
     public string $citationEvidenceType = '';
 
@@ -290,7 +303,74 @@ class CaseDetail extends Component
 
     public function setTab(string $tab): void
     {
+        if ($tab === 'overview') {
+            $tab = 'gestion';
+        }
+
         $this->activeTab = $tab;
+    }
+
+    public function openStageCard(string $key): void
+    {
+        $key = strtolower($key);
+        if (! in_array($key, ['a', 'b', 'c', 'd'], true)) {
+            return;
+        }
+
+        $cardState = app(CaseStageCardState::class);
+        $state = $cardState->stateFor($this->case, $key);
+
+        if ($state === CaseStageCardState::LOCKED) {
+            $this->stageCardAlert = $cardState->lockedAlertMessage($key);
+
+            return;
+        }
+
+        $this->openStageModal = $key;
+        $this->stageModalReadOnly = $state === CaseStageCardState::COMPLETED;
+        $this->stageCardAlert = null;
+    }
+
+    public function closeStageModal(): void
+    {
+        $this->openStageModal = '';
+        $this->stageModalReadOnly = false;
+    }
+
+    public function dismissStageCardAlert(): void
+    {
+        $this->stageCardAlert = null;
+    }
+
+    public function openPlanningChatModal(): void
+    {
+        $this->showPlanningChatModal = true;
+        $this->coordinationChatVisible = true;
+    }
+
+    public function closePlanningChatModal(): void
+    {
+        $this->showPlanningChatModal = false;
+        $this->coordinationChatVisible = false;
+    }
+
+    public function planningChatFabVisible(): bool
+    {
+        if ($this->case->allowsAgendaThread() && $this->case->hasCoordinationStarted()) {
+            return true;
+        }
+
+        if ($this->case->decision_coordination_started_at !== null) {
+            return true;
+        }
+
+        $this->case->loadMissing('agendaThread.messages');
+
+        if ($this->case->agendaThread && $this->case->agendaThread->messages->isNotEmpty()) {
+            return true;
+        }
+
+        return false;
     }
 
     public function openClaimConfirm(): void
@@ -552,23 +632,25 @@ class CaseDetail extends Component
             return;
         }
 
-        $this->coordinationChatVisible = true;
+        $this->openPlanningChatModal();
         $this->syncCaseFromDb();
         session()->flash('success', 'Coordinación iniciada. Planeación fue notificada.');
     }
 
     public function showCoordinationChat(): void
     {
-        if (! $this->case->hasCoordinationStarted() || ! $this->case->allowsAgendaThread()) {
-            return;
+        if (! $this->case->hasCoordinationStarted() && $this->case->decision_coordination_started_at === null) {
+            if (! $this->case->agendaThread || $this->case->agendaThread->messages->isEmpty()) {
+                return;
+            }
         }
 
-        $this->coordinationChatVisible = true;
+        $this->openPlanningChatModal();
     }
 
     public function hideCoordinationChat(): void
     {
-        $this->coordinationChatVisible = false;
+        $this->closePlanningChatModal();
     }
 
     public function postAgendaLawyer(DisciplinaryAgendaThreadService $agenda): void
@@ -1860,6 +1942,7 @@ class CaseDetail extends Component
         $showsDiligenceStagePanel = $this->case->showsDiligenceStagePanel();
         $showsDiligenceStageReadOnly = $this->case->showsDiligenceStageReadOnly();
         $showsDecisionStagePanel = $this->case->showsDecisionStagePanel();
+        $showsDecisionStageReadOnly = $this->case->showsDecisionStageReadOnly();
 
         if ($citationReadOnly) {
             $citationStageSteps = $stageProgress->completedSteps();
@@ -1872,9 +1955,16 @@ class CaseDetail extends Component
         }
 
         $overviewStageStack = app(CaseOverviewStageStack::class)->stagesForCase($this->case);
+        $stageCardState = app(CaseStageCardState::class);
 
         return view('livewire.disciplinary.cases.show', [
             'overviewStageStack' => $overviewStageStack,
+            'stageCards' => collect($stageCardState->cardDefinitions())->map(fn (array $def) => [
+                ...$def,
+                'state' => $stageCardState->stateFor($this->case, $def['key']),
+            ]),
+            'stageLetterColors' => WorkflowStageBuckets::letterColorClasses(),
+            'planningChatFabVisible' => $this->planningChatFabVisible(),
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
@@ -1900,10 +1990,12 @@ class CaseDetail extends Component
             'showsDiligenceStagePanel' => $showsDiligenceStagePanel || $showsDiligenceStageReadOnly,
             'diligenceReadOnly' => $showsDiligenceStageReadOnly && ! $showsDiligenceStagePanel,
             'showsDecisionStagePanel' => $showsDecisionStagePanel,
-            'decisionStageSteps' => $showsDecisionStagePanel ? $decisionStageProgress->steps($this->case) : collect(),
-            'decisionCurrentStep' => $showsDecisionStagePanel ? $decisionStageProgress->currentStep($this->case) : null,
-            'decisionCurrentStepNumber' => $showsDecisionStagePanel ? $decisionStageProgress->currentStepNumber($this->case) : null,
-            'decisionTotalSteps' => $showsDecisionStagePanel ? $decisionStageProgress->totalSteps($this->case) : 0,
+            'showsDecisionStageReadOnly' => $showsDecisionStageReadOnly,
+            'decisionReadOnly' => $showsDecisionStageReadOnly && ! $showsDecisionStagePanel,
+            'decisionStageSteps' => ($showsDecisionStagePanel || $showsDecisionStageReadOnly) ? $decisionStageProgress->steps($this->case) : collect(),
+            'decisionCurrentStep' => ($showsDecisionStagePanel || $showsDecisionStageReadOnly) ? $decisionStageProgress->currentStep($this->case) : null,
+            'decisionCurrentStepNumber' => ($showsDecisionStagePanel || $showsDecisionStageReadOnly) ? $decisionStageProgress->currentStepNumber($this->case) : null,
+            'decisionTotalSteps' => ($showsDecisionStagePanel || $showsDecisionStageReadOnly) ? $decisionStageProgress->totalSteps($this->case) : 0,
             'decisionBranch' => DecisionBranch::forDecision($this->case->decision),
             'diligenceStageSteps' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->steps($this->case) : collect(),
             'diligenceCurrentStep' => ($showsDiligenceStagePanel || $showsDiligenceStageReadOnly) ? $diligenceStageProgress->currentStep($this->case) : null,
@@ -2071,7 +2163,7 @@ class CaseDetail extends Component
 
         try {
             $this->case = $agenda->closeCoordination($case, auth()->user());
-            $this->coordinationChatVisible = false;
+            $this->closePlanningChatModal();
             $this->syncCaseFromDb();
         } catch (\Throwable $e) {
             report($e);

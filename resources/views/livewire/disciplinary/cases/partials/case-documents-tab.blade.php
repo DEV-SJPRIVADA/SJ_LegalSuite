@@ -6,7 +6,7 @@
 @if (auth()->user()->isDisciplinaryFieldOperator())
     <p class="mb-4 text-sm text-slate-600 dark:text-slate-400">
         Para diligenciar el <strong class="text-slate-800 dark:text-slate-200">informe disciplinario FO-GJ-51</strong>, use la pestaña
-        <strong class="text-slate-800 dark:text-slate-200">Información</strong>. Adjunte aquí las evidencias de notificación cuando el sistema lo permita.
+        <strong class="text-slate-800 dark:text-slate-200">Gestión</strong>. Adjunte aquí las evidencias de notificación cuando el sistema lo permita.
     </p>
 @endif
 

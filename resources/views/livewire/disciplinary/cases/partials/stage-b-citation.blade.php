@@ -20,7 +20,6 @@
     $stageProgressHelper = app(CitationStageProgress::class);
     $actionTitle = $stageProgressHelper->actionBarTitle($currentStepKey);
     $coordinationChatAvailable = $case->hasCoordinationStarted() && $case->allowsAgendaThread() && ! $coordinationIsClosed;
-    $showChatPanel = $coordinationChatAvailable && ($coordinationChatVisible ?? true);
     $canGenerateFoGj03 = auth()->user()->can('generateFoGj03', $case);
     $canPreviewFoGj03 = auth()->user()->can('previewFoGj03', $case);
     $canEditFoGj03Draft = auth()->user()->can('editFoGj03Draft', $case);
@@ -39,7 +38,6 @@
 
     if ($citationReadOnly) {
         $coordinationIsClosed = true;
-        $showChatPanel = false;
         $canSelectCitationSlot = false;
         $showConfirmCitationSlot = false;
         $useDiligenceDateActionBar = $case->hasCoordinationStarted();
@@ -53,10 +51,11 @@
 @endphp
 
 @if ($showStageB)
-    <div class="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border shadow-sm ring-1 dark:shadow-dash-card
+    <div class="overflow-hidden rounded-xl border shadow-sm ring-1 dark:shadow-dash-card {{ ($insideStageModal ?? false) ? '' : 'md:col-span-2 xl:col-span-3' }}
         {{ $citationReadOnly
             ? 'border-slate-200 bg-slate-50/80 ring-slate-200/80 dark:border-white/10 dark:bg-slate-900/25 dark:ring-white/10'
-            : 'border-indigo-200 bg-white ring-indigo-100 dark:border-indigo-400/25 dark:bg-indigo-950/15 dark:ring-indigo-500/20' }}">
+            : 'border-indigo-200 bg-white ring-indigo-100 dark:border-indigo-400/25 dark:bg-indigo-950/15 dark:ring-indigo-500/20' }}"
+        data-stage-block="b">
 
         {{-- Cabecera: título + stepper + avanzar etapa --}}
         <div class="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10
@@ -195,18 +194,11 @@
                             @endcan
                         @endif
 
-                        @if ($coordinationChatAvailable && $isAssignedLawyer)
-                            @if ($showChatPanel)
-                                <button type="button" wire:click="hideCoordinationChat"
-                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
-                                    Ocultar chat
-                                </button>
-                            @else
-                                <button type="button" wire:click="showCoordinationChat"
-                                    class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                    Mostrar chat
-                                </button>
-                            @endif
+                        @if ($coordinationChatAvailable && $isAssignedLawyer && ! $citationReadOnly)
+                            <button type="button" wire:click="openPlanningChatModal"
+                                class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                Chat planeación
+                            </button>
                         @endif
                     @endif
                 </div>
@@ -254,84 +246,8 @@
             </div>
         @endif
 
-        {{-- Zona de trabajo --}}
-        <div class="flex flex-col" x-data="window.sjAgendaAttachmentLightbox()" x-on:open-agenda-lightbox="openAgendaAttachment($event.detail)">
-            @if ($showChatPanel)
-                <div class="flex min-h-[14rem] max-h-[22rem] flex-col bg-white dark:bg-dash-lift/40"
-                    wire:poll.visible.10s>
-                    <div class="flex-1 overflow-y-auto px-4 py-3">
-                        @if ($coordinationIsClosed)
-                            <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Coordinación cerrada — historial de solo lectura.</p>
-                        @else
-                            <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                                Planeación responde desde <strong class="font-semibold text-slate-700 dark:text-slate-300">Coordinaciones</strong>.
-                            </p>
-                        @endif
-
-                        @if ($case->agendaThread && $case->agendaThread->messages->isNotEmpty())
-                            <ul class="space-y-2">
-                                @foreach ($case->agendaThread->messages as $msg)
-                                    <x-disciplinary.agenda-message
-                                        :message="$msg"
-                                        :case="$case"
-                                        :selectable-slots="$canSelectCitationSlot"
-                                        wire:key="agenda-msg-{{ $msg->id }}" />
-                                @endforeach
-                            </ul>
-                        @else
-                            <p class="py-8 text-center text-sm italic text-slate-400 dark:text-slate-500">Sin mensajes aún. Escriba abajo para iniciar el diálogo.</p>
-                        @endif
-                    </div>
-
-                    @can('postAgendaLawyer', $case)
-                        @if (! $coordinationIsClosed)
-                            <x-disciplinary.agenda-chat-composer
-                                body-model="agendaLawyerBody"
-                                uploads-property="agendaLawyerUploads"
-                                send-action="postAgendaLawyer"
-                                remove-upload-method="removeAgendaLawyerUploadAt"
-                                :uploads="$agendaLawyerUploads ?? []"
-                                placeholder="Escriba un mensaje para Planeación…"
-                                :input-id="'agenda-lawyer-body-'.$case->id"
-                                error-field="agendaLawyerBody" />
-                        @endif
-                    @endcan
-
-                </div>
-            @elseif ($case->hasCoordinationStarted() && (! $showChatPanel || $citationReadOnly))
-                <div class="border-b border-slate-200 px-4 py-2 dark:border-white/10" x-data="{ historyOpen: {{ ($coordinationIsClosed || $citationReadOnly) ? 'true' : 'false' }} }">
-                    @if ($coordinationIsClosed)
-                        <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Coordinación finalizada al avanzar de etapa — historial de solo lectura.</p>
-                    @elseif ($coordinationChatAvailable && $isAssignedLawyer && ! $citationReadOnly)
-                        <button type="button" wire:click="showCoordinationChat"
-                            class="mb-2 text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
-                            Mostrar chat con Planeación
-                        </button>
-                    @endif
-                    @unless ($citationReadOnly)
-                    <button type="button" @click="historyOpen = !historyOpen"
-                        class="text-xs font-semibold text-indigo-700 underline dark:text-indigo-300">
-                        <span x-text="historyOpen ? 'Ocultar historial de coordinación' : 'Ver historial de coordinación ({{ $case->agendaThread?->messages->count() ?? 0 }} mensajes)'"></span>
-                    </button>
-                    @else
-                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                            Historial de coordinación ({{ $case->agendaThread?->messages->count() ?? 0 }} mensajes)
-                        </p>
-                    @endunless
-                    <div x-show="historyOpen" x-cloak class="mt-2 max-h-48 overflow-y-auto" @unless($citationReadOnly) wire:poll.visible.15s @endunless>
-                        @if ($case->agendaThread && $case->agendaThread->messages->isNotEmpty())
-                            <ul class="space-y-2">
-                                @foreach ($case->agendaThread->messages as $msg)
-                                    <x-disciplinary.agenda-message :message="$msg" :case="$case" wire:key="agenda-msg-collapsed-{{ $msg->id }}" />
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
-                </div>
-            @endif
-
-            {{-- Panel del paso activo (solo si hay formulario o aviso técnico; sin texto duplicado bajo el chat) --}}
-            @if ($showCitationStepPanel)
+        {{-- Panel del paso activo --}}
+        @if ($showCitationStepPanel)
             <div class="space-y-4 px-4 py-4">
                 @if ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $canGenerateFoGj03)
                     <div class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm dark:border-amber-500/40 dark:bg-amber-950/30">
@@ -390,16 +306,6 @@
                     @endif
                 @endcan
             </div>
-            @endif
-
-            <x-disciplinary.agenda-attachment-lightbox-modal />
-        </div>
+        @endif
     </div>
-
-    @include('livewire.disciplinary.cases.partials.stage-b-citation-modals', [
-        'case' => $case,
-        'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel ?? null,
-        'supervisorCandidates' => $supervisorCandidates ?? collect(),
-        'citationReadOnly' => $citationReadOnly,
-    ])
 @endif

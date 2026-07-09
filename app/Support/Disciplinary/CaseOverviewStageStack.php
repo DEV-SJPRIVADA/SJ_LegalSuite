@@ -6,7 +6,7 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryCase;
 
 /**
- * Orden de etapas en la pestaña Información del detalle del caso.
+ * Orden de etapas en la pila legacy (pestaña Gestión usa tarjetas A–D).
  * La etapa más reciente va primero; la A (informe FO-GJ-51) siempre al final.
  */
 final class CaseOverviewStageStack
