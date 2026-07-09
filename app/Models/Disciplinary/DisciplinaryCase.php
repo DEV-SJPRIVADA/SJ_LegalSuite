@@ -13,6 +13,7 @@ use App\Enums\Disciplinary\StageType;
 use App\Models\ColombianMunicipality;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Disciplinary\WorkflowStageBuckets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -514,6 +515,33 @@ class DisciplinaryCase extends Model
             ->all();
 
         return $query->whereIn('current_status', $statuses);
+    }
+
+    /** Casos cerrados (finalizado / archivado). */
+    public function scopeClosed(Builder $query): Builder
+    {
+        return $query->whereIn('current_status', WorkflowStageBuckets::closedStatusValues());
+    }
+
+    /** Casos activos (excluye finalizado / archivado). */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereNotIn('current_status', WorkflowStageBuckets::closedStatusValues());
+    }
+
+    /** Filtra por letra de etapa del flujo (A–F) sobre current_stage_type. */
+    public function scopeWorkflowStageLetter(Builder $query, string $letter): Builder
+    {
+        $types = WorkflowStageBuckets::typesForLetter($letter);
+
+        if ($types === []) {
+            return $query->whereRaw('1=0');
+        }
+
+        return $query->whereIn(
+            'current_stage_type',
+            array_map(static fn (StageType $t) => $t->value, $types)
+        );
     }
 
     public function scopeAssignedTo(Builder $query, int $userId): Builder

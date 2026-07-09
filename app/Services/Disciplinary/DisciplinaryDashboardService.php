@@ -8,6 +8,7 @@ use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\User;
+use App\Support\Disciplinary\WorkflowStageBuckets;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -183,38 +184,7 @@ class DisciplinaryDashboardService
 
         $total = (int) $byStage->sum();
 
-        $definitions = [
-            [
-                'letter' => 'A',
-                'title' => 'Informe disciplinario',
-                'types' => [StageType::INFORME],
-            ],
-            [
-                'letter' => 'B',
-                'title' => 'Citación a diligencia',
-                'types' => [StageType::CITACION, StageType::REPROGRAMACION, StageType::JUSTIFICACION],
-            ],
-            [
-                'letter' => 'C',
-                'title' => 'Diligencia y acta',
-                'types' => [StageType::COMITE, StageType::DILIGENCIA],
-            ],
-            [
-                'letter' => 'D',
-                'title' => 'Decisión / cierre',
-                'types' => [StageType::DECISION],
-            ],
-            [
-                'letter' => 'E',
-                'title' => 'Apelación',
-                'types' => [StageType::APELACION],
-            ],
-            [
-                'letter' => 'F',
-                'title' => 'Segunda instancia',
-                'types' => [StageType::SEGUNDA_INSTANCIA],
-            ],
-        ];
+        $definitions = WorkflowStageBuckets::definitions();
 
         $stages = [];
         foreach ($definitions as $def) {
@@ -391,6 +361,57 @@ class DisciplinaryDashboardService
                 'finalizados' => (int) $r->finalizados,
             ])
             ->all();
+    }
+
+    /**
+     * Conteos para el rail de etapas del listado (alcance forDisciplinaryActor).
+     *
+     * @return array{
+     *     total: int,
+     *     closed: int,
+     *     stages: list<array{letter: string, title: string, count: int}>
+     * }
+     */
+    public function workflowStageRailCounts(User $actor): array
+    {
+        $base = DisciplinaryCase::query()->forDisciplinaryActor($actor);
+
+        $total = (int) (clone $base)->count();
+        $closed = (int) (clone $base)->closed()->count();
+
+        $byStage = (clone $base)
+            ->open()
+            ->select('current_stage_type', DB::raw('COUNT(*) as c'))
+            ->groupBy('current_stage_type')
+            ->pluck('c', 'current_stage_type')
+            ->mapWithKeys(function ($count, $raw) {
+                $key = match (true) {
+                    $raw instanceof StageType => $raw->value,
+                    $raw === null, $raw === '' => '',
+                    default => (string) $raw,
+                };
+
+                return [$key => (int) $count];
+            });
+
+        $stages = [];
+        foreach (WorkflowStageBuckets::definitions() as $def) {
+            $count = 0;
+            foreach ($def['types'] as $type) {
+                $count += (int) ($byStage[$type->value] ?? 0);
+            }
+            $stages[] = [
+                'letter' => $def['letter'],
+                'title' => $def['title'],
+                'count' => $count,
+            ];
+        }
+
+        return [
+            'total' => $total,
+            'closed' => $closed,
+            'stages' => $stages,
+        ];
     }
 
     /**
