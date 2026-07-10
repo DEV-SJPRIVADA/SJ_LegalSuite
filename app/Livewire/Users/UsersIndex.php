@@ -9,6 +9,7 @@ use App\Models\OrganizationalArea;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -205,13 +206,16 @@ class UsersIndex extends Component
         $term = mb_strtolower(trim($this->citySearch));
 
         if ($term === '') {
-            return $grouped;
+            return $grouped
+                ->map(fn ($rows) => $rows instanceof Collection ? $rows->all() : (array) $rows)
+                ->all();
         }
 
         $filtered = [];
         foreach ($grouped as $department => $municipalities) {
+            $list = $municipalities instanceof Collection ? $municipalities->all() : (array) $municipalities;
             $rows = array_values(array_filter(
-                $municipalities,
+                $list,
                 fn (array $mun): bool => str_contains(mb_strtolower($mun['name']), $term)
                     || str_contains($mun['code'], $term)
             ));

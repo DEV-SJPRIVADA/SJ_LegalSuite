@@ -4,6 +4,7 @@ namespace Tests\Feature\Users;
 
 use App\Enums\PlatformLevel;
 use App\Livewire\Users\UsersIndex;
+use App\Models\ColombianMunicipality;
 use App\Models\JobPosition;
 use App\Models\OrganizationalArea;
 use App\Models\User;
@@ -99,6 +100,36 @@ class UsersIndexTest extends TestCase
 
         $this->assertSame('AP', $user->initials());
         $this->assertSame($position->name, $user->cargoDisplayLabel());
+    }
+
+    public function test_filtered_municipalities_for_form_returns_array(): void
+    {
+        ColombianMunicipality::query()->create([
+            'department_code' => '76',
+            'department_name' => 'Valle del Cauca',
+            'municipality_code' => '76001',
+            'municipality_name' => 'Cali',
+        ]);
+
+        $admin = $this->adminUser();
+        $operaciones = OrganizationalArea::query()->where('slug', 'operaciones')->firstOrFail();
+        $supervisor = JobPosition::query()
+            ->where('organizational_area_id', $operaciones->id)
+            ->where('permission_level_name', PlatformLevel::Nivel7->value)
+            ->firstOrFail();
+
+        Livewire::actingAs($admin)
+            ->test(UsersIndex::class)
+            ->call('openCreate')
+            ->set('organizationalAreaId', $operaciones->id)
+            ->set('jobPositionId', $supervisor->id)
+            ->tap(function ($component) {
+                $grouped = $component->instance()->filteredMunicipalitiesForForm;
+                $this->assertIsArray($grouped);
+                $this->assertNotEmpty($grouped);
+                $first = reset($grouped);
+                $this->assertIsArray($first);
+            });
     }
 
     private function adminUser(): User
