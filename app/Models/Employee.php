@@ -139,24 +139,47 @@ class Employee extends Model
         return $query->where('is_active', true);
     }
 
-    public function isProfileComplete(): bool
+    /**
+     * @return list<string>
+     */
+    public function profileCompletionIssues(): array
     {
-        if ($this->employee_job_position_id === null
-            || $this->employee_scope === null
-            || $this->hired_at === null
-            || $this->contract_type === null) {
-            return false;
+        $issues = [];
+
+        if ($this->employee_job_position_id === null) {
+            $issues[] = 'Cargo';
         }
 
-        if (! $this->hasResidenceTerritory() || ! $this->hasWorkTerritory()) {
-            return false;
+        if ($this->employee_scope === null) {
+            $issues[] = 'Rol empleado';
+        }
+
+        if ($this->hired_at === null) {
+            $issues[] = 'Fecha de ingreso';
+        }
+
+        if ($this->contract_type === null) {
+            $issues[] = 'Tipo de contrato';
+        }
+
+        if (! $this->hasResidenceTerritory()) {
+            $issues[] = 'Territorio de residencia';
+        }
+
+        if (! $this->hasWorkTerritory()) {
+            $issues[] = 'Territorio de labor';
         }
 
         if ($this->isGuardaCargo() && ! filled($this->municipality_code)) {
-            return false;
+            $issues[] = 'Municipio de labor (cargo guarda)';
         }
 
-        return true;
+        return $issues;
+    }
+
+    public function isProfileComplete(): bool
+    {
+        return $this->profileCompletionIssues() === [];
     }
 
     public function workTerritoryLabel(): string

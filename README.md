@@ -39,8 +39,8 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 
 Además del catálogo jurídico, existen en el sidebar:
 
-- **Empleados** (`employees.view` / `employees.manage`): **Empleados SJ** — directorio con KPIs clicables, tabla compacta sin scroll de página, filas expandibles (chevron) y carga masiva Excel con progreso por lotes (`EmployeeBulkImportService`, `bulk-import-progress.js`).
-- **Usuarios** (`users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
+- **Empleados** (`employees.view` / `employees.manage`): **Empleados SJ** — cockpit con KPIs clicables, tabla compacta sin scroll de página, filas expandibles (chevron), modal de alta/edición por secciones con indicador de **perfil completo** en tiempo real, y carga masiva Excel con progreso por lotes (`EmployeeBulkImportService`, `bulk-import-progress.js`).
+- **Usuarios** (`users.view` / `users.manage`): **cockpit** alineado con Empleados — KPIs clicables (Total, Activos, Inactivos, Solo lectura, Admins), tabla expandible, modal por secciones con rol efectivo y búsqueda de ciudades autorizadas; alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
 
 Quienes tengan **`settings.manage-territory`** ven **Ajustes** en el sidebar: pantalla **`/settings/territorio`** — cockpit con KPIs (municipios, departamentos, coordenadas, última actualización), **dropzone** DIVIPOLA (Excel/CSV) y **explorador** paginado del catálogo cargado. Ese listado alimenta los **pins del mapa** en el dashboard disciplinario, selects de municipio en empleados/FO-GJ-51 y la vinculación por municipio en expedientes.
 
@@ -169,8 +169,8 @@ Ruta: **`GET /employees`** · permisos `employees.view` / `employees.manage`
 | Vista / acción | Contenido |
 |---|---|
 | **Listado (cockpit)** | Vista sin scroll de página: header **Empleados SJ** + acciones compactas. **5 KPIs clicables** (Total, Activos, Incompletos, Operativos, Administrativos) con filtros en URL. Toolbar integrado: búsqueda, pills `Todos\|Activos\|Inactivos\|Incompletos`, filtros por **rol** y **contrato**, paginación **20/50/100**. Tabla compacta (~36px): chevron ▼ (solo el chevron expande; una fila a la vez) + empleado en una línea + **cargo** + estado; detalle expandido: territorio, contrato, rol, contacto, **Editar**. Vista móvil en tarjetas con la misma lógica. Nombres en formato legible (`Employee::displayName()`). Incompletos: borde ámbar izquierdo (`isProfileComplete()` exige cargo, contrato, ingreso y territorio residencia/labor; **no** pide fecha de terminación). |
-| **Crear / Editar** | Modal en 4 bloques: datos personales (**nombre completo**), contacto (departamento/municipio residencia y labor), laboral (tipo contrato, cargo del catálogo `employee_job_positions`, rol operativo/administrativo, fecha ingreso), emergencias |
-| **Carga masiva** | Excel `.xlsx` fila 1 = encabezados; plantilla **`GET /employees/plantilla`**. Columnas: nombre, documento, fechas, género, dirección, territorios (municipio o departamento), contactos (`S/I`, `NN`, `NA`, `NO`), contrato, cargo, rol, salario, contacto emergencia. Import por lotes con progreso animado en UI (`EmployeeBulkImportStore`, polling Livewire, `bulk-import-progress.js`; `BATCH_SIZE=12`). |
+| **Crear / Editar** | Modal en 4 bloques con header/footer sticky: datos personales, contacto y territorio (DIVIPOLA), laboral (rol primero → cargo filtrado del catálogo, aviso guardas), emergencias. Banner **perfil completo / incompleto** en vivo (`Employee::profileCompletionIssues()`). Contactos `S/I`, `NN`, `NA`, `NO` se normalizan como en Excel (`EmployeeImportValueNormalizer`). Rol empleado = columna Excel «Área o departamento». |
+| **Carga masiva** | Excel `.xlsx` fila 1 = encabezados; plantilla **`GET /employees/plantilla`**. Columnas: nombre, documento, fechas, género, dirección, territorios (municipio o departamento), contactos (`S/I`, `NN`, `NA`, `NO`), contrato, cargo, rol, salario, contacto emergencia, **Empleado activo** (opcional). Import por lotes con progreso animado en UI (`EmployeeBulkImportStore`, polling Livewire, `bulk-import-progress.js`; `BATCH_SIZE=12`). |
 | **API búsqueda** | `GET /api/employees/search?q=` — autocompletado FO-GJ-51 y otros consumidores |
 
 **Catálogo de cargos:** tabla `employee_job_positions` (57 cargos, flag `is_guarda`, `employee_scope` operativo/administrativo). Gestión en **Usuarios → Organización**. Roles de plataforma **`nivel1`–`nivel9`** (Spatie) sustituyen el modelo anterior de roles nominales en permisos de empleados/usuarios.
@@ -195,14 +195,19 @@ Tests: `TerritoryImportTest.php` · modelo: `ColombianMunicipality` (`scopeSearc
 
 Sub-nav: **Inicio | Usuarios | Organización**
 
+Ruta listado: **`GET /users`** · permisos `users.view` / `users.manage`
+
 | Vista | Contenido |
 |---|---|
-| **Usuarios** (listado) | Búsqueda; filtros por **perfil de permisos (técnico)**, área y estado; tabla con **área** y **cargo** (los admins muestran etiqueta *Admin plataforma*). Acciones: editar, reinicio de contraseña, activar/desactivar, eliminar |
+| **Usuarios** (cockpit) | Vista sin scroll (respeta sub-nav): header **Usuarios** + Organización + Nuevo usuario. **5 KPIs clicables** (Total, Activos, Inactivos, Solo lectura, Admins) con filtros en URL (`q`, `role`, `area`, `estado`, `acceso`, `pp`). Toolbar: búsqueda, pills `Todos\|Activos\|Inactivos`, filtro **nivel** y **área**, paginación **20/50/100**. Tabla compacta con chevron ▼ (una fila expandida): usuario (avatar `User::initials()`, email), área/cargo (`cargoDisplayLabel()`, badge *Admin plataforma*), acceso (activo + solo lectura). Detalle expandido: documento, casos asignados/reportados, ciudades autorizadas, enlace a ficha y acciones (editar, contraseña, activar, eliminar). Skeleton + `wire:loading` al filtrar. |
+| **Crear / Editar** | Modal por secciones: identidad, organización (área → cargo, admin plataforma), alcance territorial (nivel7/8 con búsqueda DIVIPOLA), permisos directos Operaciones, acceso (cambios / activo). Banner con **rol efectivo** y conteo de ciudades. Al editar se cargan correctamente `is_active` y `read_only`. |
 | **Organización** | Catálogo de **áreas** activas y **cargos** por área; cada cargo define el **perfil de permisos (Spatie)** que recibirán los usuarios asignados a ese cargo (`permission_role_name`) |
 | **Detalle** | Datos del usuario, casos disciplinarios asignados, mismas acciones administrativas permitidas por política |
 | **Mi perfil** (`GET /profile`) | Datos de cuenta, contraseña y **firma digital** (imagen PNG/JPG/WebP; solo el usuario dueño; usada en FO-GJ-03 y documentos que requieran firma del titular) |
 
-En **crear/editar usuario**: **Área** + **Cargo** (obligatorios salvo «Administrador de la plataforma»); checkbox para **`admin`** desactiva área/cargo en pantalla. Los permisos directos extra para **Operaciones** (FO-GJ-51, notificaciones, PDF) siguen como toggles cuando el ámbito es Operaciones.
+En **crear/editar usuario**: **Área** + **Cargo** (obligatorios salvo «Administrador de la plataforma»); checkbox para **`admin`** (nivel1) desactiva área/cargo en pantalla. Los permisos directos extra para **Operaciones** (FO-GJ-51, notificaciones, PDF) siguen como toggles cuando el ámbito es Operaciones.
+
+Tests: `UsersIndexTest.php`, `EmployeesIndexFormTest.php`.
 
 ## 🏛️ Workflow del proceso disciplinario
 
@@ -324,7 +329,8 @@ resources/views/
   livewire/
     home.blade.php             Vista command center (admin)
   components/home/             kpi-chip y piezas del tablero de inicio
-  components/employees/        kpi-stat, table-skeleton, row-details, bulk-import-loader
+  components/employees/        kpi-stat, table-skeleton, row-details, bulk-import-loader, form-field, employee-form-modal
+  components/users/            table-skeleton, row-details, user-form-modal
   components/settings/         territory-dropzone, territory-format-help, territory-kpi
     disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
     users/                     Listado, detalle y catálogo de organización (áreas/cargos)
@@ -858,10 +864,10 @@ La autorización se evalúa en 3 capas:
 | `POST /disciplinary/cases/{case}/fo-gj-54/generate` | Genera FO-GJ-54 y reprograma diligencia (`generateFoGj54`). |
 | `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes; `disciplinary.review-inform` (revisor asignado) o `disciplinary.review-inform-all` (dirección). |
 | `GET /disciplinary/informes-pendientes/{submission}/pdf` | Descarga el PDF almacenado o, con **`?inline=1`**, lo sirve **inline** para iframe (vista previa en modal). |
-| `GET /employees` | **Empleados SJ** (Livewire cockpit: KPIs, tabla expandible, filtros URL); permiso `employees.view` |
+| `GET /employees` | **Empleados SJ** (Livewire cockpit: KPIs, tabla expandible, modal por secciones, filtros URL); permiso `employees.view` |
 | `GET /employees/plantilla` | Descarga plantilla Excel carga masiva; `employees.manage` |
 | `GET /api/employees/search` | Autocompletado por documento/nombre (JSON) |
-| `GET /users` | Listado de usuarios (Livewire) |
+| `GET /users` | **Usuarios** (Livewire cockpit: KPIs, tabla expandible, modal por secciones, filtros URL) |
 | `GET /users/organizacion` | Catálogo **Organización**: áreas y cargos (`permission_role_name`) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |

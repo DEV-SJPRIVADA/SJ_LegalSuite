@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\EmployeeJobPosition;
 use App\Services\Employees\EmployeeBulkImportService;
 use App\Support\Employees\EmployeeBulkImportStore;
+use App\Support\Employees\EmployeeImportValueNormalizer;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -210,11 +211,59 @@ class EmployeesIndex extends Component
     #[Computed]
     public function employeeJobPositions()
     {
-        return EmployeeJobPosition::query()
+        $query = EmployeeJobPosition::query()
             ->active()
             ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name', 'is_guarda']);
+            ->orderBy('name');
+
+        if ($this->employeeScope !== '' && EmployeeScope::tryFrom($this->employeeScope)) {
+            $query->where('employee_scope', $this->employeeScope);
+        }
+
+        return $query->get(['id', 'name', 'is_guarda', 'employee_scope']);
+    }
+
+    #[Computed]
+    public function selectedJobPosition(): ?EmployeeJobPosition
+    {
+        if ($this->employeeJobPositionId === null) {
+            return null;
+        }
+
+        return EmployeeJobPosition::query()
+            ->whereKey($this->employeeJobPositionId)
+            ->first(['id', 'name', 'is_guarda', 'employee_scope']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    #[Computed]
+    public function formProfileIssues(): array
+    {
+        $employee = new Employee([
+            'employee_job_position_id' => $this->employeeJobPositionId,
+            'employee_scope' => $this->employeeScope !== '' ? $this->employeeScope : null,
+            'hired_at' => $this->hiredAt,
+            'contract_type' => $this->contractType !== '' ? $this->contractType : null,
+            'residence_municipality_code' => $this->residenceMunicipalityCode !== '' ? $this->residenceMunicipalityCode : null,
+            'residence_department_code' => $this->residenceDepartmentCode !== '' ? $this->residenceDepartmentCode : null,
+            'municipality_code' => $this->municipalityCode !== '' ? $this->municipalityCode : null,
+            'work_department_code' => $this->workDepartmentCode !== '' ? $this->workDepartmentCode : null,
+        ]);
+
+        $position = $this->selectedJobPosition;
+        if ($position instanceof EmployeeJobPosition) {
+            $employee->setRelation('employeeJobPosition', $position);
+        }
+
+        return $employee->profileCompletionIssues();
+    }
+
+    #[Computed]
+    public function formProfileComplete(): bool
+    {
+        return $this->formProfileIssues === [];
     }
 
     #[Computed]
@@ -437,6 +486,10 @@ class EmployeesIndex extends Component
     public function save(): void
     {
         $this->documentNumber = Employee::normalizeDocumentNumber($this->documentNumber);
+        $this->phone = EmployeeImportValueNormalizer::nullableContact($this->phone) ?? '';
+        $this->email = EmployeeImportValueNormalizer::nullableContact($this->email) ?? '';
+        $this->emergencyContactName = EmployeeImportValueNormalizer::nullableContact($this->emergencyContactName) ?? '';
+        $this->emergencyContactPhone = EmployeeImportValueNormalizer::nullableContact($this->emergencyContactPhone) ?? '';
 
         $rules = [
             'fullName' => ['required', 'string', 'max:200'],
@@ -586,9 +639,21 @@ class EmployeesIndex extends Component
             return;
         }
 
-        $scope = EmployeeJobPosition::query()->whereKey($value)->value('employee_scope');
-        if ($scope) {
-            $this->employeeScope = (string) $scope;
+        $position = EmployeeJobPosition::query()->find($value, ['id', 'employee_scope']);
+        if ($position?->employee_scope) {
+            $this->employeeScope = (string) $position->employee_scope->value;
+        }
+    }
+
+    public function updatedEmployeeScope(string $value): void
+    {
+        if ($this->employeeJobPositionId === null || $value === '') {
+            return;
+        }
+
+        $position = EmployeeJobPosition::query()->find($this->employeeJobPositionId, ['id', 'employee_scope']);
+        if ($position?->employee_scope?->value !== $value) {
+            $this->employeeJobPositionId = null;
         }
     }
 

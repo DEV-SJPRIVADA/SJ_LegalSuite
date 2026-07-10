@@ -268,126 +268,20 @@
 
     {{-- Formulario crear/editar --}}
     @if ($showForm)
-        <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" wire:keydown.escape="closeForm">
-            <div class="w-full max-w-4xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15" @click.outside="closeForm">
-                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-white/10">
-                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ $editingId ? 'Editar empleado' : 'Nuevo empleado' }}</h2>
-                    <button type="button" wire:click="closeForm" class="text-slate-400 hover:text-slate-600">✕</button>
-                </div>
-                <form wire:submit="save" class="p-6 space-y-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
-                    <div class="{{ $section }}">
-                        <h3 class="{{ $sectionTitle }}">1. Datos personales e identificación</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="sm:col-span-2"><label class="{{ $label }}">Nombre completo</label><input type="text" wire:model="fullName" class="{{ $field }}" placeholder="Ej. Juan Carlos Pérez López" autocomplete="name">@error('fullName')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                            <div><label class="{{ $label }}">Tipo de documento</label><select wire:model="documentType" class="{{ $field }}">@foreach ($documentTypes as $val => $lbl)<option value="{{ $val }}">{{ $lbl }}</option>@endforeach</select></div>
-                            <div><label class="{{ $label }}">Número de documento</label><input type="text" wire:model.live="documentNumber" class="{{ $field }}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Solo números">@error('documentNumber')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                            <div><label class="{{ $label }}">Fecha de nacimiento</label><input type="date" wire:model="birthDate" class="{{ $field }}"></div>
-                            <div><label class="{{ $label }}">Género</label><select wire:model="gender" class="{{ $field }}"><option value="">—</option>@foreach ($genders as $val => $lbl)<option value="{{ $val }}">{{ $lbl }}</option>@endforeach</select></div>
-                        </div>
-                    </div>
-                    <div class="{{ $section }}">
-                        <h3 class="{{ $sectionTitle }}">2. Datos de contacto</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="sm:col-span-2"><label class="{{ $label }}">Dirección de residencia</label><input type="text" wire:model="address" class="{{ $field }}"></div>
-                            <div>
-                                <label class="{{ $label }}">Departamento de residencia</label>
-                                <select wire:model.live="residenceDepartmentCode" class="{{ $field }}">
-                                    <option value="">— Seleccionar —</option>
-                                    @foreach ($this->departments as $dept)
-                                        <option value="{{ $dept['code'] }}">{{ $dept['name'] }}</option>
-                                    @endforeach
-                                </select>
-                                @error('residenceDepartmentCode')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="{{ $label }}">Municipio de residencia</label>
-                                <select wire:model="residenceMunicipalityCode" class="{{ $field }}">
-                                    <option value="">— Opcional si hay departamento —</option>
-                                    @foreach ($this->municipalitiesGrouped as $dept => $rows)
-                                        <optgroup label="{{ $dept }}">
-                                            @foreach ($rows as $mun)
-                                                @if ($residenceDepartmentCode === '' || str_starts_with($mun['code'], $residenceDepartmentCode))
-                                                    <option value="{{ $mun['code'] }}">{{ $mun['name'] }}</option>
-                                                @endif
-                                            @endforeach
-                                        </optgroup>
-                                    @endforeach
-                                </select>
-                                @error('residenceMunicipalityCode')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="{{ $label }}">Departamento de labor</label>
-                                <select wire:model.live="workDepartmentCode" class="{{ $field }}">
-                                    <option value="">— Seleccionar —</option>
-                                    @foreach ($this->departments as $dept)
-                                        <option value="{{ $dept['code'] }}">{{ $dept['name'] }}</option>
-                                    @endforeach
-                                </select>
-                                @error('workDepartmentCode')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="{{ $label }}">Municipio de labor</label>
-                                <select wire:model="municipalityCode" class="{{ $field }}">
-                                    <option value="">— Opcional si hay departamento —</option>
-                                    @foreach ($this->municipalitiesGrouped as $dept => $rows)
-                                        <optgroup label="{{ $dept }}">
-                                            @foreach ($rows as $mun)
-                                                @if ($workDepartmentCode === '' || str_starts_with($mun['code'], $workDepartmentCode))
-                                                    <option value="{{ $mun['code'] }}">{{ $mun['name'] }}</option>
-                                                @endif
-                                            @endforeach
-                                        </optgroup>
-                                    @endforeach
-                                </select>
-                                @error('municipalityCode')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
-                            </div>
-                            <div><label class="{{ $label }}">Teléfono celular</label><input type="tel" wire:model="phone" class="{{ $field }}"></div>
-                            <div class="sm:col-span-2"><label class="{{ $label }}">Correo electrónico</label><input type="email" wire:model="email" class="{{ $field }}">@error('email')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                        </div>
-                    </div>
-                    <div class="{{ $section }}">
-                        <h3 class="{{ $sectionTitle }}">3. Información laboral</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div><label class="{{ $label }}">Fecha de ingreso *</label><input type="date" wire:model="hiredAt" class="{{ $field }}">@error('hiredAt')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                            <div><label class="{{ $label }}">Tipo de contrato *</label><select wire:model.live="contractType" class="{{ $field }}"><option value="">—</option>@foreach ($contractTypes as $val => $lbl)<option value="{{ $val }}">{{ $lbl }}</option>@endforeach</select>@error('contractType')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                            <div><label class="{{ $label }}">Cargo / puesto *</label>
-                                <select wire:model="employeeJobPositionId" class="{{ $field }}">
-                                    <option value="">— Seleccione cargo —</option>
-                                    @foreach ($this->employeeJobPositions as $position)
-                                        <option value="{{ $position->id }}">{{ $position->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('employeeJobPositionId') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
-                            </div>
-                            <div><label class="{{ $label }}">Rol empleado *</label>
-                                <select wire:model="employeeScope" class="{{ $field }}">
-                                    <option value="">— Seleccionar —</option>
-                                    @foreach ($employeeScopes as $val => $lbl)
-                                        <option value="{{ $val }}">{{ $lbl }}</option>
-                                    @endforeach
-                                </select>
-                                @error('employeeScope') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
-                            </div>
-                            <div><label class="{{ $label }}">Salario base</label><input type="number" step="0.01" min="0" wire:model="baseSalary" class="{{ $field }}"></div>
-                            <div class="sm:col-span-2 flex items-center gap-2 pt-1">
-                                <input type="checkbox" wire:model="isActive" id="emp-active" class="rounded border-slate-300 text-indigo-600">
-                                <label for="emp-active" class="text-sm font-medium text-slate-700 dark:text-slate-200">Empleado activo</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="{{ $section }}">
-                        <h3 class="{{ $sectionTitle }}">4. Emergencias</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div><label class="{{ $label }}">Nombre contacto</label><input type="text" wire:model="emergencyContactName" class="{{ $field }}"></div>
-                            <div><label class="{{ $label }}">Teléfono contacto</label><input type="tel" wire:model="emergencyContactPhone" class="{{ $field }}"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-white/10">
-                        <button type="button" wire:click="closeForm" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-white/15 dark:text-slate-200">Cancelar</button>
-                        <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700" wire:loading.attr="disabled">Guardar</button>
-                    </div>
-                </form>
-            </div>
+        <div
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-[2px] sm:p-6"
+            wire:keydown.escape="closeForm"
+        >
+            @include('components.employees.employee-form-modal', [
+                'editingId' => $editingId,
+                'field' => $field,
+                'section' => $section,
+                'sectionTitle' => $sectionTitle,
+                'documentTypes' => $documentTypes,
+                'genders' => $genders,
+                'contractTypes' => $contractTypes,
+                'employeeScopes' => $employeeScopes,
+            ])
         </div>
     @endif
 

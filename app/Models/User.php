@@ -309,4 +309,60 @@ class User extends Authenticatable
     {
         return $query->role('nivel6');
     }
+
+    public function initials(): string
+    {
+        $parts = preg_split('/\s+/u', trim($this->name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if ($parts === []) {
+            return '?';
+        }
+
+        if (count($parts) === 1) {
+            return mb_strtoupper(mb_substr($parts[0], 0, 2), 'UTF-8');
+        }
+
+        return mb_strtoupper(
+            mb_substr($parts[0], 0, 1).mb_substr($parts[1], 0, 1),
+            'UTF-8'
+        );
+    }
+
+    public function isPlatformAdmin(): bool
+    {
+        return $this->hasRole('nivel1');
+    }
+
+    public function cargoDisplayLabel(): string
+    {
+        if ($this->isPlatformAdmin()) {
+            return 'Admin plataforma';
+        }
+
+        if ($this->relationLoaded('jobPosition') && $this->jobPosition) {
+            return (string) $this->jobPosition->name;
+        }
+
+        if ($this->job_position_id) {
+            $this->loadMissing('jobPosition');
+            if ($this->jobPosition?->name) {
+                return (string) $this->jobPosition->name;
+            }
+        }
+
+        return (string) ($this->position ?: '—');
+    }
+
+    public function primaryRoleLabel(): ?string
+    {
+        $roleName = $this->roles->first()?->name;
+
+        if ($roleName === null) {
+            return null;
+        }
+
+        $level = \App\Enums\PlatformLevel::tryFrom($roleName);
+
+        return $level?->title().' — '.$level->subtitle();
+    }
 }

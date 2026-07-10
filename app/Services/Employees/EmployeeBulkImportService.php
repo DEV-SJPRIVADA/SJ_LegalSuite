@@ -84,6 +84,9 @@ class EmployeeBulkImportService
         'telefono del contacto' => 'emergency_contact_phone',
         'teléfono del contacto' => 'emergency_contact_phone',
         'telefono contacto emergencia' => 'emergency_contact_phone',
+        'empleado activo' => 'is_active',
+        'activo' => 'is_active',
+        'estado' => 'is_active',
     ];
 
     /**
@@ -355,6 +358,7 @@ class EmployeeBulkImportService
             'Teléfono Celular', 'Correo Electrónico', 'Fecha de Ingreso', 'Tipo de Contrato',
             'Cargo', 'Área o departamento', 'Salario Base',
             'Nombre de Contacto de Emergencia', 'Teléfono del Contacto',
+            'Empleado activo',
         ];
         foreach ($headers as $i => $label) {
             $sheet->setCellValue([$i + 1, 1], $label);
@@ -537,8 +541,12 @@ class EmployeeBulkImportService
             'residence_department_code' => $residenceTerritory['department_code'],
             'municipality_code' => $workTerritory['municipality_code'],
             'work_department_code' => $workTerritory['department_code'],
-            'phone' => ($data['phone'] ?? '') !== '' ? (string) $data['phone'] : null,
-            'email' => ($data['email'] ?? '') !== '' ? (string) $data['email'] : null,
+            'phone' => EmployeeImportValueNormalizer::nullableContact(
+                ($data['phone'] ?? '') !== '' ? (string) $data['phone'] : null
+            ),
+            'email' => EmployeeImportValueNormalizer::nullableContact(
+                ($data['email'] ?? '') !== '' ? (string) $data['email'] : null
+            ),
             'hired_at' => $hiredAt,
             'contract_type' => $contract->value,
             'employee_job_position_id' => $position->id,
@@ -553,8 +561,24 @@ class EmployeeBulkImportService
             'emergency_contact_phone' => EmployeeImportValueNormalizer::nullableContact(
                 ($data['emergency_contact_phone'] ?? '') !== '' ? (string) $data['emergency_contact_phone'] : null
             ),
-            'is_active' => true,
+            'is_active' => $this->parseActiveFlag($data['is_active'] ?? null),
         ];
+    }
+
+    private function parseActiveFlag(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        $normalized = mb_strtolower(trim((string) $value));
+        $normalized = str_replace(['á', 'é', 'í', 'ó', 'ú'], ['a', 'e', 'i', 'o', 'u'], $normalized);
+
+        if (in_array($normalized, ['0', 'false', 'no', 'n', 'inactivo', 'inactiva'], true)) {
+            return false;
+        }
+
+        return true;
     }
 
     private function phaseLabel(string $status): string
