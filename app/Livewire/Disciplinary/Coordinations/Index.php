@@ -9,6 +9,7 @@ use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryDecisionNotificationService;
 use App\Support\Disciplinary\DecisionBranch;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -67,7 +68,7 @@ class Index extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin') && ! $user->hasPermissionTo('disciplinary.assign')) {
+        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1') && ! $user->hasPermissionTo('disciplinary.assign')) {
             abort(403);
         }
     }
@@ -433,6 +434,13 @@ class Index extends Component
             : null;
         $liveCaseId = $pendingNotificationCase?->getKey();
 
+        $scope = app(FieldDisciplinaryScopeService::class);
+        $municipalityCode = $pendingNotificationCase?->employee?->municipality_code;
+        $supervisorCandidates = $scope->applySupervisorCandidatesForMunicipality(
+            User::query(),
+            $municipalityCode,
+        )->orderBy('name')->get(['id', 'name']);
+
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
             'selectedThreadModel' => $selectedThreadModel,
@@ -445,7 +453,7 @@ class Index extends Component
             'isDecisionCase' => $isDecisionCase,
             'decisionBranch' => $decisionBranch,
             'liveCaseId' => $liveCaseId,
-            'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
+            'supervisorCandidates' => $supervisorCandidates,
         ]);
     }
 

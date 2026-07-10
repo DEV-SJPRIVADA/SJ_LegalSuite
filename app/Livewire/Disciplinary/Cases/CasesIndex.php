@@ -74,7 +74,7 @@ class CasesIndex extends Component
     {
         $user = auth()->user();
 
-        if (! $user->can('viewAny', DisciplinaryCase::class) || $user->hasRole('planeacion')) {
+        if (! $user->can('viewAny', DisciplinaryCase::class) || $user->hasRole('nivel3')) {
             if ($user->hasDisciplinaryPortalAccess()) {
                 $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
 
@@ -195,7 +195,7 @@ class CasesIndex extends Component
     #[Computed]
     public function lawyers()
     {
-        return User::query()->role('abogado')->orderBy('name')->get(['id', 'name']);
+        return User::query()->role('nivel6')->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -288,7 +288,7 @@ class CasesIndex extends Component
             'statuses' => CaseStatus::cases(),
             'stageColors' => WorkflowStageBuckets::letterColorClasses(),
             'operacionesReviewers' => User::query()
-                ->role('operaciones')
+                ->role('nivel2')
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),

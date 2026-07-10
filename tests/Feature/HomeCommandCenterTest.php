@@ -25,7 +25,7 @@ class HomeCommandCenterTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $this->actingAs($admin)
             ->get('/dashboard')
@@ -43,7 +43,7 @@ class HomeCommandCenterTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $this->actingAs($lawyer)
             ->get('/dashboard')
@@ -56,7 +56,7 @@ class HomeCommandCenterTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $supervisor->assignRole('supervisor');
+        $supervisor->assignRole('nivel7');
 
         $this->actingAs($supervisor)
             ->get('/dashboard')
@@ -69,7 +69,7 @@ class HomeCommandCenterTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         Livewire::actingAs($admin)
             ->test(Home::class)
@@ -82,7 +82,7 @@ class HomeCommandCenterTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $this->assertSame(route('disciplinary.dashboard'), $lawyer->suiteLandingUrl());
     }

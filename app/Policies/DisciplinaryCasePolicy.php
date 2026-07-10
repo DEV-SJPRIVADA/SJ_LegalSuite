@@ -22,6 +22,7 @@ use App\Services\Disciplinary\FoGj44DraftService;
 use App\Services\Disciplinary\FoGj54DraftService;
 use App\Services\Disciplinary\FoGj54ReprogramacionService;
 use App\Support\Disciplinary\DecisionBranch;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 
 /**
  * Autorización del módulo disciplinario:
@@ -53,7 +54,7 @@ class DisciplinaryCasePolicy
 
     public function before(User $user, string $ability): ?bool
     {
-        if (! $user->hasRole('admin')) {
+        if (! $user->hasRole('nivel1')) {
             return null;
         }
 
@@ -75,45 +76,45 @@ class DisciplinaryCasePolicy
 
     public function viewAny(User $user): bool
     {
-        if ($user->hasRole('supervisor')) {
+        if ($user->hasRole('nivel7')) {
             return false;
         }
 
         return $user->hasAnyRole([
-            'auditor', 'abogado', 'administrativa', 'operaciones',
-            'operador', 'programador',
+            'nivel5', 'nivel6', 'nivel4', 'nivel2',
+            'nivel8', 'nivel9',
         ])
             || $user->hasPermissionTo('disciplinary.view');
     }
 
     public function view(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasRole('auditor')) {
+        if ($user->hasRole('nivel5')) {
             return true;
         }
 
-        if ($user->hasRole('supervisor')) {
+        if ($user->hasRole('nivel7')) {
             return false;
         }
 
-        if ($user->hasRole('operador')) {
+        if ($user->hasRole('nivel8')) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('programador')) {
+        if ($user->hasRole('nivel9')) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return (int) $case->assigned_lawyer_id === (int) $user->id
                 || $case->isInInformePool();
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return false;
         }
 
-        if ($user->hasRole('operaciones')) {
+        if ($user->hasRole('nivel2')) {
             return $case->isVisibleToOperacionesReviewer($user);
         }
 
@@ -130,7 +131,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
+        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
             return false;
         }
 
@@ -143,11 +144,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
+        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
             return false;
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
@@ -161,11 +162,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador', 'programador'])) {
+        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
             return false;
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
@@ -186,7 +187,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('programador')) {
+        if ($user->hasRole('nivel9')) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
@@ -199,7 +200,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasRole('admin')
+        return $user->hasRole('nivel1')
             || $user->hasPermissionTo('disciplinary.assign');
     }
 
@@ -210,7 +211,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('abogado')) {
+        if (! $user->hasRole('nivel6')) {
             return false;
         }
 
@@ -540,7 +541,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin')) {
+        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1')) {
             return false;
         }
 
@@ -662,7 +663,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('planeacion') && ! $user->hasRole('admin')) {
+        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1')) {
             return false;
         }
 
@@ -698,11 +699,15 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('supervisor')) {
+        if (! $user->hasRole('nivel7')) {
             return false;
         }
 
         if ((int) $case->notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        if (! app(FieldDisciplinaryScopeService::class)->caseEmployeeInScope($user, $case)) {
             return false;
         }
 
@@ -717,11 +722,15 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('supervisor')) {
+        if (! $user->hasRole('nivel7')) {
             return false;
         }
 
         if ((int) $case->decision_notification_supervisor_user_id !== (int) $user->id) {
+            return false;
+        }
+
+        if (! app(FieldDisciplinaryScopeService::class)->caseEmployeeInScope($user, $case)) {
             return false;
         }
 
@@ -767,11 +776,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return true;
         }
 
-        return $user->hasRole('planeacion');
+        return $user->hasRole('nivel3');
     }
 
     public function closeCoordination(User $user, DisciplinaryCase $case): bool
@@ -781,7 +790,7 @@ class DisciplinaryCasePolicy
         }
 
         $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) $user->id;
-        $isJuridicalDirection = $user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign');
+        $isJuridicalDirection = $user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign');
 
         return $case->agendaThread !== null
             && $case->agendaThread->isOpen()
@@ -804,7 +813,7 @@ class DisciplinaryCasePolicy
             return true;
         }
 
-        if (! $user->hasRole('abogado') || (int) $case->assigned_lawyer_id !== (int) $user->id) {
+        if (! $user->hasRole('nivel6') || (int) $case->assigned_lawyer_id !== (int) $user->id) {
             return false;
         }
 
@@ -823,15 +832,15 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
-        if ($user->hasAnyRole(['supervisor', 'operador'])) {
+        if ($user->hasAnyRole(['nivel7', 'nivel8'])) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('operaciones')) {
+        if ($user->hasRole('nivel2')) {
             return $case->isVisibleToOperacionesReviewer($user);
         }
 
@@ -850,18 +859,18 @@ class DisciplinaryCasePolicy
 
     public function viewDashboard(User $user): bool
     {
-        if ($user->hasAnyRole(['planeacion', 'supervisor'])) {
+        if ($user->hasAnyRole(['nivel3', 'nivel7'])) {
             return false;
         }
 
-        return $user->hasAnyRole(['auditor', 'abogado'])
+        return $user->hasAnyRole(['nivel5', 'nivel6'])
             || $user->hasPermissionTo('disciplinary.view-dashboard');
     }
 
     /** Catálogo de formatos FO-GJ (referencia para quien puede consultar expedientes). */
     public function viewOfficialForms(User $user): bool
     {
-        if ($user->isMinimalDisciplinaryPortalUser() || $user->hasRole('planeacion')) {
+        if ($user->isMinimalDisciplinaryPortalUser() || $user->hasRole('nivel3')) {
             return false;
         }
 
@@ -875,7 +884,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasRole('admin')
+        return $user->hasRole('nivel1')
             || $user->hasPermissionTo('disciplinary.assign');
     }
 }

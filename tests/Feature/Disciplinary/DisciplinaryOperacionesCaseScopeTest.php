@@ -81,7 +81,7 @@ class DisciplinaryOperacionesCaseScopeTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('operaciones');
+        $user->assignRole('nivel2');
 
         return $user;
     }
@@ -93,7 +93,7 @@ class DisciplinaryOperacionesCaseScopeTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

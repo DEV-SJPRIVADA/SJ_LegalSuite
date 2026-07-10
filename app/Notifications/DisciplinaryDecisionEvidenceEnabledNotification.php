@@ -23,7 +23,7 @@ class DisciplinaryDecisionEvidenceEnabledNotification extends Notification
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        $url = $notifiable->hasRole('supervisor')
+        $url = $notifiable->hasRole('nivel7')
             ? route('disciplinary.evidences-pending.index')
             : route('disciplinary.cases.show', $this->case);
 

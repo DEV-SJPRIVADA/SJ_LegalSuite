@@ -29,7 +29,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_citacion_stage_shows_active_b_without_c(): void
     {
-        $lawyer = $this->user('abogado', 'stage-b-active@test.local');
+        $lawyer = $this->user('nivel6', 'stage-b-active@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
         Livewire::actingAs($lawyer)
@@ -71,7 +71,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_diligencia_stage_shows_b_readonly_and_active_c(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-active@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-active@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
@@ -130,7 +130,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_diligence_advance_transitions_to_decision(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-advance@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-advance@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
@@ -155,7 +155,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_diligence_advance_blocked_without_requirements(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-blocked@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-blocked@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
@@ -171,7 +171,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_comite_stage_shows_diligenciar_buttons_not_only_fo_gj_44(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),
@@ -211,7 +211,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_comite_advance_transitions_to_decision(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite-advance@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite-advance@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),
@@ -253,7 +253,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_comite_advance_blocked_without_acta(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite-blocked@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite-blocked@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),

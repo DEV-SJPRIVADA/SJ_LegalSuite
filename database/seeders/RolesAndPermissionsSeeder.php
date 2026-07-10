@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PlatformLevel;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -44,12 +45,11 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
-        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->syncPermissions(Permission::all());
+        $nivel1 = $this->upsertLevel(PlatformLevel::Nivel1);
+        $nivel1->syncPermissions(Permission::all());
 
-        /** Abogado operativo: sólo gestiona casos donde figure como asignado (ownership en política). */
-        $abogado = Role::firstOrCreate(['name' => 'abogado', 'guard_name' => 'web']);
-        $abogado->syncPermissions([
+        $nivel6 = $this->upsertLevel(PlatformLevel::Nivel6);
+        $nivel6->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
             'disciplinary.update',
@@ -58,18 +58,16 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Planeación (dirección): vista completa + fechas; responde en hilo de agenda Etapa A. */
-        $planeacion = Role::firstOrCreate(['name' => 'planeacion', 'guard_name' => 'web']);
-        $planeacion->syncPermissions([
+        $nivel3 = $this->upsertLevel(PlatformLevel::Nivel3);
+        $nivel3->syncPermissions([
             'disciplinary.view',
             'disciplinary.assign-date',
             'employees.view',
             'disciplinary.download-pdf',
         ]);
 
-        /** Área administrativa: apertura de informes disciplinarios y evidencias (similar a operaciones). */
-        $administrativa = Role::firstOrCreate(['name' => 'administrativa', 'guard_name' => 'web']);
-        $administrativa->syncPermissions([
+        $nivel4 = $this->upsertLevel(PlatformLevel::Nivel4);
+        $nivel4->syncPermissions([
             'disciplinary.view',
             'disciplinary.create',
             'disciplinary.upload-document',
@@ -79,8 +77,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        $auditor = Role::firstOrCreate(['name' => 'auditor', 'guard_name' => 'web']);
-        $auditor->syncPermissions([
+        $nivel5 = $this->upsertLevel(PlatformLevel::Nivel5);
+        $nivel5->syncPermissions([
             'disciplinary.view',
             'disciplinary.view-dashboard',
             'disciplinary.export',
@@ -89,9 +87,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Operaciones: revisión FO-GJ-51 y expedientes propios; `review-inform-all` solo por permiso directo (dirección). */
-        $admin_op = Role::firstOrCreate(['name' => 'operaciones', 'guard_name' => 'web']);
-        $admin_op->syncPermissions([
+        $nivel2 = $this->upsertLevel(PlatformLevel::Nivel2);
+        $nivel2->syncPermissions([
             'disciplinary.view',
             'disciplinary.create',
             'disciplinary.upload-document',
@@ -103,9 +100,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Supervisor de campo: pool por turno — informe FO-GJ-51 y evidencias en expedientes ya formalizados. */
-        $supervisor = Role::firstOrCreate(['name' => 'supervisor', 'guard_name' => 'web']);
-        $supervisor->syncPermissions([
+        $nivel7 = $this->upsertLevel(PlatformLevel::Nivel7);
+        $nivel7->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
             'employees.view',
@@ -113,9 +109,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Operador / central de campo: mismo alcance que supervisor (pool por turno). */
-        $operador = Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
-        $operador->syncPermissions([
+        $nivel8 = $this->upsertLevel(PlatformLevel::Nivel8);
+        $nivel8->syncPermissions([
             'disciplinary.generate-inform',
             'disciplinary.upload-document',
             'employees.view',
@@ -123,15 +118,29 @@ class RolesAndPermissionsSeeder extends Seeder
             'disciplinary.download-pdf',
         ]);
 
-        /** Programador: expedientes formalizados — programar fechas en etapas (sin hilo de agenda). */
-        $programador = Role::firstOrCreate(['name' => 'programador', 'guard_name' => 'web']);
-        $programador->syncPermissions([
+        $nivel9 = $this->upsertLevel(PlatformLevel::Nivel9);
+        $nivel9->syncPermissions([
             'disciplinary.assign-date',
             'disciplinary.download-pdf',
         ]);
 
-        foreach (Role::where('guard_name', 'web')->whereIn('name', ['juridico', 'gerencia'])->get() as $legacy) {
-            $legacy->delete();
+        foreach (array_keys(PlatformLevel::legacyMap()) as $legacy) {
+            Role::where('guard_name', 'web')->where('name', $legacy)->delete();
         }
+    }
+
+    private function upsertLevel(PlatformLevel $level): Role
+    {
+        $role = Role::firstOrCreate(
+            ['name' => $level->value, 'guard_name' => 'web'],
+            ['level_number' => $level->number(), 'subtitle' => $level->subtitle()]
+        );
+
+        $role->update([
+            'level_number' => $level->number(),
+            'subtitle' => $level->subtitle(),
+        ]);
+
+        return $role;
     }
 }

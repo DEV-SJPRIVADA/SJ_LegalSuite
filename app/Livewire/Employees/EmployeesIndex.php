@@ -3,11 +3,14 @@
 namespace App\Livewire\Employees;
 
 use App\Enums\EmployeeContractType;
+use App\Enums\EmployeeScope;
 use App\Enums\EmployeeDocumentType;
 use App\Enums\EmployeeGender;
 use App\Models\ColombianMunicipality;
 use App\Models\Employee;
+use App\Models\EmployeeJobPosition;
 use App\Services\Employees\EmployeeBulkImportService;
+use App\Support\Employees\EmployeeBulkImportStore;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -30,6 +33,13 @@ class EmployeesIndex extends Component
     #[Url(as: 'estado')]
     public string $status = '';
 
+    #[Url(as: 'rol')]
+    public string $scopeFilter = '';
+
+    #[Url(as: 'contrato')]
+    public string $contractFilter = '';
+
+    #[Url(as: 'pp')]
     public int $perPage = 20;
 
     public bool $showForm = false;
@@ -48,7 +58,13 @@ class EmployeesIndex extends Component
 
     public string $address = '';
 
+    public string $residenceMunicipalityCode = '';
+
+    public string $residenceDepartmentCode = '';
+
     public string $municipalityCode = '';
+
+    public string $workDepartmentCode = '';
 
     public string $phone = '';
 
@@ -58,13 +74,13 @@ class EmployeesIndex extends Component
 
     public string $contractType = '';
 
-    public string $jobTitle = '';
+    public ?int $employeeJobPositionId = null;
+
+    public string $employeeScope = '';
 
     public string $departmentArea = '';
 
     public string $baseSalary = '';
-
-    public ?string $terminationAt = null;
 
     public string $emergencyContactName = '';
 
@@ -80,6 +96,13 @@ class EmployeesIndex extends Component
     /** @var array<int, string> */
     public array $bulkImportErrors = [];
 
+    public ?string $bulkImportToken = null;
+
+    public bool $bulkImportRunning = false;
+
+    /** @var array<string, mixed> */
+    public array $bulkImportProgress = [];
+
     public function mount(): void
     {
         Gate::authorize('viewAny', Employee::class);
@@ -87,16 +110,111 @@ class EmployeesIndex extends Component
 
     public function updating($prop): void
     {
-        if (in_array($prop, ['search', 'status'], true)) {
+        if (in_array($prop, ['search', 'status', 'perPage', 'scopeFilter', 'contractFilter'], true)) {
             $this->resetPage();
         }
     }
 
-    public function updatedContractType(): void
+    public function updatedPerPage(mixed $value): void
     {
-        if ($this->contractType !== EmployeeContractType::TerminoFijo->value) {
-            $this->terminationAt = null;
+        $allowed = [20, 50, 100];
+        $this->perPage = in_array((int) $value, $allowed, true) ? (int) $value : 20;
+    }
+
+    public function setStatusFilter(string $value): void
+    {
+        $this->status = $value;
+        $this->resetPage();
+    }
+
+    public function applyKpiFilter(string $type): void
+    {
+        match ($type) {
+            'total' => $this->reset(['status', 'scopeFilter', 'contractFilter']),
+            'activos' => $this->fill(['status' => 'activos', 'scopeFilter' => '', 'contractFilter' => '']),
+            'incompletos' => $this->fill(['status' => 'incompletos', 'scopeFilter' => '', 'contractFilter' => '']),
+            'operativos' => $this->fill(['status' => '', 'scopeFilter' => EmployeeScope::Operativo->value, 'contractFilter' => '']),
+            'administrativos' => $this->fill(['status' => '', 'scopeFilter' => EmployeeScope::Administrativo->value, 'contractFilter' => '']),
+            default => null,
+        };
+
+        $this->resetPage();
+    }
+
+    public function updatedResidenceMunicipalityCode(string $value): void
+    {
+        if ($value === '') {
+            return;
         }
+
+        $departmentCode = ColombianMunicipality::query()
+            ->where('municipality_code', $value)
+            ->value('department_code');
+
+        if ($departmentCode) {
+            $this->residenceDepartmentCode = (string) $departmentCode;
+        }
+    }
+
+    public function updatedMunicipalityCode(string $value): void
+    {
+        if ($value === '') {
+            return;
+        }
+
+        $departmentCode = ColombianMunicipality::query()
+            ->where('municipality_code', $value)
+            ->value('department_code');
+
+        if ($departmentCode) {
+            $this->workDepartmentCode = (string) $departmentCode;
+        }
+    }
+
+    public function updatedResidenceDepartmentCode(): void
+    {
+        if ($this->residenceMunicipalityCode === '') {
+            return;
+        }
+
+        $departmentCode = ColombianMunicipality::query()
+            ->where('municipality_code', $this->residenceMunicipalityCode)
+            ->value('department_code');
+
+        if ($departmentCode !== $this->residenceDepartmentCode) {
+            $this->residenceMunicipalityCode = '';
+        }
+    }
+
+    public function updatedWorkDepartmentCode(): void
+    {
+        if ($this->municipalityCode === '') {
+            return;
+        }
+
+        $departmentCode = ColombianMunicipality::query()
+            ->where('municipality_code', $this->municipalityCode)
+            ->value('department_code');
+
+        if ($departmentCode !== $this->workDepartmentCode) {
+            $this->municipalityCode = '';
+        }
+    }
+
+    #[Computed]
+    public function departments()
+    {
+        return ColombianMunicipality::departmentsForSelect();
+    }
+
+    #[Computed]
+    public function employeeJobPositions()
+    {
+        return EmployeeJobPosition::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_guarda']);
     }
 
     #[Computed]
@@ -125,15 +243,18 @@ class EmployeesIndex extends Component
         $this->birthDate = $employee->birth_date?->format('Y-m-d');
         $this->gender = $employee->gender?->value ?? '';
         $this->address = (string) ($employee->address ?? '');
+        $this->residenceMunicipalityCode = (string) ($employee->residence_municipality_code ?? '');
+        $this->residenceDepartmentCode = (string) ($employee->residence_department_code ?? '');
         $this->municipalityCode = (string) ($employee->municipality_code ?? '');
+        $this->workDepartmentCode = (string) ($employee->work_department_code ?? '');
         $this->phone = (string) ($employee->phone ?? '');
         $this->email = (string) ($employee->email ?? '');
         $this->hiredAt = $employee->hired_at?->format('Y-m-d');
         $this->contractType = $employee->contract_type?->value ?? '';
-        $this->jobTitle = (string) ($employee->job_title ?? '');
+        $this->employeeJobPositionId = $employee->employee_job_position_id;
+        $this->employeeScope = (string) ($employee->employee_scope?->value ?? '');
         $this->departmentArea = (string) ($employee->department_area ?? '');
         $this->baseSalary = $employee->base_salary !== null ? (string) $employee->base_salary : '';
-        $this->terminationAt = $employee->termination_at?->format('Y-m-d');
         $this->emergencyContactName = (string) ($employee->emergency_contact_name ?? '');
         $this->emergencyContactPhone = (string) ($employee->emergency_contact_phone ?? '');
         $this->isActive = (bool) $employee->is_active;
@@ -152,15 +273,21 @@ class EmployeesIndex extends Component
         Gate::authorize('import', Employee::class);
         $this->bulkFile = null;
         $this->bulkImportErrors = [];
+        $this->resetBulkImportState();
         $this->resetErrorBag();
         $this->showBulkModal = true;
     }
 
     public function closeBulk(): void
     {
+        if ($this->bulkImportRunning) {
+            return;
+        }
+
         $this->showBulkModal = false;
         $this->bulkFile = null;
         $this->bulkImportErrors = [];
+        $this->resetBulkImportState();
     }
 
     public function importBulk(EmployeeBulkImportService $importer): void
@@ -174,9 +301,111 @@ class EmployeesIndex extends Component
             'bulkFile.mimes' => 'Solo se admite formato .xlsx.',
         ]);
 
-        $result = $importer->importFromPath((string) $this->bulkFile->getRealPath());
-        $this->bulkImportErrors = $result['errors'];
+        $sourcePath = (string) $this->bulkFile->getRealPath();
+        if ($sourcePath === '' || ! is_readable($sourcePath)) {
+            $this->addError('bulkFile', 'No se pudo leer el archivo subido. Intente seleccionarlo de nuevo.');
+
+            return;
+        }
+
+        try {
+            $token = EmployeeBulkImportStore::createFromUploadedFile(
+                (int) auth()->id(),
+                $sourcePath,
+            );
+        } catch (\Throwable $e) {
+            $this->addError('bulkFile', $e->getMessage());
+
+            return;
+        }
+
+        $this->bulkImportToken = $token;
+        $this->bulkImportRunning = true;
+        $this->bulkImportProgress = [
+            'status' => EmployeeBulkImportStore::STATUS_PENDING,
+            'percent' => 0,
+            'processed_rows' => 0,
+            'total_rows' => 0,
+            'inserted' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors_count' => 0,
+            'eta_seconds' => null,
+            'eta_label' => 'Preparando importación…',
+            'phase_label' => 'Validando archivo…',
+        ];
         $this->bulkFile = null;
+        $this->resetErrorBag();
+    }
+
+    public function advanceBulkImport(EmployeeBulkImportService $importer): void
+    {
+        if (! $this->bulkImportRunning || $this->bulkImportToken === null) {
+            return;
+        }
+
+        if (! EmployeeBulkImportStore::belongsToUser($this->bulkImportToken, (int) auth()->id())) {
+            $this->resetBulkImportState();
+
+            return;
+        }
+
+        @set_time_limit(120);
+
+        $lock = EmployeeBulkImportStore::acquireAdvanceLock($this->bulkImportToken);
+        if ($lock === null) {
+            return;
+        }
+
+        try {
+            $importer->advanceImport(
+                $this->bulkImportToken,
+                EmployeeBulkImportService::BATCH_SIZE,
+                1,
+            );
+        } catch (\Throwable $e) {
+            EmployeeBulkImportStore::markFailed($this->bulkImportToken, $e->getMessage());
+            $this->addError('bulkFile', $e->getMessage());
+            EmployeeBulkImportStore::delete($this->bulkImportToken);
+            $this->resetBulkImportState();
+
+            return;
+        } finally {
+            $lock->release();
+        }
+
+        $this->bulkImportProgress = $importer->progressSnapshot($this->bulkImportToken);
+        $status = (string) ($this->bulkImportProgress['status'] ?? '');
+
+        if ($status === EmployeeBulkImportStore::STATUS_COMPLETED) {
+            $this->finishBulkImport();
+        }
+
+        if ($status === EmployeeBulkImportStore::STATUS_FAILED) {
+            $meta = EmployeeBulkImportStore::meta($this->bulkImportToken);
+            $this->addError('bulkFile', (string) ($meta['error'] ?? 'La importación falló.'));
+            EmployeeBulkImportStore::delete($this->bulkImportToken);
+            $this->resetBulkImportState();
+        }
+    }
+
+    private function finishBulkImport(): void
+    {
+        $token = $this->bulkImportToken;
+        if ($token === null) {
+            $this->resetBulkImportState();
+
+            return;
+        }
+
+        $importer = app(EmployeeBulkImportService::class);
+        $result = $importer->resultFromToken($token);
+        $this->bulkImportErrors = $result['errors'];
+        $this->bulkImportProgress = $importer->progressSnapshot($token);
+
+        EmployeeBulkImportStore::delete($token);
+        $this->dispatch('bulk-import-finished');
+        $this->resetBulkImportState();
 
         if ($result['inserted'] === 0 && $result['updated'] === 0 && $result['errors'] !== []) {
             $this->addError('bulkFile', 'No se importó ningún registro válido. Revise la plantilla y los errores por fila.');
@@ -193,6 +422,13 @@ class EmployeesIndex extends Component
         $this->resetPage();
     }
 
+    private function resetBulkImportState(): void
+    {
+        $this->bulkImportToken = null;
+        $this->bulkImportRunning = false;
+        $this->bulkImportProgress = [];
+    }
+
     public function updatedDocumentNumber(string $value): void
     {
         $this->documentNumber = Employee::normalizeDocumentNumber($value);
@@ -201,7 +437,6 @@ class EmployeesIndex extends Component
     public function save(): void
     {
         $this->documentNumber = Employee::normalizeDocumentNumber($this->documentNumber);
-        $isFixedTerm = $this->contractType === EmployeeContractType::TerminoFijo->value;
 
         $rules = [
             'fullName' => ['required', 'string', 'max:200'],
@@ -213,15 +448,18 @@ class EmployeesIndex extends Component
             'birthDate' => ['nullable', 'date'],
             'gender' => ['nullable', Rule::enum(EmployeeGender::class)],
             'address' => ['nullable', 'string', 'max:255'],
+            'residenceMunicipalityCode' => ['nullable', 'string', 'size:5', 'exists:colombian_municipalities,municipality_code'],
+            'residenceDepartmentCode' => ['nullable', 'string', 'size:2'],
             'municipalityCode' => ['nullable', 'string', 'size:5', 'exists:colombian_municipalities,municipality_code'],
+            'workDepartmentCode' => ['nullable', 'string', 'size:2'],
             'phone' => ['nullable', 'string', 'max:32'],
             'email' => ['nullable', 'email', 'max:150'],
-            'hiredAt' => ['nullable', 'date'],
-            'contractType' => ['nullable', Rule::enum(EmployeeContractType::class)],
-            'jobTitle' => ['nullable', 'string', 'max:120'],
+            'hiredAt' => ['required', 'date'],
+            'contractType' => ['required', Rule::enum(EmployeeContractType::class)],
+            'employeeJobPositionId' => ['required', 'integer', 'exists:employee_job_positions,id'],
+            'employeeScope' => ['required', Rule::enum(EmployeeScope::class)],
             'departmentArea' => ['nullable', 'string', 'max:120'],
             'baseSalary' => ['nullable', 'numeric', 'min:0'],
-            'terminationAt' => [$isFixedTerm ? 'nullable' : 'prohibited', 'nullable', 'date'],
             'emergencyContactName' => ['nullable', 'string', 'max:150'],
             'emergencyContactPhone' => ['nullable', 'string', 'max:32'],
             'isActive' => ['boolean'],
@@ -235,7 +473,33 @@ class EmployeesIndex extends Component
 
         $this->validate($rules);
 
+        if (! filled($this->residenceMunicipalityCode) && ! filled($this->residenceDepartmentCode)) {
+            $this->addError('residenceDepartmentCode', 'Indique departamento o municipio de residencia.');
+
+            return;
+        }
+
+        if (! filled($this->municipalityCode) && ! filled($this->workDepartmentCode)) {
+            $this->addError('workDepartmentCode', 'Indique departamento o municipio de labor.');
+
+            return;
+        }
+
+        $position = EmployeeJobPosition::query()->findOrFail($this->employeeJobPositionId);
+
+        if ($position->is_guarda && ! filled($this->municipalityCode)) {
+            $this->addError('municipalityCode', 'Los cargos de guarda requieren municipio de labor.');
+
+            return;
+        }
+
         [$firstName, $lastName] = Employee::splitFullName($this->fullName);
+
+        if ($this->employeeScope !== $position->employee_scope?->value) {
+            $this->addError('employeeScope', 'El rol empleado no coincide con el cargo seleccionado.');
+
+            return;
+        }
 
         $payload = [
             'first_name' => $firstName,
@@ -245,15 +509,19 @@ class EmployeesIndex extends Component
             'birth_date' => $this->birthDate ?: null,
             'gender' => $this->gender ?: null,
             'address' => $this->address !== '' ? $this->address : null,
+            'residence_municipality_code' => $this->residenceMunicipalityCode !== '' ? $this->residenceMunicipalityCode : null,
+            'residence_department_code' => $this->residenceDepartmentCode !== '' ? $this->residenceDepartmentCode : null,
             'municipality_code' => $this->municipalityCode !== '' ? $this->municipalityCode : null,
+            'work_department_code' => $this->workDepartmentCode !== '' ? $this->workDepartmentCode : null,
             'phone' => $this->phone !== '' ? $this->phone : null,
             'email' => $this->email !== '' ? $this->email : null,
-            'hired_at' => $this->hiredAt ?: null,
-            'contract_type' => $this->contractType ?: null,
-            'job_title' => $this->jobTitle !== '' ? $this->jobTitle : null,
-            'department_area' => $this->departmentArea !== '' ? $this->departmentArea : null,
+            'hired_at' => $this->hiredAt,
+            'contract_type' => $this->contractType,
+            'employee_job_position_id' => $position->id,
+            'job_title' => $position->name,
+            'employee_scope' => $this->employeeScope,
+            'department_area' => EmployeeScope::from($this->employeeScope)->label(),
             'base_salary' => $this->baseSalary !== '' ? $this->baseSalary : null,
-            'termination_at' => $isFixedTerm ? ($this->terminationAt ?: null) : null,
             'emergency_contact_name' => $this->emergencyContactName !== '' ? $this->emergencyContactName : null,
             'emergency_contact_phone' => $this->emergencyContactPhone !== '' ? $this->emergencyContactPhone : null,
             'is_active' => $this->isActive,
@@ -270,19 +538,68 @@ class EmployeesIndex extends Component
         $this->closeForm();
     }
 
+    #[Computed]
+    public function incompleteProfilesCount(): int
+    {
+        return Employee::query()->profileIncomplete()->count();
+    }
+
+    #[Computed]
+    public function kpiTotal(): int
+    {
+        return Employee::query()->count();
+    }
+
+    #[Computed]
+    public function kpiActive(): int
+    {
+        return Employee::query()->where('is_active', true)->count();
+    }
+
+    #[Computed]
+    public function kpiOperativo(): int
+    {
+        return Employee::query()->where('employee_scope', EmployeeScope::Operativo)->count();
+    }
+
+    #[Computed]
+    public function kpiAdministrativo(): int
+    {
+        return Employee::query()->where('employee_scope', EmployeeScope::Administrativo)->count();
+    }
+
+    public function filterIncompleteProfiles(): void
+    {
+        $this->status = 'incompletos';
+        $this->resetPage();
+    }
+
     public function clearFilters(): void
     {
-        $this->reset(['search', 'status']);
+        $this->reset(['search', 'status', 'scopeFilter', 'contractFilter']);
         $this->resetPage();
+    }
+
+    public function updatedEmployeeJobPositionId(?int $value): void
+    {
+        if (! $value) {
+            return;
+        }
+
+        $scope = EmployeeJobPosition::query()->whereKey($value)->value('employee_scope');
+        if ($scope) {
+            $this->employeeScope = (string) $scope;
+        }
     }
 
     private function resetForm(): void
     {
         $this->reset([
             'editingId', 'fullName', 'documentType', 'documentNumber',
-            'birthDate', 'gender', 'address', 'municipalityCode', 'phone', 'email',
-            'hiredAt', 'contractType', 'jobTitle', 'departmentArea', 'baseSalary',
-            'terminationAt', 'emergencyContactName', 'emergencyContactPhone',
+            'birthDate', 'gender', 'address', 'residenceMunicipalityCode', 'residenceDepartmentCode',
+            'municipalityCode', 'workDepartmentCode', 'phone', 'email',
+            'hiredAt', 'contractType', 'employeeJobPositionId', 'employeeScope', 'departmentArea', 'baseSalary',
+            'emergencyContactName', 'emergencyContactPhone',
         ]);
         $this->documentType = 'CC';
         $this->isActive = true;
@@ -290,7 +607,11 @@ class EmployeesIndex extends Component
 
     public function render()
     {
-        $query = Employee::query()->with('municipality:municipality_code,municipality_name,department_name');
+        $query = Employee::query()->with([
+            'municipality:municipality_code,municipality_name,department_name',
+            'residenceMunicipality:municipality_code,municipality_name,department_name',
+            'employeeJobPosition:id,name,is_guarda,employee_scope',
+        ]);
 
         if ($this->search !== '') {
             $query->search($this->search);
@@ -300,13 +621,31 @@ class EmployeesIndex extends Component
             $query->where('is_active', true);
         } elseif ($this->status === 'inactivos') {
             $query->where('is_active', false);
+        } elseif ($this->status === 'incompletos') {
+            $query->profileIncomplete();
         }
 
+        if ($this->scopeFilter !== '' && EmployeeScope::tryFrom($this->scopeFilter)) {
+            $query->where('employee_scope', $this->scopeFilter);
+        }
+
+        if ($this->contractFilter !== '' && EmployeeContractType::tryFrom($this->contractFilter)) {
+            $query->where('contract_type', $this->contractFilter);
+        }
+
+        $employees = $query->orderBy('last_name')->orderBy('first_name')->paginate($this->perPage);
+
         return view('livewire.employees.index', [
-            'employees' => $query->orderBy('last_name')->orderBy('first_name')->paginate($this->perPage),
+            'employees' => $employees,
+            'incompleteProfilesCount' => $this->incompleteProfilesCount,
+            'kpiTotal' => $this->kpiTotal,
+            'kpiActive' => $this->kpiActive,
+            'kpiOperativo' => $this->kpiOperativo,
+            'kpiAdministrativo' => $this->kpiAdministrativo,
             'documentTypes' => EmployeeDocumentType::options(),
             'genders' => EmployeeGender::options(),
             'contractTypes' => EmployeeContractType::options(),
+            'employeeScopes' => EmployeeScope::options(),
         ]);
     }
 }

@@ -24,7 +24,7 @@ class PendingDecisionHrIndex extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user->hasRole('administrativa') && ! $user->hasRole('admin')) {
+        if (! $user->hasRole('nivel4') && ! $user->hasRole('nivel1')) {
             abort(403);
         }
     }

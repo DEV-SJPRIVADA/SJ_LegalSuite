@@ -27,7 +27,7 @@
     $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) auth()->id();
 
     $diligenceSlotDisplay = $diligenceSlotDisplay ?? ['date' => '—', 'time' => '—', 'confirmed' => false];
-    $notificationSlotDisplay = $notificationSlotDisplay ?? ['date' => '—', 'shift' => '—', 'zone' => '—', 'supervisor' => '—', 'completed' => false];
+    $notificationSlotDisplay = $notificationSlotDisplay ?? ['date' => '—', 'shift' => '—', 'zone' => '—', 'nivel7' => '—', 'completed' => false];
     $useDiligenceDateActionBar = $case->hasCoordinationStarted();
     $canSelectCitationSlot = ! $coordinationIsClosed
         && ! ($diligenceSlotDisplay['confirmed'] ?? false)
@@ -135,7 +135,7 @@
                             <span class="font-normal text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
                             {{ $notificationSlotDisplay['zone'] }}
                             <span class="font-normal text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
-                            {{ $notificationSlotDisplay['supervisor'] }}
+                            {{ $notificationSlotDisplay['nivel7'] }}
                         </p>
                     </div>
                 </div>

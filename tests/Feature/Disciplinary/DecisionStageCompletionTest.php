@@ -31,7 +31,7 @@ class DecisionStageCompletionTest extends TestCase
 
     public function test_supervisor_can_sign_decision_notification_and_upload_pdf(): void
     {
-        ['case' => $case, 'supervisor' => $supervisor] = $this->makeDecisionSupervisorQueueCase();
+        ['case' => $case, 'nivel7' => $supervisor] = $this->makeDecisionSupervisorQueueCase();
         $signature = $this->sampleSignatureDataUri();
 
         Livewire::actingAs($supervisor)
@@ -53,7 +53,7 @@ class DecisionStageCompletionTest extends TestCase
 
     public function test_hr_must_upload_annex_before_completing_review(): void
     {
-        $admin = $this->user('administrativa', 'hr-decision@test.local');
+        $admin = $this->user('nivel4', 'hr-decision@test.local');
         $case = $this->makeTerminationCaseForHr();
 
         Livewire::actingAs($admin)
@@ -78,7 +78,7 @@ class DecisionStageCompletionTest extends TestCase
 
     public function test_finalize_archived_decision_moves_case_to_archivado_status(): void
     {
-        $lawyer = $this->user('abogado', 'finalize-archived@test.local');
+        $lawyer = $this->user('nivel6', 'finalize-archived@test.local');
         $case = $this->makeDecisionReadyToFinalize($lawyer, Decision::ARCHIVADO);
 
         app(DisciplinaryDecisionWorkflowService::class)->finalizeCase($case, $lawyer);
@@ -88,7 +88,7 @@ class DecisionStageCompletionTest extends TestCase
 
     public function test_finalize_absuelto_moves_case_to_finalizado_status(): void
     {
-        $lawyer = $this->user('abogado', 'finalize-absuelto@test.local');
+        $lawyer = $this->user('nivel6', 'finalize-absuelto@test.local');
         $case = $this->makeDecisionReadyToFinalize($lawyer, Decision::ABSUELTO);
 
         app(DisciplinaryDecisionWorkflowService::class)->finalizeCase($case, $lawyer);
@@ -99,8 +99,8 @@ class DecisionStageCompletionTest extends TestCase
     /** @return array{case: DisciplinaryCase, supervisor: User} */
     private function makeDecisionSupervisorQueueCase(): array
     {
-        $supervisor = $this->user('supervisor', 'sup-decision-'.random_int(1000, 9999).'@test.local');
-        $lawyer = $this->user('abogado', 'law-decision-'.random_int(1000, 9999).'@test.local');
+        $supervisor = $this->user('nivel7', 'sup-decision-'.random_int(1000, 9999).'@test.local');
+        $lawyer = $this->user('nivel6', 'law-decision-'.random_int(1000, 9999).'@test.local');
         $employee = Employee::query()->create([
             'first_name' => 'Worker',
             'last_name' => 'Decision',
@@ -130,12 +130,12 @@ class DecisionStageCompletionTest extends TestCase
             'coordination_status' => 'closed',
         ]);
 
-        return ['case' => $case->fresh(), 'supervisor' => $supervisor];
+        return ['case' => $case->fresh(), 'nivel7' => $supervisor];
     }
 
     private function makeTerminationCaseForHr(): DisciplinaryCase
     {
-        $lawyer = $this->user('abogado', 'law-hr-'.random_int(1000, 9999).'@test.local');
+        $lawyer = $this->user('nivel6', 'law-hr-'.random_int(1000, 9999).'@test.local');
 
         return DisciplinaryCase::query()->create([
             'case_number' => 'DISC-HR-'.random_int(1000, 9999),
@@ -171,7 +171,7 @@ class DecisionStageCompletionTest extends TestCase
 
         if ($decision === Decision::TERMINACION_CONTRATO) {
             $workflow = app(DisciplinaryDecisionWorkflowService::class);
-            $admin = $this->user('administrativa', 'hr-fin-'.random_int(1000, 9999).'@test.local');
+            $admin = $this->user('nivel4', 'hr-fin-'.random_int(1000, 9999).'@test.local');
             $file = UploadedFile::fake()->create('anexo.pdf', 80, 'application/pdf');
             $workflow->uploadHrAnnex($case, $admin, $file);
             $workflow->completeHrReview($case->fresh(['documents']), $admin);

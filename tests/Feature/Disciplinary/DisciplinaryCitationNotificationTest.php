@@ -180,7 +180,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
 
     public function test_assigned_supervisor_can_upload_citation_evidence(): void
     {
-        ['case' => $case, 'supervisor' => $supervisor] = $this->makeCaseReadyForEvidenceUpload();
+        ['case' => $case, 'nivel7' => $supervisor] = $this->makeCaseReadyForEvidenceUpload();
 
         $this->assertTrue($case->canUserUploadCitationEvidence($supervisor));
     }
@@ -203,8 +203,8 @@ class DisciplinaryCitationNotificationTest extends TestCase
     /** @return array{case: DisciplinaryCase, lawyer: User, planner: User} */
     private function makeCitacionCaseWithCoordination(): array
     {
-        $lawyer = $this->makeUserWithRole('abogado', 'lawyer@test.local');
-        $planner = $this->makeUserWithRole('planeacion', 'planner@test.local');
+        $lawyer = $this->makeUserWithRole('nivel6', 'lawyer@test.local');
+        $planner = $this->makeUserWithRole('nivel3', 'planner@test.local');
         $employee = Employee::query()->create([
             'first_name' => 'Worker',
             'last_name' => 'Test',
@@ -238,7 +238,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
     {
         $context = $this->makeCitacionCaseWithCoordination();
         $supervisor = $this->makeSupervisor('assigned-supervisor@test.local');
-        $reviewer = $this->makeUserWithRole('operaciones', 'reviewer@test.local');
+        $reviewer = $this->makeUserWithRole('nivel2', 'reviewer@test.local');
 
         InformeSubmission::query()->create([
             'submitted_by' => $supervisor->id,
@@ -268,7 +268,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
             ]);
 
         return array_merge($context, [
-            'supervisor' => $supervisor,
+            'nivel7' => $supervisor,
             'reviewer' => $reviewer,
             'case' => $context['case']->fresh(),
         ]);
@@ -298,14 +298,14 @@ class DisciplinaryCitationNotificationTest extends TestCase
 
         return [
             'case' => $case->fresh(['informeSubmission']),
-            'supervisor' => $context['supervisor'],
+            'nivel7' => $context['nivel7'],
             'reviewer' => $context['reviewer'],
         ];
     }
 
     private function makeSupervisor(string $email): User
     {
-        return $this->makeUserWithRole('supervisor', $email);
+        return $this->makeUserWithRole('nivel7', $email);
     }
 
     private function makeUserWithRole(string $role, string $email): User

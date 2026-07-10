@@ -43,6 +43,7 @@ use App\Support\Disciplinary\DecisionBranch;
 use App\Support\Disciplinary\DecisionStageProgress;
 use App\Support\Disciplinary\CaseOverviewStageStack;
 use App\Support\Disciplinary\CaseStageCardState;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Support\Disciplinary\WorkflowStageBuckets;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Support\Disciplinary\DiligenceStageProgress;
@@ -583,7 +584,7 @@ class CaseDetail extends Component
 
         if ($newLawyerId !== null) {
             $lawyer = User::query()->find($newLawyerId);
-            if (! $lawyer || ! $lawyer->hasRole('abogado')) {
+            if (! $lawyer || ! $lawyer->hasRole('nivel6')) {
                 $this->addError('assignedLawyerId', 'Seleccione un usuario con rol abogado.');
                 $this->assignedLawyerId = $currentId;
 
@@ -1968,9 +1969,15 @@ class CaseDetail extends Component
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
-                ? User::query()->role('abogado')->active()->orderBy('name')->get(['id', 'name'])
+                ? User::query()->role('nivel6')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
-            'supervisorCandidates' => User::query()->role('supervisor')->active()->orderBy('name')->get(['id', 'name']),
+            'supervisorCandidates' => app(FieldDisciplinaryScopeService::class)
+                ->applySupervisorCandidatesForMunicipality(
+                    User::query(),
+                    $this->case->employee?->municipality_code,
+                )
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'organizationalAreasForAgenda' => $agendaAreas,
             'citationReadiness' => $citationWorkflow->readinessChecklist($this->case),
             'citationMissing' => $citationWorkflow->missingRequirements($this->case),
@@ -2077,7 +2084,7 @@ class CaseDetail extends Component
             'date' => '—',
             'shift' => '—',
             'zone' => '—',
-            'supervisor' => '—',
+            'nivel7' => '—',
             'completed' => false,
         ];
 
@@ -2089,7 +2096,7 @@ class CaseDetail extends Component
             'date' => $this->case->notification_date?->format('d/m/Y') ?? '—',
             'shift' => filled($this->case->notification_shift) ? (string) $this->case->notification_shift : '—',
             'zone' => filled($this->case->notification_zone) ? (string) $this->case->notification_zone : '—',
-            'supervisor' => filled($this->case->notification_supervisor_name)
+            'nivel7' => filled($this->case->notification_supervisor_name)
                 ? (string) $this->case->notification_supervisor_name
                 : '—',
             'completed' => true,

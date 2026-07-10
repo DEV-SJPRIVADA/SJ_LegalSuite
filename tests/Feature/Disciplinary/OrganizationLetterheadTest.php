@@ -33,7 +33,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $file = UploadedFile::fake()->image('membrete-empresa.png', 850, 1100);
 
@@ -57,7 +57,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $file = UploadedFile::fake()->image('membrete.png');
 
@@ -75,7 +75,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $this->actingAs($admin)
             ->get(route('disciplinary.formats.letterhead'))
@@ -89,7 +89,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         app(OrganizationLetterheadService::class)->storeImage(
             UploadedFile::fake()->image('membrete.png', 200, 260),
@@ -108,7 +108,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         Livewire::actingAs($admin)
             ->test(FormatsCatalog::class)
@@ -125,7 +125,7 @@ class OrganizationLetterheadTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         Livewire::actingAs($admin)
             ->test(FormatsCatalog::class)
@@ -139,10 +139,10 @@ class OrganizationLetterheadTest extends TestCase
     public function test_manage_official_letterhead_policy(): void
     {
         $admin = User::factory()->create(['is_active' => true]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $lawyer = User::factory()->create(['is_active' => true]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $this->assertTrue($admin->can('manageOfficialLetterhead', DisciplinaryCase::class));
         $this->assertFalse($lawyer->can('manageOfficialLetterhead', DisciplinaryCase::class));

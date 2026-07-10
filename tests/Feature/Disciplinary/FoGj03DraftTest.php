@@ -213,7 +213,7 @@ class FoGj03DraftTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

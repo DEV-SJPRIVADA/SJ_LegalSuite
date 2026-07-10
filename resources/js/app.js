@@ -10,7 +10,7 @@ import './echo-notification-bell';
 import './notification-bell-sound';
 import './fo51-municipality-combobox';
 import './fo51-employee-combobox';
-import './bulk-import-elapsed-timer';
+import './bulk-import-progress';
 import './disciplinary-agenda-composer';
 import './agenda-attachment-lightbox';
 import './fo51-evidence-tiles';

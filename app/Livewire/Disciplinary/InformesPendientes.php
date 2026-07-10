@@ -135,7 +135,7 @@ class InformesPendientes extends Component
             ]);
 
         $user = auth()->user();
-        if (! $user->hasRole('admin') && ! $user->can('disciplinary.review-inform-all')) {
+        if (! $user->hasRole('nivel1') && ! $user->can('disciplinary.review-inform-all')) {
             $query->where('assigned_reviewer_id', $user->id);
         }
 

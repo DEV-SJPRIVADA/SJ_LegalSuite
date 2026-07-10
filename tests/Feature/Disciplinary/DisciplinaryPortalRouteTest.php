@@ -23,7 +23,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         $this->actingAs($user)
             ->get('/disciplinary')
@@ -36,7 +36,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         $this->assertSame(route('disciplinary.cases.index'), $user->disciplinaryCasesNavUrl());
     }
@@ -47,7 +47,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         $this->actingAs($user);
 
@@ -67,7 +67,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('planeacion');
+        $user->assignRole('nivel3');
 
         $this->actingAs($user)
             ->get('/disciplinary')
@@ -80,7 +80,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('supervisor');
+        $user->assignRole('nivel7');
 
         $this->actingAs($user)
             ->get('/disciplinary')
@@ -93,7 +93,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('supervisor');
+        $user->assignRole('nivel7');
 
         $this->actingAs($user)
             ->get('/disciplinary/dashboard')
@@ -106,7 +106,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('supervisor');
+        $user->assignRole('nivel7');
 
         $this->actingAs($user)
             ->get('/disciplinary/cases')
@@ -119,7 +119,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('planeacion');
+        $user->assignRole('nivel3');
 
         $this->actingAs($user)
             ->get('/disciplinary/cases')

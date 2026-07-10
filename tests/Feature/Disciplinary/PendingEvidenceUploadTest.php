@@ -35,7 +35,7 @@ class PendingEvidenceUploadTest extends TestCase
 
     public function test_supervisor_can_preview_and_confirm_scanned_evidence_pdf(): void
     {
-        ['case' => $case, 'supervisor' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
+        ['case' => $case, 'nivel7' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
         $file = UploadedFile::fake()->create('citacion-firmada.pdf', 120, 'application/pdf');
 
         Livewire::actingAs($supervisor)
@@ -56,7 +56,7 @@ class PendingEvidenceUploadTest extends TestCase
 
     public function test_supervisor_can_upload_refused_notification_with_two_witnesses(): void
     {
-        ['case' => $case, 'supervisor' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
+        ['case' => $case, 'nivel7' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
         $signature = $this->sampleWorkerSignatureDataUri();
 
         Livewire::actingAs($supervisor)
@@ -86,7 +86,7 @@ class PendingEvidenceUploadTest extends TestCase
 
     public function test_supervisor_can_sign_notification_html_and_upload_signed_pdf(): void
     {
-        ['case' => $case, 'supervisor' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
+        ['case' => $case, 'nivel7' => $supervisor] = $this->makeCaseReadyForSupervisorQueue();
         $signature = $this->sampleWorkerSignatureDataUri();
 
         Livewire::actingAs($supervisor)
@@ -110,9 +110,9 @@ class PendingEvidenceUploadTest extends TestCase
     /** @return array{case: DisciplinaryCase, supervisor: User, lawyer: User} */
     private function makeCaseReadyForSupervisorQueue(): array
     {
-        $lawyer = $this->makeUserWithRole('abogado', 'lawyer-pe-'.random_int(1000, 9999).'@test.local');
-        $planner = $this->makeUserWithRole('planeacion', 'planner-pe-'.random_int(1000, 9999).'@test.local');
-        $supervisor = $this->makeUserWithRole('supervisor', 'supervisor-pe-'.random_int(1000, 9999).'@test.local');
+        $lawyer = $this->makeUserWithRole('nivel6', 'lawyer-pe-'.random_int(1000, 9999).'@test.local');
+        $planner = $this->makeUserWithRole('nivel3', 'planner-pe-'.random_int(1000, 9999).'@test.local');
+        $supervisor = $this->makeUserWithRole('nivel7', 'supervisor-pe-'.random_int(1000, 9999).'@test.local');
 
         $employee = Employee::query()->create([
             'first_name' => 'Worker',
@@ -204,7 +204,7 @@ class PendingEvidenceUploadTest extends TestCase
             'notes' => DisciplinaryCase::NOTE_FO_GJ_03_GENERATED,
         ]);
 
-        return ['case' => $case->fresh(), 'supervisor' => $supervisor, 'lawyer' => $lawyer];
+        return ['case' => $case->fresh(), 'nivel7' => $supervisor, 'lawyer' => $lawyer];
     }
 
     private function sampleWorkerSignatureDataUri(): string

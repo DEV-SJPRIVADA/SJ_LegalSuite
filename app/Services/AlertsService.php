@@ -93,15 +93,15 @@ class AlertsService
      */
     private function sinAsignar(int $limit, ?User $user): array
     {
-        if ($user && $user->hasRole('abogado') && ! $user->hasRole('admin')) {
+        if ($user && $user->hasRole('nivel6') && ! $user->hasRole('nivel1')) {
             return ['count' => 0, 'items' => []];
         }
 
-        if ($user && $user->hasRole('programador') && ! $user->hasRole('admin')) {
+        if ($user && $user->hasRole('nivel9') && ! $user->hasRole('nivel1')) {
             return ['count' => 0, 'items' => []];
         }
 
-        if ($user && $user->hasAnyRole(['supervisor', 'operador']) && ! $user->hasRole('admin')) {
+        if ($user && $user->hasAnyRole(['nivel7', 'nivel8']) && ! $user->hasRole('nivel1')) {
             return ['count' => 0, 'items' => []];
         }
 

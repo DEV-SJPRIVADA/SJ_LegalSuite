@@ -53,11 +53,11 @@
                             class="{{ $usersField }}">
                     </div>
                     <div>
-                        <label class="{{ $usersLabel }}">Perfil de permisos (técnico)</label>
+                        <label class="{{ $usersLabel }}">Nivel</label>
                         <select wire:model.live="role" class="{{ $usersField }}">
                             <option value="">— Todos —</option>
-                            @foreach ($this->rolesListForFilter as $r)
-                                <option value="{{ $r }}">{{ ucfirst($r) }}</option>
+                            @foreach ($this->rolesListForFilter as $slug => $label)
+                                <option value="{{ $slug }}">{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -127,7 +127,7 @@
                                         {{ $u->organizationalArea?->name ?? $u->areaDisplayLabel() ?? '—' }}
                                     </td>
                                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                        @if ($u->hasRole('admin'))
+                                        @if ($u->hasRole('nivel1'))
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-violet-50 text-violet-900 ring-1 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-100 dark:ring-violet-400/45">
                                                 Admin plataforma
                                             </span>
@@ -286,6 +286,30 @@
                                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Seleccione un área para ver los cargos configurados.</p>
                             @endunless
                         </div>
+
+                        @if ($this->requiresAuthorizedCities)
+                            <div class="md:col-span-2">
+                                <label class="{{ $usersLabel }}">Ciudades autorizadas *</label>
+                                <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Supervisor y operador solo pueden gestionar disciplinarios de guardas en estas ciudades de labor.</p>
+                                <div class="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white p-2 dark:border-white/15 dark:bg-dash-lift">
+                                    @foreach ($this->municipalitiesGrouped as $department => $municipalities)
+                                        <p class="mt-2 first:mt-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-dash-muted">{{ $department }}</p>
+                                        <div class="mt-1 grid gap-1 sm:grid-cols-2">
+                                            @foreach ($municipalities as $mun)
+                                                <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.04]">
+                                                    <input type="checkbox"
+                                                        wire:model="authorizedMunicipalityCodes"
+                                                        value="{{ $mun['code'] }}"
+                                                        class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
+                                                    <span>{{ $mun['name'] }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                </div>
+                                @error('authorizedMunicipalityCodes') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                            </div>
+                        @endif
 
                         @if (! $editingId)
                             <div class="md:col-span-2 rounded-md bg-indigo-50 ring-1 ring-indigo-100 px-3 py-2 dark:bg-indigo-950/35 dark:ring-indigo-500/25">

@@ -296,7 +296,7 @@
                                         class="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">
                                         @if (auth()->user()->isDisciplinaryProgramador())
                                             Programar
-                                        @elseif ($case->isInInformePool() && auth()->user()->hasRole('auditor'))
+                                        @elseif ($case->isInInformePool() && auth()->user()->hasRole('nivel5'))
                                             Ver
                                         @else
                                             Gestionar

@@ -50,7 +50,7 @@ class DisciplinaryDashboardScopeTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $lawyer = $this->makeLawyer('lawyer-admin-dash@test.local');
         $this->makeCase($lawyer, 'A-001', StageType::DECISION, CaseStatus::DECISION);
@@ -82,7 +82,7 @@ class DisciplinaryDashboardScopeTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $admin->assignRole('admin');
+        $admin->assignRole('nivel1');
 
         $lawyer = $this->makeLawyer('lawyer-rank@test.local');
         $this->makeCase($lawyer, 'R-001', StageType::DECISION, CaseStatus::DECISION);
@@ -114,7 +114,7 @@ class DisciplinaryDashboardScopeTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

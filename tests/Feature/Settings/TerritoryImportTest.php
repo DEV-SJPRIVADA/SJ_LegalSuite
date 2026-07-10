@@ -43,11 +43,37 @@ class TerritoryImportTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('admin');
+        $user->assignRole('nivel1');
 
         Livewire::actingAs($user)
             ->test(TerritoryImport::class)
             ->assertOk()
-            ->assertSee('Territorio');
+            ->assertSee('Territorio')
+            ->assertSee('Importar DIVIPOLA')
+            ->assertSee('Municipios');
+    }
+
+    public function test_admin_can_search_municipalities_in_explorer(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('nivel1');
+
+        \App\Models\ColombianMunicipality::query()->create([
+            'department_code' => '05',
+            'department_name' => 'Antioquia',
+            'municipality_code' => '05001',
+            'municipality_name' => 'Medellín',
+            'latitude' => 6.25,
+            'longitude' => -75.56,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(TerritoryImport::class)
+            ->set('search', 'Medell')
+            ->assertSee('Medellín')
+            ->assertDontSee('Sin coincidencias');
     }
 }

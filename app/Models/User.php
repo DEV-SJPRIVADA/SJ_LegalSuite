@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -64,6 +65,30 @@ class User extends Authenticatable
         return $this->belongsTo(JobPosition::class);
     }
 
+    public function authorizedMunicipalities(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ColombianMunicipality::class,
+            'user_authorized_municipalities',
+            'user_id',
+            'municipality_code',
+            'id',
+            'municipality_code',
+        );
+    }
+
+    public function requiresFieldDisciplinaryScope(): bool
+    {
+        return app(\App\Support\Disciplinary\FieldDisciplinaryScopeService::class)
+            ->requiresTerritorialScope($this);
+    }
+
+    public function hasFieldDisciplinaryScopeConfigured(): bool
+    {
+        return app(\App\Support\Disciplinary\FieldDisciplinaryScopeService::class)
+            ->hasConfiguredScope($this);
+    }
+
     public function assignedCases(): HasMany
     {
         return $this->hasMany(DisciplinaryCase::class, 'assigned_lawyer_id');
@@ -105,11 +130,11 @@ class User extends Authenticatable
      */
     public function isDisciplinaryFieldOperator(): bool
     {
-        if ($this->hasRole('admin')) {
+        if ($this->hasRole('nivel1')) {
             return false;
         }
 
-        return $this->hasAnyRole(['supervisor', 'operador']);
+        return $this->hasAnyRole(['nivel7', 'nivel8']);
     }
 
     /**
@@ -117,11 +142,11 @@ class User extends Authenticatable
      */
     public function isDisciplinaryProgramador(): bool
     {
-        if ($this->hasRole('admin')) {
+        if ($this->hasRole('nivel1')) {
             return false;
         }
 
-        return $this->hasRole('programador');
+        return $this->hasRole('nivel9');
     }
 
     /**
@@ -130,7 +155,11 @@ class User extends Authenticatable
      */
     public function minimalDisciplinarySidebarLabel(): string
     {
-        if ($this->hasAnyRole(['director', 'operaciones'])) {
+        if ($this->hasRole('nivel7')) {
+            return 'Evidencias';
+        }
+
+        if ($this->hasAnyRole(['director', 'nivel2'])) {
             return 'Diciplinarios';
         }
 
@@ -140,11 +169,11 @@ class User extends Authenticatable
     /** Punto de entrada del módulo disciplinario según rol y permisos. */
     public function disciplinaryPortalUrl(): string
     {
-        if ($this->hasRole('planeacion')) {
+        if ($this->hasRole('nivel3')) {
             return route('disciplinary.coordinations.index');
         }
 
-        if ($this->hasRole('supervisor')) {
+        if ($this->hasRole('nivel7')) {
             return route('disciplinary.evidences-pending.index');
         }
 
@@ -164,7 +193,7 @@ class User extends Authenticatable
      */
     public function canViewHomeCommandCenter(): bool
     {
-        return $this->hasRole('admin');
+        return $this->hasRole('nivel1');
     }
 
     /**
@@ -197,11 +226,11 @@ class User extends Authenticatable
      */
     public function disciplinaryCasesNavUrl(): string
     {
-        if ($this->hasAnyRole(['abogado', 'auditor'])) {
+        if ($this->hasAnyRole(['nivel6', 'nivel5'])) {
             return route('disciplinary.cases.index');
         }
 
-        if ($this->can('viewAny', DisciplinaryCase::class) && ! $this->hasRole('planeacion')) {
+        if ($this->can('viewAny', DisciplinaryCase::class) && ! $this->hasRole('nivel3')) {
             return route('disciplinary.cases.index');
         }
 
@@ -210,7 +239,7 @@ class User extends Authenticatable
 
     public function hasDisciplinaryPortalAccess(): bool
     {
-        if ($this->hasAnyRole(['planeacion', 'supervisor'])) {
+        if ($this->hasAnyRole(['nivel3', 'nivel7'])) {
             return true;
         }
 
@@ -223,11 +252,11 @@ class User extends Authenticatable
      */
     public function canSeeFullAppSidebar(): bool
     {
-        if ($this->hasRole('admin')) {
+        if ($this->hasRole('nivel1')) {
             return true;
         }
 
-        return $this->hasAnyRole(['abogado', 'auditor']);
+        return $this->hasAnyRole(['nivel6', 'nivel5']);
     }
 
     /**
@@ -235,11 +264,11 @@ class User extends Authenticatable
      */
     public function isMinimalDisciplinaryPortalUser(): bool
     {
-        if ($this->hasRole('admin')) {
+        if ($this->hasRole('nivel1')) {
             return false;
         }
 
-        return $this->hasAnyRole(['supervisor', 'operador', 'programador']);
+        return $this->hasAnyRole(['nivel7', 'nivel8', 'nivel9']);
     }
 
     public function scopeActive(Builder $query): Builder
@@ -278,6 +307,6 @@ class User extends Authenticatable
 
     public function scopeLawyers(Builder $query): Builder
     {
-        return $query->role('abogado');
+        return $query->role('nivel6');
     }
 }

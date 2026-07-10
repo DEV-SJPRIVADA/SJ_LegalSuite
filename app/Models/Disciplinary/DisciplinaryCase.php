@@ -642,34 +642,34 @@ class DisciplinaryCase extends Model
      */
     public function scopeForDisciplinaryActor(Builder $query, User $user): Builder
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return $query;
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return $query->where(function (Builder $q) use ($user) {
                 $q->where('assigned_lawyer_id', $user->id)
                     ->orWhere(fn (Builder $pool) => $pool->inInformePool());
             });
         }
 
-        if ($user->hasRole('operador')) {
+        if ($user->hasRole('nivel8')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
-        if ($user->hasRole('supervisor')) {
+        if ($user->hasRole('nivel7')) {
             return $query->whereRaw('1=0');
         }
 
-        if ($user->hasRole('programador')) {
+        if ($user->hasRole('nivel9')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return $query->whereRaw('1=0');
         }
 
-        if ($user->hasRole('operaciones')) {
+        if ($user->hasRole('nivel2')) {
             return $query->visibleToOperacionesReviewer($user);
         }
 
@@ -943,7 +943,7 @@ class DisciplinaryCase extends Model
             return false;
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return false;
         }
 
@@ -951,7 +951,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+        if ($user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign')) {
             return true;
         }
 
@@ -1019,7 +1019,7 @@ class DisciplinaryCase extends Model
             return false;
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return false;
         }
 
@@ -1027,7 +1027,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+        if ($user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign')) {
             return true;
         }
 

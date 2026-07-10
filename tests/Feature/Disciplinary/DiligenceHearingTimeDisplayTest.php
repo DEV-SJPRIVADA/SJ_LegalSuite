@@ -54,7 +54,7 @@ class DiligenceHearingTimeDisplayTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $case = $this->caseWithConfirmedDate(
             lawyerId: $lawyer->id,

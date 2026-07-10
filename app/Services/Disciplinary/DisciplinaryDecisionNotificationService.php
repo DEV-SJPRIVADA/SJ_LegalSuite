@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Notifications\DisciplinaryDecisionCoordinatedNotification;
 use App\Notifications\DisciplinaryDecisionEvidenceEnabledNotification;
 use Illuminate\Support\Collection;
@@ -121,12 +122,15 @@ class DisciplinaryDecisionNotificationService
         $supervisor = User::query()
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
 
         $thread = $case->agendaThread;
         if ($thread === null) {

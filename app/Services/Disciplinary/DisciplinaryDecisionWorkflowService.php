@@ -217,7 +217,7 @@ class DisciplinaryDecisionWorkflowService
             return false;
         }
 
-        return $user->hasRole('administrativa') || $user->hasRole('admin');
+        return $user->hasRole('nivel4') || $user->hasRole('nivel1');
     }
 
     public function uploadHrAnnex(DisciplinaryCase $case, User $actor, UploadedFile $file): DisciplinaryCase

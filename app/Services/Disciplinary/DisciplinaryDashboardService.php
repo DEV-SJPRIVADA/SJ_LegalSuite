@@ -24,7 +24,7 @@ class DisciplinaryDashboardService
 {
     public function usesAssignedOnlyScope(User $actor): bool
     {
-        return $actor->hasRole('abogado') && ! $actor->hasRole('admin');
+        return $actor->hasRole('nivel6') && ! $actor->hasRole('nivel1');
     }
 
     /**
@@ -346,7 +346,7 @@ class DisciplinaryDashboardService
             ->leftJoin('disciplinary_cases as dc', 'dc.assigned_lawyer_id', '=', 'users.id')
             ->whereNull('dc.deleted_at')
             ->when(
-                $actor && $actor->hasRole('abogado') && ! $actor->hasRole('admin'),
+                $actor && $actor->hasRole('nivel6') && ! $actor->hasRole('nivel1'),
                 fn ($q) => $q->where('users.id', $actor->id),
             )
             ->groupBy('users.id', 'users.name')

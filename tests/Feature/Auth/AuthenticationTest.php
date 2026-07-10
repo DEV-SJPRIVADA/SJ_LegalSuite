@@ -68,7 +68,7 @@ class AuthenticationTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('admin');
+        $user->assignRole('nivel1');
 
         $this->actingAs($user);
 

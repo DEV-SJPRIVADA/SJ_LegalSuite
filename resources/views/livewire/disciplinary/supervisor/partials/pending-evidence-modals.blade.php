@@ -10,8 +10,9 @@
         <div class="absolute inset-0 bg-black/50 dark:bg-black/60" wire:click="cancelEvidenceUpload" aria-hidden="true"></div>
         <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
             <div class="shrink-0 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
-                <h2 id="evidence-preview-title" class="text-base font-bold text-slate-900 dark:text-white">Confirmar evidencia PDF</h2>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Revise el documento antes de cargarlo al expediente.</p>
+                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-400/90">Confirmación</p>
+                <h2 id="evidence-preview-title" class="text-sm font-semibold text-slate-900 dark:text-white">Evidencia PDF</h2>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Revise el documento antes de cargarlo al expediente.</p>
             </div>
 
             <div class="min-h-0 flex-1 bg-slate-100 dark:bg-black/40">

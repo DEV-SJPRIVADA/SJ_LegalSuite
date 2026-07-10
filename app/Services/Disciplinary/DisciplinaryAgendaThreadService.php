@@ -36,11 +36,11 @@ class DisciplinaryAgendaThreadService
             return false;
         }
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return true;
         }
 
-        return $user->hasRole('planeacion');
+        return $user->hasRole('nivel3');
     }
 
     public function userCanCloseCoordination(User $user, DisciplinaryCase $case): bool
@@ -53,7 +53,7 @@ class DisciplinaryAgendaThreadService
             return true;
         }
 
-        return $user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign');
+        return $user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign');
     }
 
     public function userIsCaseLawyer(User $user, DisciplinaryCase $case): bool
@@ -99,7 +99,7 @@ class DisciplinaryAgendaThreadService
             $recipients = User::query()
                 ->where('is_active', true)
                 ->where('read_only', false)
-                ->role('planeacion')
+                ->role('nivel3')
                 ->get();
 
             if ($recipients->isNotEmpty()) {
@@ -553,7 +553,7 @@ class DisciplinaryAgendaThreadService
         $recipients = User::query()
             ->where('is_active', true)
             ->where('read_only', false)
-            ->role('planeacion')
+            ->role('nivel3')
             ->whereKeyNot($lawyer->id)
             ->get();
 

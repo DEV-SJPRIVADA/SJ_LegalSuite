@@ -9,7 +9,7 @@
         $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
 
-    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel) && ! auth()->user()->hasRole('planeacion')) {
+    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel) && ! auth()->user()->hasRole('nivel3')) {
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
@@ -40,7 +40,7 @@
         ];
     }
 
-    if (auth()->user()->hasAnyRole(['administrativa', 'admin'])) {
+    if (auth()->user()->hasAnyRole(['nivel4', 'nivel1'])) {
         $links[] = [
             'key' => 'decision-hr',
             'label' => 'Gestión humana',
@@ -53,7 +53,7 @@
         $links[] = ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false];
     }
 
-    if (! auth()->user()->hasRole('planeacion')) {
+    if (! auth()->user()->hasRole('nivel3')) {
         $links[] = ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true];
     }
 

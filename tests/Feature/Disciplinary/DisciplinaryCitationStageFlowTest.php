@@ -31,8 +31,8 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_full_b1_flow_chat_planning_slots_confirm(): void
     {
-        $lawyer = $this->user('abogado', 'flow-lawyer@test.local');
-        $planner = $this->user('planeacion', 'flow-planner@test.local');
+        $lawyer = $this->user('nivel6', 'flow-lawyer@test.local');
+        $planner = $this->user('nivel3', 'flow-planner@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $agenda = app(DisciplinaryAgendaThreadService::class);
@@ -56,7 +56,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_lawyer_can_post_chat_message_with_image_attachment(): void
     {
-        $lawyer = $this->user('abogado', 'lawyer-img@test.local');
+        $lawyer = $this->user('nivel6', 'lawyer-img@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $file = \Illuminate\Http\UploadedFile::fake()->image('evidencia-chat.jpg', 80, 80);
@@ -76,7 +76,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_lawyer_case_detail_shows_chat_composer(): void
     {
-        $lawyer = $this->user('abogado', 'lw-ui@test.local');
+        $lawyer = $this->user('nivel6', 'lw-ui@test.local');
         $case = $this->caseWithThread($lawyer);
 
         Livewire::actingAs($lawyer)
@@ -96,8 +96,8 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_planning_chat_without_slots_is_general(): void
     {
-        $lawyer = $this->user('abogado', 'chat-lawyer@test.local');
-        $planner = $this->user('planeacion', 'chat-planner@test.local');
+        $lawyer = $this->user('nivel6', 'chat-lawyer@test.local');
+        $planner = $this->user('nivel3', 'chat-planner@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $msg = app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
@@ -114,9 +114,9 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_chat_composer_remains_after_notification_registered_by_planning(): void
     {
-        $lawyer = $this->user('abogado', 'chat-after-notif@test.local');
-        $planner = $this->user('planeacion', 'planner-after-notif@test.local');
-        $supervisor = $this->user('supervisor', 'sup-after-notif@test.local');
+        $lawyer = $this->user('nivel6', 'chat-after-notif@test.local');
+        $planner = $this->user('nivel3', 'planner-after-notif@test.local');
+        $supervisor = $this->user('nivel7', 'sup-after-notif@test.local');
         $case = $this->caseWithThread($lawyer);
         $agenda = app(DisciplinaryAgendaThreadService::class);
 
@@ -154,9 +154,9 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_advancing_to_diligencia_closes_coordination_thread(): void
     {
-        $lawyer = $this->user('abogado', 'advance-close@test.local');
-        $planner = $this->user('planeacion', 'planner-advance@test.local');
-        $supervisor = $this->user('supervisor', 'sup-advance@test.local');
+        $lawyer = $this->user('nivel6', 'advance-close@test.local');
+        $planner = $this->user('nivel3', 'planner-advance@test.local');
+        $supervisor = $this->user('nivel7', 'sup-advance@test.local');
         $case = $this->caseWithThread($lawyer);
         $agenda = app(DisciplinaryAgendaThreadService::class);
 
@@ -211,10 +211,10 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_close_coordination_blocked_with_pending_notification(): void
     {
-        $lawyer = $this->user('abogado', 'close@test.local');
+        $lawyer = $this->user('nivel6', 'close@test.local');
         $case = $this->caseWithThread($lawyer);
         $agenda = app(DisciplinaryAgendaThreadService::class);
-        $planner = $this->user('planeacion', 'close-planner@test.local');
+        $planner = $this->user('nivel3', 'close-planner@test.local');
         $agenda->postPlanningMessage(
             $case->fresh(['agendaThread']),
             $planner,
@@ -231,7 +231,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_fo_gj_03_requires_full_b2_before_generate(): void
     {
-        $lawyer = $this->user('abogado', 'fo03@test.local');
+        $lawyer = $this->user('nivel6', 'fo03@test.local');
         $case = $this->caseWithThread($lawyer);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
@@ -243,7 +243,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_abogado_disciplinarios_nav_url_points_to_cases_index(): void
     {
-        $lawyer = $this->user('abogado', 'nav-lawyer@test.local');
+        $lawyer = $this->user('nivel6', 'nav-lawyer@test.local');
 
         $this->assertSame(route('disciplinary.cases.index'), $lawyer->disciplinaryCasesNavUrl());
         $this->assertSame(route('disciplinary.dashboard'), $lawyer->disciplinaryPortalUrl());

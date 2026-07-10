@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Notifications\DisciplinaryFoGj03EvidenceEnabledNotification;
 use App\Notifications\DisciplinaryNotificationCoordinatedNotification;
 use Illuminate\Support\Collection;
@@ -193,12 +194,15 @@ class DisciplinaryCitationNotificationService
         $supervisor = User::query()
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
 
         $thread = $case->agendaThread;
         if ($thread === null) {
@@ -280,12 +284,15 @@ class DisciplinaryCitationNotificationService
         $newSupervisor = User::query()
             ->whereKey($newSupervisorUserId)
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $newSupervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($newSupervisor, $case);
 
         $previousId = (int) $case->notification_supervisor_user_id;
         $previousName = (string) $case->notification_supervisor_name;

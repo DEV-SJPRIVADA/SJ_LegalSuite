@@ -3,10 +3,27 @@
 namespace App\Services\Employees;
 
 use App\Models\Employee;
+use App\Models\User;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 
 class EmployeeResolver
 {
     public function resolveByDocument(string $documentNumber): Employee
+    {
+        $employee = $this->resolveByDocumentUnchecked($documentNumber);
+
+        return $employee;
+    }
+
+    public function resolveForDisciplinaryActor(User $actor, ?int $employeeId, string $documentNumber): Employee
+    {
+        $employee = $this->resolveById($employeeId, $documentNumber);
+        app(FieldDisciplinaryScopeService::class)->assertEmployeeInScope($actor, $employee);
+
+        return $employee;
+    }
+
+    private function resolveByDocumentUnchecked(string $documentNumber): Employee
     {
         $normalized = Employee::normalizeDocumentNumber($documentNumber);
 

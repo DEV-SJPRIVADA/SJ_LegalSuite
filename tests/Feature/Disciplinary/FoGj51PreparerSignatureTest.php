@@ -2,30 +2,34 @@
 
 namespace Tests\Feature\Disciplinary;
 
-use App\Models\ColombianMunicipality;
 use App\Models\Employee;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class FoGj51PreparerSignatureTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
+    }
 
     private function makeEmployee(): Employee
     {
-        return Employee::query()->create([
-            'first_name' => 'Trabajador',
-            'last_name' => 'Prueba',
-            'document_number' => '9500'.random_int(100000, 999999),
-        ]);
+        return $this->seedGuardaEmployee('9500'.random_int(100000, 999999), '76001');
     }
 
     public function test_pdf_action_requires_captured_preparer_signature(): void
     {
         $supervisor = $this->makeSupervisor();
         $employee = $this->makeEmployee();
-        $this->seedMunicipality();
+        $this->seedMunicipality('76001', 'Cali');
 
         $response = $this->actingAs($supervisor)->post(route('disciplinary.forms.informe.process'), [
             'fo51_action' => 'pdf',
@@ -43,7 +47,7 @@ class FoGj51PreparerSignatureTest extends TestCase
     {
         $supervisor = $this->makeSupervisor();
         $employee = $this->makeEmployee();
-        $this->seedMunicipality();
+        $this->seedMunicipality('76001', 'Cali');
 
         $response = $this->actingAs($supervisor)->post(route('disciplinary.forms.informe.process'), [
             'fo51_action' => 'pdf',
@@ -85,7 +89,7 @@ class FoGj51PreparerSignatureTest extends TestCase
             'faultOtherDetail' => '',
             'observations' => 'Observaciones.',
             'preparerName' => 'Supervisor campo',
-            'preparerRole' => 'supervisor',
+            'preparerRole' => 'nivel7',
             'preparerSignature' => $signature,
             'reportDay' => '16',
             'reportMonth' => '06',
@@ -140,7 +144,7 @@ class FoGj51PreparerSignatureTest extends TestCase
             'faultOtherDetail' => '',
             'observations' => 'Observaciones.',
             'preparerName' => 'Supervisor campo',
-            'preparerRole' => 'supervisor',
+            'preparerRole' => 'nivel7',
             'preparerSignature' => $signature,
             'reportDay' => '16',
             'reportMonth' => '06',
@@ -167,26 +171,9 @@ class FoGj51PreparerSignatureTest extends TestCase
 
     private function makeSupervisor(): User
     {
-        $user = User::factory()->create([
-            'email' => 'supervisor-fo51-'.random_int(1000, 9999).'@test.local',
-            'email_verified_at' => now(),
-            'must_change_password' => false,
-            'is_active' => true,
-            'position' => 'supervisor',
-        ]);
-        $user->assignRole('supervisor');
+        $this->seedMunicipality('76001', 'Cali');
 
-        return $user;
-    }
-
-    private function seedMunicipality(): void
-    {
-        ColombianMunicipality::query()->create([
-            'department_code' => '76',
-            'department_name' => 'Valle del Cauca',
-            'municipality_code' => '76001',
-            'municipality_name' => 'Cali',
-        ]);
+        return $this->seedFieldUserWithCities('nivel7', ['76001']);
     }
 
     private function sampleSignatureDataUri(): string

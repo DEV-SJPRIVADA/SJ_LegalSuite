@@ -103,7 +103,7 @@ class DisciplinaryCasesIndexStageTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('admin');
+        $user->assignRole('nivel1');
 
         return $user;
     }
@@ -115,7 +115,7 @@ class DisciplinaryCasesIndexStageTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

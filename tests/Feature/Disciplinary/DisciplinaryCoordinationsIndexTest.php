@@ -28,8 +28,8 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
 
     public function test_planeacion_sees_register_notification_after_posting_diligence_slots(): void
     {
-        $planner = $this->makeUser('planeacion', 'planner-coord@test.local');
-        $lawyer = $this->makeUser('abogado', 'lawyer-coord@test.local');
+        $planner = $this->makeUser('nivel3', 'planner-coord@test.local');
+        $lawyer = $this->makeUser('nivel6', 'lawyer-coord@test.local');
         $case = $this->makeCaseWithOpenThread($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
         app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
@@ -48,8 +48,8 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
 
     public function test_planeacion_can_view_coordinations_when_case_left_citacion_stage(): void
     {
-        $planner = $this->makeUser('planeacion', 'planner-stale@test.local');
-        $lawyer = $this->makeUser('abogado', 'lawyer-stale@test.local');
+        $planner = $this->makeUser('nivel3', 'planner-stale@test.local');
+        $lawyer = $this->makeUser('nivel6', 'lawyer-stale@test.local');
         $case = $this->makeCaseWithOpenThread($lawyer, CaseStatus::DILIGENCIA);
 
         $case->forceFill([
@@ -65,9 +65,9 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
 
     public function test_planeacion_publishes_decision_planning_with_separate_suspension_and_notification_slots(): void
     {
-        $planner = $this->makeUser('planeacion', 'planner-decision@test.local');
-        $lawyer = $this->makeUser('abogado', 'lawyer-decision@test.local');
-        $supervisor = $this->makeUser('supervisor', 'supervisor-decision@test.local');
+        $planner = $this->makeUser('nivel3', 'planner-decision@test.local');
+        $lawyer = $this->makeUser('nivel6', 'lawyer-decision@test.local');
+        $supervisor = $this->makeUser('nivel7', 'supervisor-decision@test.local');
         $case = $this->makeDecisionCaseWithOpenThread($lawyer, Decision::SUSPENSION);
         $thread = $case->agendaThread;
         $suspensionStart = now()->addDay()->toDateString();

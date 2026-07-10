@@ -82,7 +82,7 @@ class DiligenceAttendanceTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $employee = Employee::query()->create([
             'first_name' => 'Worker',

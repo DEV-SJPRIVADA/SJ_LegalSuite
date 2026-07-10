@@ -15,7 +15,7 @@ class UserPolicy
 
     public function before(User $user, string $ability): ?bool
     {
-        if ($user->hasRole('admin') && $user->read_only) {
+        if ($user->hasRole('nivel1') && $user->read_only) {
             return in_array($ability, self::READ_ABILITIES, true) ? true : false;
         }
 
@@ -34,17 +34,17 @@ class UserPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 
     public function update(User $user, User $target): bool
     {
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 
     public function changePassword(User $user, User $target): bool
     {
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 
     public function toggleActive(User $user, User $target): bool
@@ -53,7 +53,7 @@ class UserPolicy
             return false;
         }
 
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 
     public function delete(User $user, User $target): bool
@@ -62,11 +62,11 @@ class UserPolicy
             return false;
         }
 
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 
     public function restore(User $user, User $target): bool
     {
-        return $user->hasRole('admin') && ! $user->read_only;
+        return $user->hasRole('nivel1') && ! $user->read_only;
     }
 }

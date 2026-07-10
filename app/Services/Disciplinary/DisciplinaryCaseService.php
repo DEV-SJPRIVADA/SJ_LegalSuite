@@ -79,7 +79,7 @@ class DisciplinaryCaseService
      */
     public function claimByLawyer(DisciplinaryCase $case, User $lawyer): DisciplinaryCase
     {
-        if (! $lawyer->hasRole('abogado')) {
+        if (! $lawyer->hasRole('nivel6')) {
             throw new \InvalidArgumentException('Solo usuarios con rol abogado pueden reclamar casos del pool.');
         }
 
