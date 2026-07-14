@@ -37,7 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         if (config('services.pdf.use_queue')) {
-            $schedule->command('queue:work database --stop-when-empty --max-time=55')
+            // pdf primero (FO-GJ-51), luego default (notificaciones broadcast, etc.)
+            $schedule->command('queue:work database --queue=pdf,default --stop-when-empty --max-time=55')
                 ->everyMinute()
                 ->withoutOverlapping();
         }

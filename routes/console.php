@@ -72,7 +72,7 @@ Artisan::command('disciplinary:pdf-check', function () {
 
     $useQueue = (bool) config('services.pdf.use_queue');
     $useQueue
-        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)')
+        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; prioridad sobre `default`)')
         : $this->line('PDF_USE_QUEUE: inactivo (generación síncrona)');
 
     if ($useQueue && env('QUEUE_CONNECTION', 'database') === 'sync') {

@@ -291,7 +291,7 @@ app/
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
       EmbeddedPdfFont.php        Liberation Sans/Serif → @font-face data-URI (`resources/fonts/pdf/`)
-  Jobs/Disciplinary/             ProcessFoGj51PdfJob (worker CLI genera PDF encolado desde web)
+  Jobs/Disciplinary/             ProcessFoGj51PdfJob (cola `pdf`; worker CLI genera PDF encolado desde web)
   Jobs/Employees/                ProcessEmployeeBulkImportJob (opcional; flujo activo usa polling Livewire)
   Models/
     User.php / Employee.php / EmployeeJobPosition.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
@@ -488,7 +488,7 @@ sequenceDiagram
 | Builder PDF | `App\Services\Disciplinary\FoGj51PdfBuilder` |
 | Estado en disco | `App\Support\Pdf\FoGj51PdfQueueStore` → `storage/app/fo-gj-51-pdf-queue/` |
 | Vista espera | `resources/views/disciplinary/forms/fo-gj-51-pdf-queue-wait.blade.php` |
-| Scheduler | `bootstrap/app.php` → cada minuto `queue:work database --stop-when-empty --max-time=55` |
+| Scheduler | `bootstrap/app.php` → cada minuto `queue:work database --queue=pdf,default --stop-when-empty --max-time=55` (FO-GJ-51 en cola `pdf`, prioridad sobre notificaciones en `default`) |
 
 **Rutas web (autenticadas):**
 
@@ -507,7 +507,8 @@ php artisan disciplinary:pdf-check
 php artisan disciplinary:pdf-smoke
 
 # Procesar cola manualmente (pruebas; no dejar SSH abierto en producción)
-php artisan queue:work database --verbose
+# pdf primero (ProcessFoGj51PdfJob), luego default
+php artisan queue:work database --queue=pdf,default --verbose
 
 # Tras cambiar .env
 php artisan config:clear
@@ -542,7 +543,7 @@ Salida esperada de `php artisan disciplinary:pdf-check`:
 ```text
 PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)
 PDF_VIA_ARTISAN_CLI: inactivo (Browsershot directo)
-PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
+PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; prioridad sobre `default`)
 ```
 
 #### Limitaciones en hosting compartido
@@ -561,7 +562,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
 | `Failed to launch the browser process` en **web** | CageFS bloquea Chrome en LiteSpeed | `PDF_USE_QUEUE=true` + cron |
 | `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
 | `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
-| Pantalla *Generando PDF* infinita | Sin cron ni worker | Configurar cron o `queue:work --verbose` |
+| Pantalla *Generando PDF* infinita | Sin cron, worker no vacía cola, o jobs `default` delante del PDF | Cron `schedule:run` cada minuto; worker `--queue=pdf,default`; o `queue:work … --stop-when-empty` |
 | PDF con cuadritos / texto ilegible | Sin Arial en Hostinger; tipografías no embebidas | Desplegar `resources/fonts/pdf` (Liberation) + código `EmbeddedPdfFont`; regenerar PDF; `pdf-check` → Fuentes PDF: OK |
 | Pegar historial de terminal en bash | Copiar prompts `[user@host]$` | Ejecutar **solo** el comando, una línea |
 | Informe enviado pero no en evidencias | Flujo normal | Va primero a **Revisión informes**; operaciones debe autorizar |
@@ -684,7 +685,7 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
    Para probar de inmediato por SSH (sin esperar al cron), en **otra terminal** deje corriendo mientras prueba desde el navegador:
 
    ```bash
-   php artisan queue:work database --verbose
+   php artisan queue:work database --queue=pdf,default --verbose
    ```
 8. Permisos de escritura para el runtime de Chrome:
 
