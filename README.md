@@ -698,8 +698,10 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 
    (Detalle en sección **Cron en producción** más arriba.)
 
+8. Permisos de escritura para el runtime de Chrome:
+
    ```bash
-   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue
+   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue storage/app/fo-gj-03-pdf-queue
    ```
 
 9. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
