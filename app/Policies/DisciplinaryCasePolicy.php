@@ -870,7 +870,9 @@ class DisciplinaryCasePolicy
     /** Catálogo de formatos FO-GJ (referencia para quien puede consultar expedientes). */
     public function viewOfficialForms(User $user): bool
     {
-        if ($user->isMinimalDisciplinaryPortalUser() || $user->hasRole('nivel3')) {
+        if ($user->isMinimalDisciplinaryPortalUser()
+            || $user->hasRole('nivel3')
+            || $user->isDisciplinaryOperacionesReviewer()) {
             return false;
         }
 

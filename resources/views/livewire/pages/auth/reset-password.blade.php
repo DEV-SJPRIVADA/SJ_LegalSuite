@@ -69,36 +69,48 @@ new #[Layout('layouts.guest')] class extends Component
     }
 }; ?>
 
+@php
+    $field = 'block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20';
+    $label = 'block text-xs font-semibold uppercase tracking-wide text-slate-600';
+@endphp
+
 <div>
-    <form wire:submit="resetPassword">
-        <!-- Email Address -->
+    <div class="mb-6">
+        <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Nueva contraseña</h2>
+        <p class="mt-1 text-sm text-slate-500">Define una contraseña segura para tu cuenta.</p>
+    </div>
+
+    <form wire:submit="resetPassword" class="space-y-5">
         <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" class="block mt-1 w-full" type="email" name="email" required autofocus autocomplete="username" />
+            <label for="email" class="{{ $label }}">Correo electrónico</label>
+            <x-text-input wire:model="email" id="email" class="{{ $field }} mt-1.5" type="email" name="email" required autofocus autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-            <x-password-input wire:model="password" id="password" class="block mt-1 w-full" name="password" required autocomplete="new-password" />
+        <div>
+            <label for="password" class="{{ $label }}">Contraseña</label>
+            <div class="mt-1.5">
+                <x-password-input wire:model="password" id="password" class="{{ $field }}" name="password" required autocomplete="new-password" />
+            </div>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-password-input wire:model="password_confirmation" id="password_confirmation" class="block mt-1 w-full"
-                          name="password_confirmation" required autocomplete="new-password" />
-
+        <div>
+            <label for="password_confirmation" class="{{ $label }}">Confirmar contraseña</label>
+            <div class="mt-1.5">
+                <x-password-input wire:model="password_confirmation" id="password_confirmation" class="{{ $field }}"
+                    name="password_confirmation" required autocomplete="new-password" />
+            </div>
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Reset Password') }}
-            </x-primary-button>
-        </div>
+        <button
+            type="submit"
+            class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800"
+            wire:loading.attr="disabled"
+        >
+            <span wire:loading.remove wire:target="resetPassword">Guardar contraseña</span>
+            <span wire:loading wire:target="resetPassword">Guardando…</span>
+        </button>
     </form>
 </div>

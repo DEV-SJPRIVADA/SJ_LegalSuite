@@ -16,17 +16,19 @@
                     <x-ui.btn variant="teal" href="{{ route('disciplinary.cases.index') }}" wire:navigate class="!h-8 text-xs">
                         ← Volver al listado
                     </x-ui.btn>
-                    <x-disciplinary.status-badge :status="$case->current_status" size="md" />
-                    @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME)
-                        @can('transition', $case)
-                            <x-ui.btn type="button" wire:click="openAdvanceStageConfirm" class="!h-8 text-xs">
-                                Cambiar de etapa
-                            </x-ui.btn>
-                            <x-ui.btn type="button" variant="secondary" wire:click="openArchiveConfirm" class="!h-8 text-xs">
-                                Archivar
-                            </x-ui.btn>
-                        @endcan
-                    @endif
+                    @unless (auth()->user()->isDisciplinaryOperacionesReviewer())
+                        <x-disciplinary.status-badge :status="$case->current_status" size="md" />
+                        @if ($case->current_status === \App\Enums\Disciplinary\CaseStatus::INFORME)
+                            @can('transition', $case)
+                                <x-ui.btn type="button" wire:click="openAdvanceStageConfirm" class="!h-8 text-xs">
+                                    Cambiar de etapa
+                                </x-ui.btn>
+                                <x-ui.btn type="button" variant="secondary" wire:click="openArchiveConfirm" class="!h-8 text-xs">
+                                    Archivar
+                                </x-ui.btn>
+                            @endcan
+                        @endif
+                    @endunless
                 </div>
             </div>
         </div>
@@ -60,6 +62,13 @@
                 </div>
             @endcan
 
+            @if (auth()->user()->isDisciplinaryOperacionesReviewer())
+                <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden dark:bg-white/[0.04] dark:ring-1 dark:ring-white/10 dark:shadow-dash-card">
+                    <div class="p-6">
+                        @include('livewire.disciplinary.cases.partials.operaciones-follow-up', ['case' => $case])
+                    </div>
+                </div>
+            @else
             {{-- Tabs --}}
             @php
                 $actor = auth()->user();
@@ -236,6 +245,7 @@
                     @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
 
@@ -535,8 +545,10 @@
 
     @if ($planningChatFabVisible)
         <button type="button" wire:click="openPlanningChatModal"
-            class="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-fuchsia-900/25 hover:bg-fuchsia-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 dark:focus:ring-offset-dash-ink">
-            <span aria-hidden="true">💬</span>
+            class="fixed bottom-5 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-semibold text-white ring-1 ring-indigo-500/40 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3h6.75M12 21a9 9 0 1 0-5.89-2.25L3 21l2.25-3.11A8.96 8.96 0 0 0 12 21Z" />
+            </svg>
             Chat planeación
         </button>
     @endif

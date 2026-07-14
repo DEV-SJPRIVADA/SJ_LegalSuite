@@ -28,6 +28,8 @@ class Index extends Component
     #[Url(as: 'thread')]
     public string $selectedThread = '';
 
+    public string $search = '';
+
     public string $agendaPlanningBody = '';
 
     /** @var array<int, array{date: string, time: string, notes: string}> */
@@ -79,6 +81,15 @@ class Index extends Component
         $ids = $this->openThreads()->pluck('id')->all();
         if ($this->selectedThread !== '' && ! in_array((int) $this->selectedThread, $ids, true)) {
             $this->selectedThread = '';
+        }
+    }
+
+    public function updatedSearch(): void
+    {
+        // Mantener selección solo si sigue visible en el resultado filtrado.
+        $ids = $this->filteredOpenThreads()->pluck('id')->all();
+        if ($this->selectedThread !== '' && ! in_array((int) $this->selectedThread, $ids, true)) {
+            $this->selectedThread = $ids !== [] ? (string) $ids[0] : '';
         }
     }
 
@@ -403,15 +414,28 @@ class Index extends Component
 
     public function render()
     {
-        $threads = $this->openThreads();
+        $allThreads = $this->openThreads();
+        $threads = $this->filteredOpenThreads($allThreads);
+
+        $kpiFechas = 0;
+        $kpiNotif = 0;
+        foreach ($allThreads as $thread) {
+            $tc = $thread->case;
+            if (! $tc) {
+                continue;
+            }
+            if ($tc->notification_requested_at && ! $tc->notification_information_completed_at) {
+                $kpiNotif++;
+            } elseif ($tc->awaitingPlanningDiligenceSlots() || $tc->awaitingDecisionPlanningSlots()) {
+                $kpiFechas++;
+            }
+        }
 
         if ($this->selectedThread === '' && $threads->isNotEmpty()) {
             $this->selectedThread = (string) $threads->first()->id;
         }
 
-        $selectedThreadModel = $this->resolveSelectedThread();
-        $citationNotificationService = app(DisciplinaryCitationNotificationService::class);
-        $decisionNotificationService = app(DisciplinaryDecisionNotificationService::class);
+        $selectedThreadModel = $this->resolveSelectedThread($threads);
         $pendingNotificationCase = $selectedThreadModel?->case;
         $isDecisionCase = $pendingNotificationCase?->current_status === CaseStatus::DECISION;
         $canPostPlanning = $pendingNotificationCase
@@ -443,6 +467,9 @@ class Index extends Component
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
+            'threadTotal' => $allThreads->count(),
+            'kpiFechas' => $kpiFechas,
+            'kpiNotif' => $kpiNotif,
             'selectedThreadModel' => $selectedThreadModel,
             'hasPendingNotification' => $hasPendingNotification,
             'canPostPlanning' => $canPostPlanning,
@@ -480,8 +507,9 @@ class Index extends Component
             ->where('coordination_status', 'open')
             ->with([
                 'case:id,case_number,employee_id,municipality_code,city,assigned_lawyer_id,notification_requested_at,notification_information_completed_at,citation_confirmed_date,coordination_started_at,current_status,decision,decision_coordination_started_at,decision_notification_completed_at',
-                'case.employee:id,first_name,last_name,document_number',
+                'case.employee:id,first_name,last_name,document_number,municipality_code',
                 'case.municipality:municipality_code,municipality_name',
+                'case.assignedLawyer:id,name',
                 'messages.author:id,name',
                 'messages.attachments',
             ])
@@ -489,14 +517,52 @@ class Index extends Component
             ->get();
     }
 
-    private function resolveSelectedThread(): ?DisciplinaryAgendaThread
+    /**
+     * @param  \Illuminate\Support\Collection<int, DisciplinaryAgendaThread>|null  $threads
+     * @return \Illuminate\Support\Collection<int, DisciplinaryAgendaThread>
+     */
+    private function filteredOpenThreads($threads = null)
+    {
+        $threads ??= $this->openThreads();
+        $term = trim($this->search);
+        if ($term === '') {
+            return $threads;
+        }
+
+        $like = mb_strtolower($term);
+
+        return $threads->filter(function (DisciplinaryAgendaThread $thread) use ($like) {
+            $case = $thread->case;
+            if (! $case) {
+                return false;
+            }
+            $worker = mb_strtolower(trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? '')));
+            $doc = mb_strtolower((string) ($case->employee?->document_number ?? ''));
+            $number = mb_strtolower((string) $case->case_number);
+            $city = mb_strtolower((string) ($case->municipality?->municipality_name ?: ($case->city ?? '')));
+            $lawyer = mb_strtolower((string) ($case->assignedLawyer?->name ?? ''));
+
+            return str_contains($worker, $like)
+                || str_contains($doc, $like)
+                || str_contains($number, $like)
+                || str_contains($city, $like)
+                || str_contains($lawyer, $like);
+        })->values();
+    }
+
+    private function resolveSelectedThread($fromThreads = null): ?DisciplinaryAgendaThread
     {
         $threadId = (int) $this->selectedThread;
         if ($threadId <= 0) {
             return null;
         }
 
-        $thread = $this->openThreads()->firstWhere('id', $threadId);
+        $pool = $fromThreads ?? $this->openThreads();
+        $thread = $pool->firstWhere('id', $threadId);
+        if (! $thread instanceof DisciplinaryAgendaThread) {
+            // Si el filtro ocultó el hilo, resolvemos desde el pool completo.
+            $thread = $this->openThreads()->firstWhere('id', $threadId);
+        }
         if (! $thread instanceof DisciplinaryAgendaThread) {
             return null;
         }

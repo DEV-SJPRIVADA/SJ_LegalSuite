@@ -677,35 +677,59 @@ class DisciplinaryCase extends Model
     }
 
     /**
-     * Operaciones (GAP A2): solo expedientes con revisor asignado en FO-GJ-51 (`assigned_reviewer_id`),
-     * los que reportó o todos si tiene dirección (`review-inform-all`). La columna Abogado no aplica aquí.
+     * Operaciones (nivel2): solo casos abiertos que autorizó (`reviewed_by` en FO-GJ-51).
+     * Con `review-inform-all` ve todos los abiertos (sin cerrados/archivados).
      */
     public function scopeVisibleToOperacionesReviewer(Builder $query, User $user): Builder
     {
+        $query->whereNotIn('current_status', WorkflowStageBuckets::closedStatusValues());
+
         if (self::userCanReviewAllInformes($user)) {
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($user) {
-            $q->where('reporter_id', $user->id)
-                ->orWhereHas('informeSubmission', fn (Builder $sub) => $sub->where('assigned_reviewer_id', $user->id));
-        });
+        return $query->whereHas(
+            'informeSubmission',
+            fn (Builder $sub) => $sub->where('reviewed_by', $user->id)
+        );
     }
 
     public function isVisibleToOperacionesReviewer(User $user): bool
     {
-        if (self::userCanReviewAllInformes($user)) {
-            return true;
+        if ($this->isFinalized()) {
+            return false;
         }
 
-        if ((int) $this->reporter_id === (int) $user->id) {
+        if (self::userCanReviewAllInformes($user)) {
             return true;
         }
 
         $this->loadMissing('informeSubmission');
 
         return $this->informeSubmission !== null
-            && (int) $this->informeSubmission->assigned_reviewer_id === (int) $user->id;
+            && (int) $this->informeSubmission->reviewed_by === (int) $user->id;
+    }
+
+    /**
+     * Resumen legible para seguimiento de Operaciones (sin detalle jurídico).
+     *
+     * @return array{headline: string, stage_letter: ?string, stage_title: string, status_label: string}
+     */
+    public function operacionesFollowUpSummary(): array
+    {
+        $letter = WorkflowStageBuckets::letterForStageType($this->current_stage_type);
+        $stageTitle = $letter !== null
+            ? (WorkflowStageBuckets::titleForLetter($letter) ?? $this->current_status->label())
+            : $this->current_status->label();
+
+        return [
+            'headline' => $letter !== null
+                ? "En trámite · Etapa {$letter}"
+                : 'En trámite',
+            'stage_letter' => $letter,
+            'stage_title' => $stageTitle,
+            'status_label' => $this->current_status->label(),
+        ];
     }
 
     public static function userCanReviewAllInformes(User $user): bool

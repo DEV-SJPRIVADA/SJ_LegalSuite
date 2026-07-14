@@ -2,6 +2,7 @@
     use App\Support\Disciplinary\WorkflowStageBuckets;
 
     $isMinimal = auth()->user()->isMinimalDisciplinaryPortalUser();
+    $isOperaciones = auth()->user()->isDisciplinaryOperacionesReviewer();
     $rail = $this->stageRail;
     $stageActive = $stage;
     $letterColors = $stageColors;
@@ -20,6 +21,9 @@
             @elseif (auth()->user()->isDisciplinaryFieldOperator())
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Campo</p>
                 <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Notificaciones asignadas</h1>
+            @elseif ($isOperaciones)
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Operaciones</p>
+                <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Casos abiertos que autorizó</h1>
             @else
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Listado</p>
                 <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Procesos disciplinarios</h1>
@@ -34,7 +38,7 @@
                     Cargar PDF
                 </x-ui.btn>
             @endcan
-            @unless ($isMinimal)
+            @unless ($isMinimal || $isOperaciones)
                 @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
                     <x-dashboard.button href="{{ route('disciplinary.dashboard') }}" variant="ghost" class="!h-8 text-xs">
                         ← Dashboard
@@ -85,21 +89,23 @@
                 </button>
             @endforeach
 
-            <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-slate-200 dark:bg-white/15 sm:block" aria-hidden="true"></span>
+            @unless ($isOperaciones)
+                <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-slate-200 dark:bg-white/15 sm:block" aria-hidden="true"></span>
 
-            <button
-                type="button"
-                wire:click="setStage('cerrados')"
-                title="Casos finalizados o archivados"
-                @class([
-                    'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition',
-                    'bg-slate-100 ring-1 ring-slate-300 dark:bg-white/10 dark:ring-white/20' => $stageActive === WorkflowStageBuckets::CLOSED_KEY,
-                    'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06]' => $stageActive !== WorkflowStageBuckets::CLOSED_KEY,
-                ])
-            >
-                <span class="text-emerald-500 dark:text-emerald-400">Cerrados</span>
-                <span class="text-slate-700 dark:text-slate-200">{{ number_format($rail['closed']) }}</span>
-            </button>
+                <button
+                    type="button"
+                    wire:click="setStage('cerrados')"
+                    title="Casos finalizados o archivados"
+                    @class([
+                        'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition',
+                        'bg-slate-100 ring-1 ring-slate-300 dark:bg-white/10 dark:ring-white/20' => $stageActive === WorkflowStageBuckets::CLOSED_KEY,
+                        'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06]' => $stageActive !== WorkflowStageBuckets::CLOSED_KEY,
+                    ])
+                >
+                    <span class="text-emerald-500 dark:text-emerald-400">Cerrados</span>
+                    <span class="text-slate-700 dark:text-slate-200">{{ number_format($rail['closed']) }}</span>
+                </button>
+            @endunless
 
             <button
                 type="button"
@@ -141,11 +147,12 @@
                     >
                         <option value="">Estado — todos</option>
                         @foreach ($statuses as $s)
+                            @continue($isOperaciones && $s->isTerminal())
                             <option value="{{ $s->value }}">{{ $s->label() }}</option>
                         @endforeach
                     </select>
                 </div>
-                @unless ($isMinimal)
+                @unless ($isMinimal || $isOperaciones)
                     <div class="w-full sm:w-40">
                         <label for="dcf-case-lawyer" class="sr-only">Abogado</label>
                         <select
@@ -237,11 +244,13 @@
                         <th class="px-3 py-2 text-left font-semibold">N° caso</th>
                         <th class="px-3 py-2 text-left font-semibold">Disciplinado</th>
                         <th class="px-3 py-2 text-left font-semibold">Ciudad</th>
-                        <th class="px-3 py-2 text-left font-semibold">Estado</th>
-                        @unless ($isMinimal)
+                        <th class="px-3 py-2 text-left font-semibold">{{ $isOperaciones ? 'Trámite' : 'Estado' }}</th>
+                        @unless ($isMinimal || $isOperaciones)
                             <th class="px-3 py-2 text-left font-semibold">Abogado</th>
                         @endunless
-                        <th class="px-3 py-2 text-center font-semibold">Faltas</th>
+                        @unless ($isOperaciones)
+                            <th class="px-3 py-2 text-center font-semibold">Faltas</th>
+                        @endunless
                         <th class="px-3 py-2 text-left font-semibold">Apertura</th>
                         <th class="px-3 py-2 text-right font-semibold">Acción</th>
                     </tr>
@@ -251,6 +260,7 @@
                         @php
                             $letter = WorkflowStageBuckets::letterForStageType($case->current_stage_type);
                             $letterClass = $letter ? ($letterColors[$letter] ?? 'text-slate-400') : 'text-slate-400';
+                            $followUp = $isOperaciones ? $case->operacionesFollowUpSummary() : null;
                         @endphp
                         <tr wire:key="case-row-{{ $case->id }}" class="group hover:bg-slate-50 dark:hover:bg-white/[0.04]">
                             <td class="px-3 py-2.5">
@@ -271,10 +281,17 @@
                                 <div class="text-xs text-slate-500 dark:text-slate-400">CC {{ $case->employee?->document_number }}</div>
                             </td>
                             <td class="px-3 py-2.5 text-slate-700 dark:text-slate-300">{{ $case->city ?? '—' }}</td>
-                            <td class="px-3 py-2.5 max-w-[11rem]">
-                                <x-disciplinary.status-badge :status="$case->current_status" class="max-w-full truncate" title="{{ $case->current_status->label() }}" />
+                            <td class="px-3 py-2.5 max-w-[14rem]">
+                                @if ($isOperaciones && $followUp)
+                                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-100">{{ $followUp['headline'] }}</div>
+                                    <div class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400" title="{{ $followUp['stage_title'] }}">
+                                        {{ $followUp['stage_title'] }}
+                                    </div>
+                                @else
+                                    <x-disciplinary.status-badge :status="$case->current_status" class="max-w-full truncate" title="{{ $case->current_status->label() }}" />
+                                @endif
                             </td>
-                            @unless ($isMinimal)
+                            @unless ($isMinimal || $isOperaciones)
                                 <td class="px-3 py-2.5 text-slate-700 dark:text-slate-300">
                                     @if ($case->isInInformePool())
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200 dark:text-amber-300 dark:ring-amber-500/40">Bandeja compartida</span>
@@ -283,7 +300,9 @@
                                     @endif
                                 </td>
                             @endunless
-                            <td class="px-3 py-2.5 text-center tabular-nums text-slate-700 dark:text-slate-300">{{ $case->faults_count }}</td>
+                            @unless ($isOperaciones)
+                                <td class="px-3 py-2.5 text-center tabular-nums text-slate-700 dark:text-slate-300">{{ $case->faults_count }}</td>
+                            @endunless
                             <td class="px-3 py-2.5 whitespace-nowrap text-slate-700 dark:text-slate-300">{{ $case->opened_at?->format('Y-m-d') }}</td>
                             <td class="px-3 py-2.5 text-right">
                                 @can('claim', $case)
@@ -296,6 +315,8 @@
                                         class="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">
                                         @if (auth()->user()->isDisciplinaryProgramador())
                                             Programar
+                                        @elseif ($isOperaciones)
+                                            Ver
                                         @elseif ($case->isInInformePool() && auth()->user()->hasRole('nivel5'))
                                             Ver
                                         @else
@@ -307,10 +328,12 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $isMinimal ? 8 : 9 }}" class="px-4 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+                            <td colspan="{{ $isOperaciones ? 7 : ($isMinimal ? 8 : 9) }}" class="px-4 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
                                 @if ($stage !== '' || $search !== '' || $this->hasSecondaryFilters)
                                     No se encontraron casos con los filtros actuales.
                                     <button type="button" wire:click="clearFilters" class="mt-2 block w-full text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">Limpiar filtros</button>
+                                @elseif ($isOperaciones)
+                                    No hay casos abiertos que haya autorizado.
                                 @else
                                     No hay casos en su alcance.
                                 @endif

@@ -4,7 +4,7 @@
 @endphp
 
 @if ($showDecisionTypeModal ?? false)
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionTypeModal">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionTypeModal" wire:key="decision-type-modal">
         <div class="w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
             <div class="border-b border-slate-200 px-5 py-4 dark:border-white/10">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Tipo de decisión disciplinaria</h3>
@@ -43,7 +43,7 @@
 @endif
 
 @if ($showDecisionDraftModal ?? false)
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionDraftModal">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionDraftModal" wire:key="decision-draft-modal">
         <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
             <div class="shrink-0 border-b border-slate-200 px-5 py-4 dark:border-white/10">
                 <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Diligenciar comunicado de decisión</h3>
@@ -90,7 +90,7 @@
 @endif
 
 @if ($showDecisionPdfPreviewModal ?? false)
-    <div class="fixed inset-0 z-50 flex flex-col bg-black/60 p-4" wire:keydown.escape.window="closeDecisionPdfPreview">
+    <div class="fixed inset-0 z-[86] flex flex-col bg-black/60 p-4" wire:keydown.escape.window="closeDecisionPdfPreview" wire:key="decision-pdf-preview">
         <div class="mx-auto flex h-full w-full max-w-4xl flex-col rounded-xl bg-white shadow-xl dark:bg-dash-ink">
             <div class="flex shrink-0 items-center justify-between border-b px-4 py-3 dark:border-white/10">
                 <h3 class="font-semibold text-slate-900 dark:text-white">Vista previa · Comunicado de decisión</h3>
@@ -102,7 +102,7 @@
 @endif
 
 @if ($showDecisionFinalizeConfirm ?? false)
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/50" wire:key="decision-finalize-confirm">
         <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Finalizar proceso disciplinario</h3>
             <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Confirme que la notificación y los requisitos de cierre están completos.</p>

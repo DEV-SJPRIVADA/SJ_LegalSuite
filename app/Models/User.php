@@ -138,6 +138,18 @@ class User extends Authenticatable
     }
 
     /**
+     * Revisor FO-GJ-51 / seguimiento Operaciones (nivel2): portal reducido tras autorizar.
+     */
+    public function isDisciplinaryOperacionesReviewer(): bool
+    {
+        if ($this->hasRole('nivel1')) {
+            return false;
+        }
+
+        return $this->hasRole('nivel2');
+    }
+
+    /**
      * Programador de fechas: sólo solicitudes asignadas por dirección de planeación.
      */
     public function isDisciplinaryProgramador(): bool

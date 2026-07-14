@@ -1,8 +1,21 @@
 @if ($openStageModal !== '')
     <div class="fixed inset-0 z-[68] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
-        x-data x-on:keydown.escape.window="$wire.closeStageModal()">
+        x-data
+        x-on:keydown.escape.window="
+            if ($wire.showDecisionTypeModal || $wire.showDecisionDraftModal || $wire.showDecisionPdfPreviewModal || $wire.showDecisionFinalizeConfirm) {
+                return;
+            }
+            $wire.closeStageModal();
+        ">
         <div class="flex max-h-[min(92dvh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl dark:bg-dash-ink dark:ring-1 dark:ring-white/15 sm:rounded-2xl"
-            x-on:click.outside="$wire.closeStageModal()">
+            x-on:click.outside="
+                if ($wire.showDecisionTypeModal || $wire.showDecisionDraftModal || $wire.showDecisionPdfPreviewModal || $wire.showDecisionFinalizeConfirm
+                    || $wire.showFoGj03DraftModal || $wire.showFoGj03PdfPreviewModal
+                    || $wire.showPlanningChatModal) {
+                    return;
+                }
+                $wire.closeStageModal();
+            ">
             <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10">
                 <div class="min-w-0">
                     <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-400/90">Gestión de etapa</p>

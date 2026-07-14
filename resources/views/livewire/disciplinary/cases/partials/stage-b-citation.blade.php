@@ -2,6 +2,7 @@
     use App\Enums\Disciplinary\CaseStatus;
     use App\Support\Disciplinary\CitationStageProgress;
     use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
+    use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
     $citationReadOnly = $citationReadOnly ?? false;
     $isCitacion = $case->current_status === CaseStatus::CITACION_PROGRAMADA;
@@ -150,10 +151,14 @@
                         @endif
                         @can('viewCitationEvidence', $case)
                             @if ($case->citation_evidence_uploaded_at && ($citationEvidenceDocReadonly = $case->latestCitationEvidenceDocument()))
+                                <button type="button" wire:click="openDocumentPreview({{ $citationEvidenceDocReadonly->id }})"
+                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
+                                    Ver evidencia
+                                </button>
                                 <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $citationEvidenceDocReadonly, 'download' => 1]) }}"
                                     class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20"
-                                    target="_blank" rel="noopener">
-                                    Evidencia de citación (PDF)
+                                    download>
+                                    Descargar evidencia
                                 </a>
                             @endif
                         @endcan
@@ -267,41 +272,187 @@
 
                 @can('viewCitationEvidence', $case)
                     @if ($currentStepKey === 'evidence')
-                        @php $citationEvidenceDoc = $case->latestCitationEvidenceDocument(); @endphp
-                        <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10 dark:bg-white/[0.03]">
-                            <p class="text-xs text-slate-600 dark:text-slate-400">Citación firmada o acta de rechazo con testigos (PDF).</p>
-                            @if ($case->citation_evidence_uploaded_at)
-                                <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                                    <div><dt class="text-xs text-slate-500">Tipo</dt><dd class="font-medium dark:text-white">{{ $case->citation_evidence_type?->label() ?? '—' }}</dd></div>
-                                    <div><dt class="text-xs text-slate-500">Cargada</dt><dd class="font-medium dark:text-white">{{ $case->citation_evidence_uploaded_at->format('d/m/Y H:i') }}</dd></div>
-                                    @if ($citationEvidenceDoc)
-                                        <div class="sm:col-span-2">
-                                            <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $citationEvidenceDoc, 'download' => 1]) }}"
-                                                class="text-sm font-semibold text-indigo-700 underline dark:text-indigo-300" target="_blank" rel="noopener">
-                                                {{ $citationEvidenceDoc->original_name }}
-                                            </a>
+                        @php
+                            $citationEvidenceDoc = $case->latestCitationEvidenceDocument();
+                            $pendingEvidenceFile = $citationEvidenceFile instanceof TemporaryUploadedFile ? $citationEvidenceFile : null;
+                            $pendingEvidenceKb = $pendingEvidenceFile
+                                ? max(1, (int) round($pendingEvidenceFile->getSize() / 1024))
+                                : null;
+                        @endphp
+                        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/[0.03]">
+                            <div class="border-b border-slate-200 px-4 py-3 dark:border-white/10">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-dash-muted">Paso 6 · Evidencia</p>
+                                <p class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">Carga de evidencia de citación</p>
+                                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Citación firmada o acta de rechazo con testigos (PDF).</p>
+                            </div>
+
+                            <div class="space-y-4 p-4">
+                                @if ($case->citation_evidence_uploaded_at)
+                                    <div class="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-3.5 dark:border-emerald-500/30 dark:bg-emerald-950/25">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="inline-flex rounded-md bg-emerald-600/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">
+                                                Cargada
+                                            </span>
+                                            <span class="text-xs text-slate-500 dark:text-slate-400">
+                                                {{ $case->citation_evidence_uploaded_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
+                                            </span>
                                         </div>
-                                    @endif
-                                </dl>
-                            @elseif (! $case->fo_gj_03_generated_at)
-                                <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">Genere primero el FO-GJ-03.</p>
-                            @endif
-                            @can('uploadCitationEvidence', $case)
-                                <div class="mt-3 space-y-2 border-t border-slate-200 pt-3 dark:border-white/10">
-                                    <select wire:model="citationEvidenceType" class="w-full max-w-md rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                                        <option value="">— Tipo de evidencia —</option>
-                                        <option value="signed">Citación firmada por el trabajador</option>
-                                        <option value="refused_witnesses">Rechazo de firma con dos testigos</option>
-                                    </select>
-                                    @error('citationEvidenceType')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <input type="file" wire:model="citationEvidenceFile" accept="application/pdf" class="text-sm">
-                                    @error('citationEvidenceFile')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                    <button type="button" wire:click="uploadCitationEvidence"
-                                        class="inline-flex rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-                                        Cargar evidencia PDF
-                                    </button>
-                                </div>
-                            @endcan
+                                        <p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+                                            {{ $case->citation_evidence_type?->label() ?? 'Evidencia de citación' }}
+                                        </p>
+                                        @if ($citationEvidenceDoc)
+                                            <div class="mt-3 flex flex-wrap items-center gap-3">
+                                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold text-red-600 ring-1 ring-slate-200 dark:bg-dash-lift dark:text-red-400 dark:ring-white/15">
+                                                    PDF
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{{ $citationEvidenceDoc->original_name }}</p>
+                                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Documento en el expediente</p>
+                                                </div>
+                                                <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+                                                    <button type="button"
+                                                        wire:click="openDocumentPreview({{ $citationEvidenceDoc->id }})"
+                                                        class="inline-flex h-8 items-center rounded-lg bg-indigo-600 px-2.5 text-xs font-semibold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                                                        Ver
+                                                    </button>
+                                                    <a href="{{ route('disciplinary.cases.documents.file', ['case' => $case, 'document' => $citationEvidenceDoc, 'download' => 1]) }}"
+                                                        class="inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-white dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/10"
+                                                        download>
+                                                        Descargar
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @elseif (! $case->fo_gj_03_generated_at)
+                                    <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-500/30">
+                                        Genere primero el FO-GJ-03 para habilitar la carga de evidencia.
+                                    </p>
+                                @endif
+
+                                @can('uploadCitationEvidence', $case)
+                                    <div class="space-y-4" @if ($case->citation_evidence_uploaded_at) aria-label="Reemplazar evidencia" @endif>
+                                        @if ($case->citation_evidence_uploaded_at)
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Reemplazar evidencia</p>
+                                        @endif
+
+                                        <div>
+                                            <p class="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">1. Tipo de evidencia</p>
+                                            <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tipo de evidencia">
+                                                <button type="button"
+                                                    wire:click="$set('citationEvidenceType', 'signed')"
+                                                    @class([
+                                                        'rounded-xl border px-3 py-3 text-left transition',
+                                                        'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400/40 dark:border-indigo-400 dark:bg-indigo-500/15' => $citationEvidenceType === 'signed',
+                                                        'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20' => $citationEvidenceType !== 'signed',
+                                                    ])>
+                                                    <span class="flex items-start gap-2.5">
+                                                        <span @class([
+                                                            'mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 rounded-full border-2',
+                                                            'border-indigo-600 bg-indigo-600 dark:border-indigo-400 dark:bg-indigo-400' => $citationEvidenceType === 'signed',
+                                                            'border-slate-300 dark:border-white/25' => $citationEvidenceType !== 'signed',
+                                                        ])></span>
+                                                        <span>
+                                                            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Firmada por el trabajador</span>
+                                                            <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">FO-GJ-03 con firma</span>
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                                <button type="button"
+                                                    wire:click="$set('citationEvidenceType', 'refused_witnesses')"
+                                                    @class([
+                                                        'rounded-xl border px-3 py-3 text-left transition',
+                                                        'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400/40 dark:border-indigo-400 dark:bg-indigo-500/15' => $citationEvidenceType === 'refused_witnesses',
+                                                        'border-slate-200 hover:border-slate-300 dark:border-white/10 dark:hover:border-white/20' => $citationEvidenceType !== 'refused_witnesses',
+                                                    ])>
+                                                    <span class="flex items-start gap-2.5">
+                                                        <span @class([
+                                                            'mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 rounded-full border-2',
+                                                            'border-indigo-600 bg-indigo-600 dark:border-indigo-400 dark:bg-indigo-400' => $citationEvidenceType === 'refused_witnesses',
+                                                            'border-slate-300 dark:border-white/25' => $citationEvidenceType !== 'refused_witnesses',
+                                                        ])></span>
+                                                        <span>
+                                                            <span class="block text-sm font-semibold text-slate-900 dark:text-white">Rechazo con testigos</span>
+                                                            <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Acta con dos testigos</span>
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            </div>
+                                            @error('citationEvidenceType')
+                                                <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <p class="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">2. Archivo PDF</p>
+                                            <div
+                                                x-data="{ dragging: false }"
+                                                x-on:dragover.prevent="dragging = true"
+                                                x-on:dragleave.prevent="dragging = false"
+                                                x-on:drop.prevent="
+                                                    dragging = false;
+                                                    const file = $event.dataTransfer.files?.[0];
+                                                    if (file) $wire.upload('citationEvidenceFile', file);
+                                                "
+                                                @class([
+                                                    'rounded-xl border border-dashed transition',
+                                                    'border-indigo-400 bg-indigo-50/50 dark:border-indigo-400/60 dark:bg-indigo-500/10' => (bool) $pendingEvidenceFile,
+                                                    'border-slate-300 bg-slate-50 dark:border-white/15 dark:bg-white/[0.03]' => ! $pendingEvidenceFile,
+                                                ])
+                                                :class="dragging ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/15' : ''"
+                                            >
+                                                @if ($pendingEvidenceFile)
+                                                    <div class="flex flex-wrap items-center gap-3 px-3 py-3">
+                                                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold text-red-600 ring-1 ring-slate-200 dark:bg-dash-lift dark:text-red-400 dark:ring-white/15">
+                                                            PDF
+                                                        </div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <p class="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{{ $pendingEvidenceFile->getClientOriginalName() }}</p>
+                                                            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ number_format($pendingEvidenceKb) }} KB · listo para cargar</p>
+                                                        </div>
+                                                        <button type="button"
+                                                            wire:click="$set('citationEvidenceFile', null)"
+                                                            class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
+                                                            Quitar
+                                                        </button>
+                                                    </div>
+                                                @else
+                                                    <label for="citation-evidence-file-{{ $case->id }}" class="flex cursor-pointer flex-col items-center px-4 py-7 text-center">
+                                                        <span class="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[10px] font-bold text-indigo-600 ring-1 ring-slate-200 dark:bg-dash-lift dark:text-indigo-300 dark:ring-white/15">PDF</span>
+                                                        <span class="text-sm font-semibold text-slate-800 dark:text-slate-100">Arrastre el PDF aquí</span>
+                                                        <span class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">o haga clic para elegir · solo PDF</span>
+                                                    </label>
+                                                @endif
+                                                <input
+                                                    id="citation-evidence-file-{{ $case->id }}"
+                                                    type="file"
+                                                    wire:model="citationEvidenceFile"
+                                                    accept="application/pdf"
+                                                    class="sr-only"
+                                                >
+                                            </div>
+                                            <div wire:loading wire:target="citationEvidenceFile" class="mt-1.5 text-[11px] text-indigo-600 dark:text-indigo-300">
+                                                Preparando archivo…
+                                            </div>
+                                            @error('citationEvidenceFile')
+                                                <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-white/10">
+                                            <p class="mr-auto text-[11px] text-slate-500 dark:text-slate-400">Se adjuntará al expediente · Etapa B</p>
+                                            <button type="button"
+                                                wire:click="uploadCitationEvidence"
+                                                wire:loading.attr="disabled"
+                                                wire:target="uploadCitationEvidence"
+                                                class="inline-flex h-9 items-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                                                <span wire:loading.remove wire:target="uploadCitationEvidence">Cargar evidencia</span>
+                                                <span wire:loading wire:target="uploadCitationEvidence">Subiendo…</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endcan
+                            </div>
                         </div>
                     @endif
                 @endcan

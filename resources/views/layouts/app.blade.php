@@ -62,23 +62,23 @@
                     <x-disciplinary.nav />
                 @else
                     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white dark:border-white/10 dark:bg-dash-ink/90 dark:backdrop-blur-md">
-                        <div class="flex items-center justify-between px-4 lg:px-6 py-3 gap-3">
-                            <button x-on:click="sidebarOpen = true"
-                                    class="lg:hidden p-2 -ml-2 rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <div class="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
+                            <button type="button" x-on:click="sidebarOpen = true"
+                                    class="lg:hidden -ml-2 rounded-lg p-2 text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                                 </svg>
                             </button>
 
                             <div class="flex-1"></div>
 
-                            <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                            <div class="flex shrink-0 items-center gap-1 sm:gap-1.5">
                                 @auth
                                     <livewire:ui.notification-bell />
                                     <livewire:ui.theme-toggle />
                                 @endauth
                                 <a href="{{ route('profile') }}" wire:navigate
-                                   class="hidden sm:block text-sm text-slate-600 hover:text-slate-900 dark:text-dash-muted dark:hover:text-white">
+                                   class="hidden h-9 items-center rounded-lg px-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:inline-flex dark:text-dash-muted dark:hover:bg-white/10 dark:hover:text-white">
                                     Mi perfil
                                 </a>
                                 <livewire:auth.logout-button :variant="$logoutVariant" />

@@ -89,6 +89,12 @@ class CasesIndex extends Component
             $this->stage = '';
         }
 
+        // Operaciones: no listan cerrados; el filtro «cerrados» no aplica.
+        if ($user->isDisciplinaryOperacionesReviewer()
+            && $this->stage === WorkflowStageBuckets::CLOSED_KEY) {
+            $this->stage = '';
+        }
+
         if (request()->boolean('informe_modal')) {
             Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
 
@@ -127,6 +133,11 @@ class CasesIndex extends Component
     {
         $normalized = WorkflowStageBuckets::normalizeFilterKey($stage);
         if (! WorkflowStageBuckets::isValidFilterKey($normalized)) {
+            return;
+        }
+
+        if (auth()->user()->isDisciplinaryOperacionesReviewer()
+            && $normalized === WorkflowStageBuckets::CLOSED_KEY) {
             return;
         }
 
