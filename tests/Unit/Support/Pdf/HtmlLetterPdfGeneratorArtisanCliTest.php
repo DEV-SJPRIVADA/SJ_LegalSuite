@@ -46,4 +46,14 @@ class HtmlLetterPdfGeneratorArtisanCliTest extends TestCase
 
         $this->assertFalse(HtmlLetterPdfGenerator::shouldDelegateToArtisanCli(runningInConsole: false));
     }
+
+    public function test_dompdf_driver_never_delegates_to_artisan_cli(): void
+    {
+        config([
+            'services.pdf.driver' => 'dompdf',
+            'services.pdf.via_artisan_cli' => true,
+        ]);
+
+        $this->assertFalse(HtmlLetterPdfGenerator::shouldDelegateToArtisanCli(runningInConsole: false));
+    }
 }

@@ -13,6 +13,7 @@ use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
 use App\Services\Disciplinary\FoGj51PdfBuilder;
 use App\Services\Employees\EmployeeResolver;
 use App\Support\Pdf\FoGj51PdfQueueStore;
+use App\Support\Pdf\LetterPdfDriver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -186,7 +187,7 @@ class FoGj51InformeController
 
     private function shouldQueuePdf(): bool
     {
-        return (bool) config('services.pdf.use_queue') && ! app()->runningInConsole();
+        return LetterPdfDriver::shouldUseQueue();
     }
 
     private function dispatchQueuedPdf(FoGj51ProcessRequest $request, string $intent): RedirectResponse

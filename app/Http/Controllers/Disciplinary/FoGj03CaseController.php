@@ -6,6 +6,7 @@ use App\Jobs\Disciplinary\ProcessFoGj03PdfJob;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Support\Pdf\FoGj03PdfQueueStore;
+use App\Support\Pdf\LetterPdfDriver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,7 +127,7 @@ class FoGj03CaseController
 
     private function shouldQueuePdf(): bool
     {
-        return (bool) config('services.pdf.use_queue') && ! app()->runningInConsole();
+        return LetterPdfDriver::shouldUseQueue();
     }
 
     private function dispatchQueuedPreview(DisciplinaryCase $case, Request $request): RedirectResponse

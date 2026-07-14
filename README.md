@@ -286,11 +286,14 @@ app/
     Broadcasting/              PusherBroadcasting (Echo solo si `BROADCAST_CONNECTION=pusher` y credenciales completas)
     Notifications/             Trait BroadcastsInAppDatabaseNotification (canal `broadcast` además de `database` cuando Pusher está activo)
     Pdf/
-      HtmlLetterPdfGenerator.php HTML → PDF tamaño Letter (Browsershot)
-      FoGj51PdfQueueStore.php     Cola en disco para FO-GJ-51 en hosting (PDF_USE_QUEUE)
-      BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
-      EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
-      EmbeddedPdfFont.php        Liberation Sans/Serif → @font-face data-URI (`resources/fonts/pdf/`)
+      HtmlLetterPdfGenerator.php Fachada HTML → Letter (`PDF_DRIVER`)
+      LetterPdfDriver.php         Selector browsershot|dompdf + shouldUseQueue()
+      DompdfLetterPdfDriver.php   Motor PHP puro (Hostinger inmediato)
+      FoGj51PdfQueueStore.php     Cola FO-GJ-51 (solo browsershot + USE_QUEUE)
+      FoGj03PdfQueueStore.php     Cola FO-GJ-03 (solo browsershot + USE_QUEUE)
+      BrowsershotBinaryResolver.php Detección Node/npm/Chrome
+      EmbeddedPublicAsset.php    Data URI logo PDF
+      EmbeddedPdfFont.php        Liberation Sans/Serif (`resources/fonts/pdf/`)
   Jobs/Disciplinary/             ProcessFoGj51PdfJob + ProcessFoGj03PdfJob (cola `pdf`; worker CLI)
   Jobs/Employees/                ProcessEmployeeBulkImportJob (opcional; flujo activo usa polling Livewire)
   Models/
@@ -405,7 +408,9 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
 
-**Tipografías PDF (portables):** las cartas FO-GJ usan **Liberation Sans** embebida (`SjPdfSans`) y el acta de comité **Liberation Serif** (`SjPdfSerif`) vía `@font-face` + data-URI (`App\Support\Pdf\EmbeddedPdfFont`, archivos en `resources/fonts/pdf/`). Así el texto no depende de Arial/Times del SO (típicamente ausentes en Hostinger + `chrome-headless-shell`). Tras desplegar fuentes nuevas, regenerar PDFs ya guardados. Verificación: `php artisan disciplinary:pdf-check` → línea `Fuentes PDF: OK`.
+**Motor PDF (`PDF_DRIVER`):** fachada única `HtmlLetterPdfGenerator` → `browsershot` (Chrome) o **`dompdf`** (PHP puro). En **Hostinger** se recomienda **`PDF_DRIVER=dompdf`**: vista previa/generación **inmediata** en la petición web, sin cola ni Chrome. Con `browsershot` + `PDF_USE_QUEUE` se mantiene el flujo por cron (legado).
+
+**Tipografías PDF (portables):** Liberation (`SjPdfSans` / `SjPdfSerif`) en `resources/fonts/pdf/` (`EmbeddedPdfFont`). Dompdf también registra esas TTF y usa DejaVu como respaldo. Verificación: `php artisan disciplinary:pdf-check` → `PDF_DRIVER` + `Fuentes PDF: OK`.
 
 | Código | Documento | Vista en blanco |
 |--------|-----------|-----------------|
@@ -560,11 +565,10 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 
 #### Limitaciones en hosting compartido
 
-- **FO-GJ-51** y **FO-GJ-03** (vista previa / generar desde web): cola `pdf` + cron (Chrome solo en worker CLI).
-- **Cargar PDF externo** (modal FO-GJ-51): no usa Browsershot; funciona en web.
-- **Otros PDF desde web** (FO-GJ-04, acta comité, firmados, etc.): aún pueden fallar en LiteSpeed si se generan síncronos; ampliar el mismo patrón de cola o VPS.
-- `PDF_VIA_ARTISAN_CLI=true` **no** es fiable en este Hostinger: el proceso CLI heredado de PHP web también bloquea Chrome. Preferir cola.
-- Cambiar `PDF_NO_SANDBOX=false` **no** arregla CageFS en PHP web.
+- **Recomendado:** `PDF_DRIVER=dompdf` — todos los HTML→Letter (FO-GJ-03/51/04/…) son **síncronos e inmediatos** en PHP web; no hace falta cola ni Chrome.
+- **Legado Browsershot:** `PDF_DRIVER=browsershot` + `PDF_USE_QUEUE=true` + cron `disciplinary:process-pdf-queue` (Chrome solo en CLI).
+- **Cargar PDF externo** (modal FO-GJ-51): no usa motor HTML; funciona en web.
+- Dompdf puede diferir ligeramente en CSS complejo frente a Chrome; validar plantillas críticas tras cambiar de driver.
 
 #### Errores frecuentes y solución
 
@@ -615,7 +619,7 @@ Entorno de staging recomendado **aislado** del sitio principal (p. ej. `sjlegals
 | **Enlace storage** | `public_html/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
 | **Node (PDF)** | NVM en el home del usuario + `npm install` en la raíz del repo (ver abajo) |
 
-**`.env` en hosting (resumen):**
+**`.env` en hosting (resumen — Dompdf recomendado):**
 
 ```env
 APP_ENV=production
@@ -632,15 +636,10 @@ SANCTUM_STATEFUL_DOMAINS=sjlegalsuite.sjregistrycat.com
 
 DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
 
-# PDF digital (Browsershot) — obligatorio en hosting compartido para FO-GJ-51, citaciones, etc.
-NODE_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/node
-NPM_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/npm
-PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell
-PDF_NO_SANDBOX=true
+# PDF inmediato en LiteSpeed (sin Chrome ni cola)
+PDF_DRIVER=dompdf
+PDF_USE_QUEUE=false
 PDF_VIA_ARTISAN_CLI=false
-PDF_USE_QUEUE=true
-PDF_CLI_PHP=/opt/alt/php83/usr/bin/php
-PDF_BROWSER_TIMEOUT=120
 QUEUE_CONNECTION=database
 ```
 

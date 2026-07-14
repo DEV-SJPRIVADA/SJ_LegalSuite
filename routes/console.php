@@ -8,28 +8,12 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 
 Artisan::command('disciplinary:pdf-check', function () {
-    $this->info('Comprobación PDF disciplinarios (HTML → Letter, Browsershot).');
+    $this->info('Comprobación PDF disciplinarios (HTML → Letter).');
 
-    $node = BrowsershotBinaryResolver::nodeBinary();
-    $npm = BrowsershotBinaryResolver::npmBinary();
-    $chrome = BrowsershotBinaryResolver::chromeBinary();
-
-    $node
-        ? $this->line('Node: '.$node)
-        : $this->error('Node: no encontrado. Instale Node en Laragon/PATH o defina NODE_BINARY en .env');
-
-    $npm
-        ? $this->line('npm: '.$npm)
-        : $this->warn('npm: no encontrado (Browsershot puede seguir funcionando si Puppeteer no lo exige en su instalación).');
-
-    $chrome
-        ? $this->line('Chrome: '.$chrome.' (se usará para rasterizar el PDF)')
-        : $this->line('Chrome: no fijado; se usará el Chromium gestionado por Puppeteer tras npm install.');
-
-    $puppeteerOk = is_file(base_path('node_modules/puppeteer/package.json'));
-    $puppeteerOk
-        ? $this->line('puppeteer: node_modules presente')
-        : $this->error('puppeteer: falta. Ejecute `npm install` en la raíz del proyecto.');
+    $driver = \App\Support\Pdf\LetterPdfDriver::current();
+    $this->line('PDF_DRIVER: '.$driver.($driver === 'dompdf'
+        ? ' (PHP puro; inmediato en web Hostinger)'
+        : ' (Chrome/Browsershot)'));
 
     $logoOk = EmbeddedPublicAsset::disciplinaryLogoDataUri() !== null;
     $logoOk
@@ -39,56 +23,60 @@ Artisan::command('disciplinary:pdf-check', function () {
     $missingFonts = \App\Support\Pdf\EmbeddedPdfFont::missingFiles();
     $fontsOk = $missingFonts === [];
     $fontsOk
-        ? $this->line('Fuentes PDF: OK (Liberation embebidas en resources/fonts/pdf)')
+        ? $this->line('Fuentes PDF: OK (Liberation en resources/fonts/pdf)')
         : $this->error('Fuentes PDF: faltan '.implode(', ', $missingFonts).' en resources/fonts/pdf');
 
-    $noSandbox = (bool) config('services.pdf.no_sandbox');
-    $noSandbox
-        ? $this->line('PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)')
-        : $this->line('PDF_NO_SANDBOX: inactivo (modo local / Windows)');
+    $node = true;
+    $puppeteerOk = true;
 
-    if (PHP_OS_FAMILY !== 'Windows' && ! $noSandbox) {
-        $this->warn('En Linux sin PDF_NO_SANDBOX=true, Chromium headless suele fallar en hosting compartido.');
+    if ($driver === 'browsershot') {
+        $nodeBin = BrowsershotBinaryResolver::nodeBinary();
+        $npm = BrowsershotBinaryResolver::npmBinary();
+        $chrome = BrowsershotBinaryResolver::chromeBinary();
+
+        $node = (bool) $nodeBin;
+        $node
+            ? $this->line('Node: '.$nodeBin)
+            : $this->error('Node: no encontrado. Instale Node o defina NODE_BINARY en .env');
+
+        $npm
+            ? $this->line('npm: '.$npm)
+            : $this->warn('npm: no encontrado (Browsershot puede seguir si Puppeteer no lo exige).');
+
+        $chrome
+            ? $this->line('Chrome: '.$chrome)
+            : $this->line('Chrome: no fijado; Puppeteer usará su Chromium tras npm install.');
+
+        $puppeteerOk = is_file(base_path('node_modules/puppeteer/package.json'));
+        $puppeteerOk
+            ? $this->line('puppeteer: node_modules presente')
+            : $this->error('puppeteer: falta. Ejecute `npm install` en la raíz del proyecto.');
+
+        $noSandbox = (bool) config('services.pdf.no_sandbox');
+        $noSandbox
+            ? $this->line('PDF_NO_SANDBOX: activo')
+            : $this->line('PDF_NO_SANDBOX: inactivo');
+
+        $viaCli = (bool) config('services.pdf.via_artisan_cli');
+        $this->line($viaCli
+            ? 'PDF_VIA_ARTISAN_CLI: activo (suele fallar en LiteSpeed; preferir Dompdf o cola)'
+            : 'PDF_VIA_ARTISAN_CLI: inactivo');
+
+        $useQueue = (bool) config('services.pdf.use_queue');
+        $this->line($useQueue
+            ? 'PDF_USE_QUEUE: activo (FO-GJ-51/03 → cola `pdf` + cron)'
+            : 'PDF_USE_QUEUE: inactivo');
+
+        if ($useQueue) {
+            $this->line('Cron: schedule:run + disciplinary:process-pdf-queue cada minuto.');
+        }
+    } else {
+        $this->line('PDF_USE_QUEUE: no aplica (Dompdf síncrono; vista previa inmediata).');
+        $this->line('Chrome/Node: no requeridos con PDF_DRIVER=dompdf.');
     }
 
-    $chromePath = BrowsershotBinaryResolver::chromeBinary();
-    if ($chromePath !== null && PHP_OS_FAMILY !== 'Windows' && ! pathIsWithinProject($chromePath)) {
-        $this->warn('PDF_CHROME_PATH está fuera del proyecto; open_basedir del PHP web puede bloquearlo. Instale Chromium en storage/app/puppeteer-cache (ver README Hostinger).');
-    }
-
-    $nodePath = BrowsershotBinaryResolver::nodeBinary();
-    if ($nodePath !== null && PHP_OS_FAMILY !== 'Windows' && ! pathIsWithinProject($nodePath)) {
-        $this->warn('NODE_BINARY está fuera del proyecto (~/.nvm). El PHP web de LiteSpeed no puede ejecutarlo: copie Node a storage/app/node-v20 (ver README Hostinger).');
-    }
-
-    $viaCli = (bool) config('services.pdf.via_artisan_cli');
-    $useQueue = (bool) config('services.pdf.use_queue');
-
-    $viaCli
-        ? $this->line('PDF_VIA_ARTISAN_CLI: activo (PHP web → artisan CLI; en LiteSpeed suele fallar igual — preferir cola)')
-        : $this->line('PDF_VIA_ARTISAN_CLI: inactivo');
-
-    if ($viaCli) {
-        $this->line('PHP CLI (render-pdf): '.PdfCliPhpBinaryResolver::resolve());
-    }
-
-    $useQueue
-        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 y FO-GJ-03 → cola `pdf` + cron `disciplinary:process-pdf-queue`)')
-        : $this->line('PDF_USE_QUEUE: inactivo (generación síncrona)');
-
-    if ($useQueue && env('QUEUE_CONNECTION', 'database') === 'sync') {
-        $this->warn('QUEUE_CONNECTION=sync no procesará jobs en segundo plano. Use database y cron schedule:run.');
-    }
-
-    if ($useQueue) {
-        $this->line('Cron recomendado (Hostinger, dos líneas cada minuto):');
-        $this->line('  1) php artisan schedule:run');
-        $this->line('  2) php artisan disciplinary:process-pdf-queue');
-        $this->line('Si la cola se “congela”: php artisan schedule:clear-cache && php artisan disciplinary:process-pdf-queue');
-    }
-
-    return ($node && $puppeteerOk && $logoOk && $fontsOk) ? 0 : 1;
-})->purpose('Verifica Node/npm/Chrome/logo/fuentes para generar PDF disciplinarios');
+    return ($logoOk && $fontsOk && $node && $puppeteerOk) ? 0 : 1;
+})->purpose('Verifica driver PDF, logo y fuentes disciplinarias');
 
 Artisan::command('disciplinary:render-pdf {--input=} {--output=} {--zero-margins}', function () {
     $input = (string) $this->option('input');

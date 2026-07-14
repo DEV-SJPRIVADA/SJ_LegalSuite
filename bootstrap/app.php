@@ -36,8 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withSchedule(function (Schedule $schedule): void {
-        if (config('services.pdf.use_queue')) {
-            // Mutex corto (2 min): el default de withoutOverlapping es ~24 h y deja la cola muerta si un worker se cuelga.
+        // Cola PDF solo con Browsershot + PDF_USE_QUEUE (Dompdf no la necesita).
+        if (config('services.pdf.use_queue')
+            && strtolower((string) config('services.pdf.driver', 'browsershot')) === 'browsershot') {
             $schedule->command('disciplinary:process-pdf-queue')
                 ->everyMinute()
                 ->withoutOverlapping(2)
