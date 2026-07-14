@@ -438,7 +438,7 @@ El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/
 | Worker de cola | No necesario | **Cron** `schedule:run` cada minuto |
 | `PDF_NO_SANDBOX` | `false` | `true` |
 | `PDF_USE_QUEUE` | `false` | `true` |
-| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (obsoleto si usa cola) |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (opcional; `PDF_USE_QUEUE` ya cubre 03/04/…) |
 
 #### Variables `.env` (PDF)
 
@@ -450,7 +450,7 @@ El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/
 | `PDF_NO_SANDBOX` | `false` | `true` | Flags `--no-sandbox`, `single-process`, etc. |
 | `PDF_USE_QUEUE` | `false` | `true` | FO-GJ-51 web encola job en tabla `jobs` |
 | `QUEUE_CONNECTION` | `database` | `database` | Driver de cola (requiere migración `jobs`) |
-| `PDF_VIA_ARTISAN_CLI` | `false` | `false` | Alternativa anterior; no usar con cola |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (opcional) | Con `PDF_USE_QUEUE=true` FO-GJ-03/04/… ya van por artisan CLI desde web; el flag fuerza lo mismo sin cola |
 | `PDF_CLI_PHP` | vacío | `/opt/alt/php83/usr/bin/php` | Solo relevante si `PDF_VIA_ARTISAN_CLI=true` |
 | `PDF_BROWSER_TIMEOUT` | `120` | `120` | Segundos de espera de Browsershot |
 
@@ -548,9 +548,9 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 
 #### Limitaciones en hosting compartido
 
-- **FO-GJ-51** (generar / enviar desde web): resuelto con cola + cron.
+- **FO-GJ-51** (generar / enviar desde web): cola `pdf` + cron.
 - **Cargar PDF externo** (modal): no usa Browsershot; funciona en web.
-- **Otros PDF desde web** (FO-GJ-03, FO-GJ-04, acta comité, etc.): siguen llamando Browsershot **síncrono** desde PHP web; pueden fallar en Hostinger igual que antes. Alternativas: VPS, o ampliar el patrón de cola a esos formatos.
+- **Otros PDF desde web** (FO-GJ-03, FO-GJ-04, acta comité, etc.): con **`PDF_USE_QUEUE=true`** (perfil Hostinger) delegan a `php artisan disciplinary:render-pdf` vía `HtmlLetterPdfArtisanCliRenderer` (no lanzan Chrome desde LiteSpeed). Requiere `PDF_CLI_PHP` apuntando al PHP CLI real. Si `proc_open`/`exec` estuviera bloqueado por el host, habría que encolar esos formatos como el 51 o usar VPS.
 - Cambiar `PDF_NO_SANDBOX=false` **no** arregla el bloqueo de CageFS en PHP web.
 
 #### Errores frecuentes y solución
@@ -559,7 +559,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 |---------|-------|----------|
 | `node: command not found` | Node fuera del proyecto o sin `NODE_BINARY` | Copiar Node a `storage/app/node-v20`, definir rutas en `.env` |
 | `ptrace: Operation not permitted` | Chrome completo | Usar **chrome-headless-shell** |
-| `Failed to launch the browser process` en **web** | CageFS bloquea Chrome en LiteSpeed | `PDF_USE_QUEUE=true` + cron |
+| `Failed to launch the browser process` / `ProcessFailedException` en **vista FO-GJ-03/04** | PHP web no lanza Chrome | Con `PDF_USE_QUEUE=true` el código delega a artisan CLI; `git pull`, `config:clear`, `PDF_CLI_PHP=/opt/alt/php83/usr/bin/php` |
 | `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
 | `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
 | Pantalla *Generando PDF* infinita | Sin cron, worker no vacía cola, o jobs `default` delante del PDF | Cron `schedule:run` cada minuto; worker `--queue=pdf,default`; o `queue:work … --stop-when-empty` |

@@ -41,7 +41,7 @@ return [
     | Sin PDF_CHROME_PATH: se intenta Chrome de sistema en Windows; si no, Puppeteer usa su Chromium.
     | PDF_NO_SANDBOX=true: hosting Linux compartido (p. ej. Hostinger) — desactiva sandbox y /dev/shm pequeño.
     | PDF_VIA_ARTISAN_CLI=true: PHP web delega a `php artisan disciplinary:render-pdf` (LiteSpeed no lanza Chrome; CLI sí).
-    | PDF_USE_QUEUE=true: la web encola FO-GJ-51 y un worker CLI/cron genera el PDF (Hostinger compartido).
+    | PDF_USE_QUEUE=true: FO-GJ-51 en cola + worker; además fuerza el mismo delegado artisan CLI para el resto de PDF HTML desde web.
     */
     'pdf' => [
         'chrome_path' => env('PDF_CHROME_PATH'),
