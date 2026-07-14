@@ -73,11 +73,18 @@ Artisan::command('disciplinary:pdf-check', function () {
     }
 
     $useQueue
-        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 y FO-GJ-03 → cola `pdf` + cron)')
+        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 y FO-GJ-03 → cola `pdf` + cron `disciplinary:process-pdf-queue`)')
         : $this->line('PDF_USE_QUEUE: inactivo (generación síncrona)');
 
     if ($useQueue && env('QUEUE_CONNECTION', 'database') === 'sync') {
         $this->warn('QUEUE_CONNECTION=sync no procesará jobs en segundo plano. Use database y cron schedule:run.');
+    }
+
+    if ($useQueue) {
+        $this->line('Cron recomendado (Hostinger, dos líneas cada minuto):');
+        $this->line('  1) php artisan schedule:run');
+        $this->line('  2) php artisan disciplinary:process-pdf-queue');
+        $this->line('Si la cola se “congela”: php artisan schedule:clear-cache && php artisan disciplinary:process-pdf-queue');
     }
 
     return ($node && $puppeteerOk && $logoOk && $fontsOk) ? 0 : 1;

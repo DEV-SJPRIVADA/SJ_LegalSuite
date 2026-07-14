@@ -488,7 +488,7 @@ sequenceDiagram
 | Builder PDF | `App\Services\Disciplinary\FoGj51PdfBuilder` |
 | Estado en disco | `App\Support\Pdf\FoGj51PdfQueueStore` → `storage/app/fo-gj-51-pdf-queue/` |
 | Vista espera | `resources/views/disciplinary/forms/fo-gj-51-pdf-queue-wait.blade.php` |
-| Scheduler | `bootstrap/app.php` → cada minuto `queue:work database --queue=pdf,default --stop-when-empty --max-time=55` (FO-GJ-51 en cola `pdf`, prioridad sobre notificaciones en `default`) |
+| Scheduler | `disciplinary:process-pdf-queue` cada minuto (`withoutOverlapping(2)`); cron extra directo recomendado en Hostinger |
 
 **Rutas web (autenticadas):**
 
@@ -516,13 +516,25 @@ php artisan config:clear
 
 #### Cron en producción (obligatorio con `PDF_USE_QUEUE=true`)
 
-**No** deje `queue:work` corriendo en una terminal SSH permanente. Configure en **hPanel → Cron Jobs**, cada minuto:
+En Hostinger el PDF **solo** se genera en PHP **CLI** (cron). No deje `queue:work` en una terminal SSH permanente.
+
+**Definitivo (dos crons, cada minuto)** — el segundo evita quedar bloqueado si el mutex de `schedule:run` se traba:
 
 ```bash
 * * * * * cd /home/u348559544/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /home/u348559544/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan disciplinary:process-pdf-queue >> /home/u348559544/domains/sjlegalsuite.sjregistrycat.com/storage/logs/pdf-queue-cron.log 2>&1
 ```
 
-`schedule:run` ejecuta el worker de cola definido en `bootstrap/app.php`. Latencia típica: unos segundos (máximo ~1 minuto si el cron acaba de pasar).
+Use siempre **`/opt/alt/php83/usr/bin/php`** (CLI), no un `wget`/`curl` a una URL web.
+
+Tras deploy o si la cola “se congela”:
+
+```bash
+php artisan schedule:clear-cache
+php artisan disciplinary:process-pdf-queue
+```
+
+El scheduler (`bootstrap/app.php`) también llama `disciplinary:process-pdf-queue` cada minuto con `withoutOverlapping(2)` (mutex de 2 minutos, no 24 h). Latencia típica: segundos a ~1 minuto.
 
 #### Ejemplo `.env` verificado (staging `sjlegalsuite.sjregistrycat.com`)
 
@@ -563,7 +575,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 | `Failed to launch the browser process` / `ProcessFailedException` / fallo `render-pdf` en **vista FO-GJ-03** | PHP web (y artisan hijo) no lanzan Chrome en LiteSpeed | Código con cola `ProcessFoGj03PdfJob` + `PDF_USE_QUEUE=true` + cron; `git pull`, `config:clear` |
 | `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
 | `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
-| Pantalla *Generando PDF* infinita | Sin cron, worker no vacía cola, o jobs `default` delante del PDF | Cron `schedule:run` cada minuto; worker `--queue=pdf,default`; o `queue:work … --stop-when-empty` |
+| Pantalla *Generando PDF* infinita | Cron ausente, `wget` a URL web en vez de CLI, o mutex del schedule trabado (24 h) | Dos crons CLI; `schedule:clear-cache`; `disciplinary:process-pdf-queue`; log `storage/logs/pdf-queue-cron.log` |
 | PDF con cuadritos / texto ilegible | Sin Arial en Hostinger; tipografías no embebidas | Desplegar `resources/fonts/pdf` (Liberation) + código `EmbeddedPdfFont`; regenerar PDF; `pdf-check` → Fuentes PDF: OK |
 | Pegar historial de terminal en bash | Copiar prompts `[user@host]$` | Ejecutar **solo** el comando, una línea |
 | Informe enviado pero no en evidencias | Flujo normal | Va primero a **Revisión informes**; operaciones debe autorizar |
@@ -681,14 +693,10 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 
    ```bash
    * * * * * cd /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
+   * * * * * cd /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan disciplinary:process-pdf-queue >> /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/logs/pdf-queue-cron.log 2>&1
    ```
 
-   Para probar de inmediato por SSH (sin esperar al cron), en **otra terminal** deje corriendo mientras prueba desde el navegador:
-
-   ```bash
-   php artisan queue:work database --queue=pdf,default --verbose
-   ```
-8. Permisos de escritura para el runtime de Chrome:
+   (Detalle en sección **Cron en producción** más arriba.)
 
    ```bash
    chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue

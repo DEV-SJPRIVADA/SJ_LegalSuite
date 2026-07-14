@@ -37,9 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         if (config('services.pdf.use_queue')) {
-            // pdf primero (FO-GJ-51), luego default (notificaciones broadcast, etc.)
-            $schedule->command('queue:work database --queue=pdf,default --stop-when-empty --max-time=55')
+            // Mutex corto (2 min): el default de withoutOverlapping es ~24 h y deja la cola muerta si un worker se cuelga.
+            $schedule->command('disciplinary:process-pdf-queue')
                 ->everyMinute()
-                ->withoutOverlapping();
+                ->withoutOverlapping(2)
+                ->name('disciplinary-process-pdf-queue');
         }
     })->create();
