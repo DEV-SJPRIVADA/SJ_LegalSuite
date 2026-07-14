@@ -63,22 +63,17 @@ Artisan::command('disciplinary:pdf-check', function () {
 
     $viaCli = (bool) config('services.pdf.via_artisan_cli');
     $useQueue = (bool) config('services.pdf.use_queue');
-    $webDelegatesCli = $viaCli || $useQueue;
+
+    $viaCli
+        ? $this->line('PDF_VIA_ARTISAN_CLI: activo (PHP web → artisan CLI; en LiteSpeed suele fallar igual — preferir cola)')
+        : $this->line('PDF_VIA_ARTISAN_CLI: inactivo');
 
     if ($viaCli) {
-        $this->line('PDF_VIA_ARTISAN_CLI: activo (PHP web delega a artisan CLI)');
-    } elseif ($useQueue) {
-        $this->line('PDF_VIA_ARTISAN_CLI: inactivo (flag); con PDF_USE_QUEUE la web igual delega FO-GJ-03/04/… a artisan CLI');
-    } else {
-        $this->line('PDF_VIA_ARTISAN_CLI: inactivo (Browsershot directo en web)');
-    }
-
-    if ($webDelegatesCli) {
         $this->line('PHP CLI (render-pdf): '.PdfCliPhpBinaryResolver::resolve());
     }
 
     $useQueue
-        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 → cola `pdf`; resto HTML→PDF vía artisan CLI en web)')
+        ? $this->line('PDF_USE_QUEUE: activo (FO-GJ-51 y FO-GJ-03 → cola `pdf` + cron)')
         : $this->line('PDF_USE_QUEUE: inactivo (generación síncrona)');
 
     if ($useQueue && env('QUEUE_CONNECTION', 'database') === 'sync') {

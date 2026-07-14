@@ -26,9 +26,8 @@ final class HtmlLetterPdfGenerator
     }
 
     /**
-     * En LiteSpeed/CageFS el PHP web no lanza Chrome. Con PDF_VIA_ARTISAN_CLI o PDF_USE_QUEUE
-     * (perfil Hostinger), las vistas FO-GJ-03/04/… delegan a artisan CLI (igual que pdf-smoke).
-     * FO-GJ-51 con cola no pasa por aquí desde la web: usa ProcessFoGj51PdfJob.
+     * Solo con PDF_VIA_ARTISAN_CLI=true. En Hostinger LiteSpeed el hijo artisan heredado
+     * de PHP web también falla al lanzar Chrome; usar colas (`PDF_USE_QUEUE`) + cron.
      *
      * @param  bool|null  $runningInConsole  Override para tests (null = app()->runningInConsole()).
      */
@@ -38,11 +37,7 @@ final class HtmlLetterPdfGenerator
             return false;
         }
 
-        if ((bool) config('services.pdf.via_artisan_cli')) {
-            return true;
-        }
-
-        return (bool) config('services.pdf.use_queue');
+        return (bool) config('services.pdf.via_artisan_cli');
     }
 
     /**

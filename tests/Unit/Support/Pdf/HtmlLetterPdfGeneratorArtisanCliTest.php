@@ -7,17 +7,7 @@ use Tests\TestCase;
 
 class HtmlLetterPdfGeneratorArtisanCliTest extends TestCase
 {
-    public function test_web_request_delegates_when_use_queue_enabled(): void
-    {
-        config([
-            'services.pdf.via_artisan_cli' => false,
-            'services.pdf.use_queue' => true,
-        ]);
-
-        $this->assertTrue(HtmlLetterPdfGenerator::shouldDelegateToArtisanCli(runningInConsole: false));
-    }
-
-    public function test_web_request_delegates_when_via_artisan_cli_flag(): void
+    public function test_web_request_delegates_only_when_via_artisan_cli_flag(): void
     {
         config([
             'services.pdf.via_artisan_cli' => true,
@@ -25,6 +15,16 @@ class HtmlLetterPdfGeneratorArtisanCliTest extends TestCase
         ]);
 
         $this->assertTrue(HtmlLetterPdfGenerator::shouldDelegateToArtisanCli(runningInConsole: false));
+    }
+
+    public function test_use_queue_alone_does_not_delegate_to_artisan_cli(): void
+    {
+        config([
+            'services.pdf.via_artisan_cli' => false,
+            'services.pdf.use_queue' => true,
+        ]);
+
+        $this->assertFalse(HtmlLetterPdfGenerator::shouldDelegateToArtisanCli(runningInConsole: false));
     }
 
     public function test_console_never_delegates_to_avoid_recursion(): void

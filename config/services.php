@@ -40,8 +40,8 @@ return [
     | Sin NODE_BINARY: en Windows se intenta Laragon (carpeta bin/nodejs, carpetas node-vXX) y PATH.
     | Sin PDF_CHROME_PATH: se intenta Chrome de sistema en Windows; si no, Puppeteer usa su Chromium.
     | PDF_NO_SANDBOX=true: hosting Linux compartido (p. ej. Hostinger) — desactiva sandbox y /dev/shm pequeño.
-    | PDF_VIA_ARTISAN_CLI=true: PHP web delega a `php artisan disciplinary:render-pdf` (LiteSpeed no lanza Chrome; CLI sí).
-    | PDF_USE_QUEUE=true: FO-GJ-51 en cola + worker; además fuerza el mismo delegado artisan CLI para el resto de PDF HTML desde web.
+    | PDF_VIA_ARTISAN_CLI=true: PHP web → artisan CLI (suele fallar igual en LiteSpeed; no preferir).
+    | PDF_USE_QUEUE=true: FO-GJ-51 y FO-GJ-03 en cola `pdf` + worker CLI/cron (Hostinger).
     */
     'pdf' => [
         'chrome_path' => env('PDF_CHROME_PATH'),

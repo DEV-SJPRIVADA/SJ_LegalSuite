@@ -122,6 +122,14 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.documents.file');
         Route::get('cases/{case}/fo-gj-03/pdf', [FoGj03CaseController::class, 'download'])
             ->name('cases.fo-gj-03.pdf');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}', [FoGj03CaseController::class, 'pdfQueueWait'])
+            ->name('cases.fo-gj-03.pdf-queue');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/status', [FoGj03CaseController::class, 'pdfQueueStatus'])
+            ->name('cases.fo-gj-03.pdf-queue.status');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/download', [FoGj03CaseController::class, 'pdfQueueDownload'])
+            ->name('cases.fo-gj-03.pdf-queue.download');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/complete', [FoGj03CaseController::class, 'pdfQueueComplete'])
+            ->name('cases.fo-gj-03.pdf-queue.complete');
         Route::post('cases/{case}/fo-gj-03/generate', [FoGj03CaseController::class, 'generate'])
             ->name('cases.fo-gj-03.generate');
         Route::get('cases/{case}/fo-gj-04/pdf', [FoGj04CaseController::class, 'download'])
