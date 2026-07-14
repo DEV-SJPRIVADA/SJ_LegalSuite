@@ -12,6 +12,16 @@ final class DompdfLetterPdfDriver
 {
     public static function render(string $html, bool $zeroPageMargins = false): string
     {
+        $fontDir = self::ensureFontCacheDirectory();
+        $webRoot = self::resolveWebRoot();
+
+        // Hostinger usa public_html; barryvdh falla si no existe base_path('public').
+        config([
+            'dompdf.public_path' => $webRoot,
+            'dompdf.options.font_dir' => $fontDir,
+            'dompdf.options.font_cache' => $fontDir,
+        ]);
+
         $html = self::prepareHtml($html, $zeroPageMargins);
 
         $wrapper = Pdf::loadHTML($html)
@@ -20,7 +30,9 @@ final class DompdfLetterPdfDriver
             ->setOption('isRemoteEnabled', true)
             ->setOption('isFontSubsettingEnabled', true)
             ->setOption('defaultFont', 'DejaVu Sans')
-            ->setOption('chroot', self::chrootPaths());
+            ->setOption('fontDir', $fontDir)
+            ->setOption('fontCache', $fontDir)
+            ->setOption('chroot', self::chrootPaths($webRoot, $fontDir));
 
         self::registerLiberationFonts($wrapper->getDomPDF());
 
@@ -33,18 +45,49 @@ final class DompdfLetterPdfDriver
         return $binary;
     }
 
+    public static function ensureFontCacheDirectory(): string
+    {
+        $dir = storage_path('fonts');
+
+        if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
+            throw new \RuntimeException('No se pudo crear storage/fonts para Dompdf.');
+        }
+
+        if (! is_writable($dir)) {
+            throw new \RuntimeException('storage/fonts no es escribible por PHP.');
+        }
+
+        return rtrim($dir, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+    }
+
+    /**
+     * Hostinger: public_html; Laragon: public.
+     */
+    public static function resolveWebRoot(): string
+    {
+        foreach ([base_path('public_html'), base_path('public')] as $candidate) {
+            $resolved = realpath($candidate);
+            if ($resolved !== false && is_dir($resolved)) {
+                return $resolved;
+            }
+        }
+
+        throw new \RuntimeException('Cannot resolve public path (ni public_html ni public).');
+    }
+
     /**
      * @return list<string>
      */
-    private static function chrootPaths(): array
+    private static function chrootPaths(string $webRoot, string $fontDir): array
     {
-        return array_values(array_filter([
+        return array_values(array_unique(array_filter([
             base_path(),
-            public_path(),
+            $webRoot,
+            rtrim($fontDir, DIRECTORY_SEPARATOR),
             storage_path('app'),
             resource_path('fonts/pdf'),
             resource_path('fonts'),
-        ], fn (string $path): bool => is_dir($path)));
+        ], fn (string $path): bool => is_dir($path))));
     }
 
     private static function prepareHtml(string $html, bool $zeroPageMargins): string

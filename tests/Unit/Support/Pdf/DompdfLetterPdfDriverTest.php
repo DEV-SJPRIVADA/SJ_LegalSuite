@@ -8,6 +8,22 @@ use Tests\TestCase;
 
 class DompdfLetterPdfDriverTest extends TestCase
 {
+    public function test_ensures_font_cache_directory(): void
+    {
+        $dir = DompdfLetterPdfDriver::ensureFontCacheDirectory();
+
+        $this->assertDirectoryExists(rtrim($dir, DIRECTORY_SEPARATOR));
+        $this->assertTrue(is_writable(rtrim($dir, DIRECTORY_SEPARATOR)));
+    }
+
+    public function test_resolve_web_root_finds_public_or_public_html(): void
+    {
+        $root = DompdfLetterPdfDriver::resolveWebRoot();
+
+        $this->assertNotFalse(realpath($root));
+        $this->assertDirectoryExists($root);
+    }
+
     public function test_dompdf_renders_non_empty_pdf_with_latin_text(): void
     {
         $html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'

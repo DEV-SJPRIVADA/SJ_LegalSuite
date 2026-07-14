@@ -565,7 +565,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 
 #### Limitaciones en hosting compartido
 
-- **Recomendado:** `PDF_DRIVER=dompdf` — todos los HTML→Letter (FO-GJ-03/51/04/…) son **síncronos e inmediatos** en PHP web; no hace falta cola ni Chrome.
+- **Recomendado:** `PDF_DRIVER=dompdf` — todos los HTML→Letter (FO-GJ-03/51/04/…) son **síncronos e inmediatos** en PHP web; no hace falta cola ni Chrome. En Hostinger use `public` → `public_html` (symlink) o deje que el driver resuelva `public_html`; Dompdf escribe caché de fuentes en `storage/fonts/` (debe ser escribible).
 - **Legado Browsershot:** `PDF_DRIVER=browsershot` + `PDF_USE_QUEUE=true` + cron `disciplinary:process-pdf-queue` (Chrome solo en CLI).
 - **Cargar PDF externo** (modal FO-GJ-51): no usa motor HTML; funciona en web.
 - Dompdf puede diferir ligeramente en CSS complejo frente a Chrome; validar plantillas críticas tras cambiar de driver.
