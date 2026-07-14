@@ -290,6 +290,7 @@ app/
       FoGj51PdfQueueStore.php     Cola en disco para FO-GJ-51 en hosting (PDF_USE_QUEUE)
       BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
       EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
+      EmbeddedPdfFont.php        Liberation Sans/Serif → @font-face data-URI (`resources/fonts/pdf/`)
   Jobs/Disciplinary/             ProcessFoGj51PdfJob (worker CLI genera PDF encolado desde web)
   Jobs/Employees/                ProcessEmployeeBulkImportJob (opcional; flujo activo usa polling Livewire)
   Models/
@@ -403,6 +404,8 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 ### PDF disciplinarios (HTML → tamaño carta / Letter)
 
 Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
+
+**Tipografías PDF (portables):** las cartas FO-GJ usan **Liberation Sans** embebida (`SjPdfSans`) y el acta de comité **Liberation Serif** (`SjPdfSerif`) vía `@font-face` + data-URI (`App\Support\Pdf\EmbeddedPdfFont`, archivos en `resources/fonts/pdf/`). Así el texto no depende de Arial/Times del SO (típicamente ausentes en Hostinger + `chrome-headless-shell`). Tras desplegar fuentes nuevas, regenerar PDFs ya guardados. Verificación: `php artisan disciplinary:pdf-check` → línea `Fuentes PDF: OK`.
 
 | Código | Documento | Vista en blanco |
 |--------|-----------|-----------------|
@@ -559,6 +562,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
 | `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
 | `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
 | Pantalla *Generando PDF* infinita | Sin cron ni worker | Configurar cron o `queue:work --verbose` |
+| PDF con cuadritos / texto ilegible | Sin Arial en Hostinger; tipografías no embebidas | Desplegar `resources/fonts/pdf` (Liberation) + código `EmbeddedPdfFont`; regenerar PDF; `pdf-check` → Fuentes PDF: OK |
 | Pegar historial de terminal en bash | Copiar prompts `[user@host]$` | Ejecutar **solo** el comando, una línea |
 | Informe enviado pero no en evidencias | Flujo normal | Va primero a **Revisión informes**; operaciones debe autorizar |
 
@@ -638,7 +642,8 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 2. `npm install` + `chrome-headless-shell` en la raíz del proyecto.
 3. `.env` con rutas absolutas, `PDF_NO_SANDBOX=true`, `PDF_USE_QUEUE=true`, `QUEUE_CONNECTION=database`.
 4. Cron cada minuto → `php artisan schedule:run`.
-5. `php artisan disciplinary:pdf-check` debe mostrar **`PDF_USE_QUEUE: activo`**.
+5. `php artisan disciplinary:pdf-check` debe mostrar **`PDF_USE_QUEUE: activo`** y **`Fuentes PDF: OK`**.
+6. Tras pull de tipografías nuevas: `php artisan view:clear` y **regenerar** PDFs ya guardados (los viejos con cuadritos no se corrigen solos).
 
 **Diagnóstico rápido:**
 
@@ -939,10 +944,11 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - [x] Captura de firma unificada (`worker-signature-pad.js`: móvil táctil, Wacom en PC; Livewire `signature-capture-modal` en FO-GJ-03/04; Alpine `signature-capture-modal-alpine` en FO-GJ-51)
 - [x] FO-GJ-51: firma del elaborador capturada en pantalla e incrustada en PDF (`FoGj51PreparerSignatureTest`)
 - [x] Detalle del caso — pestaña **Gestión**: tarjetas A–D (`CaseStageCardState`), modales de etapa, FAB chat planeación, ficha resumida, modales FO-GJ montados al pie (`case-stage-foot-modals`)
-- [x] Etapa C en detalle del caso (diligencia): FO-GJ-04 (reemplaza FO-GJ-42), asistencia, FO-GJ-44/54, justificación, comité disciplinario (acta + membrete + **ACTA-COMITE** en catálogo Formatos + **Siguiente etapa → DECISION** tras acta), plantilla oficial multipágina con paginación híbrida, escala tipográfica unificada en PDF FO-GJ, acta comité Times New Roman 12 pt, cargos desde FO-GJ-03, modal con cuestionario pregunta+respuesta y manifestación SI/NO, firma del trabajador en acta, Etapa B solo lectura en modal tramitado, encabezado compacto y botones `<x-ui.btn>`
+- [x] Tipografías PDF portables: Liberation Sans/Serif embebidas (`EmbeddedPdfFont`, `resources/fonts/pdf/`) para Hostinger sin Arial/Times del SO
+- [x] Etapa C en detalle del caso (diligencia): FO-GJ-04 (reemplaza FO-GJ-42), asistencia, FO-GJ-44/54, justificación, comité disciplinario (acta + membrete + **ACTA-COMITE** en catálogo Formatos + **Siguiente etapa → DECISION** tras acta), plantilla oficial multipágina con paginación híbrida, escala tipográfica unificada en PDF FO-GJ, acta comité con **SjPdfSerif** (Liberation; sustituto de Times New Roman), cargos desde FO-GJ-03, modal con cuestionario pregunta+respuesta y manifestación SI/NO, firma del trabajador en acta, Etapa B solo lectura en modal tramitado, encabezado compacto y botones `<x-ui.btn>`
 - [ ] Exportación PDF de actuaciones con plantillas FO-GJ restantes desde el caso
 - [ ] Vista Kanban "Mi pipeline" por abogado
-- [ ] Tests Pest ampliados (parcial: `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj04DraftTest`, `FoGj51PreparerSignatureTest`, `DiligenceAttendanceTest`, `DisciplinaryLawyerPoolClaimTest`, `CaseDetailStageViewsTest`, `OrganizationLetterheadTest`)
+- [ ] Tests Pest ampliados (parcial: `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj04DraftTest`, `FoGj51PreparerSignatureTest`, `DiligenceAttendanceTest`, `DisciplinaryLawyerPoolClaimTest`, `CaseDetailStageViewsTest`, `OrganizationLetterheadTest`, `EmbeddedPdfFontTest`)
 
 ### Otros módulos del sistema
 

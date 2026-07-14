@@ -36,6 +36,12 @@ Artisan::command('disciplinary:pdf-check', function () {
         ? $this->line('Logo PDF: OK (prioridad: images/logo solo.png)')
         : $this->error('Logo PDF: falta images/logo solo.png (u otros candidatos en EmbeddedPublicAsset).');
 
+    $missingFonts = \App\Support\Pdf\EmbeddedPdfFont::missingFiles();
+    $fontsOk = $missingFonts === [];
+    $fontsOk
+        ? $this->line('Fuentes PDF: OK (Liberation embebidas en resources/fonts/pdf)')
+        : $this->error('Fuentes PDF: faltan '.implode(', ', $missingFonts).' en resources/fonts/pdf');
+
     $noSandbox = (bool) config('services.pdf.no_sandbox');
     $noSandbox
         ? $this->line('PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)')
@@ -73,8 +79,8 @@ Artisan::command('disciplinary:pdf-check', function () {
         $this->warn('QUEUE_CONNECTION=sync no procesará jobs en segundo plano. Use database y cron schedule:run.');
     }
 
-    return ($node && $puppeteerOk && $logoOk) ? 0 : 1;
-})->purpose('Verifica Node/npm/Chrome/logo para generar PDF disciplinarios');
+    return ($node && $puppeteerOk && $logoOk && $fontsOk) ? 0 : 1;
+})->purpose('Verifica Node/npm/Chrome/logo/fuentes para generar PDF disciplinarios');
 
 Artisan::command('disciplinary:render-pdf {--input=} {--output=} {--zero-margins}', function () {
     $input = (string) $this->option('input');

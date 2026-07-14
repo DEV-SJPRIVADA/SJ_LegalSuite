@@ -1,20 +1,23 @@
 {{-- Estilos compartidos para plantillas FO-GJ en PDF (Letter, Browsershot). --}}
+{{-- Tipografías Liberation embebidas (SjPdfSans): no dependen de Arial del SO / Hostinger. --}}
 <style>
+{!! \App\Support\Pdf\EmbeddedPdfFont::sansFontFaceCss() !!}
     :root {
         --ogj-font-body: 12px;
         --ogj-font-meta: 11px;
         --ogj-font-title: 13px;
         --ogj-font-micro: 10px;
+        --ogj-font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SANS }}', Arial, Helvetica, sans-serif;
     }
     @page { size: Letter; margin: 0.45in; }
-    html, body { margin: 0; padding: 0; background: #fff; }
+    html, body { margin: 0; padding: 0; background: #fff; font-family: var(--ogj-font-family); }
     .ogj-wrap {
         width: 100%;
         max-width: 100%;
         min-width: 0;
         box-sizing: border-box;
         margin: 0 auto;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: var(--ogj-font-family);
         font-size: var(--ogj-font-body);
         line-height: 1.25;
         color: #000;
