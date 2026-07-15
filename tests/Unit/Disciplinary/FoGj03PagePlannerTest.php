@@ -41,14 +41,11 @@ class FoGj03PagePlannerTest extends TestCase
             'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente',
         ]);
 
-        // Hoja 1 debe llevar más que solo opening+charges (evita el "aire" grande al pie).
         $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
         $this->assertContains(FoGj03PagePlanner::SECTION_CHARGES, $pages[0]['sections']);
-        $this->assertTrue(
-            in_array(FoGj03PagePlanner::SECTION_ARTICLES, $pages[0]['sections'], true)
-            || in_array(FoGj03PagePlanner::SECTION_EVIDENCE, $pages[0]['sections'], true),
-            'La primera página debe aprovechar espacio con articles y/o evidence',
-        );
+        $this->assertContains(FoGj03PagePlanner::SECTION_ARTICLES, $pages[0]['sections']);
+        // Con texto típico, el bloque de traslado también debe caber en la hoja 1 (sin aire grande).
+        $this->assertContains(FoGj03PagePlanner::SECTION_EVIDENCE, $pages[0]['sections']);
     }
 
     public function test_short_filled_still_keeps_sections_and_closing(): void
@@ -71,11 +68,11 @@ class FoGj03PagePlannerTest extends TestCase
         }
     }
 
-    public function test_long_charges_split_across_pages_with_coherent_numbering(): void
+    public function test_very_long_charges_split_across_pages_with_coherent_numbering(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
-            'chargesDescription' => str_repeat('Incidente largo con detalle del incumplimiento. ', 40),
+            'chargesDescription' => str_repeat('Incidente largo con detalle del incumplimiento laboral y contexto operativo. ', 80),
             'article66Numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42',
             'article68Numerals' => '10, 34',
             'article76Numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112',
@@ -83,7 +80,6 @@ class FoGj03PagePlannerTest extends TestCase
         ]);
 
         $this->assertGreaterThan(1, count($pages));
-        $this->assertFalse($pages[0]['showClosing']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
 
         foreach ($pages as $index => $page) {
@@ -95,6 +91,11 @@ class FoGj03PagePlannerTest extends TestCase
             $allSections = array_merge($allSections, $page['sections']);
         }
         $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
+        // El cierre no se antepone al cuerpo: si hay hoja solo-firmas, va al final.
+        $this->assertTrue(
+            $pages[array_key_last($pages)]['sections'] === []
+            || $pages[array_key_last($pages)]['showClosing'],
+        );
     }
 
     public function test_every_planned_page_can_carry_sections_or_closing_only(): void

@@ -29,24 +29,24 @@ final class FoGj03PagePlanner
 
     /**
      * Capacidad bajo el encabezado (Letter, caja 7.5in).
-     * Más alta que la primera calibración (52) para no dejar aire grande al pie
-     * cuando aún caben secciones; sigue bajo del overflow Dompdf de un bloque monolítico.
+     * Prioridad: llenar la hoja; el cierre, si no cabe, va en hoja propia (no se “empuja”
+     * contenido previo hacia abajo dejando aire).
      */
-    private const PAGE_UNITS = 72;
+    private const PAGE_UNITS = 88;
 
-    private const CLOSING_UNITS = 14;
+    private const CLOSING_UNITS = 13;
 
-    private const WITNESSES_UNITS = 11;
+    private const WITNESSES_UNITS = 10;
 
-    private const OPENING_UNITS = 14;
+    private const OPENING_UNITS = 12;
 
-    private const CHARGES_BASE_UNITS = 8;
+    private const CHARGES_BASE_UNITS = 7;
 
-    private const ARTICLES_UNITS = 10;
+    private const ARTICLES_UNITS = 8;
 
-    private const EVIDENCE_UNITS = 14;
+    private const EVIDENCE_UNITS = 10;
 
-    private const CHARS_PER_LINE = 72;
+    private const CHARS_PER_LINE = 74;
 
     /**
      * @param  array{
@@ -148,6 +148,9 @@ final class FoGj03PagePlanner
     }
 
     /**
+     * El cierre no mueve secciones del cuerpo (eso dejaba aire al pie).
+     * Si no cabe en la última hoja de cuerpo, se añade una hoja solo de firmas.
+     *
      * @param  list<array{sections: list<string>, used: int, showClosing: bool}>  $pages
      * @param  array<string, int>  $costById
      * @return list<array{sections: list<string>, used: int, showClosing: bool}>
@@ -162,33 +165,18 @@ final class FoGj03PagePlanner
             ]];
         }
 
-        while ($pages !== [] && (self::PAGE_UNITS - $pages[array_key_last($pages)]['used']) < $closingUnits) {
-            $lastIdx = array_key_last($pages);
-            $lastSections = $pages[$lastIdx]['sections'];
+        $lastIdx = array_key_last($pages);
+        if ((self::PAGE_UNITS - $pages[$lastIdx]['used']) >= $closingUnits) {
+            $pages[$lastIdx]['showClosing'] = true;
 
-            if ($lastSections === [] || count($lastSections) === 1) {
-                $pages[] = [
-                    'sections' => [],
-                    'used' => 0,
-                    'showClosing' => true,
-                ];
-
-                return $pages;
-            }
-
-            $moved = array_pop($lastSections);
-            $movedCost = $costById[$moved] ?? 8;
-            $pages[$lastIdx]['sections'] = $lastSections;
-            $pages[$lastIdx]['used'] = max(0, $pages[$lastIdx]['used'] - $movedCost);
-            $pages[] = [
-                'sections' => [$moved],
-                'used' => $movedCost,
-                'showClosing' => false,
-            ];
+            return $pages;
         }
 
-        $lastIdx = array_key_last($pages);
-        $pages[$lastIdx]['showClosing'] = true;
+        $pages[] = [
+            'sections' => [],
+            'used' => 0,
+            'showClosing' => true,
+        ];
 
         return $pages;
     }
