@@ -141,6 +141,7 @@
         Se corre traslado al trabajador de todas y cada una de las pruebas que fundamentan los cargos formulados. Se le hace saber que, el llamamiento a la diligencia de descargos no es propia de sanción disciplinaria, por el contrario, con ella buscamos garantizar el debido proceso, el derecho a la contradicción y a la defensa, conforme lo cual, podrá usted asistir con dos (02) testigos, controvertir las pruebas en su contra y allegar las pruebas que considere pertinentes informando por escrito al correo relacioneslaborales@sjsp.com.co con mínimo dos (02) horas de anticipación a la diligencia. En caso de tener alguna situación que imposibilite su presencia, deberá remitir dentro de los dos (2) días hábiles siguientes, la debida excusa para fijar nueva fecha, de lo contrario se entiende su renuncia al derecho a la defensa y se tendrán por cierto los hechos que motivaron la apertura del presente proceso disciplinario.
     </p>
 
+    <section class="ogj-03-closing-block">
     <table class="ogj-03-signatures" role="presentation">
         <tr>
             <td><p>Cordialmente;</p></td>
@@ -198,8 +199,10 @@
             <td></td>
         </tr>
     </table>
+    </section>
 
     @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
+        <section class="ogj-03-closing-block">
         <table class="ogj-03-signatures ogj-03-witnesses" role="presentation">
             <tr>
                 @foreach (array_slice($witnesses, 0, 2) as $witness)
@@ -230,5 +233,6 @@
                 @endfor
             </tr>
         </table>
+        </section>
     @endif
 </div>

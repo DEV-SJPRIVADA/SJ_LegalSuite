@@ -25,10 +25,11 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
+    /* Márgenes solo vía @page (cada hoja). Evita padding en .ogj-page que Dompdf no repite en pág. 2+. */
     .ogj-page {
         width: 100%;
         box-sizing: border-box;
-        padding: 0.38in 0.44in 0.34in;
+        padding: 0;
         background: #fff;
         min-height: 0;
     }
@@ -49,6 +50,7 @@
         width: 8.5in;
         min-height: 11in;
         box-sizing: border-box;
+        padding: 0.38in 0.44in 0.34in;
     }
     .ogj-block {
         border: 1px solid #000;
@@ -266,6 +268,11 @@
         border-collapse: collapse;
         margin-top: 18px;
         table-layout: fixed;
+    }
+    /* Patrón FO-GJ-04: no partir Cordialmente… Ltda / testigos entre páginas (Dompdf). */
+    .ogj-03-closing-block {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     .ogj-03-signatures td {
         width: 50%;
