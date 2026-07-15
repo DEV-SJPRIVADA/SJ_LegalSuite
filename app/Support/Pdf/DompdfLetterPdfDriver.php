@@ -61,11 +61,17 @@ final class DompdfLetterPdfDriver
     }
 
     /**
-     * Hostinger: public_html; Laragon: public.
+     * Hostinger: public_html (vía usePublicPath o detección). Laragon: public.
      */
     public static function resolveWebRoot(): string
     {
-        foreach ([base_path('public_html'), base_path('public')] as $candidate) {
+        $candidates = [
+            public_path(),
+            base_path('public_html'),
+            base_path('public'),
+        ];
+
+        foreach ($candidates as $candidate) {
             $resolved = realpath($candidate);
             if ($resolved !== false && is_dir($resolved)) {
                 return $resolved;

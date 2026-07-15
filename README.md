@@ -565,7 +565,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; priorida
 
 #### Limitaciones en hosting compartido
 
-- **Recomendado:** `PDF_DRIVER=dompdf` — todos los HTML→Letter (FO-GJ-03/51/04/…) son **síncronos e inmediatos** en PHP web; no hace falta cola ni Chrome. En Hostinger use `public` → `public_html` (symlink) o deje que el driver resuelva `public_html`; Dompdf escribe caché de fuentes en `storage/fonts/` (debe ser escribible).
+- **Recomendado:** `PDF_DRIVER=dompdf` — HTML→Letter inmediato en PHP web. En Hostinger el document root es **`public_html`** (`AppServiceProvider` → `usePublicPath`); **no** hace falta symlink `public` → `public_html`. Dompdf usa `storage/fonts/` (escribible).
 - **Legado Browsershot:** `PDF_DRIVER=browsershot` + `PDF_USE_QUEUE=true` + cron `disciplinary:process-pdf-queue` (Chrome solo en CLI).
 - **Cargar PDF externo** (modal FO-GJ-51): no usa motor HTML; funciona en web.
 - Dompdf puede diferir ligeramente en CSS complejo frente a Chrome; validar plantillas críticas tras cambiar de driver.
@@ -614,9 +614,9 @@ Entorno de staging recomendado **aislado** del sitio principal (p. ej. `sjlegals
 | Elemento | Valor típico |
 |----------|----------------|
 | **Código Git** | `~/domains/sjlegalsuite.sjregistrycat.com/` (raíz Laravel: `app`, `vendor`, `.env`) |
-| **Document root** | `~/domains/sjlegalsuite.sjregistrycat.com/public_html` (aquí está `index.php`; en Hostinger el web root es `public_html`, no `public`) |
-| **Assets Vite** | `public_html/build/` — **no** va en Git (`.gitignore`); compilar en PC con `npm run build` y subir la carpeta `build` junto a `index.php` |
-| **Enlace storage** | `public_html/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
+| **Document root** | `~/domains/sjlegalsuite.sjregistrycat.com/public_html` (`index.php`, `build/`). Laravel: `usePublicPath(public_html)` en `AppServiceProvider` — **no** crear symlink `public` → `public_html`. |
+| **Assets Vite** | `public_html/build/` — **no** va en Git; compilar en PC y subir `build` junto a `index.php` |
+| **Enlace storage** | `public_html/storage` → `../storage/app/public` (`ln -sfn ../storage/app/public public_html/storage`) |
 | **Node (PDF)** | NVM en el home del usuario + `npm install` en la raíz del repo (ver abajo) |
 
 **`.env` en hosting (resumen — Dompdf recomendado):**
