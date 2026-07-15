@@ -30,6 +30,27 @@ class FoGj03PagePlannerTest extends TestCase
         $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
     }
 
+    public function test_typical_filled_citation_fills_first_page_before_breaking(): void
+    {
+        $pages = $this->planner->plan([
+            'blankForDownload' => false,
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe; falta reiterada de presentación al puesto.',
+            'article66Numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42',
+            'article68Numerals' => '10, 34',
+            'article76Numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112',
+            'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente',
+        ]);
+
+        // Hoja 1 debe llevar más que solo opening+charges (evita el "aire" grande al pie).
+        $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
+        $this->assertContains(FoGj03PagePlanner::SECTION_CHARGES, $pages[0]['sections']);
+        $this->assertTrue(
+            in_array(FoGj03PagePlanner::SECTION_ARTICLES, $pages[0]['sections'], true)
+            || in_array(FoGj03PagePlanner::SECTION_EVIDENCE, $pages[0]['sections'], true),
+            'La primera página debe aprovechar espacio con articles y/o evidence',
+        );
+    }
+
     public function test_short_filled_still_keeps_sections_and_closing(): void
     {
         $pages = $this->planner->plan([
@@ -43,6 +64,11 @@ class FoGj03PagePlannerTest extends TestCase
 
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
         $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
+        // Documento corto: cuerpo completo + cierre en una hoja cuando cabe.
+        if (count($pages) === 1) {
+            $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $pages[0]['sections']);
+            $this->assertTrue($pages[0]['showClosing']);
+        }
     }
 
     public function test_long_charges_split_across_pages_with_coherent_numbering(): void

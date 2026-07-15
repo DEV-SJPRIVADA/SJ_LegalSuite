@@ -6,7 +6,8 @@ namespace App\Support\Disciplinary;
  * Reparte FO-GJ-03 en páginas Letter con encabezado en cada hoja.
  * Secciones de cuerpo + cierre; “Página N de M” alineado al plan.
  *
- * Constantes conservadoras para --ogj-font-body 12px / caja 7.5in (evita overflow Dompdf).
+ * Constantes calibradas para llenar cada hoja (poco aire al pie) sin volver al
+ * overflow Dompdf de un único bloque de cuerpo: --ogj-font-body 12px / caja 7.5in.
  */
 final class FoGj03PagePlanner
 {
@@ -26,21 +27,26 @@ final class FoGj03PagePlanner
         self::SECTION_EVIDENCE,
     ];
 
-    private const PAGE_UNITS = 52;
+    /**
+     * Capacidad bajo el encabezado (Letter, caja 7.5in).
+     * Más alta que la primera calibración (52) para no dejar aire grande al pie
+     * cuando aún caben secciones; sigue bajo del overflow Dompdf de un bloque monolítico.
+     */
+    private const PAGE_UNITS = 72;
 
-    private const CLOSING_UNITS = 16;
+    private const CLOSING_UNITS = 14;
 
-    private const WITNESSES_UNITS = 12;
+    private const WITNESSES_UNITS = 11;
 
-    private const OPENING_UNITS = 16;
+    private const OPENING_UNITS = 14;
 
-    private const CHARGES_BASE_UNITS = 10;
+    private const CHARGES_BASE_UNITS = 8;
 
-    private const ARTICLES_UNITS = 12;
+    private const ARTICLES_UNITS = 10;
 
-    private const EVIDENCE_UNITS = 16;
+    private const EVIDENCE_UNITS = 14;
 
-    private const CHARS_PER_LINE = 70;
+    private const CHARS_PER_LINE = 72;
 
     /**
      * @param  array{
