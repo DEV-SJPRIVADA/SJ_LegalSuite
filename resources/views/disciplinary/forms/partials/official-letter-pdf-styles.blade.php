@@ -106,7 +106,7 @@
         font-size: var(--ogj-font-title);
     }
     .ogj-head-grid {
-        margin-bottom: 4px !important;
+        margin-bottom: 4px;
     }
     .ogj-head-grid > tbody > tr > td {
         vertical-align: middle;
@@ -185,14 +185,14 @@
         margin-top: 12px;
     }
     .ogj-03-body p {
-        margin: 0 0 4px !important;
+        margin: 0 0 4px;
         text-align: justify;
     }
     .ogj-03-ref {
-        margin-bottom: 4px !important;
+        margin-bottom: 4px;
     }
     .ogj-03-ref p {
-        margin: 0 0 4px;
+        margin: 0 0 3px;
         text-align: left;
     }
     .ogj-03-guide {
@@ -245,32 +245,32 @@
         margin-bottom: 6px !important;
     }
     .ogj-03-recipient {
-        margin: 4px 0 6px !important;
+        margin: 4px 0 6px;
     }
     .ogj-03-recipient p {
-        margin: 0 0 3px;
+        margin: 0 0 2px;
         text-align: left;
         font-weight: bold;
     }
     .ogj-03-section-title {
         text-align: center;
         font-weight: bold;
-        margin: 6px 0 4px !important;
+        margin: 6px 0 4px;
     }
     .ogj-03-justify {
         text-align: justify;
-        margin: 0 0 4px !important;
+        margin: 0 0 4px;
     }
     .ogj-03-underline {
         font-weight: bold;
         text-decoration: underline;
     }
     .ogj-03-list {
-        margin: 0 0 4px 0 !important;
+        margin: 0 0 4px 0;
         padding-left: 18px;
     }
     .ogj-03-list li {
-        margin-bottom: 2px !important;
+        margin-bottom: 2px;
         text-align: justify;
     }
     .ogj-03-signatures {
