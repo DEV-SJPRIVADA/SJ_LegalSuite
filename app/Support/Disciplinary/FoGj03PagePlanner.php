@@ -29,10 +29,10 @@ final class FoGj03PagePlanner
     ];
 
     /** Capacidad de empaque dentro de una `.ogj-page` (bajo encabezado). */
-    private const PAGE_UNITS = 52;
+    private const PAGE_UNITS = 58;
 
     /** Techo para meter firmas en la misma `.ogj-page` que el último cuerpo. */
-    private const MAX_COMBINED_UNITS = 46;
+    private const MAX_COMBINED_UNITS = 48;
 
     private const CLOSING_UNITS = 13;
 
