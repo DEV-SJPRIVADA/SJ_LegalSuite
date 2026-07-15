@@ -119,9 +119,11 @@
         vertical-align: middle;
         padding: 10px 8px !important;
         text-transform: uppercase;
+        width: 50%;
     }
     .ogj-meta {
-        width: 114px;
+        width: 25%;
+        max-width: 25%;
         padding: 0 !important;
         vertical-align: top;
     }
@@ -154,8 +156,8 @@
         background: #fafafa;
     }
     .ogj-logo-cell {
-        width: 102px;
-        max-width: 102px;
+        width: 25%;
+        max-width: 25%;
         text-align: center;
         vertical-align: middle;
         padding: 6px !important;

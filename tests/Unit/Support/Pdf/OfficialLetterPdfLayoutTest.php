@@ -52,11 +52,15 @@ class OfficialLetterPdfLayoutTest extends TestCase
 
         $this->assertStringContainsString('ogj-03-closing-block', $html);
         $this->assertStringContainsString('ogj-page-break', $html);
-        $this->assertStringContainsString('Página 2 de 2', $html);
+        $this->assertMatchesRegularExpression('/Página \d+ de \d+/', $html);
+        $this->assertStringContainsString('width:25%', $html);
+        $this->assertStringContainsString('width:50%', $html);
         $this->assertStringContainsString('Cordialmente;', $html);
         $this->assertStringContainsString('SJ Seguridad Privada Ltda', $html);
         $this->assertStringContainsString('page-break-inside: avoid', $html);
         $this->assertDoesNotMatchRegularExpression('/\.ogj-03-signature-block\s*\{[^}]*display:\s*flex/s', $html);
+        // Sin hoja huérfana: cada bloque .ogj-page lleva encabezado FO-GJ-03
+        $this->assertSame(substr_count($html, 'ogj-meta-code'), substr_count($html, 'ogj-page-break') + 1);
     }
 
     public function test_fo_gj_03_filled_download_head_does_not_duplicate_page_rule(): void

@@ -98,8 +98,10 @@
                 'pageLine' => $page['pageLine'],
             ])
 
-            @if ($page['showBody'])
-                @include('disciplinary.forms.partials.fo-gj-03-content', $contentProps)
+            @if (($page['sections'] ?? []) !== [])
+                @include('disciplinary.forms.partials.fo-gj-03-content', $contentProps + [
+                    'sections' => $page['sections'],
+                ])
             @endif
 
             @if ($page['showClosing'])

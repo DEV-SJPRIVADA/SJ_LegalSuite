@@ -15,17 +15,22 @@ class FoGj03PagePlannerTest extends TestCase
         $this->planner = new FoGj03PagePlanner;
     }
 
-    public function test_blank_template_fits_on_single_page(): void
+    public function test_blank_template_has_header_pages_and_closing_on_last(): void
     {
         $pages = $this->planner->plan(['blankForDownload' => true]);
 
-        $this->assertCount(1, $pages);
-        $this->assertTrue($pages[0]['showBody']);
-        $this->assertTrue($pages[0]['showClosing']);
-        $this->assertSame('Página 1 de 1', $pages[0]['pageLine']);
+        $this->assertGreaterThanOrEqual(1, count($pages));
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+        $this->assertSame('Página '.count($pages).' de '.count($pages), $pages[array_key_last($pages)]['pageLine']);
+
+        $allSections = [];
+        foreach ($pages as $page) {
+            $allSections = array_merge($allSections, $page['sections']);
+        }
+        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
     }
 
-    public function test_short_filled_citation_fits_on_single_page(): void
+    public function test_short_filled_still_keeps_sections_and_closing(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
@@ -36,11 +41,11 @@ class FoGj03PagePlannerTest extends TestCase
             'locationText' => 'Av. 4 Nte. #26N - 39',
         ]);
 
-        $this->assertCount(1, $pages);
-        $this->assertTrue($pages[0]['showClosing']);
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+        $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
     }
 
-    public function test_long_charges_move_closing_to_second_page(): void
+    public function test_long_charges_split_across_pages_with_coherent_numbering(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
@@ -52,32 +57,35 @@ class FoGj03PagePlannerTest extends TestCase
         ]);
 
         $this->assertGreaterThan(1, count($pages));
-        $this->assertTrue($pages[0]['showBody']);
         $this->assertFalse($pages[0]['showClosing']);
-        $this->assertFalse($pages[array_key_last($pages)]['showBody']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
-        $this->assertSame('Página '.count($pages).' de '.count($pages), $pages[array_key_last($pages)]['pageLine']);
+
+        foreach ($pages as $index => $page) {
+            $this->assertSame('Página '.($index + 1).' de '.count($pages), $page['pageLine']);
+        }
+
+        $allSections = [];
+        foreach ($pages as $page) {
+            $allSections = array_merge($allSections, $page['sections']);
+        }
+        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
     }
 
-    public function test_witnesses_increase_closing_and_can_force_second_page(): void
+    public function test_every_planned_page_can_carry_sections_or_closing_only(): void
     {
-        $without = $this->planner->plan([
+        $pages = $this->planner->plan([
             'blankForDownload' => false,
-            'chargesDescription' => str_repeat('Hecho. ', 25),
-            'evidenceType' => 'signed',
-        ]);
-
-        $with = $this->planner->plan([
-            'blankForDownload' => false,
-            'chargesDescription' => str_repeat('Hecho. ', 25),
+            'chargesDescription' => str_repeat('Hecho disciplinario detallado. ', 30),
             'evidenceType' => 'refused_witnesses',
             'witnesses' => [['name' => 'A'], ['name' => 'B']],
         ]);
 
-        $this->assertGreaterThanOrEqual(count($without), 1);
-        $this->assertTrue($with[array_key_last($with)]['showClosing']);
-        if (count($without) === 1) {
-            $this->assertGreaterThan(1, count($with));
+        foreach ($pages as $page) {
+            $this->assertTrue(
+                $page['sections'] !== [] || $page['showClosing'],
+                'Cada página debe tener cuerpo y/o cierre',
+            );
         }
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
     }
 }

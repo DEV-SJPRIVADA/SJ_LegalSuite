@@ -20,9 +20,9 @@
     <div class="ogj-page">
         <table class="ogj-tbl ogj-head-grid" role="presentation">
             <colgroup>
-                <col style="width:102px">
-                <col>
-                <col style="width:114px">
+                <col style="width:25%">
+                <col style="width:50%">
+                <col style="width:25%">
             </colgroup>
             <tbody>
                 <tr>
