@@ -10,19 +10,17 @@
         --ogj-font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SANS }}', Arial, Helvetica, sans-serif;
     }
     /*
-     * Modelo Dompdf-safe (Letter):
-     * - Vertical: @page top/bottom (se aplica en cada hoja).
-     * - Horizontal: padding L/R en .ogj-page (Dompdf suele ignorar @page left/right o el width:100% se come el margen).
-     * Con páginas planificadas (FO-GJ-03/04) cada .ogj-page es una hoja → inset completo y estable.
+     * Dompdf-safe Letter (8.5in): no usar width:100% + padding (ignora border-box → corta la derecha).
+     * Caja útil 7.5in + margen 0.5in; @page margin 0 para no doblar.
      */
-    @page { size: Letter; margin: 0.5in 0; }
+    @page { size: Letter; margin: 0; }
     html, body { margin: 0; padding: 0; background: #fff; font-family: var(--ogj-font-family); }
     .ogj-wrap {
-        width: 100%;
-        max-width: 100%;
+        width: auto;
+        max-width: none;
         min-width: 0;
-        box-sizing: border-box;
-        margin: 0 auto;
+        margin: 0;
+        padding: 0;
         font-family: var(--ogj-font-family);
         font-size: var(--ogj-font-body);
         line-height: 1.25;
@@ -32,10 +30,9 @@
         print-color-adjust: exact;
     }
     .ogj-page {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        padding: 0 0.5in;
+        width: 7.5in;
+        margin: 0.5in;
+        padding: 0;
         background: #fff;
         min-height: 0;
     }
@@ -59,6 +56,7 @@
         padding: 0.5in;
     }
     .ogj-letter-screen-sheet .ogj-page {
+        /* Solo pantalla: simula el inset de @page letter. */
         padding: 0.5in;
         box-sizing: border-box;
     }

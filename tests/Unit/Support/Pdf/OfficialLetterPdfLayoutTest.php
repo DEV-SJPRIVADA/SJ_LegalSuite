@@ -6,21 +6,24 @@ use Tests\TestCase;
 
 class OfficialLetterPdfLayoutTest extends TestCase
 {
-    public function test_shared_styles_use_hybrid_page_margins(): void
+    public function test_shared_styles_use_fixed_letter_content_box(): void
     {
         $html = view('disciplinary.forms.partials.official-letter-pdf-styles')->render();
 
-        $this->assertStringContainsString('@page { size: Letter; margin: 0.5in 0; }', $html);
-        $this->assertMatchesRegularExpression('/\.ogj-page\s*\{[^}]*padding:\s*0\s+0\.5in;/s', $html);
+        $this->assertStringContainsString('@page { size: Letter; margin: 0; }', $html);
+        $this->assertMatchesRegularExpression('/\.ogj-page\s*\{[^}]*width:\s*7\.5in;/s', $html);
+        $this->assertMatchesRegularExpression('/\.ogj-page\s*\{[^}]*margin:\s*0\.5in;/s', $html);
+        $this->assertMatchesRegularExpression('/\.ogj-page\s*\{[^}]*padding:\s*0;/s', $html);
         $this->assertDoesNotMatchRegularExpression('/\.ogj-03-signature-(block|slot-area)\s*\{[^}]*display:\s*flex/s', $html);
     }
 
-    public function test_fo_gj_03_styles_use_full_page_padding(): void
+    public function test_fo_gj_03_print_page_has_no_extra_padding_rule(): void
     {
-        $html = view('disciplinary.forms.partials.fo-gj-03-pdf-styles')->render();
+        $blade = file_get_contents(resource_path('views/disciplinary/forms/partials/fo-gj-03-pdf-styles.blade.php'));
 
-        $this->assertStringContainsString('@page { size: Letter; margin: 0; }', $html);
-        $this->assertMatchesRegularExpression('/\.ogj-page\s*\{[^}]*padding:\s*0\.5in;/s', $html);
+        $this->assertIsString($blade);
+        $this->assertStringNotContainsString('padding: 0.5in', $blade);
+        $this->assertStringContainsString('ogj-page-break', $blade);
     }
 
     public function test_fo_gj_03_filled_html_uses_planner_pages_and_closing_block(): void
