@@ -3,11 +3,12 @@
 namespace App\Support\Disciplinary;
 
 /**
- * Reparte FO-GJ-03 en páginas Letter con encabezado en cada hoja.
- * Secciones de cuerpo + cierre; “Página N de M” alineado al plan.
+ * Reparte FO-GJ-03 en páginas Letter con encabezado en cada hoja planificada.
  *
- * Constantes calibradas para llenar cada hoja (poco aire al pie) sin volver al
- * overflow Dompdf de un único bloque de cuerpo: --ogj-font-body 12px / caja 7.5in.
+ * Regla dura frente a Dompdf: una sola `.ogj-page` no puede “rebalsar” a una hoja PDF
+ * intermediaria sin encabezado. Por eso el cuerpo se empaca en páginas planificadas y el
+ * cierre solo comparte hoja si cuerpo+firmas caben bajo un techo seguro; si no, el cierre
+ * va en su propia `.ogj-page` (con header).
  */
 final class FoGj03PagePlanner
 {
@@ -27,12 +28,14 @@ final class FoGj03PagePlanner
         self::SECTION_EVIDENCE,
     ];
 
+    /** Capacidad de empaque del cuerpo (bajo encabezado, caja 7.5in). */
+    private const PAGE_UNITS = 78;
+
     /**
-     * Capacidad bajo el encabezado (Letter, caja 7.5in).
-     * Prioridad: llenar la hoja; el cierre, si no cabe, va en hoja propia (no se “empuja”
-     * contenido previo hacia abajo dejando aire).
+     * Techo cuerpo+cierre en la misma `.ogj-page`. Por encima Dompdf rebalsa
+     * (hoja 2 sin encabezado). Valor menor que PAGE_UNITS a propósito.
      */
-    private const PAGE_UNITS = 88;
+    private const MAX_COMBINED_UNITS = 48;
 
     private const CLOSING_UNITS = 13;
 
@@ -70,13 +73,8 @@ final class FoGj03PagePlanner
     public function plan(array $context = []): array
     {
         $sectionUnits = $this->buildSectionUnits($context);
-        $costById = [];
-        foreach ($sectionUnits as $item) {
-            $costById[$item['id']] = $item['units'];
-        }
-
         $pages = $this->distributeSections($sectionUnits);
-        $pages = $this->ensureClosingFits($pages, $costById, $this->closingUnits($context));
+        $pages = $this->ensureClosingFits($pages, $this->closingUnits($context));
 
         return $this->finalizePageMeta($pages);
     }
@@ -148,35 +146,40 @@ final class FoGj03PagePlanner
     }
 
     /**
-     * El cierre no mueve secciones del cuerpo (eso dejaba aire al pie).
-     * Si no cabe en la última hoja de cuerpo, se añade una hoja solo de firmas.
+     * Cierre en la misma hoja solo si cuerpo+firmas ≤ techo Dompdf-safe.
+     * Si no, hoja planificada propia (con encabezado). Nunca overflow sin header.
      *
      * @param  list<array{sections: list<string>, used: int, showClosing: bool}>  $pages
-     * @param  array<string, int>  $costById
      * @return list<array{sections: list<string>, used: int, showClosing: bool}>
      */
-    private function ensureClosingFits(array $pages, array $costById, int $closingUnits): array
+    private function ensureClosingFits(array $pages, int $closingUnits): array
     {
         if ($pages === []) {
             return [[
                 'sections' => self::BODY_SECTIONS,
-                'used' => array_sum($costById),
+                'used' => array_sum(array_column($this->buildSectionUnits([]), 'units')),
                 'showClosing' => true,
             ]];
         }
 
         $lastIdx = array_key_last($pages);
-        if ((self::PAGE_UNITS - $pages[$lastIdx]['used']) >= $closingUnits) {
-            $pages[$lastIdx]['showClosing'] = true;
+        $used = (int) $pages[$lastIdx]['used'];
+        $combined = $used + $closingUnits;
+        $hasEvidence = in_array(self::SECTION_EVIDENCE, $pages[$lastIdx]['sections'], true);
+
+        // Con bloque de traslado (evidence) la hoja Letter ya va casi llena: firmas
+        // siempre en otra `.ogj-page` con encabezado (nunca overflow Dompdf).
+        if ($hasEvidence || $combined > self::MAX_COMBINED_UNITS) {
+            $pages[] = [
+                'sections' => [],
+                'used' => 0,
+                'showClosing' => true,
+            ];
 
             return $pages;
         }
 
-        $pages[] = [
-            'sections' => [],
-            'used' => 0,
-            'showClosing' => true,
-        ];
+        $pages[$lastIdx]['showClosing'] = true;
 
         return $pages;
     }

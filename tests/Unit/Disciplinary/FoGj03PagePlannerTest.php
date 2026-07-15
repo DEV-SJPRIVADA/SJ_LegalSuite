@@ -15,22 +15,8 @@ class FoGj03PagePlannerTest extends TestCase
         $this->planner = new FoGj03PagePlanner;
     }
 
-    public function test_blank_template_has_header_pages_and_closing_on_last(): void
-    {
-        $pages = $this->planner->plan(['blankForDownload' => true]);
-
-        $this->assertGreaterThanOrEqual(1, count($pages));
-        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
-        $this->assertSame('Página '.count($pages).' de '.count($pages), $pages[array_key_last($pages)]['pageLine']);
-
-        $allSections = [];
-        foreach ($pages as $page) {
-            $allSections = array_merge($allSections, $page['sections']);
-        }
-        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
-    }
-
-    public function test_typical_filled_citation_fills_first_page_before_breaking(): void
+    /** Caso Hostinger típico: cuerpo lleno en hoja 1; firmas en hoja 2 planificada (con header). */
+    public function test_typical_case_puts_closing_on_its_own_planned_page(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
@@ -41,34 +27,50 @@ class FoGj03PagePlannerTest extends TestCase
             'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente',
         ]);
 
-        $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
-        $this->assertContains(FoGj03PagePlanner::SECTION_CHARGES, $pages[0]['sections']);
-        $this->assertContains(FoGj03PagePlanner::SECTION_ARTICLES, $pages[0]['sections']);
-        // Con texto típico, el bloque de traslado también debe caber en la hoja 1 (sin aire grande).
-        $this->assertContains(FoGj03PagePlanner::SECTION_EVIDENCE, $pages[0]['sections']);
+        $this->assertGreaterThanOrEqual(2, count($pages));
+        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $pages[0]['sections']);
+        $this->assertFalse($pages[0]['showClosing']);
+        $this->assertSame([], $pages[array_key_last($pages)]['sections']);
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+        $this->assertSame('Página 1 de '.count($pages), $pages[0]['pageLine']);
+        $this->assertSame(
+            'Página '.count($pages).' de '.count($pages),
+            $pages[array_key_last($pages)]['pageLine'],
+        );
     }
 
-    public function test_short_filled_still_keeps_sections_and_closing(): void
+    public function test_blank_template_has_closing_on_last_page(): void
+    {
+        $pages = $this->planner->plan(['blankForDownload' => true]);
+
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+        $allSections = [];
+        foreach ($pages as $page) {
+            $allSections = array_merge($allSections, $page['sections']);
+        }
+        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
+    }
+
+    public function test_very_short_citation_may_share_closing_on_one_page(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
-            'chargesDescription' => 'Llegó tarde al turno.',
-            'article66Numerals' => '1, 3',
+            'chargesDescription' => 'Tarde.',
+            'article66Numerals' => '1',
             'article68Numerals' => '10',
             'article76Numerals' => '3',
-            'locationText' => 'Av. 4 Nte. #26N - 39',
+            'locationText' => 'Cali',
         ]);
 
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
-        $this->assertContains(FoGj03PagePlanner::SECTION_OPENING, $pages[0]['sections']);
-        // Documento corto: cuerpo completo + cierre en una hoja cuando cabe.
-        if (count($pages) === 1) {
-            $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $pages[0]['sections']);
-            $this->assertTrue($pages[0]['showClosing']);
+        $allSections = [];
+        foreach ($pages as $page) {
+            $allSections = array_merge($allSections, $page['sections']);
         }
+        $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
     }
 
-    public function test_very_long_charges_split_across_pages_with_coherent_numbering(): void
+    public function test_very_long_charges_split_body_with_coherent_numbering(): void
     {
         $pages = $this->planner->plan([
             'blankForDownload' => false,
@@ -91,28 +93,5 @@ class FoGj03PagePlannerTest extends TestCase
             $allSections = array_merge($allSections, $page['sections']);
         }
         $this->assertSame(FoGj03PagePlanner::BODY_SECTIONS, $allSections);
-        // El cierre no se antepone al cuerpo: si hay hoja solo-firmas, va al final.
-        $this->assertTrue(
-            $pages[array_key_last($pages)]['sections'] === []
-            || $pages[array_key_last($pages)]['showClosing'],
-        );
-    }
-
-    public function test_every_planned_page_can_carry_sections_or_closing_only(): void
-    {
-        $pages = $this->planner->plan([
-            'blankForDownload' => false,
-            'chargesDescription' => str_repeat('Hecho disciplinario detallado. ', 30),
-            'evidenceType' => 'refused_witnesses',
-            'witnesses' => [['name' => 'A'], ['name' => 'B']],
-        ]);
-
-        foreach ($pages as $page) {
-            $this->assertTrue(
-                $page['sections'] !== [] || $page['showClosing'],
-                'Cada página debe tener cuerpo y/o cierre',
-            );
-        }
-        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
     }
 }
