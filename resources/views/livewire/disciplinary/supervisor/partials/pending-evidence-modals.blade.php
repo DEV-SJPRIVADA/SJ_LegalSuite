@@ -94,35 +94,11 @@
                 ">
                 <div class="ogj-letter-screen-scaler">
                     <div class="ogj-letter-screen-sheet" x-ref="letterSheet" :style="`transform: scale(${scale});`">
-                        @include('disciplinary.forms.partials.official-letter-pdf-styles')
-                        <div class="ogj-wrap">
-                            <div class="ogj-page ogj-page--screen-preview">
-                                <table class="ogj-tbl ogj-head-grid" role="presentation">
-                                    <colgroup>
-                                        <col style="width:102px">
-                                        <col>
-                                        <col style="width:114px">
-                                    </colgroup>
-                                    <tbody>
-                                        <tr>
-                                            <td class="ogj-logo-cell">
-                                                <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
-                                            </td>
-                                            <td class="ogj-title">Citación a diligencia disciplinaria</td>
-                                            <td class="ogj-meta">
-                                                <table class="ogj-meta-grid" role="presentation">
-                                                    <tr><td class="ogj-meta-code">FO-GJ-03</td></tr>
-                                                    <tr><td>Octubre de 2023</td></tr>
-                                                    <tr><td>Versión 03</td></tr>
-                                                    <tr><td>Página 1 de 1</td></tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                @include('disciplinary.forms.partials.fo-gj-03-body', array_merge($notificationViewData, ['blankForDownload' => false]))
-                            </div>
-                        </div>
+                        @include('disciplinary.forms.partials.fo-gj-03-pdf-styles')
+                        @include('disciplinary.forms.partials.fo-gj-03-body', array_merge($notificationViewData, [
+                            'blankForDownload' => false,
+                            'logoSrc' => \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri(),
+                        ]))
                     </div>
                 </div>
             </div>

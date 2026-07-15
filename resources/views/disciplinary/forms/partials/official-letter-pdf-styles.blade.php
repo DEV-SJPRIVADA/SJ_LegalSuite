@@ -52,6 +52,10 @@
         box-sizing: border-box;
         padding: 0.38in 0.44in 0.34in;
     }
+    .ogj-letter-screen-sheet .ogj-page {
+        padding: 0.38in 0.44in 0.34in;
+        box-sizing: border-box;
+    }
     .ogj-block {
         border: 1px solid #000;
         margin-bottom: 10px;
@@ -269,7 +273,7 @@
         margin-top: 18px;
         table-layout: fixed;
     }
-    /* Patrón FO-GJ-04: no partir Cordialmente… Ltda / testigos entre páginas (Dompdf). */
+    /* Cierre junto: planner FO-GJ-03 mueve firmas de página; CSS refuerza. */
     .ogj-03-closing-block {
         page-break-inside: avoid;
         break-inside: avoid;
@@ -290,35 +294,29 @@
     .ogj-03-signatures-capture-row td {
         vertical-align: bottom;
     }
-    .ogj-03-signature-block {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        min-height: 52px;
+    /* Tablas (no flex): Dompdf calcula altura de forma fiable. */
+    .ogj-03-signature-slot-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
     }
-    .ogj-03-signature-slot-area {
-        flex: 1 1 auto;
-        min-height: 44px;
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-    }
-    .ogj-03-signature-block .ogj-03-sign-line {
-        flex-shrink: 0;
-        border-bottom: 1px solid #000;
-        margin: 0 0 6px;
+    .ogj-03-signature-slot {
+        height: 44px;
+        vertical-align: bottom;
+        padding: 0;
     }
     .ogj-03-signature-img {
         display: block;
         max-height: 44px;
         max-width: 180px;
         margin: 0;
-        object-fit: contain;
-        object-position: left bottom;
     }
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
-        margin: 28px 0 6px;
+        height: 1px;
+        padding: 0;
+        margin: 0 0 6px;
+        line-height: 1px;
     }
     .ogj-03-refusal-text {
         margin: 0 0 1px;

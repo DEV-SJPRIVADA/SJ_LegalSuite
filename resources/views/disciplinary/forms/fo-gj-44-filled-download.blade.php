@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <title>FO-GJ-44 · Constancia de inasistencia</title>
     <style>
-        @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
     </style>
 </head>

@@ -4,20 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FO-GJ-03 · Citación a diligencia (en blanco)</title>
-    <style>
-        html, body { margin: 0; padding: 0; background: #fff; }
-    </style>
+    @include('disciplinary.forms.partials.fo-gj-03-pdf-styles')
 </head>
 <body>
-    <x-disciplinary.forms.official-letter-pdf-shell
-        code="FO-GJ-03"
-        headline="Citación a diligencia disciplinaria"
-        :logo-src="$embeddedLogoSrc"
-        meta-date="Octubre de 2023"
-        meta-version="Versión 03"
-        :show-micro="false"
-    >
-        @include('disciplinary.forms.partials.fo-gj-03-body', ['blankForDownload' => true])
-    </x-disciplinary.forms.official-letter-pdf-shell>
+    @include('disciplinary.forms.partials.fo-gj-03-body', [
+        'blankForDownload' => true,
+        'logoSrc' => $embeddedLogoSrc ?? '',
+    ])
 </body>
 </html>

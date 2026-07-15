@@ -408,7 +408,7 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
 
-**Márgenes cartas FO-GJ:** el inset de cada hoja lo define solo `@page { margin: 0.45in }` en `official-letter-pdf-styles` (`.ogj-page` sin padding de impresión); así Dompdf aplica el mismo aire en la página 2+. El bloque de firmas FO-GJ-03 usa `.ogj-03-closing-block` con `page-break-inside: avoid` (mismo patrón que FO-GJ-04).
+**Márgenes cartas FO-GJ:** el inset de cada hoja lo define solo `@page { margin: 0.45in }` en `official-letter-pdf-styles` (`.ogj-page` sin padding de impresión); así Dompdf aplica el mismo aire en la página 2+. **FO-GJ-03** pagina como **FO-GJ-04**: `FoGj03PagePlanner` + encabezado “Página N de M”; el cierre (Cordialmente… firmas/testigos) va entero a la última hoja si no cabe. Firmas en tablas (sin flex de impresión).
 
 **Motor PDF (`PDF_DRIVER`):** fachada única `HtmlLetterPdfGenerator` → `browsershot` (Chrome) o **`dompdf`** (PHP puro). En **Hostinger** se recomienda **`PDF_DRIVER=dompdf`**: vista previa/generación **inmediata** en la petición web, sin cola ni Chrome. Con `browsershot` + `PDF_USE_QUEUE` se mantiene el flujo por cron (legado).
 
