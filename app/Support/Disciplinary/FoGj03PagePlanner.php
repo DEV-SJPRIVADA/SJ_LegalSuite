@@ -5,10 +5,10 @@ namespace App\Support\Disciplinary;
 /**
  * Reparte FO-GJ-03 en páginas Letter con encabezado en cada hoja planificada.
  *
- * Regla dura frente a Dompdf: una sola `.ogj-page` no puede “rebalsar” a una hoja PDF
- * intermediaria sin encabezado. Por eso el cuerpo se empaca en páginas planificadas y el
- * cierre solo comparte hoja si cuerpo+firmas caben bajo un techo seguro; si no, el cierre
- * va en su propia `.ogj-page` (con header).
+ * Dompdf NO cabe el cuerpo completo (hasta el párrafo de traslado) + firmas en una
+ * sola `.ogj-page`: rebalsa a una hoja física sin header. Reglas:
+ * 1) `evidence` nunca comparte hoja con `opening` (corte limpio antes del traslado).
+ * 2) El cierre comparte la última hoja solo si cabe en un techo seguro; si no, hoja propia.
  */
 final class FoGj03PagePlanner
 {
@@ -28,14 +28,11 @@ final class FoGj03PagePlanner
         self::SECTION_EVIDENCE,
     ];
 
-    /** Capacidad de empaque del cuerpo (bajo encabezado, caja 7.5in). */
-    private const PAGE_UNITS = 78;
+    /** Capacidad de empaque dentro de una `.ogj-page` (bajo encabezado). */
+    private const PAGE_UNITS = 48;
 
-    /**
-     * Techo cuerpo+cierre en la misma `.ogj-page`. Por encima Dompdf rebalsa
-     * (hoja 2 sin encabezado). Valor menor que PAGE_UNITS a propósito.
-     */
-    private const MAX_COMBINED_UNITS = 48;
+    /** Techo para meter firmas en la misma `.ogj-page` que el último cuerpo. */
+    private const MAX_COMBINED_UNITS = 42;
 
     private const CLOSING_UNITS = 13;
 
@@ -47,7 +44,7 @@ final class FoGj03PagePlanner
 
     private const ARTICLES_UNITS = 8;
 
-    private const EVIDENCE_UNITS = 10;
+    private const EVIDENCE_UNITS = 12;
 
     private const CHARS_PER_LINE = 74;
 
@@ -117,8 +114,12 @@ final class FoGj03PagePlanner
 
         foreach ($sectionUnits as $item) {
             $units = max(1, (int) $item['units']);
+            $id = $item['id'];
 
-            if ($units > $remaining && $current !== []) {
+            $mustBreakBeforeEvidence = $id === self::SECTION_EVIDENCE
+                && in_array(self::SECTION_OPENING, $current, true);
+
+            if (($mustBreakBeforeEvidence || ($units > $remaining && $current !== []))) {
                 $pages[] = [
                     'sections' => $current,
                     'used' => $used,
@@ -129,7 +130,7 @@ final class FoGj03PagePlanner
                 $remaining = self::PAGE_UNITS;
             }
 
-            $current[] = $item['id'];
+            $current[] = $id;
             $used += $units;
             $remaining -= $units;
         }
@@ -146,9 +147,6 @@ final class FoGj03PagePlanner
     }
 
     /**
-     * Cierre en la misma hoja solo si cuerpo+firmas ≤ techo Dompdf-safe.
-     * Si no, hoja planificada propia (con encabezado). Nunca overflow sin header.
-     *
      * @param  list<array{sections: list<string>, used: int, showClosing: bool}>  $pages
      * @return list<array{sections: list<string>, used: int, showClosing: bool}>
      */
@@ -165,11 +163,10 @@ final class FoGj03PagePlanner
         $lastIdx = array_key_last($pages);
         $used = (int) $pages[$lastIdx]['used'];
         $combined = $used + $closingUnits;
-        $hasEvidence = in_array(self::SECTION_EVIDENCE, $pages[$lastIdx]['sections'], true);
+        $sharesOpening = in_array(self::SECTION_OPENING, $pages[$lastIdx]['sections'], true);
 
-        // Con bloque de traslado (evidence) la hoja Letter ya va casi llena: firmas
-        // siempre en otra `.ogj-page` con encabezado (nunca overflow Dompdf).
-        if ($hasEvidence || $combined > self::MAX_COMBINED_UNITS) {
+        // Nunca firmas en la misma hoja que el inicio del cuerpo (Dompdf rebalsa).
+        if ($sharesOpening || $combined > self::MAX_COMBINED_UNITS) {
             $pages[] = [
                 'sections' => [],
                 'used' => 0,

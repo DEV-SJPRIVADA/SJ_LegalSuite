@@ -55,12 +55,57 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertStringContainsString('ogj-page-break', $html);
         $this->assertSame(2, preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html));
         $this->assertStringContainsString('Cordialmente;', $html);
-        // El cierre va después del segundo encabezado (no en overflow sin header).
+        $this->assertStringContainsString('elementos probatorios', $html);
+
         $posSecondHeader = strpos($html, 'Página 2 de 2');
+        $posEvidence = strpos($html, 'elementos probatorios');
         $posClosing = strpos($html, 'Cordialmente;');
         $this->assertNotFalse($posSecondHeader);
+        $this->assertNotFalse($posEvidence);
         $this->assertNotFalse($posClosing);
-        $this->assertGreaterThan($posSecondHeader, $posClosing);
+        $this->assertTrue($posEvidence > $posSecondHeader, 'evidence debe ir en la hoja 2 (tras su encabezado)');
+        $this->assertTrue($posClosing > $posEvidence, 'cierre después del bloque evidence');
+    }
+
+    public function test_fo_gj_03_typical_dompdf_page_count_matches_header(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $html = view('disciplinary.forms.fo-gj-03-filled-download', [
+            'fecha' => '15/07/2026',
+            'caseNumber' => 'GJ-PD:000002',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '123456789',
+            'workerPosition' => 'GUARDA DE SEGURIDAD',
+            'hearingDay' => '20/07/2026',
+            'hearingTime' => '09:00 AM',
+            'modality' => 'presencial',
+            'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente',
+            'informeReportDate' => '14/07/2026',
+            'breachDate' => '08/07/2026',
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe; falta reiterada de presentación al puesto.',
+            'article66Numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42',
+            'article68Numerals' => '10, 34',
+            'article76Numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112',
+            'signerName' => 'Abogado asignado',
+            'signerRole' => 'Analista de Relaciones Laborales',
+            'signatureDataUri' => null,
+            'embeddedLogoSrc' => '',
+        ])->render();
+
+        $this->assertTrue((bool) preg_match('/Página 1 de (\d+)/', $html, $match));
+        $plannedTotal = (int) $match[1];
+        $this->assertSame(2, $plannedTotal);
+
+        $binary = \App\Support\Pdf\HtmlLetterPdfGenerator::fromHtml($html);
+        $this->assertStringStartsWith('%PDF', $binary);
+
+        $physicalPages = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+        $this->assertSame(
+            $plannedTotal,
+            $physicalPages,
+            'Dompdf generó páginas físicas distintas al encabezado (overflow sin header)',
+        );
     }
 
     public function test_fo_gj_03_filled_html_uses_planner_pages_and_closing_block(): void
