@@ -96,10 +96,10 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertStringContainsString('SJ Seguridad Privada Ltda', $html);
         $this->assertStringContainsString('page-break-inside: avoid', $html);
         $this->assertDoesNotMatchRegularExpression('/\.ogj-03-signature-block\s*\{[^}]*display:\s*flex/s', $html);
-        $this->assertSame(
-            preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html),
-            substr_count($html, 'ogj-page-break') + 1,
-        );
+        $headerCount = preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html);
+        $breakCount = preg_match_all('/\bogj-page-break\b/', $html) - preg_match_all('/\.ogj-page-break\b/', $html);
+        $this->assertGreaterThanOrEqual(2, $headerCount);
+        $this->assertSame($headerCount, $breakCount + 1);
     }
 
     public function test_fo_gj_03_filled_download_head_does_not_duplicate_page_rule(): void
