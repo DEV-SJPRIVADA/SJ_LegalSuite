@@ -29,10 +29,10 @@ final class FoGj03PagePlanner
     ];
 
     /** Capacidad de empaque dentro de una `.ogj-page` (bajo encabezado). */
-    private const PAGE_UNITS = 48;
+    private const PAGE_UNITS = 52;
 
     /** Techo para meter firmas en la misma `.ogj-page` que el último cuerpo. */
-    private const MAX_COMBINED_UNITS = 42;
+    private const MAX_COMBINED_UNITS = 46;
 
     private const CLOSING_UNITS = 13;
 
@@ -42,11 +42,16 @@ final class FoGj03PagePlanner
 
     private const CHARGES_BASE_UNITS = 7;
 
-    private const ARTICLES_UNITS = 8;
-
     private const EVIDENCE_UNITS = 12;
 
-    private const CHARS_PER_LINE = 74;
+    /** @var int Caracteres por línea en Dompdf con fuente 12px / 7.5in de ancho útil. */
+    private const CHARS_PER_LINE = 60;
+
+    /** @var float Factor de holgura para absorber interlineado, márgenes y espaciado real de Dompdf. */
+    private const TEXT_GROWTH_FACTOR = 1.3;
+
+    /** @var float Unidades base por cada artículo activo (li con su texto formal). */
+    private const UNITS_PER_ARTICLE = 4.5;
 
     /**
      * @param  array{
@@ -82,21 +87,40 @@ final class FoGj03PagePlanner
      */
     public function buildSectionUnits(array $context): array
     {
-        $chargesExtra = max(0, $this->estimateTextLines((string) ($context['chargesDescription'] ?? '')) - 1);
-        $locationExtra = 0;
+        // 1. Estimación de Cargos con factor de holgura (1.3) para prever márgenes
+        //    e interlineado real de Dompdf.
+        $chargesLines = $this->estimateTextLines((string) ($context['chargesDescription'] ?? ''));
+        $chargesExtra = max(0, (int) ceil(($chargesLines - 1) * self::TEXT_GROWTH_FACTOR));
+
+        $locationExtras = 0;
         $location = (string) ($context['locationText'] ?? '');
         if ($location !== '' && ! ($context['blankForDownload'] ?? false)) {
-            $locationExtra = max(0, $this->estimateTextLines($location) - 2);
+            $locationLines = $this->estimateTextLines($location);
+            $locationExtras = max(0, (int) ceil(($locationLines - 2) * self::TEXT_GROWTH_FACTOR));
         }
 
-        $articlesExtra = max(0, $this->estimateTextLines((string) ($context['article66Numerals'] ?? '')) - 1)
-            + max(0, $this->estimateTextLines((string) ($context['article68Numerals'] ?? '')) - 1)
-            + max(0, $this->estimateTextLines((string) ($context['article76Numerals'] ?? '')) - 1);
+        // 2. Cálculo dinámico de artículos (Fallas disciplinarias):
+        //    Cada artículo (li) tiene un bloque de texto fijo largo. Se asigna un
+        //    costo base realista (~4.5 uds) por cada artículo activo, más líneas
+        //    extra si los numerales son largos y desbordan el renglón.
+        $activeArticlesCount = 0;
+        $articlesExtraLines = 0;
+
+        foreach (['article66Numerals', 'article68Numerals', 'article76Numerals'] as $field) {
+            $val = trim((string) ($context[$field] ?? ''));
+            if ($val !== '') {
+                $activeArticlesCount++;
+                $articlesExtraLines += max(0, $this->estimateTextLines($val) - 1);
+            }
+        }
+
+        $articlesBaseUnits = $activeArticlesCount * self::UNITS_PER_ARTICLE;
+        $articlesExtraUnits = (int) ceil($articlesExtraLines * self::TEXT_GROWTH_FACTOR);
 
         return [
-            ['id' => self::SECTION_OPENING, 'units' => self::OPENING_UNITS + $locationExtra],
+            ['id' => self::SECTION_OPENING, 'units' => self::OPENING_UNITS + $locationExtras],
             ['id' => self::SECTION_CHARGES, 'units' => self::CHARGES_BASE_UNITS + $chargesExtra],
-            ['id' => self::SECTION_ARTICLES, 'units' => self::ARTICLES_UNITS + $articlesExtra],
+            ['id' => self::SECTION_ARTICLES, 'units' => (int) ceil($articlesBaseUnits + $articlesExtraUnits)],
             ['id' => self::SECTION_EVIDENCE, 'units' => self::EVIDENCE_UNITS],
         ];
     }
