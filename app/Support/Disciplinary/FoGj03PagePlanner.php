@@ -38,7 +38,7 @@ final class FoGj03PagePlanner
 
     private const WITNESSES_UNITS = 10;
 
-    private const OPENING_UNITS = 12;
+    private const OPENING_UNITS = 9;
 
     private const CHARGES_BASE_UNITS = 7;
 
@@ -51,7 +51,7 @@ final class FoGj03PagePlanner
     private const TEXT_GROWTH_FACTOR = 1.3;
 
     /** @var float Unidades base por cada artículo activo (li con su texto formal). */
-    private const UNITS_PER_ARTICLE = 4.5;
+    private const UNITS_PER_ARTICLE = 3.5;
 
     /**
      * @param  array{
