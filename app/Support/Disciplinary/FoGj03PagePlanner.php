@@ -19,7 +19,7 @@ final class FoGj03PagePlanner
 
     private const WITNESSES_UNITS = 12;
 
-    private const CHARS_PER_LINE = 77;
+    private const CHARS_PER_LINE = 70;
 
     /**
      * @param  array{

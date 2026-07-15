@@ -9,7 +9,13 @@
         --ogj-font-micro: 10px;
         --ogj-font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SANS }}', Arial, Helvetica, sans-serif;
     }
-    @page { size: Letter; margin: 0.45in; }
+    /*
+     * Modelo Dompdf-safe (Letter):
+     * - Vertical: @page top/bottom (se aplica en cada hoja).
+     * - Horizontal: padding L/R en .ogj-page (Dompdf suele ignorar @page left/right o el width:100% se come el margen).
+     * Con páginas planificadas (FO-GJ-03/04) cada .ogj-page es una hoja → inset completo y estable.
+     */
+    @page { size: Letter; margin: 0.5in 0; }
     html, body { margin: 0; padding: 0; background: #fff; font-family: var(--ogj-font-family); }
     .ogj-wrap {
         width: 100%;
@@ -25,11 +31,11 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    /* Márgenes solo vía @page (cada hoja). Evita padding en .ogj-page que Dompdf no repite en pág. 2+. */
     .ogj-page {
         width: 100%;
+        max-width: 100%;
         box-sizing: border-box;
-        padding: 0;
+        padding: 0 0.5in;
         background: #fff;
         min-height: 0;
     }
@@ -50,10 +56,10 @@
         width: 8.5in;
         min-height: 11in;
         box-sizing: border-box;
-        padding: 0.38in 0.44in 0.34in;
+        padding: 0.5in;
     }
     .ogj-letter-screen-sheet .ogj-page {
-        padding: 0.38in 0.44in 0.34in;
+        padding: 0.5in;
         box-sizing: border-box;
     }
     .ogj-block {

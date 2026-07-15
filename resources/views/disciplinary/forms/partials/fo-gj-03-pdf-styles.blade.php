@@ -1,6 +1,12 @@
 @include('disciplinary.forms.partials.official-letter-pdf-styles')
 <style>
+    /* Cada .ogj-page = una hoja Letter: inset en los 4 lados (Dompdf fiable). */
+    @page { size: Letter; margin: 0; }
     .ogj-page-break { page-break-before: always; break-before: page; }
+    .ogj-page {
+        padding: 0.5in;
+        box-sizing: border-box;
+    }
     .ogj-03-doc { font-size: var(--ogj-font-body); color: #000; }
     .ogj-03-closing-block {
         margin-top: 14px;

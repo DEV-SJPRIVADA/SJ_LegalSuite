@@ -101,6 +101,12 @@ final class DompdfLetterPdfDriver
         $css = self::fontOverrideCss();
         if ($zeroPageMargins) {
             $css .= '@page{margin:0;}html,body{margin:0;padding:0;}';
+        } else {
+            // Laterales: Dompdf suele ignorar @page left/right; padding L/R es fiable.
+            // No forzar @page aquí: FO-GJ-03/04 usan @page{margin:0} + padding 0.5in por hoja.
+            $css .= 'html,body{margin:0;padding:0;}'
+                .'.ogj-page{padding-left:0.5in;padding-right:0.5in;box-sizing:border-box;max-width:100%;}'
+                .'.ogj-wrap{max-width:100%;box-sizing:border-box;}';
         }
 
         $block = '<style data-sj-pdf-driver="dompdf">'.$css.'</style>';
