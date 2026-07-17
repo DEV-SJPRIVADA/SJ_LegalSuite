@@ -23,12 +23,9 @@
     'workerSignatureDataUri' => null,
     'evidenceType' => 'signed',
     'witnesses' => [],
-    'pagePlan' => null,
 ])
 
 @php
-    use App\Support\Disciplinary\FoGj03PagePlanner;
-
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -42,17 +39,6 @@
 
         return '<span class="ogj-03-guide ogj-03-guide-'.$size.'" aria-hidden="true">'.$guidePattern($size).'</span>';
     };
-
-    $pages = $pagePlan ?? app(FoGj03PagePlanner::class)->plan([
-        'blankForDownload' => (bool) $blankForDownload,
-        'chargesDescription' => (string) $chargesDescription,
-        'article66Numerals' => (string) $article66Numerals,
-        'article68Numerals' => (string) $article68Numerals,
-        'article76Numerals' => (string) $article76Numerals,
-        'locationText' => (string) $locationText,
-        'evidenceType' => (string) $evidenceType,
-        'witnesses' => is_array($witnesses) ? $witnesses : [],
-    ]);
 
     $contentProps = compact(
         'blankForDownload',
@@ -90,23 +76,19 @@
     );
 @endphp
 
-<div class="ogj-wrap ogj-03-doc">
-    @foreach ($pages as $page)
-        <div @class(['ogj-page', 'ogj-page-break' => ! $loop->first])>
+{{-- Flujo continuo: letterhead position:fixed (Dompdf lo repite); N de M vía canvas. --}}
+<div class="ogj-wrap ogj-03-doc" data-sj-pdf-flow="fo-gj-03">
+    <div class="ogj-page ogj-03-page">
+        <div class="ogj-03-letterhead">
             @include('disciplinary.forms.partials.fo-gj-03-header', [
                 'logoSrc' => $logoSrc,
-                'pageLine' => $page['pageLine'],
+                'pageLine' => '',
             ])
-
-            @if (($page['sections'] ?? []) !== [])
-                @include('disciplinary.forms.partials.fo-gj-03-content', $contentProps + [
-                    'sections' => $page['sections'],
-                ])
-            @endif
-
-            @if ($page['showClosing'])
-                @include('disciplinary.forms.partials.fo-gj-03-closing-signatures', $closingProps)
-            @endif
         </div>
-    @endforeach
+
+        <div class="ogj-03-flow">
+            @include('disciplinary.forms.partials.fo-gj-03-content', $contentProps)
+            @include('disciplinary.forms.partials.fo-gj-03-closing-signatures', $closingProps)
+        </div>
+    </div>
 </div>

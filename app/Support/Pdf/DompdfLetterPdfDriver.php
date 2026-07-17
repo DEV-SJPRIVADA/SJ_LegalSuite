@@ -22,7 +22,8 @@ final class DompdfLetterPdfDriver
             'dompdf.options.font_cache' => $fontDir,
         ]);
 
-        $html = self::prepareHtml($html, $zeroPageMargins);
+        $foGj03Continuous = self::isFoGj03ContinuousFlow($html);
+        $html = self::prepareHtml($html, $zeroPageMargins, $foGj03Continuous);
 
         $wrapper = Pdf::loadHTML($html)
             ->setPaper('letter', 'portrait')
@@ -34,7 +35,14 @@ final class DompdfLetterPdfDriver
             ->setOption('fontCache', $fontDir)
             ->setOption('chroot', self::chrootPaths($webRoot, $fontDir));
 
-        self::registerLiberationFonts($wrapper->getDomPDF());
+        $dompdf = $wrapper->getDomPDF();
+        self::registerLiberationFonts($dompdf);
+
+        if ($foGj03Continuous) {
+            // Render primero: page_text/processPageScript necesita el conteo físico final.
+            $wrapper->render();
+            self::paintFoGj03PageNumbers($dompdf);
+        }
 
         $binary = $wrapper->output();
 
@@ -43,6 +51,11 @@ final class DompdfLetterPdfDriver
         }
 
         return $binary;
+    }
+
+    public static function isFoGj03ContinuousFlow(string $html): bool
+    {
+        return str_contains($html, 'data-sj-pdf-flow="fo-gj-03"');
     }
 
     public static function ensureFontCacheDirectory(): string
@@ -96,11 +109,18 @@ final class DompdfLetterPdfDriver
         ], fn (string $path): bool => is_dir($path))));
     }
 
-    private static function prepareHtml(string $html, bool $zeroPageMargins): string
+    private static function prepareHtml(string $html, bool $zeroPageMargins, bool $foGj03Continuous = false): string
     {
         $css = self::fontOverrideCss();
         if ($zeroPageMargins) {
             $css .= '@page{margin:0;}html,body{margin:0;padding:0;}';
+        } elseif ($foGj03Continuous) {
+            // Flujo continuo: márgenes en @page; letterhead fixed se repite por página física.
+            $css .= '@page{size:Letter;margin:0.5in;}'
+                .'html,body{margin:0;padding:0;}'
+                .'.ogj-wrap,.ogj-page.ogj-03-page{width:auto;margin:0;padding:0;}'
+                .'.ogj-03-letterhead{position:fixed;top:0;left:0;width:100%;}'
+                .'.ogj-03-flow{padding-top:96px;}';
         } else {
             // Caja Letter 7.5in + margen 0.5in. Evita width:100%+padding (Dompdf corta la derecha).
             $css .= '@page{size:Letter;margin:0;}'
@@ -116,6 +136,38 @@ final class DompdfLetterPdfDriver
         }
 
         return $block.$html;
+    }
+
+    /**
+     * “Página N de M” en la celda meta del letterhead (columna derecha 25%).
+     * Debe llamarse tras render(): processPageScript itera todas las páginas físicas.
+     * DejaVu Sans soporta “á”; Helvetica no pinta “Página”.
+     */
+    private static function paintFoGj03PageNumbers(Dompdf $dompdf): void
+    {
+        $fontMetrics = $dompdf->getFontMetrics();
+        $font = $fontMetrics->getFont('DejaVu Sans')
+            ?: $fontMetrics->getFont('Helvetica');
+
+        if ($font === null || $font === false) {
+            return;
+        }
+
+        // @page margin 0.5in (36pt). Meta ~25% derecha del ancho útil 7.5in.
+        $margin = 36.0;
+        $contentWidth = 540.0;
+        $x = $margin + ($contentWidth * 0.75) + 6.0;
+        // 4.ª fila del meta (bajo FO-GJ-03 / fecha / versión).
+        $y = $margin + 58.0;
+
+        $dompdf->getCanvas()->page_text(
+            $x,
+            $y,
+            'Página {PAGE_NUM} de {PAGE_COUNT}',
+            $font,
+            9.0,
+            [0, 0, 0],
+        );
     }
 
     private static function fontOverrideCss(): string

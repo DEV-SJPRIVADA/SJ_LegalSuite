@@ -1,6 +1,6 @@
 @props([
     'logoSrc' => '',
-    'pageLine' => 'Página 1 de 1',
+    'pageLine' => '',
 ])
 
 <table class="ogj-tbl ogj-head-grid" role="presentation">
@@ -20,7 +20,16 @@
                     <tr><td class="ogj-meta-code">FO-GJ-03</td></tr>
                     <tr><td>Octubre de 2023</td></tr>
                     <tr><td>Versión 03</td></tr>
-                    <tr><td>{{ $pageLine }}</td></tr>
+                    <tr>
+                        <td class="ogj-03-page-line">
+                            {{-- Dompdf: página física vía canvas PAGE_NUM/PAGE_COUNT. Pantalla/Browsershot: counters. --}}
+                            @if (filled($pageLine))
+                                {{ $pageLine }}
+                            @else
+                                <span class="ogj-03-page-line-print"></span>
+                            @endif
+                        </td>
+                    </tr>
                 </table>
             </td>
         </tr>
