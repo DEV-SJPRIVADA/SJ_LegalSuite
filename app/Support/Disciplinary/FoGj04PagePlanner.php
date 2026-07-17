@@ -33,7 +33,7 @@ final class FoGj04PagePlanner
 
     private const INTRO_QUIZ_LEAD_UNITS = 3;
 
-    private const QUESTION_TITLE_UNITS = 3;
+    private const QUESTION_TITLE_UNITS = 2;
 
     private const CLOSING_TEXT_UNITS = 3;
 
