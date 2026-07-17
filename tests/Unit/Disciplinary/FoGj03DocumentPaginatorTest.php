@@ -46,7 +46,7 @@ class FoGj03DocumentPaginatorTest extends TestCase
         $this->assertTrue($pages[0]['showClosing']);
     }
 
-    public function test_long_charges_span_multiple_pages_with_header_sections(): void
+    public function test_long_charges_flow_continuously_then_closing_stays_atomic(): void
     {
         $pages = $this->paginator->plan([
             ...$this->typicalContext(),
@@ -59,8 +59,11 @@ class FoGj03DocumentPaginatorTest extends TestCase
         $this->assertTrue($pages[0]['chargesShowLead']);
 
         $continuation = collect($pages)->first(fn (array $page): bool => $page['chargesIsContinuation']);
-        $this->assertNotNull($continuation);
+        $this->assertNotNull($continuation, 'El texto de cargos debe continuar en hoja siguiente');
         $this->assertNotSame('', $continuation['chargesChunk']);
+
+        $closingPages = array_values(array_filter($pages, fn (array $p): bool => $p['showClosing']));
+        $this->assertCount(1, $closingPages, 'Firmas: un solo bloque en una sola hoja planificada');
 
         $last = $pages[array_key_last($pages)];
         $this->assertTrue($last['showClosing']);
@@ -70,7 +73,7 @@ class FoGj03DocumentPaginatorTest extends TestCase
         $this->assertStringContainsString('Descripción extendida del cargo disciplinario.', $joined);
     }
 
-    public function test_closing_can_move_to_own_page_when_body_is_full(): void
+    public function test_closing_moves_entire_to_own_page_when_body_is_full(): void
     {
         $pages = $this->paginator->plan([
             ...$this->typicalContext(),
@@ -80,8 +83,24 @@ class FoGj03DocumentPaginatorTest extends TestCase
         ]);
 
         $this->assertGreaterThanOrEqual(2, count($pages));
+
         $closingPages = array_values(array_filter($pages, fn (array $p): bool => $p['showClosing']));
         $this->assertCount(1, $closingPages);
+
+        $closing = $closingPages[0];
+        // Si las firmas van solas, no deben mezclarse a medias: es la hoja completa de cierre.
+        if (! $closing['showOpening'] && ! $closing['showCharges'] && ! $closing['showArticles'] && ! $closing['showEvidence']) {
+            $this->assertTrue($closing['showClosing']);
+        }
+    }
+
+    public function test_body_blocks_do_not_include_closing(): void
+    {
+        $types = array_column($this->paginator->buildBodyBlocks($this->typicalContext()), 'type');
+
+        $this->assertNotContains('closing', $types);
+        $this->assertContains('opening', $types);
+        $this->assertContains('evidence', $types);
     }
 
     /**

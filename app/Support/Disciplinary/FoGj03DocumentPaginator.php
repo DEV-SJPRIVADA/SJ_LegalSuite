@@ -4,15 +4,23 @@ namespace App\Support\Disciplinary;
 
 /**
  * Reparte FO-GJ-03 en páginas Letter explícitas (una `.ogj-page` = una hoja física).
- * Cada página incluye el encabezado HTML; Dompdf no depende de position:fixed.
  *
- * Forma canónica (campos típicos) → 1 página. Texto de cargos largo → N páginas
- * con continuación del cuerpo (no “página 2 = solo firmas” como regla fija).
+ * Reglas de producto:
+ * 1) El cuerpo fluye continuo: lo que no cabe en la hoja N sigue en N+1 (cargos se trocean).
+ * 2) Cada hoja lleva encabezado HTML + “Página N de M”.
+ * 3) Único bloque atómico: firmas. Si no caben enteras en la última hoja de cuerpo,
+ *    pasan completas a una hoja nueva (nunca partidas a la mitad).
  */
 final class FoGj03DocumentPaginator
 {
     /** Capacidad bajo el encabezado dentro de una `.ogj-page` Letter (calibrada a Dompdf). */
     private const PAGE_UNITS = 62;
+
+    /**
+     * Holgura extra antes de colgar firmas en la misma hoja que el cuerpo.
+     * Evita que Dompdf rebalse y parta la tabla de firmas (o cree hoja sin header).
+     */
+    private const CLOSING_SAFETY_UNITS = 5;
 
     private const OPENING_UNITS = 9;
 
@@ -62,18 +70,20 @@ final class FoGj03DocumentPaginator
      */
     public function plan(array $context = []): array
     {
-        $blocks = $this->buildBlocks($context);
-        $pages = $this->packBlocks($blocks);
-        $pages = $this->ensureClosingFits($pages, $this->closingUnits($context));
+        $bodyBlocks = $this->buildBodyBlocks($context);
+        $pages = $this->packBodyBlocks($bodyBlocks);
+        $pages = $this->attachClosingAtomically($pages, $this->closingUnits($context));
 
         return $this->finalizePageMeta($pages);
     }
 
     /**
+     * Solo bloques de cuerpo (sin firmas). Las firmas se adjuntan al final.
+     *
      * @param  array<string, mixed>  $context
      * @return list<array{type: string, units: int, text?: string}>
      */
-    public function buildBlocks(array $context): array
+    public function buildBodyBlocks(array $context): array
     {
         $blank = (bool) ($context['blankForDownload'] ?? false);
         $chargesText = trim((string) ($context['chargesDescription'] ?? ''));
@@ -104,12 +114,24 @@ final class FoGj03DocumentPaginator
         $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
         $blocks[] = ['type' => 'articles', 'units' => $this->articlesUnits($context)];
         $blocks[] = ['type' => 'evidence', 'units' => self::EVIDENCE_UNITS];
-        $blocks[] = ['type' => 'closing', 'units' => $this->closingUnits($context)];
 
         return $blocks;
     }
 
     /**
+     * @deprecated Use buildBodyBlocks(); kept for callers/tests that aún esperan el nombre antiguo.
+     *
+     * @param  array<string, mixed>  $context
+     * @return list<array{type: string, units: int, text?: string}>
+     */
+    public function buildBlocks(array $context): array
+    {
+        return $this->buildBodyBlocks($context);
+    }
+
+    /**
+     * Empaca solo el cuerpo: llena cada hoja y continúa en la siguiente.
+     *
      * @param  list<array{type: string, units: int, text?: string}>  $blocks
      * @return list<array{
      *     showOpening: bool,
@@ -124,7 +146,7 @@ final class FoGj03DocumentPaginator
      *     used: int,
      * }>
      */
-    private function packBlocks(array $blocks): array
+    private function packBodyBlocks(array $blocks): array
     {
         $pages = [];
         $current = $this->emptyPage();
@@ -136,7 +158,6 @@ final class FoGj03DocumentPaginator
             if ($type === 'charges_text') {
                 $text = (string) ($block['text'] ?? '');
 
-                // Texto vacío (blanco / sin cargos): reserva mínima en la página actual.
                 if ($text === '') {
                     if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
                         $pages[] = $current;
@@ -173,6 +194,8 @@ final class FoGj03DocumentPaginator
                     }
 
                     $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
+                    $chunkUnits = min($chunkUnits, max(1, $remaining));
+
                     $current['showCharges'] = true;
                     $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
                     if (! $current['chargesShowLead']) {
@@ -194,7 +217,7 @@ final class FoGj03DocumentPaginator
                 $remaining = self::PAGE_UNITS;
             }
 
-            $this->applyBlock($current, $type);
+            $this->applyBodyBlock($current, $type);
             $current['used'] += $units;
             $remaining -= $units;
         }
@@ -220,7 +243,7 @@ final class FoGj03DocumentPaginator
      *     used: int,
      * }  $page
      */
-    private function applyBlock(array &$page, string $type): void
+    private function applyBodyBlock(array &$page, string $type): void
     {
         match ($type) {
             'opening' => $page['showOpening'] = true,
@@ -234,12 +257,14 @@ final class FoGj03DocumentPaginator
             })(),
             'articles' => $page['showArticles'] = true,
             'evidence' => $page['showEvidence'] = true,
-            'closing' => $page['showClosing'] = true,
             default => null,
         };
     }
 
     /**
+     * Adjunta el bloque de firmas entero en la última hoja si cabe con holgura;
+     * si no, hoja nueva solo con firmas (+ encabezado en Blade).
+     *
      * @param  list<array{
      *     showOpening: bool,
      *     showCharges: bool,
@@ -265,7 +290,7 @@ final class FoGj03DocumentPaginator
      *     used: int,
      * }>
      */
-    private function ensureClosingFits(array $pages, int $closingUnits): array
+    private function attachClosingAtomically(array $pages, int $closingUnits): array
     {
         if ($pages === []) {
             $page = $this->emptyPage();
@@ -276,15 +301,11 @@ final class FoGj03DocumentPaginator
         }
 
         $lastIdx = array_key_last($pages);
+        $used = (int) $pages[$lastIdx]['used'];
 
-        if ($pages[$lastIdx]['showClosing'] ?? false) {
-            return $pages;
-        }
-
-        $usedWithoutClosing = (int) $pages[$lastIdx]['used'];
-        if (($usedWithoutClosing + $closingUnits) <= self::PAGE_UNITS) {
+        if (($used + $closingUnits + self::CLOSING_SAFETY_UNITS) <= self::PAGE_UNITS) {
             $pages[$lastIdx]['showClosing'] = true;
-            $pages[$lastIdx]['used'] = $usedWithoutClosing + $closingUnits;
+            $pages[$lastIdx]['used'] = $used + $closingUnits;
 
             return $pages;
         }

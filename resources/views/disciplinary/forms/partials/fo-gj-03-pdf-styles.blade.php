@@ -61,9 +61,14 @@
     .ogj-03-doc { font-size: var(--ogj-font-body); color: #000; line-height: 1.22; }
     .ogj-03-closing-block {
         margin-top: 8px;
-        /* El paginador decide las hojas; avoid provoca hoja física huérfana sin header. */
-        page-break-inside: auto;
-        break-inside: auto;
+        /* Único bloque atómico: no partir firmas entre hojas físicas Dompdf. */
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .ogj-03-closing-block .ogj-03-signatures,
+    .ogj-03-closing-block .ogj-03-witnesses {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     .ogj-03-signature-slot-table {
         width: 100%;

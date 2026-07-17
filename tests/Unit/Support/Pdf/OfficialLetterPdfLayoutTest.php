@@ -27,6 +27,10 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertStringContainsString('ogj-page-break', $blade);
         $this->assertStringNotContainsString('position: fixed', $blade);
         $this->assertStringContainsString('height: 76px', $blade);
+        $this->assertMatchesRegularExpression(
+            '/\.ogj-03-closing-block\s*\{[^}]*page-break-inside:\s*avoid;/s',
+            $blade,
+        );
     }
 
     public function test_fo_gj_03_html_uses_explicit_pages_with_header_each(): void
@@ -88,6 +92,40 @@ class OfficialLetterPdfLayoutTest extends TestCase
             $this->countPdfStreamNeedle($binary, 'FO-GJ-03'),
             'Cada página planificada debe llevar letterhead FO-GJ-03 en el PDF',
         );
+
+        // Firmas atómicas en HTML: cada closing-block trae Cordialmente + nombres juntos.
+        $this->assertSame(1, preg_match_all('/class="ogj-03-closing-block"/', $html));
+        $this->assertMatchesRegularExpression(
+            '/class="ogj-03-closing-block"[\s\S]*Cordialmente;[\s\S]*Nombre:[\s\S]*SJ Seguridad Privada Ltda/u',
+            $html,
+        );
+    }
+
+    public function test_fo_gj_03_full_body_keeps_signatures_block_intact_in_pdf(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $data = $this->typicalFoGj03ViewData();
+        // Cuerpo largo: firmas deben quedar en su propia .ogj-page (enteras), no partidas.
+        $data['chargesDescription'] = str_repeat('Cargo disciplinario con detalle suficiente para llenar hojas. ', 120);
+
+        $html = view('disciplinary.forms.fo-gj-03-filled-download', $data)->render();
+        $binary = HtmlLetterPdfGenerator::fromHtml($html);
+
+        $this->assertGreaterThanOrEqual(2, preg_match_all('/\/Type\s*\/Page\b/', $binary));
+        $this->assertSame(1, preg_match_all('/class="ogj-03-closing-block"/', $html));
+        $this->assertSame(
+            1,
+            $this->countPdfStreamNeedle($binary, 'Cordialmente'),
+            'Cordialmente debe aparecer una sola vez (bloque de firmas no duplicado/partido)',
+        );
+        $this->assertGreaterThanOrEqual(
+            1,
+            $this->countPdfStreamNeedle($binary, 'SJ Seguridad Privada Ltda'),
+        );
+        // Misma cantidad de headers planificados que menciones FO-GJ-03 en streams.
+        $plannedHeaders = preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html);
+        $this->assertSame($plannedHeaders, $this->countPdfStreamNeedle($binary, 'FO-GJ-03'));
     }
 
     public function test_fo_gj_03_blank_download_uses_explicit_single_page(): void
