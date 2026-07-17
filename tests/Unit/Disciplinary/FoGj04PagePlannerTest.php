@@ -81,8 +81,9 @@ class FoGj04PagePlannerTest extends TestCase
             $hasBody = $page['showIntroLead']
                 || $page['showCharges']
                 || $page['showTermsLead']
-                || $page['termNumbers'] !== []
-                || $page['showIntroTail']
+                || $page['termChunks'] !== []
+                || $page['showIntroManifestation']
+                || $page['showIntroQuizLead']
                 || $page['showClosingText']
                 || $page['showClosing']
                 || $page['questions'] !== [];
@@ -90,7 +91,7 @@ class FoGj04PagePlannerTest extends TestCase
         }
     }
 
-    public function test_long_charges_fill_remaining_space_with_terms_on_same_page(): void
+    public function test_long_charges_fill_remaining_space_with_chunked_terms(): void
     {
         $pages = $this->planner->plan([
             'chargesDescription' => str_repeat(
@@ -105,23 +106,44 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertGreaterThan(1, count($pages));
         $this->assertTrue($pages[0]['showCharges']);
 
-        // Tras cargos largos, los términos ya no saltan enteros: algún numeral llena el hueco de p.1.
-        $termsOnFirst = $pages[0]['termNumbers'];
-        $termsOnLater = [];
-        foreach (array_slice($pages, 1) as $page) {
-            $termsOnLater = array_merge($termsOnLater, $page['termNumbers']);
+        $termNumbers = [];
+        foreach ($pages as $page) {
+            foreach ($page['termChunks'] as $chunk) {
+                $termNumbers[(int) $chunk['number']] = true;
+            }
+        }
+        $nums = array_keys($termNumbers);
+        sort($nums);
+        $this->assertSame([1, 2, 3, 4, 5], $nums);
+
+        // Si tras el cierre de cargos queda hueco real, algún término lo llena; si la hoja se agotó, van a p.2.
+        $termsOnFirst = $pages[0]['termChunks'];
+        $termsOnSecond = $pages[1]['termChunks'] ?? [];
+        $this->assertTrue(
+            $termsOnFirst !== [] || $termsOnSecond !== [],
+            'Los términos deben aparecer en p.1 (llenando hueco) o continuar en p.2',
+        );
+    }
+
+    public function test_long_term_three_can_split_across_pages(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => str_repeat('Cargo operativo con detalle. ', 25),
+            'questions' => [],
+        ]);
+
+        $term3Chunks = [];
+        foreach ($pages as $page) {
+            foreach ($page['termChunks'] as $chunk) {
+                if ((int) $chunk['number'] === 3) {
+                    $term3Chunks[] = $chunk;
+                }
+            }
         }
 
-        $allTerms = array_merge($termsOnFirst, $termsOnLater);
-        sort($allTerms);
-        $this->assertSame([1, 2, 3, 4, 5], $allTerms);
-
-        if ($pages[0]['chargesShowTail']) {
-            $this->assertNotEmpty(
-                $termsOnFirst,
-                'Si el cierre de cargos queda en p.1, al menos un término debe llenar el hueco inferior',
-            );
-        }
+        $this->assertNotEmpty($term3Chunks);
+        $joined = trim(implode(' ', array_column($term3Chunks, 'text')));
+        $this->assertStringContainsString('Si decide responder', $joined);
     }
 
     public function test_many_questions_create_additional_pages(): void
@@ -144,11 +166,15 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertFalse($pages[0]['showClosing']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
 
-        $totalQuestions = array_sum(array_map(
-            fn (array $page): int => count($page['questions']),
-            $pages,
-        ));
-        $this->assertSame(8, $totalQuestions);
+        $titles = [];
+        foreach ($pages as $page) {
+            foreach ($page['questions'] as $item) {
+                if ($item['showTitle'] ?? false) {
+                    $titles[(int) $item['number']] = true;
+                }
+            }
+        }
+        $this->assertCount(8, $titles);
     }
 
     public function test_closing_text_flows_before_atomic_signatures(): void

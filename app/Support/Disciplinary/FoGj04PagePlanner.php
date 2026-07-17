@@ -6,7 +6,7 @@ namespace App\Support\Disciplinary;
  * Reparte FO-GJ-04 en páginas Letter explícitas (una `.ogj-page` = una hoja física).
  *
  * Mismo contrato que FoGj03DocumentPaginator:
- * 1) Cuerpo continuo: intro (cargos + términos se trocean) → preguntas → párrafo de cierre.
+ * 1) Cuerpo continuo: casi todo se trocea (cargos, términos, cola intro, respuestas).
  * 2) Cada hoja lleva encabezado HTML + “Página N de M”.
  * 3) Único bloque atómico: tabla de firmas.
  *
@@ -14,7 +14,7 @@ namespace App\Support\Disciplinary;
  */
 final class FoGj04PagePlanner
 {
-    private const PAGE_UNITS = 70;
+    private const PAGE_UNITS = 66;
 
     private const CLOSING_SAFETY_UNITS = 5;
 
@@ -24,26 +24,19 @@ final class FoGj04PagePlanner
 
     private const TERMS_LEAD_UNITS = 3;
 
-    /** Unidades por numeral 1–5 (texto legal fijo; suma ~25 con lead). */
-    private const TERM_UNITS = [
-        1 => 3,
-        2 => 4,
-        3 => 6,
-        4 => 5,
-        5 => 4,
-    ];
+    private const INTRO_MANIFESTATION_UNITS = 3;
 
-    private const INTRO_TAIL_UNITS = 8;
+    private const INTRO_QUIZ_LEAD_UNITS = 4;
 
-    private const QUESTION_BASE_UNITS = 2;
+    private const QUESTION_TITLE_UNITS = 2;
 
     private const CLOSING_TEXT_UNITS = 3;
 
     private const SIGNATURES_UNITS = 11;
 
-    private const CHARS_PER_LINE = 72;
+    private const CHARS_PER_LINE = 55;
 
-    private const TEXT_GROWTH_FACTOR = 1.35;
+    private const TEXT_GROWTH_FACTOR = 1.55;
 
     /**
      * Textos legales de los términos (Blade debe coincidir).
@@ -78,11 +71,12 @@ final class FoGj04PagePlanner
      *     chargesChunk: string,
      *     chargesShowTail: bool,
      *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
+     *     termChunks: list<array{number: int, text: string, isContinuation: bool}>,
+     *     showIntroManifestation: bool,
+     *     showIntroQuizLead: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>
+     *     questions: list<array{number: int, question: string, answer: string, showTitle: bool, isAnswerContinuation: bool}>
      * }>
      */
     public function plan(array $context = []): array
@@ -96,7 +90,7 @@ final class FoGj04PagePlanner
 
     /**
      * @param  array<string, mixed>  $context
-     * @return list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}>
+     * @return list<array{type: string, units: int, text?: string, number?: int, question?: string, termNumber?: int}>
      */
     public function buildBodyBlocks(array $context): array
     {
@@ -124,25 +118,50 @@ final class FoGj04PagePlanner
         $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
         $blocks[] = ['type' => 'terms_lead', 'units' => self::TERMS_LEAD_UNITS];
 
-        foreach (self::TERM_UNITS as $termNumber => $units) {
+        foreach (self::termTexts() as $termNumber => $termText) {
             $blocks[] = [
-                'type' => 'term_item',
-                'units' => $units,
+                'type' => 'term_text',
+                'units' => max(1, (int) ceil($this->estimateTextLines($termText) * self::TEXT_GROWTH_FACTOR)),
+                'text' => $termText,
                 'termNumber' => $termNumber,
             ];
         }
 
-        $blocks[] = ['type' => 'intro_tail', 'units' => self::INTRO_TAIL_UNITS];
+        $blocks[] = ['type' => 'intro_manifestation', 'units' => self::INTRO_MANIFESTATION_UNITS];
+        $blocks[] = ['type' => 'intro_quiz_lead', 'units' => self::INTRO_QUIZ_LEAD_UNITS];
 
         $number = 1;
         foreach ($questions as $item) {
             $blocks[] = [
-                'type' => 'question',
-                'units' => $this->estimateQuestionUnits($item),
+                'type' => 'question_title',
+                'units' => self::QUESTION_TITLE_UNITS + max(0, $this->estimateTextLines($item['question']) - 1),
                 'number' => $number,
                 'question' => $item['question'],
-                'answer' => $item['answer'],
             ];
+
+            $answer = $item['answer'];
+            if ($blank) {
+                $blocks[] = [
+                    'type' => 'answer_text',
+                    'units' => 2,
+                    'text' => '',
+                    'number' => $number,
+                ];
+            } elseif ($answer !== '') {
+                $blocks[] = [
+                    'type' => 'answer_text',
+                    'units' => max(1, (int) ceil($this->estimateTextLines($answer) * self::TEXT_GROWTH_FACTOR)),
+                    'text' => $answer,
+                    'number' => $number,
+                ];
+            } else {
+                $blocks[] = [
+                    'type' => 'answer_text',
+                    'units' => 1,
+                    'text' => '',
+                    'number' => $number,
+                ];
+            }
             $number++;
         }
 
@@ -152,22 +171,8 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @param  list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}>  $blocks
-     * @return list<array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }>
+     * @param  list<array{type: string, units: int, text?: string, number?: int, question?: string, termNumber?: int}>  $blocks
+     * @return list<array<string, mixed>>
      */
     private function packBodyBlocks(array $blocks): array
     {
@@ -178,56 +183,8 @@ final class FoGj04PagePlanner
         foreach ($blocks as $block) {
             $type = (string) $block['type'];
 
-            if ($type === 'charges_text') {
-                $text = (string) ($block['text'] ?? '');
-
-                if ($text === '') {
-                    if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
-                        $pages[] = $current;
-                        $current = $this->emptyPage();
-                        $remaining = self::PAGE_UNITS;
-                    }
-                    $current['showCharges'] = true;
-                    $current['used'] += 1;
-                    $remaining -= 1;
-
-                    continue;
-                }
-
-                while ($text !== '') {
-                    if ($remaining < 2 && ! $this->pageIsEmpty($current)) {
-                        $pages[] = $current;
-                        $current = $this->emptyPage();
-                        $remaining = self::PAGE_UNITS;
-                    }
-
-                    $maxUnits = max(1, $remaining);
-                    [$chunk, $rest] = $this->takeTextForUnits($text, $maxUnits);
-
-                    if ($chunk === '' && ! $this->pageIsEmpty($current)) {
-                        $pages[] = $current;
-                        $current = $this->emptyPage();
-                        $remaining = self::PAGE_UNITS;
-
-                        continue;
-                    }
-
-                    if ($chunk === '') {
-                        [$chunk, $rest] = $this->takeTextForUnits($text, max(4, (int) ceil(self::PAGE_UNITS / 4)));
-                    }
-
-                    $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
-                    $chunkUnits = min($chunkUnits, max(1, $remaining));
-
-                    $current['showCharges'] = true;
-                    if (! $current['chargesShowLead']) {
-                        $current['chargesIsContinuation'] = true;
-                    }
-                    $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
-                    $current['used'] += $chunkUnits;
-                    $remaining -= $chunkUnits;
-                    $text = $rest;
-                }
+            if ($type === 'charges_text' || $type === 'term_text' || $type === 'answer_text') {
+                $this->packChunkableText($pages, $current, $remaining, $block);
 
                 continue;
             }
@@ -253,22 +210,141 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @param  array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }  $page
-     * @param  array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}  $block
+     * @param  list<array<string, mixed>>  $pages
+     * @param  array<string, mixed>  $current
+     * @param  array{type: string, units: int, text?: string, number?: int, termNumber?: int}  $block
+     */
+    private function packChunkableText(array &$pages, array &$current, int &$remaining, array $block): void
+    {
+        $type = (string) $block['type'];
+        $text = (string) ($block['text'] ?? '');
+        $termNumber = (int) ($block['termNumber'] ?? 0);
+        $questionNumber = (int) ($block['number'] ?? 0);
+
+        if ($text === '') {
+            if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+            }
+            $this->appendEmptyChunk($current, $type, $termNumber, $questionNumber);
+            $current['used'] += 1;
+            $remaining -= 1;
+
+            return;
+        }
+
+        $firstChunk = true;
+        while ($text !== '') {
+            if ($remaining < 2 && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+            }
+
+            $maxUnits = max(1, $remaining);
+            [$chunk, $rest] = $this->takeTextForUnits($text, $maxUnits);
+
+            if ($chunk === '' && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+
+                continue;
+            }
+
+            if ($chunk === '') {
+                [$chunk, $rest] = $this->takeTextForUnits($text, max(4, (int) ceil(self::PAGE_UNITS / 4)));
+            }
+
+            $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
+            $chunkUnits = min($chunkUnits, max(1, $remaining));
+
+            $this->appendTextChunk($current, $type, $chunk, ! $firstChunk, $termNumber, $questionNumber);
+            $current['used'] += $chunkUnits;
+            $remaining -= $chunkUnits;
+            $text = $rest;
+            $firstChunk = false;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $page
+     */
+    private function appendEmptyChunk(array &$page, string $type, int $termNumber, int $questionNumber): void
+    {
+        if ($type === 'charges_text') {
+            $page['showCharges'] = true;
+
+            return;
+        }
+
+        if ($type === 'term_text') {
+            $page['termChunks'][] = [
+                'number' => $termNumber,
+                'text' => '',
+                'isContinuation' => false,
+            ];
+
+            return;
+        }
+
+        if ($type === 'answer_text') {
+            $page['questions'][] = [
+                'number' => $questionNumber,
+                'question' => '',
+                'answer' => '',
+                'showTitle' => false,
+                'isAnswerContinuation' => false,
+            ];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $page
+     */
+    private function appendTextChunk(
+        array &$page,
+        string $type,
+        string $chunk,
+        bool $isContinuation,
+        int $termNumber,
+        int $questionNumber,
+    ): void {
+        if ($type === 'charges_text') {
+            $page['showCharges'] = true;
+            if (! $page['chargesShowLead']) {
+                $page['chargesIsContinuation'] = true;
+            }
+            $page['chargesChunk'] = trim($page['chargesChunk'].' '.$chunk);
+
+            return;
+        }
+
+        if ($type === 'term_text') {
+            $page['termChunks'][] = [
+                'number' => $termNumber,
+                'text' => $chunk,
+                'isContinuation' => $isContinuation,
+            ];
+
+            return;
+        }
+
+        if ($type === 'answer_text') {
+            $page['questions'][] = [
+                'number' => $questionNumber,
+                'question' => '',
+                'answer' => $chunk,
+                'showTitle' => false,
+                'isAnswerContinuation' => $isContinuation,
+            ];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $page
+     * @param  array{type: string, units: int, text?: string, number?: int, question?: string, termNumber?: int}  $block
      */
     private function applyBodyBlock(array &$page, array $block): void
     {
@@ -283,49 +359,23 @@ final class FoGj04PagePlanner
                 $page['chargesShowTail'] = true;
             })(),
             'terms_lead' => $page['showTermsLead'] = true,
-            'term_item' => $page['termNumbers'][] = (int) ($block['termNumber'] ?? 0),
-            'intro_tail' => $page['showIntroTail'] = true,
+            'intro_manifestation' => $page['showIntroManifestation'] = true,
+            'intro_quiz_lead' => $page['showIntroQuizLead'] = true,
             'closing_text' => $page['showClosingText'] = true,
-            'question' => $page['questions'][] = [
+            'question_title' => $page['questions'][] = [
                 'number' => (int) ($block['number'] ?? count($page['questions']) + 1),
                 'question' => (string) ($block['question'] ?? ''),
-                'answer' => (string) ($block['answer'] ?? ''),
+                'answer' => '',
+                'showTitle' => true,
+                'isAnswerContinuation' => false,
             ],
             default => null,
         };
     }
 
     /**
-     * @param  list<array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }>  $pages
-     * @return list<array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }>
+     * @param  list<array<string, mixed>>  $pages
+     * @return list<array<string, mixed>>
      */
     private function attachSignaturesAtomically(array $pages): array
     {
@@ -357,21 +407,7 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @return array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }
+     * @return array<string, mixed>
      */
     private function emptyPage(): array
     {
@@ -383,8 +419,9 @@ final class FoGj04PagePlanner
             'chargesChunk' => '',
             'chargesShowTail' => false,
             'showTermsLead' => false,
-            'termNumbers' => [],
-            'showIntroTail' => false,
+            'termChunks' => [],
+            'showIntroManifestation' => false,
+            'showIntroQuizLead' => false,
             'showClosingText' => false,
             'showClosing' => false,
             'questions' => [],
@@ -393,33 +430,20 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @param  array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }  $page
+     * @param  array<string, mixed>  $page
      */
     private function pageIsEmpty(array $page): bool
     {
         return ! $page['showIntroLead']
             && ! $page['showCharges']
             && ! $page['showTermsLead']
-            && $page['termNumbers'] === []
-            && ! $page['showIntroTail']
+            && $page['termChunks'] === []
+            && ! $page['showIntroManifestation']
+            && ! $page['showIntroQuizLead']
             && ! $page['showClosingText']
             && ! $page['showClosing']
             && $page['questions'] === []
-            && trim($page['chargesChunk']) === '';
+            && trim((string) $page['chargesChunk']) === '';
     }
 
     /**
@@ -457,7 +481,7 @@ final class FoGj04PagePlanner
     {
         $questionLines = $this->estimateTextLines((string) ($item['question'] ?? ''));
         $answerLines = $this->estimateTextLines((string) ($item['answer'] ?? ''));
-        $raw = self::QUESTION_BASE_UNITS + $questionLines + $answerLines;
+        $raw = self::QUESTION_TITLE_UNITS + $questionLines + $answerLines;
 
         return max(1, (int) ceil($raw * self::TEXT_GROWTH_FACTOR));
     }
@@ -512,38 +536,8 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @param  list<array{
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>,
-     *     used: int
-     * }>  $pages
-     * @return list<array{
-     *     pageNumber: int,
-     *     totalPages: int,
-     *     pageLine: string,
-     *     showIntroLead: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showTermsLead: bool,
-     *     termNumbers: list<int>,
-     *     showIntroTail: bool,
-     *     showClosingText: bool,
-     *     showClosing: bool,
-     *     questions: list<array{number: int, question: string, answer: string}>
-     * }>
+     * @param  list<array<string, mixed>>  $pages
+     * @return list<array<string, mixed>>
      */
     private function finalizePageMeta(array $pages): array
     {
@@ -563,8 +557,9 @@ final class FoGj04PagePlanner
                 'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
                 'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
                 'showTermsLead' => (bool) ($page['showTermsLead'] ?? false),
-                'termNumbers' => array_values(array_map('intval', $page['termNumbers'] ?? [])),
-                'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
+                'termChunks' => array_values($page['termChunks'] ?? []),
+                'showIntroManifestation' => (bool) ($page['showIntroManifestation'] ?? false),
+                'showIntroQuizLead' => (bool) ($page['showIntroQuizLead'] ?? false),
                 'showClosingText' => (bool) ($page['showClosingText'] ?? false),
                 'showClosing' => (bool) ($page['showClosing'] ?? false),
                 'questions' => $page['questions'] ?? [],

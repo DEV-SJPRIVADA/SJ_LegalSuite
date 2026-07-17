@@ -103,8 +103,9 @@
                 ($page['showIntroLead'] ?? false)
                 || ($page['showCharges'] ?? false)
                 || ($page['showTermsLead'] ?? false)
-                || (($page['termNumbers'] ?? []) !== [])
-                || ($page['showIntroTail'] ?? false)
+                || (($page['termChunks'] ?? []) !== [])
+                || ($page['showIntroManifestation'] ?? false)
+                || ($page['showIntroQuizLead'] ?? false)
             )
                 @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps + [
                     'showIntroLead' => (bool) ($page['showIntroLead'] ?? false),
@@ -114,8 +115,9 @@
                     'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
                     'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
                     'showTermsLead' => (bool) ($page['showTermsLead'] ?? false),
-                    'termNumbers' => $page['termNumbers'] ?? [],
-                    'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
+                    'termChunks' => $page['termChunks'] ?? [],
+                    'showIntroManifestation' => (bool) ($page['showIntroManifestation'] ?? false),
+                    'showIntroQuizLead' => (bool) ($page['showIntroQuizLead'] ?? false),
                 ])
             @endif
 
@@ -127,8 +129,10 @@
                 @include('disciplinary.forms.partials.fo-gj-04-question-item', [
                     'blankForDownload' => $blankForDownload,
                     'number' => $item['number'],
-                    'questionText' => $item['question'],
-                    'answerText' => $item['answer'],
+                    'questionText' => $item['question'] ?? '',
+                    'answerText' => $item['answer'] ?? '',
+                    'showTitle' => (bool) ($item['showTitle'] ?? true),
+                    'isAnswerContinuation' => (bool) ($item['isAnswerContinuation'] ?? false),
                     'guide' => $guide,
                 ])
             @endforeach

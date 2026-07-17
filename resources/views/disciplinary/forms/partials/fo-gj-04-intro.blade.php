@@ -25,9 +25,9 @@
     $chargesChunk = (string) ($chargesChunk ?? ($chargesDescription ?? ''));
     $chargesShowTail = (bool) ($chargesShowTail ?? true);
     $showTermsLead = (bool) ($showTermsLead ?? true);
-    $termNumbers = is_array($termNumbers ?? null) ? $termNumbers : [1, 2, 3, 4, 5];
-    $showIntroTail = (bool) ($showIntroTail ?? true);
-    $termTexts = \App\Support\Disciplinary\FoGj04PagePlanner::termTexts();
+    $termChunks = is_array($termChunks ?? null) ? $termChunks : [];
+    $showIntroManifestation = (bool) ($showIntroManifestation ?? true);
+    $showIntroQuizLead = (bool) ($showIntroQuizLead ?? true);
 @endphp
 
 @if ($showIntroLead)
@@ -79,13 +79,17 @@
     </p>
 @endif
 
-@foreach ($termNumbers as $termNumber)
-    @if (isset($termTexts[$termNumber]))
-        <p class="ogj-04-list-num">{{ $termTexts[$termNumber] }}</p>
+@foreach ($termChunks as $termChunk)
+    @php
+        $termText = trim((string) ($termChunk['text'] ?? ''));
+        $isCont = (bool) ($termChunk['isContinuation'] ?? false);
+    @endphp
+    @if ($termText !== '')
+        <p @class(['ogj-04-list-num', 'ogj-04-list-num--continuation' => $isCont])>{{ $termText }}</p>
     @endif
 @endforeach
 
-@if ($showIntroTail)
+@if ($showIntroManifestation)
     <p>
         Una vez enterado y entiendo perfectamente sus derechos, EL TRABAJADOR, manifestó:
         @if ($blankForDownload)
@@ -96,7 +100,9 @@
             <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
         @endif
     </p>
+@endif
 
+@if ($showIntroQuizLead)
     <p>
         De esta forma, obedeciendo los lineamientos establecidos en el contrato de trabajo, el reglamento interno de
         trabajo y el Código Sustantivo del Trabajo, se procederá a escuchar la versión libre del trabajador y a efectuar
