@@ -192,8 +192,31 @@ class FoGj04PagePlannerTest extends TestCase
             $pages[0]['termChunks'],
         )));
         $this->assertNotEmpty($termNumsOnFirst);
-        // Con INTRO_LEAD calibrado (~18), la p.1 debe llegar al menos al término 3 (antes con 24 cortaba antes y dejaba hueco).
+        // Con INTRO_LEAD ~16, la p.1 debe llegar al menos al término 3 (antes con 24 cortaba antes).
         $this->assertGreaterThanOrEqual(3, max($termNumsOnFirst));
+    }
+
+    public function test_short_charges_can_pull_manifestation_onto_page_one(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'si'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'si'],
+            ],
+        ]);
+
+        // Preferible: manifestación o lead del cuestionario en p.1 si cabe (menos hueco en p.2).
+        $page1HasTail = $pages[0]['showIntroManifestation'] || $pages[0]['showIntroQuizLead'];
+        $page1HasLateTerm = max(array_map(
+            static fn (array $c): int => (int) $c['number'],
+            $pages[0]['termChunks'] ?: [['number' => 0]],
+        )) >= 4;
+
+        $this->assertTrue(
+            $page1HasTail || $page1HasLateTerm,
+            'Tras calibrar INTRO_LEAD, p.1 debe retener más cuerpo (término ≥4 o cola intro)',
+        );
     }
 
     public function test_closing_text_flows_before_atomic_signatures(): void

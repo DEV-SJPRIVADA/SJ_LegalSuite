@@ -18,15 +18,15 @@ final class FoGj04PagePlanner
      * Capacidad bajo el encabezado.
      * 66+INTRO 24 → hueco; 70+INTRO 15 → Dompdf rebalsa (planned < physical).
      */
-    private const PAGE_UNITS = 68;
+    private const PAGE_UNITS = 69;
 
     private const CLOSING_SAFETY_UNITS = 5;
 
     /**
      * Solo id + apertura + partes (sin cargos).
-     * 24 sobrestimaba (hueco); 12–15 subestimaba (rebalse Dompdf). Punto medio ~18–20.
+     * 24 hueco; 15 rebalse; 18 mejoró p.1; 16–17 acerca manifestación/cola a p.1.
      */
-    private const INTRO_LEAD_UNITS = 18;
+    private const INTRO_LEAD_UNITS = 16;
 
     private const CHARGES_TAIL_UNITS = 2;
 
@@ -44,7 +44,7 @@ final class FoGj04PagePlanner
 
     private const CHARS_PER_LINE = 58;
 
-    private const TEXT_GROWTH_FACTOR = 1.45;
+    private const TEXT_GROWTH_FACTOR = 1.42;
 
     /**
      * Textos legales de los términos (Blade debe coincidir).
