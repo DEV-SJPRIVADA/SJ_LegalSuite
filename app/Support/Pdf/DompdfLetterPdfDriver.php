@@ -115,12 +115,16 @@ final class DompdfLetterPdfDriver
         if ($zeroPageMargins) {
             $css .= '@page{margin:0;}html,body{margin:0;padding:0;}';
         } elseif ($foGj03Continuous) {
-            // Flujo continuo: márgenes en @page; letterhead fixed se repite por página física.
-            $css .= '@page{size:Letter;margin:0.5in;}'
+            // Dompdf-safe: caja Letter útil 7.5in + 0.5in en los cuatro lados.
+            // El cuerpo reserva el alto del letterhead fixed.
+            $css .= '@page{size:Letter;margin:0;}'
                 .'html,body{margin:0;padding:0;}'
-                .'.ogj-wrap,.ogj-page.ogj-03-page{width:auto;margin:0;padding:0;}'
-                .'.ogj-03-letterhead{position:fixed;top:0;left:0;width:100%;}'
-                .'.ogj-03-flow{padding-top:96px;}';
+                .'.ogj-wrap{width:auto;margin:0;padding:0;}'
+                .'.ogj-page.ogj-03-page{width:7.5in;max-width:7.5in;margin:0.5in;padding:0;}'
+                .'.ogj-03-letterhead{position:fixed;top:0.5in;left:0.5in;width:7.5in;}'
+                .'.ogj-03-flow{padding-top:94px;}'
+                .'.ogj-03-doc .ogj-head-grid>tbody>tr>td{height:76px;min-height:76px;}'
+                .'.ogj-03-doc .ogj-meta-grid td{height:19px;padding:2px 6px;line-height:14px;}';
         } else {
             // Caja Letter 7.5in + margen 0.5in. Evita width:100%+padding (Dompdf corta la derecha).
             $css .= '@page{size:Letter;margin:0;}'
@@ -153,11 +157,11 @@ final class DompdfLetterPdfDriver
             return;
         }
 
-        // @page margin 0.5in (36pt). Meta ~25% derecha del ancho útil 7.5in.
+        // Letterhead a 0.5in del borde (36pt). Meta 25% derecha del ancho útil 7.5in.
         $margin = 36.0;
         $contentWidth = 540.0;
         $x = $margin + ($contentWidth * 0.75) + 6.0;
-        // 4.ª fila del meta (bajo FO-GJ-03 / fecha / versión).
+        // 4.ª fila del meta (4 × ~19px ≈ 76px): baseline dentro del marco del header.
         $y = $margin + 58.0;
 
         $dompdf->getCanvas()->page_text(
@@ -165,7 +169,7 @@ final class DompdfLetterPdfDriver
             $y,
             'Página {PAGE_NUM} de {PAGE_COUNT}',
             $font,
-            9.0,
+            8.0,
             [0, 0, 0],
         );
     }

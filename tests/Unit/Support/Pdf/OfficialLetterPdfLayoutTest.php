@@ -24,11 +24,19 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $blade = file_get_contents(resource_path('views/disciplinary/forms/partials/fo-gj-03-pdf-styles.blade.php'));
 
         $this->assertIsString($blade);
-        $this->assertStringContainsString('@page { size: Letter; margin: 0.5in; }', $blade);
+        $this->assertStringContainsString('@page { size: Letter; margin: 0; }', $blade);
         $this->assertStringContainsString('position: fixed', $blade);
         $this->assertStringContainsString('ogj-03-letterhead', $blade);
+        $this->assertMatchesRegularExpression(
+            '/\.ogj-page\.ogj-03-page\s*\{[^}]*width:\s*7\.5in;[^}]*margin:\s*0\.5in;/s',
+            $blade,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.ogj-03-letterhead\s*\{[^}]*top:\s*0\.5in;[^}]*left:\s*0\.5in;[^}]*width:\s*7\.5in;/s',
+            $blade,
+        );
+        $this->assertStringContainsString('height: 76px', $blade);
         $this->assertStringNotContainsString('ogj-page-break', $blade);
-        $this->assertStringNotContainsString('padding: 0.5in', $blade);
     }
 
     public function test_fo_gj_03_html_is_continuous_with_single_letterhead(): void
@@ -109,8 +117,9 @@ class OfficialLetterPdfLayoutTest extends TestCase
 
         $this->assertStringContainsString('data-sj-pdf-flow="fo-gj-03"', $html);
         $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html));
-        $this->assertStringContainsString('padding-top: 96px', $html);
+        $this->assertStringContainsString('padding-top: 94px', $html);
         $this->assertMatchesRegularExpression('/\.ogj-03-flow p\s*\{[^}]*text-align:\s*justify;/s', $html);
+        $this->assertStringContainsString('height: 76px', $html);
         $this->assertStringNotContainsString('1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42', $html);
         $this->assertStringNotContainsString('10, 34', $html);
         $this->assertStringNotContainsString('3, 12, 15, 22, 25, 36, 64, 98, 103, 112', $html);

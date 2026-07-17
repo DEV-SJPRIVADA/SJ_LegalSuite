@@ -1,36 +1,60 @@
 @include('disciplinary.forms.partials.official-letter-pdf-styles')
 <style>
     /*
-     * FO-GJ-03 continuo: @page reserva márgenes; letterhead position:fixed se repite
-     * en cada página física Dompdf. Números: canvas (Dompdf) / counters (Chrome).
-     * Nota: thead con una sola celda alta NO repite el header en Dompdf.
+     * FO-GJ-03 continuo (Dompdf):
+     * - Laterales: caja 7.5in + 0.5in (no confiar en @page horizontal).
+     * - Los cuatro lados: caja 7.5in con margin 0.5in (Dompdf ignora @page
+     *   de forma inconsistente cuando hay position:fixed).
+     * - El cuerpo reserva la altura del header para no montarse sobre él.
+     * - Meta: 4 filas de altura fija para que “Página N de M” quede dentro del marco.
      */
-    @page { size: Letter; margin: 0.5in; }
-@media screen {
-        .ogj-03-page-line-print::after {
-            content: "Página";
-        }
-    }
+    @page { size: Letter; margin: 0; }
     @media print {
         .ogj-03-page-line-print::after {
             content: "Página " counter(page) " de " counter(pages);
         }
     }
     .ogj-03-doc[data-sj-pdf-flow="fo-gj-03"] .ogj-page.ogj-03-page {
-        width: auto;
-        max-width: none;
-        margin: 0;
+        width: 7.5in;
+        max-width: 7.5in;
+        margin: 0.5in;
         padding: 0;
     }
     .ogj-03-letterhead {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
+        top: 0.5in;
+        left: 0.5in;
+        width: 7.5in;
     }
     .ogj-03-flow {
-        /* Reserva bajo letterhead fixed (logo + meta 4 filas); evita que Fecha se pegue al borde. */
-        padding-top: 96px;
+        padding-top: 94px;
+    }
+    /* Cabecera: logo/título/meta alineados a 4 filas meta (~76px). */
+    .ogj-03-doc .ogj-head-grid > tbody > tr > td {
+        height: 76px;
+        min-height: 76px;
+        vertical-align: middle;
+    }
+    .ogj-03-doc .ogj-meta {
+        vertical-align: top;
+        padding: 0 !important;
+    }
+    .ogj-03-doc .ogj-meta-grid {
+        height: 76px;
+    }
+    .ogj-03-doc .ogj-meta-grid td {
+        height: 19px;
+        max-height: 19px;
+        padding: 2px 6px;
+        line-height: 14px;
+        overflow: hidden;
+        vertical-align: middle;
+    }
+    .ogj-03-doc .ogj-meta-grid tr:last-child td {
+        border-bottom: none;
+    }
+    .ogj-03-doc .ogj-logo-cell img {
+        max-height: 52px;
     }
     .ogj-03-flow p {
         text-align: justify;
@@ -75,6 +99,10 @@
         margin: 0;
     }
     .ogj-03-page-line {
-        min-height: 1.2em;
+        display: block;
+        height: 14px;
+        min-height: 14px;
+        line-height: 14px;
+        overflow: hidden;
     }
 </style>
