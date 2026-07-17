@@ -15,36 +15,33 @@ namespace App\Support\Disciplinary;
 final class FoGj04PagePlanner
 {
     /**
-     * Capacidad bajo el encabezado.
-     * 66+INTRO 24 → hueco; 70+INTRO 15 → Dompdf rebalsa (planned < physical).
+     * Capacidad Dompdf Letter.
+     * Probe corto: con PAGE alto + body denso, p.1 tragaba preguntas+cierre y Dompdf
+     * abría hoja física extra (planned=2 phys=3). Bajar PAGE y dejar cola intro en p.1.
      */
-    private const PAGE_UNITS = 69;
+    private const PAGE_UNITS = 62;
 
     private const CLOSING_SAFETY_UNITS = 5;
 
-    /**
-     * Solo id + apertura + partes (sin cargos).
-     * 24 hueco; 15 rebalse; 18 mejoró p.1; 16–17 acerca manifestación/cola a p.1.
-     */
-    private const INTRO_LEAD_UNITS = 16;
+    private const INTRO_LEAD_UNITS = 14;
 
     private const CHARGES_TAIL_UNITS = 2;
 
     private const TERMS_LEAD_UNITS = 2;
 
-    private const INTRO_MANIFESTATION_UNITS = 3;
+    private const INTRO_MANIFESTATION_UNITS = 2;
 
-    private const INTRO_QUIZ_LEAD_UNITS = 4;
+    private const INTRO_QUIZ_LEAD_UNITS = 3;
 
-    private const QUESTION_TITLE_UNITS = 2;
+    private const QUESTION_TITLE_UNITS = 3;
 
     private const CLOSING_TEXT_UNITS = 3;
 
-    private const SIGNATURES_UNITS = 11;
+    private const SIGNATURES_UNITS = 12;
 
-    private const CHARS_PER_LINE = 58;
+    private const CHARS_PER_LINE = 64;
 
-    private const TEXT_GROWTH_FACTOR = 1.42;
+    private const TEXT_GROWTH_FACTOR = 1.28;
 
     /**
      * Textos legales de los términos (Blade debe coincidir).

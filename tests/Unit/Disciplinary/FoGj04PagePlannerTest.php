@@ -196,7 +196,7 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertGreaterThanOrEqual(3, max($termNumsOnFirst));
     }
 
-    public function test_short_charges_can_pull_manifestation_onto_page_one(): void
+    public function test_short_charges_page_one_keeps_intro_tail_when_room(): void
     {
         $pages = $this->planner->plan([
             'chargesDescription' => 'Incumplimiento breve del puesto.',
@@ -206,16 +206,13 @@ class FoGj04PagePlannerTest extends TestCase
             ],
         ]);
 
-        // Preferible: manifestación o lead del cuestionario en p.1 si cabe (menos hueco en p.2).
-        $page1HasTail = $pages[0]['showIntroManifestation'] || $pages[0]['showIntroQuizLead'];
-        $page1HasLateTerm = max(array_map(
-            static fn (array $c): int => (int) $c['number'],
-            $pages[0]['termChunks'] ?: [['number' => 0]],
-        )) >= 4;
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $this->assertNotEmpty($pages[0]['termChunks']);
 
+        // Tras bajar sobrecoste de términos, la cola del intro debe caber en p.1 (anti-hueco ~30%).
         $this->assertTrue(
-            $page1HasTail || $page1HasLateTerm,
-            'Tras calibrar INTRO_LEAD, p.1 debe retener más cuerpo (término ≥4 o cola intro)',
+            $pages[0]['showIntroManifestation'] || $pages[0]['showIntroQuizLead'],
+            'La p.1 no debe cerrar tras el término 5 dejando hueco: debe retener manifestación o lead del cuestionario',
         );
     }
 
