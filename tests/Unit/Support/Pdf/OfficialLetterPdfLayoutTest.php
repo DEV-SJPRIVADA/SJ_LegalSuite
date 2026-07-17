@@ -2,7 +2,6 @@
 
 namespace Tests\Unit\Support\Pdf;
 
-use App\Support\Pdf\DompdfLetterPdfDriver;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Tests\TestCase;
 
@@ -19,32 +18,22 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/\.ogj-03-signature-(block|slot-area)\s*\{[^}]*display:\s*flex/s', $html);
     }
 
-    public function test_fo_gj_03_styles_use_continuous_flow_and_fixed_letterhead(): void
+    public function test_fo_gj_03_styles_use_explicit_pages_without_fixed_letterhead(): void
     {
         $blade = file_get_contents(resource_path('views/disciplinary/forms/partials/fo-gj-03-pdf-styles.blade.php'));
 
         $this->assertIsString($blade);
         $this->assertStringContainsString('@page { size: Letter; margin: 0; }', $blade);
-        $this->assertStringContainsString('position: fixed', $blade);
-        $this->assertStringContainsString('ogj-03-letterhead', $blade);
-        $this->assertMatchesRegularExpression(
-            '/\.ogj-page\.ogj-03-page\s*\{[^}]*width:\s*7\.5in;[^}]*margin:\s*0\.5in;/s',
-            $blade,
-        );
-        $this->assertMatchesRegularExpression(
-            '/\.ogj-03-letterhead\s*\{[^}]*top:\s*0\.5in;[^}]*left:\s*0\.5in;[^}]*width:\s*7\.5in;/s',
-            $blade,
-        );
+        $this->assertStringContainsString('ogj-page-break', $blade);
+        $this->assertStringNotContainsString('position: fixed', $blade);
         $this->assertStringContainsString('height: 76px', $blade);
-        $this->assertStringNotContainsString('ogj-page-break', $blade);
     }
 
-    public function test_fo_gj_03_html_is_continuous_with_single_letterhead(): void
+    public function test_fo_gj_03_html_uses_explicit_pages_with_header_each(): void
     {
         $html = view('disciplinary.forms.fo-gj-03-filled-download', $this->typicalFoGj03ViewData())->render();
 
-        $this->assertStringContainsString('data-sj-pdf-flow="fo-gj-03"', $html);
-        $this->assertStringContainsString('ogj-03-letterhead', $html);
+        $this->assertStringNotContainsString('data-sj-pdf-flow="fo-gj-03"', $html);
         $this->assertStringContainsString('ogj-03-flow', $html);
         $this->assertStringContainsString('ogj-03-closing-block', $html);
         $this->assertStringContainsString('width:25%', $html);
@@ -52,9 +41,7 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertStringContainsString('Cordialmente;', $html);
         $this->assertStringContainsString('elementos probatorios', $html);
         $this->assertStringContainsString('SJ Seguridad Privada Ltda', $html);
-        $this->assertStringContainsString('page-break-inside: avoid', $html);
-        $this->assertStringNotContainsString('ogj-page-break', $html);
-        $this->assertTrue(DompdfLetterPdfDriver::isFoGj03ContinuousFlow($html));
+        $this->assertStringContainsString('Página 1 de 1', $html);
         $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html));
         $this->assertDoesNotMatchRegularExpression('/\.ogj-03-signature-block\s*\{[^}]*display:\s*flex/s', $html);
     }
@@ -75,7 +62,7 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertSame(1, $this->countPdfStreamNeedle($binary, 'Página 1 de 1'));
     }
 
-    public function test_fo_gj_03_long_charges_paginate_without_orphan_pages(): void
+    public function test_fo_gj_03_long_charges_paginate_with_header_on_each_html_page(): void
     {
         config(['services.pdf.driver' => 'dompdf']);
 
@@ -86,39 +73,32 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $binary = HtmlLetterPdfGenerator::fromHtml($html);
 
         $this->assertStringStartsWith('%PDF', $binary);
+        $plannedHeaders = preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html);
+        $this->assertGreaterThanOrEqual(2, $plannedHeaders);
+        $this->assertStringContainsString('ogj-page-break', $html);
+        $this->assertMatchesRegularExpression('/Página 1 de \d+/', $html);
+        $this->assertMatchesRegularExpression('/continuación/', $html);
+
         $physicalPages = preg_match_all('/\/Type\s*\/Page\b/', $binary);
         $this->assertGreaterThanOrEqual(2, $physicalPages);
-        $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html));
-        $this->assertTrue(DompdfLetterPdfDriver::isFoGj03ContinuousFlow($html));
-
+        // Ideal: 1 HTML page ≈ 1 física. Holgura: no más físicas que planificadas + 1.
+        $this->assertLessThanOrEqual($plannedHeaders + 1, $physicalPages);
         $this->assertSame(
-            1,
-            $this->countPdfStreamNeedle($binary, 'Página 1 de '.$physicalPages),
-            'Falta “Página 1 de N” en la primera página física',
-        );
-        $this->assertSame(
-            1,
-            $this->countPdfStreamNeedle($binary, 'Página '.$physicalPages.' de '.$physicalPages),
-            'Falta “Página N de N” en la última página física',
-        );
-        // “Página” vía canvas aparece en cada página física ( Dompdf fixed letterhead + page_text ).
-        $this->assertSame(
-            $physicalPages,
-            $this->countPdfStreamNeedle($binary, 'Página'),
-            'Cada página física debe llevar numeración Página N de M',
+            $plannedHeaders,
+            $this->countPdfStreamNeedle($binary, 'FO-GJ-03'),
+            'Cada página planificada debe llevar letterhead FO-GJ-03 en el PDF',
         );
     }
 
-    public function test_fo_gj_03_blank_download_also_uses_continuous_flow(): void
+    public function test_fo_gj_03_blank_download_uses_explicit_single_page(): void
     {
         $html = view('disciplinary.forms.fo-gj-03-blank-download', [
             'embeddedLogoSrc' => '',
         ])->render();
 
-        $this->assertStringContainsString('data-sj-pdf-flow="fo-gj-03"', $html);
+        $this->assertStringNotContainsString('data-sj-pdf-flow="fo-gj-03"', $html);
         $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-03<\/td>/', $html));
-        $this->assertStringContainsString('padding-top: 94px', $html);
-        $this->assertMatchesRegularExpression('/\.ogj-03-flow p\s*\{[^}]*text-align:\s*justify;/s', $html);
+        $this->assertStringContainsString('Página 1 de 1', $html);
         $this->assertStringContainsString('height: 76px', $html);
         $this->assertStringNotContainsString('1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42', $html);
         $this->assertStringNotContainsString('10, 34', $html);

@@ -23,9 +23,12 @@
     'workerSignatureDataUri' => null,
     'evidenceType' => 'signed',
     'witnesses' => [],
+    'documentPages' => null,
 ])
 
 @php
+    use App\Support\Disciplinary\FoGj03DocumentPaginator;
+
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -40,7 +43,20 @@
         return '<span class="ogj-03-guide ogj-03-guide-'.$size.'" aria-hidden="true">'.$guidePattern($size).'</span>';
     };
 
-    $contentProps = compact(
+    $pages = $documentPages ?? app(FoGj03DocumentPaginator::class)->plan([
+        'chargesDescription' => (string) $chargesDescription,
+        'article66Numerals' => (string) $article66Numerals,
+        'article68Numerals' => (string) $article68Numerals,
+        'article76Numerals' => (string) $article76Numerals,
+        'locationText' => (string) $locationText,
+        'blankForDownload' => (bool) $blankForDownload,
+        'evidenceType' => (string) $evidenceType,
+        'witnesses' => is_array($witnesses) ? $witnesses : [],
+    ]);
+
+    $sharedHelpers = ['guidePattern' => $guidePattern, 'blank' => $blank];
+
+    $openingProps = array_merge($sharedHelpers, compact(
         'blankForDownload',
         'fecha',
         'caseNumber',
@@ -50,17 +66,27 @@
         'workerPosition',
         'hearingDay',
         'hearingTime',
-        'modality',
         'locationText',
+    ));
+
+    $chargesBaseProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
         'informeReportDate',
         'breachDate',
         'chargesDescription',
+    ));
+
+    $articlesProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
         'article66Numerals',
         'article68Numerals',
         'article76Numerals',
-        'guidePattern',
-        'blank',
-    );
+    ));
+
+    $evidenceProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
+        'informeReportDate',
+    ));
 
     $closingProps = compact(
         'blankForDownload',
@@ -76,19 +102,41 @@
     );
 @endphp
 
-{{-- Flujo continuo: letterhead position:fixed (Dompdf lo repite); N de M vía canvas. --}}
-<div class="ogj-wrap ogj-03-doc" data-sj-pdf-flow="fo-gj-03">
-    <div class="ogj-page ogj-03-page">
-        <div class="ogj-03-letterhead">
+{{-- Páginas Letter explícitas: encabezado HTML en cada hoja (estable en Dompdf). --}}
+<div class="ogj-wrap ogj-03-doc">
+    @foreach ($pages as $page)
+        <div @class(['ogj-page', 'ogj-03-page', 'ogj-page-break' => ! $loop->first])>
             @include('disciplinary.forms.partials.fo-gj-03-header', [
                 'logoSrc' => $logoSrc,
-                'pageLine' => '',
+                'pageLine' => $page['pageLine'],
             ])
-        </div>
 
-        <div class="ogj-03-flow">
-            @include('disciplinary.forms.partials.fo-gj-03-content', $contentProps)
-            @include('disciplinary.forms.partials.fo-gj-03-closing-signatures', $closingProps)
+            <div class="ogj-03-flow">
+                @if ($page['showOpening'])
+                    @include('disciplinary.forms.partials.fo-gj-03-opening', $openingProps)
+                @endif
+
+                @if ($page['showCharges'])
+                    @include('disciplinary.forms.partials.fo-gj-03-charges', array_merge($chargesBaseProps, [
+                        'chargesShowLead' => $page['chargesShowLead'],
+                        'chargesIsContinuation' => $page['chargesIsContinuation'],
+                        'chargesChunk' => $page['chargesChunk'],
+                        'chargesShowTail' => $page['chargesShowTail'],
+                    ]))
+                @endif
+
+                @if ($page['showArticles'])
+                    @include('disciplinary.forms.partials.fo-gj-03-articles', $articlesProps)
+                @endif
+
+                @if ($page['showEvidence'])
+                    @include('disciplinary.forms.partials.fo-gj-03-evidence', $evidenceProps)
+                @endif
+
+                @if ($page['showClosing'])
+                    @include('disciplinary.forms.partials.fo-gj-03-closing-signatures', $closingProps)
+                @endif
+            </div>
         </div>
-    </div>
+    @endforeach
 </div>

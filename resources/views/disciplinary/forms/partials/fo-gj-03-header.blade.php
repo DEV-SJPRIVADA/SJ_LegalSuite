@@ -22,11 +22,8 @@
                     <tr><td>Versión 03</td></tr>
                     <tr>
                         <td class="ogj-03-page-line">
-                            {{-- Dompdf: canvas pinta “Página N de M” en esta 4.ª fila. --}}
                             @if (filled($pageLine))
                                 {{ $pageLine }}
-                            @else
-                                <span class="ogj-03-page-line-print">&nbsp;</span>
                             @endif
                         </td>
                     </tr>
