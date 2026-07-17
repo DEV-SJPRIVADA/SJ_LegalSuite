@@ -15,32 +15,43 @@ class FoGj04PagePlannerTest extends TestCase
         $this->planner = new FoGj04PagePlanner;
     }
 
-    public function test_intro_and_closing_do_not_share_page_when_intro_is_full(): void
+    public function test_short_acta_keeps_signatures_atomic_on_last_page(): void
     {
-        // Intro FO-GJ-04 + firmas no caben juntos en Dompdf: firmas van a hoja 2.
         $pages = $this->planner->plan([
             ['question' => '¿esta es la primera pregunta?', 'answer' => 'si'],
         ]);
 
-        $this->assertGreaterThanOrEqual(2, count($pages));
+        $this->assertGreaterThanOrEqual(1, count($pages));
         $this->assertTrue($pages[0]['showIntro']);
-        $this->assertFalse($pages[0]['showClosing']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
         $this->assertSame('Página 1 de '.count($pages), $pages[0]['pageLine']);
         $this->assertSame(
             'Página '.count($pages).' de '.count($pages),
             $pages[array_key_last($pages)]['pageLine'],
         );
+
+        foreach ($pages as $index => $page) {
+            $isLast = $index === count($pages) - 1;
+            $this->assertSame($isLast, $page['showClosing']);
+        }
     }
 
-    public function test_blank_template_splits_closing_when_intro_fills_page(): void
+    public function test_blank_template_places_signatures_without_orphan_middle_page(): void
     {
         $pages = $this->planner->plan([], true);
 
-        $this->assertGreaterThanOrEqual(2, count($pages));
+        $this->assertGreaterThanOrEqual(1, count($pages));
         $this->assertTrue($pages[0]['showIntro']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
-        $this->assertSame('Página 1 de '.count($pages), $pages[0]['pageLine']);
+
+        // No hoja intermedia vacía (sin intro, sin preguntas, sin texto de cierre ni firmas).
+        foreach ($pages as $page) {
+            $hasBody = $page['showIntro']
+                || $page['showClosingText']
+                || $page['showClosing']
+                || $page['questions'] !== [];
+            $this->assertTrue($hasBody);
+        }
     }
 
     public function test_many_questions_create_additional_pages(): void
@@ -70,12 +81,18 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertSame(8, $totalQuestions);
     }
 
-    public function test_closing_only_on_last_page(): void
+    public function test_closing_text_flows_before_atomic_signatures(): void
     {
         $pages = $this->planner->plan([
             ['question' => '¿Una?', 'answer' => 'Una respuesta.'],
             ['question' => '¿Dos?', 'answer' => 'Dos respuestas.'],
         ]);
+
+        $closingTextPages = array_values(array_filter(
+            $pages,
+            fn (array $page): bool => $page['showClosingText'],
+        ));
+        $this->assertNotEmpty($closingTextPages);
 
         foreach ($pages as $index => $page) {
             $isLast = $index === count($pages) - 1;

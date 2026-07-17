@@ -216,6 +216,52 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
     }
 
+    public function test_fo_gj_04_long_questionnaire_plans_pages_matching_physical_dompdf(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $questions = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $questions[] = [
+                'question' => '¿Pregunta '.$i.' con texto adicional para ocupar espacio en la hoja?',
+                'answer' => str_repeat('Respuesta detallada del trabajador. ', 12),
+            ];
+        }
+
+        $html = view('disciplinary.forms.fo-gj-04-filled-download', [
+            'embeddedLogoSrc' => '',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '76269756',
+            'workerPosition' => 'GUARDA DE SEGURIDAD',
+            'openingDay' => '17',
+            'openingMonth' => 'julio',
+            'openingYear' => '2026',
+            'openingTime' => '09:00 AM',
+            'lawyerName' => 'Abogado asignado',
+            'breachDay' => '08',
+            'breachMonth' => 'julio',
+            'breachYear' => '2026',
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe.',
+            'workerManifestation' => 'yes',
+            'closingTime' => '10:30 AM',
+            'questions' => $questions,
+            'signatureDataUri' => null,
+            'workerSignatureDataUri' => null,
+        ])->render();
+
+        $binary = HtmlLetterPdfGenerator::fromHtml($html);
+        $planned = preg_match_all('/<td class="ogj-meta-code">FO-GJ-04<\/td>/', $html);
+        $physical = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+
+        $this->assertGreaterThanOrEqual(3, $planned);
+        $this->assertSame(
+            $planned,
+            $physical,
+            'Cuestionario largo: hojas planificadas deben coincidir con Dompdf',
+        );
+        $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
+    }
+
     /**
      * @return array<string, mixed>
      */

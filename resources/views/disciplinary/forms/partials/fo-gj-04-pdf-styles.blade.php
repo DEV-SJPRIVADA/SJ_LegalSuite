@@ -30,7 +30,13 @@
         letter-spacing: 0.06em;
     }
     .ogj-04-question { margin: 8px 0 10px; break-inside: avoid; page-break-inside: avoid; }
-    .ogj-04-closing-block { break-inside: avoid; page-break-inside: avoid; margin-top: 6px; }
+    .ogj-04-closing-text { margin: 6px 0 0; }
+    /* Solo la tabla de firmas es atómica (mismo contrato FO-GJ-03). */
+    .ogj-04-closing-block {
+        margin-top: 8px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
     .ogj-04-closing-block .ogj-04-signatures {
         break-inside: avoid;
         page-break-inside: avoid;

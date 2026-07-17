@@ -113,8 +113,11 @@
                 ])
             @endforeach
 
-            @if ($page['showClosing'])
-                @include('disciplinary.forms.partials.fo-gj-04-closing-signatures', $sharedClosingProps)
+            @if (($page['showClosingText'] ?? false) || ($page['showClosing'] ?? false))
+                @include('disciplinary.forms.partials.fo-gj-04-closing-signatures', $sharedClosingProps + [
+                    'showClosingText' => (bool) ($page['showClosingText'] ?? false),
+                    'showClosing' => (bool) ($page['showClosing'] ?? false),
+                ])
             @endif
         </div>
     @endforeach
