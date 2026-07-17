@@ -6,7 +6,7 @@ namespace App\Support\Disciplinary;
  * Reparte FO-GJ-04 en páginas Letter explícitas (una `.ogj-page` = una hoja física).
  *
  * Mismo contrato que FoGj03DocumentPaginator:
- * 1) Cuerpo continuo: intro (cargos se trocean) → preguntas → párrafo de cierre.
+ * 1) Cuerpo continuo: intro (cargos + términos se trocean) → preguntas → párrafo de cierre.
  * 2) Cada hoja lleva encabezado HTML + “Página N de M”.
  * 3) Único bloque atómico: tabla de firmas.
  *
@@ -16,21 +16,23 @@ final class FoGj04PagePlanner
 {
     private const PAGE_UNITS = 70;
 
-    /**
-     * Holgura antes de colgar firmas en la misma hoja (anti-rebalse Dompdf).
-     */
     private const CLOSING_SAFETY_UNITS = 5;
 
-    /** NOMBRE/CÉDULA/CARGO + apertura + partes + lead hasta “usted:”. */
     private const INTRO_LEAD_UNITS = 24;
 
-    /** “comprendido como incumplimiento…”. */
     private const CHARGES_TAIL_UNITS = 2;
 
-    /** “Con base…” + términos 1–5. */
-    private const INTRO_TERMS_UNITS = 24;
+    private const TERMS_LEAD_UNITS = 3;
 
-    /** Manifestación + lead al cuestionario. */
+    /** Unidades por numeral 1–5 (texto legal fijo; suma ~25 con lead). */
+    private const TERM_UNITS = [
+        1 => 3,
+        2 => 4,
+        3 => 6,
+        4 => 5,
+        5 => 4,
+    ];
+
     private const INTRO_TAIL_UNITS = 8;
 
     private const QUESTION_BASE_UNITS = 2;
@@ -42,6 +44,22 @@ final class FoGj04PagePlanner
     private const CHARS_PER_LINE = 72;
 
     private const TEXT_GROWTH_FACTOR = 1.35;
+
+    /**
+     * Textos legales de los términos (Blade debe coincidir).
+     *
+     * @return array<int, string>
+     */
+    public static function termTexts(): array
+    {
+        return [
+            1 => '1. Su asistencia a esta diligencia es de carácter meramente administrativo laboral y de manera voluntaria.',
+            2 => '2. En garantía de su Derecho de Defensa y Debido Proceso tiene derecho a no declarar contra sí mismo, por lo que está en libertad de responder o no responder a los cargos que se le imputarán y hechos que se le expondrán.',
+            3 => '3. Si decide responder, se le pide que lo haga de manera espontánea, concreta y fiel con la realidad de los hechos tal como a su forma de ser sucedieron, aceptando o no aceptando los cargos que se le imputarán, o, dando las explicaciones que considere, pudiendo solicitar las pruebas que tiendan a justificar, atenuar, o demostrar su no participación en los hechos que se le expondrán como soporte de dichos cargos.',
+            4 => '4. Una vez iniciada esta diligencia, en cualquier momento podrá darla por terminada manifestado que no continuará respondiendo, por lo que esta quedará en el estado en que se encuentre, sin que pueda retirar, aclarar o adicionar lo que hasta ese instante hubiese manifestado.',
+            5 => '5. Si por cualquier motivo se negare a firmar el acta de esta diligencia, EL EMPLEADOR recurrirá a dos (2) trabajadores testigos que darán fe con su firma de la veracidad de tal situación.',
+        ];
+    }
 
     /**
      * @param  array{
@@ -59,7 +77,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -77,7 +96,7 @@ final class FoGj04PagePlanner
 
     /**
      * @param  array<string, mixed>  $context
-     * @return list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}>
+     * @return list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}>
      */
     public function buildBodyBlocks(array $context): array
     {
@@ -103,7 +122,16 @@ final class FoGj04PagePlanner
         }
 
         $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
-        $blocks[] = ['type' => 'intro_terms', 'units' => self::INTRO_TERMS_UNITS];
+        $blocks[] = ['type' => 'terms_lead', 'units' => self::TERMS_LEAD_UNITS];
+
+        foreach (self::TERM_UNITS as $termNumber => $units) {
+            $blocks[] = [
+                'type' => 'term_item',
+                'units' => $units,
+                'termNumber' => $termNumber,
+            ];
+        }
+
         $blocks[] = ['type' => 'intro_tail', 'units' => self::INTRO_TAIL_UNITS];
 
         $number = 1;
@@ -124,7 +152,7 @@ final class FoGj04PagePlanner
     }
 
     /**
-     * @param  list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}>  $blocks
+     * @param  list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}>  $blocks
      * @return list<array{
      *     showIntroLead: bool,
      *     showCharges: bool,
@@ -132,7 +160,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -231,14 +260,15 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
      *     used: int
      * }  $page
-     * @param  array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}  $block
+     * @param  array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string, termNumber?: int}  $block
      */
     private function applyBodyBlock(array &$page, array $block): void
     {
@@ -252,7 +282,8 @@ final class FoGj04PagePlanner
                 $page['showCharges'] = true;
                 $page['chargesShowTail'] = true;
             })(),
-            'intro_terms' => $page['showIntroTerms'] = true,
+            'terms_lead' => $page['showTermsLead'] = true,
+            'term_item' => $page['termNumbers'][] = (int) ($block['termNumber'] ?? 0),
             'intro_tail' => $page['showIntroTail'] = true,
             'closing_text' => $page['showClosingText'] = true,
             'question' => $page['questions'][] = [
@@ -272,7 +303,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -286,7 +318,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -331,7 +364,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -348,7 +382,8 @@ final class FoGj04PagePlanner
             'chargesIsContinuation' => false,
             'chargesChunk' => '',
             'chargesShowTail' => false,
-            'showIntroTerms' => false,
+            'showTermsLead' => false,
+            'termNumbers' => [],
             'showIntroTail' => false,
             'showClosingText' => false,
             'showClosing' => false,
@@ -365,7 +400,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -377,7 +413,8 @@ final class FoGj04PagePlanner
     {
         return ! $page['showIntroLead']
             && ! $page['showCharges']
-            && ! $page['showIntroTerms']
+            && ! $page['showTermsLead']
+            && $page['termNumbers'] === []
             && ! $page['showIntroTail']
             && ! $page['showClosingText']
             && ! $page['showClosing']
@@ -482,7 +519,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -499,7 +537,8 @@ final class FoGj04PagePlanner
      *     chargesIsContinuation: bool,
      *     chargesChunk: string,
      *     chargesShowTail: bool,
-     *     showIntroTerms: bool,
+     *     showTermsLead: bool,
+     *     termNumbers: list<int>,
      *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
@@ -523,7 +562,8 @@ final class FoGj04PagePlanner
                 'chargesIsContinuation' => (bool) ($page['chargesIsContinuation'] ?? false),
                 'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
                 'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
-                'showIntroTerms' => (bool) ($page['showIntroTerms'] ?? false),
+                'showTermsLead' => (bool) ($page['showTermsLead'] ?? false),
+                'termNumbers' => array_values(array_map('intval', $page['termNumbers'] ?? [])),
                 'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
                 'showClosingText' => (bool) ($page['showClosingText'] ?? false),
                 'showClosing' => (bool) ($page['showClosing'] ?? false),

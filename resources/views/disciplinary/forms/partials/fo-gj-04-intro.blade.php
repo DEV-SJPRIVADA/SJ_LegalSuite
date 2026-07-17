@@ -24,8 +24,10 @@
     $chargesIsContinuation = (bool) ($chargesIsContinuation ?? false);
     $chargesChunk = (string) ($chargesChunk ?? ($chargesDescription ?? ''));
     $chargesShowTail = (bool) ($chargesShowTail ?? true);
-    $showIntroTerms = (bool) ($showIntroTerms ?? true);
+    $showTermsLead = (bool) ($showTermsLead ?? true);
+    $termNumbers = is_array($termNumbers ?? null) ? $termNumbers : [1, 2, 3, 4, 5];
     $showIntroTail = (bool) ($showIntroTail ?? true);
+    $termTexts = \App\Support\Disciplinary\FoGj04PagePlanner::termTexts();
 @endphp
 
 @if ($showIntroLead)
@@ -71,17 +73,17 @@
     </p>
 @endif
 
-@if ($showIntroTerms)
+@if ($showTermsLead)
     <p>
         Con base a lo anterior se requiere de sus explicaciones y para ello, esta acta se desarrolla en los siguientes términos:
     </p>
-
-    <p class="ogj-04-list-num">1. Su asistencia a esta diligencia es de carácter meramente administrativo laboral y de manera voluntaria.</p>
-    <p class="ogj-04-list-num">2. En garantía de su Derecho de Defensa y Debido Proceso tiene derecho a no declarar contra sí mismo, por lo que está en libertad de responder o no responder a los cargos que se le imputarán y hechos que se le expondrán.</p>
-    <p class="ogj-04-list-num">3. Si decide responder, se le pide que lo haga de manera espontánea, concreta y fiel con la realidad de los hechos tal como a su forma de ser sucedieron, aceptando o no aceptando los cargos que se le imputarán, o, dando las explicaciones que considere, pudiendo solicitar las pruebas que tiendan a justificar, atenuar, o demostrar su no participación en los hechos que se le expondrán como soporte de dichos cargos.</p>
-    <p class="ogj-04-list-num">4. Una vez iniciada esta diligencia, en cualquier momento podrá darla por terminada manifestado que no continuará respondiendo, por lo que esta quedará en el estado en que se encuentre, sin que pueda retirar, aclarar o adicionar lo que hasta ese instante hubiese manifestado.</p>
-    <p class="ogj-04-list-num">5. Si por cualquier motivo se negare a firmar el acta de esta diligencia, EL EMPLEADOR recurrirá a dos (2) trabajadores testigos que darán fe con su firma de la veracidad de tal situación.</p>
 @endif
+
+@foreach ($termNumbers as $termNumber)
+    @if (isset($termTexts[$termNumber]))
+        <p class="ogj-04-list-num">{{ $termTexts[$termNumber] }}</p>
+    @endif
+@endforeach
 
 @if ($showIntroTail)
     <p>

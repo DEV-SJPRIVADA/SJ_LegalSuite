@@ -80,12 +80,47 @@ class FoGj04PagePlannerTest extends TestCase
         foreach ($pages as $page) {
             $hasBody = $page['showIntroLead']
                 || $page['showCharges']
-                || $page['showIntroTerms']
+                || $page['showTermsLead']
+                || $page['termNumbers'] !== []
                 || $page['showIntroTail']
                 || $page['showClosingText']
                 || $page['showClosing']
                 || $page['questions'] !== [];
             $this->assertTrue($hasBody);
+        }
+    }
+
+    public function test_long_charges_fill_remaining_space_with_terms_on_same_page(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => str_repeat(
+                'Falta grave por incumplimiento reiterado de turnos, protocolos y consignas operativas del puesto. ',
+                12,
+            ),
+            'questions' => [
+                ['question' => '¿Reconoce los hechos?', 'answer' => 'Sí'],
+            ],
+        ]);
+
+        $this->assertGreaterThan(1, count($pages));
+        $this->assertTrue($pages[0]['showCharges']);
+
+        // Tras cargos largos, los términos ya no saltan enteros: algún numeral llena el hueco de p.1.
+        $termsOnFirst = $pages[0]['termNumbers'];
+        $termsOnLater = [];
+        foreach (array_slice($pages, 1) as $page) {
+            $termsOnLater = array_merge($termsOnLater, $page['termNumbers']);
+        }
+
+        $allTerms = array_merge($termsOnFirst, $termsOnLater);
+        sort($allTerms);
+        $this->assertSame([1, 2, 3, 4, 5], $allTerms);
+
+        if ($pages[0]['chargesShowTail']) {
+            $this->assertNotEmpty(
+                $termsOnFirst,
+                'Si el cierre de cargos queda en p.1, al menos un término debe llenar el hueco inferior',
+            );
         }
     }
 

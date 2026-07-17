@@ -102,7 +102,8 @@
             @if (
                 ($page['showIntroLead'] ?? false)
                 || ($page['showCharges'] ?? false)
-                || ($page['showIntroTerms'] ?? false)
+                || ($page['showTermsLead'] ?? false)
+                || (($page['termNumbers'] ?? []) !== [])
                 || ($page['showIntroTail'] ?? false)
             )
                 @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps + [
@@ -112,7 +113,8 @@
                     'chargesIsContinuation' => (bool) ($page['chargesIsContinuation'] ?? false),
                     'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
                     'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
-                    'showIntroTerms' => (bool) ($page['showIntroTerms'] ?? false),
+                    'showTermsLead' => (bool) ($page['showTermsLead'] ?? false),
+                    'termNumbers' => $page['termNumbers'] ?? [],
                     'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
                 ])
             @endif
