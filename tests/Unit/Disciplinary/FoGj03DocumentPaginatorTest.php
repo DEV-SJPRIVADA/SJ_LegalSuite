@@ -100,7 +100,24 @@ class FoGj03DocumentPaginatorTest extends TestCase
 
         $this->assertNotContains('closing', $types);
         $this->assertContains('opening', $types);
-        $this->assertContains('evidence', $types);
+        $this->assertContains('evidence_lead', $types);
+        $this->assertContains('evidence_text', $types);
+    }
+
+    public function test_medium_charges_start_evidence_on_first_page_when_room_remains(): void
+    {
+        $pages = $this->paginator->plan([
+            ...$this->typicalContext(),
+            // Cargos que dejan hueco real tras artículos para meter evidencia en p.1.
+            'chargesDescription' => str_repeat('Descripción del cargo disciplinario reportado. ', 22),
+        ]);
+
+        $this->assertTrue($pages[0]['showArticles']);
+        $this->assertTrue(
+            $pages[0]['showEvidence'],
+            'La evidencia debe empezar a llenar el hueco inferior de p.1 (no saltar entera a p.2)',
+        );
+        $this->assertTrue($pages[0]['evidenceShowLead']);
     }
 
     /**

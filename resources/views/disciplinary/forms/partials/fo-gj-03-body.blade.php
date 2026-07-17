@@ -130,7 +130,11 @@
                 @endif
 
                 @if ($page['showEvidence'])
-                    @include('disciplinary.forms.partials.fo-gj-03-evidence', $evidenceProps)
+                    @include('disciplinary.forms.partials.fo-gj-03-evidence', array_merge($evidenceProps, [
+                        'evidenceShowLead' => $page['evidenceShowLead'],
+                        'evidenceIsContinuation' => $page['evidenceIsContinuation'],
+                        'evidenceChunk' => $page['evidenceChunk'],
+                    ]))
                 @endif
 
                 @if ($page['showClosing'])

@@ -7,4 +7,8 @@
     'chargesShowTail' => true,
 ])
 @include('disciplinary.forms.partials.fo-gj-03-articles')
-@include('disciplinary.forms.partials.fo-gj-03-evidence')
+@include('disciplinary.forms.partials.fo-gj-03-evidence', [
+    'evidenceShowLead' => true,
+    'evidenceIsContinuation' => false,
+    'evidenceChunk' => \App\Support\Disciplinary\FoGj03DocumentPaginator::evidenceTrasladoText(),
+])

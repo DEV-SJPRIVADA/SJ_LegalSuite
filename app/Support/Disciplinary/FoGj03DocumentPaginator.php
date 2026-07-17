@@ -13,8 +13,8 @@ namespace App\Support\Disciplinary;
  */
 final class FoGj03DocumentPaginator
 {
-    /** Capacidad bajo el encabezado dentro de una `.ogj-page` Letter (calibrada a Dompdf). */
-    private const PAGE_UNITS = 62;
+    /** Capacidad bajo el encabezado (cuerpo típico + traslado + firmas + safety). */
+    private const PAGE_UNITS = 74;
 
     /**
      * Holgura extra antes de colgar firmas en la misma hoja que el cuerpo.
@@ -32,7 +32,8 @@ final class FoGj03DocumentPaginator
 
     private const UNITS_PER_ARTICLE = 3.2;
 
-    private const EVIDENCE_UNITS = 11;
+    /** Intro + lista de informes (cabe en huecos pequeños de p.1). */
+    private const EVIDENCE_LEAD_UNITS = 4;
 
     private const CLOSING_UNITS = 11;
 
@@ -41,6 +42,17 @@ final class FoGj03DocumentPaginator
     private const CHARS_PER_LINE = 60;
 
     private const TEXT_GROWTH_FACTOR = 1.25;
+
+    /** Párrafo de traslado (texto legal fijo); se trocea como los cargos. */
+    private const EVIDENCE_TRASLADO_TEXT = 'Se corre traslado al trabajador de todas y cada una de las pruebas que fundamentan los cargos formulados. Se le hace saber que, el llamamiento a la diligencia de descargos no es propia de sanción disciplinaria, por el contrario, con ella buscamos garantizar el debido proceso, el derecho a la contradicción y a la defensa, conforme lo cual, podrá usted asistir con dos (02) testigos, controvertir las pruebas en su contra y allegar las pruebas que considere pertinentes informando por escrito al correo relacioneslaborales@sjsp.com.co con mínimo dos (02) horas de anticipación a la diligencia. En caso de tener alguna situación que imposibilite su presencia, deberá remitir dentro de los dos (2) días hábiles siguientes, la debida excusa para fijar nueva fecha, de lo contrario se entiende su renuncia al derecho a la defensa y se tendrán por cierto los hechos que motivaron la apertura del presente proceso disciplinario.';
+
+    /**
+     * Texto legal del traslado (Blade + paginador deben coincidir).
+     */
+    public static function evidenceTrasladoText(): string
+    {
+        return self::EVIDENCE_TRASLADO_TEXT;
+    }
 
     /**
      * @param  array{
@@ -65,6 +77,9 @@ final class FoGj03DocumentPaginator
      *     chargesShowTail: bool,
      *     showArticles: bool,
      *     showEvidence: bool,
+     *     evidenceShowLead: bool,
+     *     evidenceIsContinuation: bool,
+     *     evidenceChunk: string,
      *     showClosing: bool,
      * }>
      */
@@ -113,7 +128,12 @@ final class FoGj03DocumentPaginator
 
         $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
         $blocks[] = ['type' => 'articles', 'units' => $this->articlesUnits($context)];
-        $blocks[] = ['type' => 'evidence', 'units' => self::EVIDENCE_UNITS];
+        $blocks[] = ['type' => 'evidence_lead', 'units' => self::EVIDENCE_LEAD_UNITS];
+        $blocks[] = [
+            'type' => 'evidence_text',
+            'units' => max(1, (int) ceil($this->estimateTextLines(self::EVIDENCE_TRASLADO_TEXT) * self::TEXT_GROWTH_FACTOR)),
+            'text' => self::EVIDENCE_TRASLADO_TEXT,
+        ];
 
         return $blocks;
     }
@@ -155,8 +175,9 @@ final class FoGj03DocumentPaginator
         foreach ($blocks as $block) {
             $type = $block['type'];
 
-            if ($type === 'charges_text') {
+            if ($type === 'charges_text' || $type === 'evidence_text') {
                 $text = (string) ($block['text'] ?? '');
+                $isEvidence = $type === 'evidence_text';
 
                 if ($text === '') {
                     if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
@@ -164,7 +185,11 @@ final class FoGj03DocumentPaginator
                         $current = $this->emptyPage();
                         $remaining = self::PAGE_UNITS;
                     }
-                    $current['showCharges'] = true;
+                    if ($isEvidence) {
+                        $current['showEvidence'] = true;
+                    } else {
+                        $current['showCharges'] = true;
+                    }
                     $current['used'] += 1;
                     $remaining -= 1;
 
@@ -196,11 +221,20 @@ final class FoGj03DocumentPaginator
                     $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
                     $chunkUnits = min($chunkUnits, max(1, $remaining));
 
-                    $current['showCharges'] = true;
-                    $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
-                    if (! $current['chargesShowLead']) {
-                        $current['chargesIsContinuation'] = true;
+                    if ($isEvidence) {
+                        $current['showEvidence'] = true;
+                        $current['evidenceChunk'] = trim($current['evidenceChunk'].' '.$chunk);
+                        if (! $current['evidenceShowLead']) {
+                            $current['evidenceIsContinuation'] = true;
+                        }
+                    } else {
+                        $current['showCharges'] = true;
+                        $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
+                        if (! $current['chargesShowLead']) {
+                            $current['chargesIsContinuation'] = true;
+                        }
                     }
+
                     $current['used'] += $chunkUnits;
                     $remaining -= $chunkUnits;
                     $text = $rest;
@@ -256,7 +290,10 @@ final class FoGj03DocumentPaginator
                 $page['chargesShowTail'] = true;
             })(),
             'articles' => $page['showArticles'] = true,
-            'evidence' => $page['showEvidence'] = true,
+            'evidence_lead' => (function () use (&$page): void {
+                $page['showEvidence'] = true;
+                $page['evidenceShowLead'] = true;
+            })(),
             default => null,
         };
     }
@@ -343,6 +380,9 @@ final class FoGj03DocumentPaginator
             'chargesShowTail' => false,
             'showArticles' => false,
             'showEvidence' => false,
+            'evidenceShowLead' => false,
+            'evidenceIsContinuation' => false,
+            'evidenceChunk' => '',
             'showClosing' => false,
             'used' => 0,
         ];
@@ -358,6 +398,9 @@ final class FoGj03DocumentPaginator
      *     chargesShowTail: bool,
      *     showArticles: bool,
      *     showEvidence: bool,
+     *     evidenceShowLead: bool,
+     *     evidenceIsContinuation: bool,
+     *     evidenceChunk: string,
      *     showClosing: bool,
      *     used: int,
      * }  $page
@@ -369,7 +412,8 @@ final class FoGj03DocumentPaginator
             && ! $page['showArticles']
             && ! $page['showEvidence']
             && ! $page['showClosing']
-            && trim($page['chargesChunk']) === '';
+            && trim($page['chargesChunk']) === ''
+            && trim($page['evidenceChunk']) === '';
     }
 
     /**
@@ -492,10 +536,14 @@ final class FoGj03DocumentPaginator
         return array_values(array_map(function (array $page, int $index) use ($total) {
             $pageNumber = $index + 1;
             $chunk = trim((string) ($page['chargesChunk'] ?? ''));
+            $evidenceChunk = trim((string) ($page['evidenceChunk'] ?? ''));
             $showCharges = (bool) ($page['showCharges'] ?? false)
                 || (bool) ($page['chargesShowLead'] ?? false)
                 || (bool) ($page['chargesShowTail'] ?? false)
                 || $chunk !== '';
+            $showEvidence = (bool) ($page['showEvidence'] ?? false)
+                || (bool) ($page['evidenceShowLead'] ?? false)
+                || $evidenceChunk !== '';
 
             return [
                 'pageNumber' => $pageNumber,
@@ -508,7 +556,10 @@ final class FoGj03DocumentPaginator
                 'chargesChunk' => $chunk,
                 'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
                 'showArticles' => (bool) ($page['showArticles'] ?? false),
-                'showEvidence' => (bool) ($page['showEvidence'] ?? false),
+                'showEvidence' => $showEvidence,
+                'evidenceShowLead' => (bool) ($page['evidenceShowLead'] ?? false),
+                'evidenceIsContinuation' => (bool) ($page['evidenceIsContinuation'] ?? false) && ! (bool) ($page['evidenceShowLead'] ?? false),
+                'evidenceChunk' => $evidenceChunk,
                 'showClosing' => (bool) ($page['showClosing'] ?? false),
             ];
         }, $pages, array_keys($pages)));
