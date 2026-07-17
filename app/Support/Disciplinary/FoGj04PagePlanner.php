@@ -4,7 +4,8 @@ namespace App\Support\Disciplinary;
 
 /**
  * Reparte el cuestionario FO-GJ-04 en páginas Letter con capacidad estimada (unidades de línea).
- * El bloque de cierre + firmas permanece unido y en la última página con espacio suficiente.
+ * El bloque de cierre + firmas es atómico: si no cabe entero con el intro/cuerpo,
+ * pasa completo a la hoja siguiente (evita “Página 1 de 1” con 2 hojas físicas Dompdf).
  *
  * Constantes calibradas para --ogj-font-body: 12px (escala unificada FO-GJ).
  */
@@ -12,13 +13,17 @@ final class FoGj04PagePlanner
 {
     private const PAGE_UNITS = 70;
 
-    private const INTRO_OVERHEAD = 45;
+    /** Intro FO-GJ-04 (términos 1–5 + cargos) es alto en Dompdf; 45 subestimaba. */
+    private const INTRO_OVERHEAD = 58;
 
     private const CONTINUATION_OVERHEAD = 8;
 
     private const QUESTION_BASE_UNITS = 2;
 
-    private const CLOSING_BLOCK_UNITS = 11;
+    private const CLOSING_BLOCK_UNITS = 14;
+
+    /** Holgura extra antes de colgar firmas en la misma hoja (anti-rebalse Dompdf). */
+    private const CLOSING_SAFETY_UNITS = 6;
 
     private const CHARS_PER_LINE = 77;
 
@@ -38,9 +43,9 @@ final class FoGj04PagePlanner
         $pages = $this->distributeQuestions($questions);
         $pages = $this->ensureClosingFits($pages);
 
-        if ($blankForDownload && $questions === []) {
+        if ($blankForDownload && $questions === [] && $pages !== []) {
             $pages[0]['showIntro'] = true;
-            $pages[0]['showClosing'] = true;
+            // Firmas las ubica ensureClosingFits (no forzarlas en p.1: Dompdf rebalsa).
         }
 
         return $this->finalizePageMeta($pages);
@@ -178,7 +183,7 @@ final class FoGj04PagePlanner
             $used += $this->estimateQuestionUnits($item);
         }
 
-        return (self::PAGE_UNITS - $used) >= self::CLOSING_BLOCK_UNITS;
+        return (self::PAGE_UNITS - $used) >= (self::CLOSING_BLOCK_UNITS + self::CLOSING_SAFETY_UNITS);
     }
 
     /**

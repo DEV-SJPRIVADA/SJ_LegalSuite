@@ -31,6 +31,10 @@
     }
     .ogj-04-question { margin: 8px 0 10px; break-inside: avoid; page-break-inside: avoid; }
     .ogj-04-closing-block { break-inside: avoid; page-break-inside: avoid; margin-top: 6px; }
+    .ogj-04-closing-block .ogj-04-signatures {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
     .ogj-04-question-title { font-weight: bold; margin: 0 0 4px; text-align: left; }
     .ogj-04-question-answer {
         margin: 0 0 4px;

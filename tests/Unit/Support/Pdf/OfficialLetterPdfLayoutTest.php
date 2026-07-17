@@ -174,6 +174,48 @@ class OfficialLetterPdfLayoutTest extends TestCase
         }
     }
 
+    public function test_fo_gj_04_short_acta_plans_pages_matching_physical_dompdf(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $html = view('disciplinary.forms.fo-gj-04-filled-download', [
+            'embeddedLogoSrc' => '',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '76269756',
+            'workerPosition' => 'GUARDA DE SEGURIDAD',
+            'openingDay' => '17',
+            'openingMonth' => 'julio',
+            'openingYear' => '2026',
+            'openingTime' => '09:00 AM',
+            'lawyerName' => 'Abogado asignado',
+            'breachDay' => '08',
+            'breachMonth' => 'julio',
+            'breachYear' => '2026',
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe.',
+            'workerManifestation' => 'yes',
+            'closingTime' => '10:30 AM',
+            'questions' => [
+                ['question' => '¿esta es la primera pregunta?', 'answer' => 'si'],
+            ],
+            'signatureDataUri' => null,
+            'workerSignatureDataUri' => null,
+        ])->render();
+
+        $binary = HtmlLetterPdfGenerator::fromHtml($html);
+        $planned = preg_match_all('/<td class="ogj-meta-code">FO-GJ-04<\/td>/', $html);
+        $physical = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+
+        $this->assertGreaterThanOrEqual(2, $planned);
+        $this->assertMatchesRegularExpression('/Página 1 de '.$planned.'/', $html);
+        $this->assertDoesNotMatchRegularExpression('/Página 1 de 1/', $html);
+        $this->assertSame(
+            $planned,
+            $physical,
+            'Hojas HTML planificadas deben coincidir con páginas físicas Dompdf',
+        );
+        $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
+    }
+
     /**
      * @return array<string, mixed>
      */
