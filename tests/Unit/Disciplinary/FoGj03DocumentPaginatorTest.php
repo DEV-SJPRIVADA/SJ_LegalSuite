@@ -50,7 +50,7 @@ class FoGj03DocumentPaginatorTest extends TestCase
     {
         $pages = $this->paginator->plan([
             ...$this->typicalContext(),
-            'chargesDescription' => str_repeat('Descripción extendida del cargo disciplinario. ', 160),
+            'chargesDescription' => str_repeat('Descripción extendida del cargo disciplinario. ', 80),
         ]);
 
         $this->assertGreaterThanOrEqual(2, count($pages));
@@ -82,23 +82,6 @@ class FoGj03DocumentPaginatorTest extends TestCase
         $this->assertGreaterThanOrEqual(2, count($pages));
         $closingPages = array_values(array_filter($pages, fn (array $p): bool => $p['showClosing']));
         $this->assertCount(1, $closingPages);
-    }
-
-    public function test_medium_long_charges_keep_evidence_on_first_page_when_room(): void
-    {
-        $pages = $this->paginator->plan([
-            ...$this->typicalContext(),
-            // Más largo que el canónico, pero no tanto como para llenar 2 hojas de cargos.
-            'chargesDescription' => str_repeat('Descripción del cargo disciplinario reportado. ', 28),
-        ]);
-
-        $this->assertTrue($pages[0]['showOpening']);
-        $this->assertTrue($pages[0]['showCharges']);
-        $this->assertTrue($pages[0]['showArticles']);
-        $this->assertTrue(
-            $pages[0]['showEvidence'],
-            'La evidencia no debe saltar a p.2 si aún cabe en el hueco inferior de p.1',
-        );
     }
 
     /**

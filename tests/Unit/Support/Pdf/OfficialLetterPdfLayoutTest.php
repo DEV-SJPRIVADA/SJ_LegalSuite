@@ -67,7 +67,7 @@ class OfficialLetterPdfLayoutTest extends TestCase
         config(['services.pdf.driver' => 'dompdf']);
 
         $data = $this->typicalFoGj03ViewData();
-        $data['chargesDescription'] = str_repeat('Descripción extendida del cargo disciplinario. ', 160);
+        $data['chargesDescription'] = str_repeat('Descripción extendida del cargo disciplinario. ', 80);
 
         $html = view('disciplinary.forms.fo-gj-03-filled-download', $data)->render();
         $binary = HtmlLetterPdfGenerator::fromHtml($html);

@@ -11,11 +11,8 @@ namespace App\Support\Disciplinary;
  */
 final class FoGj03DocumentPaginator
 {
-    /**
-     * Capacidad bajo el encabezado. Holgura baja a propósito: sobrestimar
-     * unidades dejaba hueco visual en p.1 (p. ej. evidencia empujada a p.2).
-     */
-    private const PAGE_UNITS = 70;
+    /** Capacidad bajo el encabezado dentro de una `.ogj-page` Letter (calibrada a Dompdf). */
+    private const PAGE_UNITS = 62;
 
     private const OPENING_UNITS = 9;
 
@@ -25,18 +22,17 @@ final class FoGj03DocumentPaginator
 
     private const ARTICLES_BASE_UNITS = 2;
 
-    private const UNITS_PER_ARTICLE = 3.0;
+    private const UNITS_PER_ARTICLE = 3.2;
 
-    private const EVIDENCE_UNITS = 10;
+    private const EVIDENCE_UNITS = 11;
 
-    private const CLOSING_UNITS = 10;
+    private const CLOSING_UNITS = 11;
 
     private const WITNESSES_UNITS = 10;
 
-    /** ~7.5in útiles a 12px; Dompdf suele caber más que 60. */
-    private const CHARS_PER_LINE = 68;
+    private const CHARS_PER_LINE = 60;
 
-    private const TEXT_GROWTH_FACTOR = 1.08;
+    private const TEXT_GROWTH_FACTOR = 1.25;
 
     /**
      * @param  array{
@@ -68,7 +64,6 @@ final class FoGj03DocumentPaginator
     {
         $blocks = $this->buildBlocks($context);
         $pages = $this->packBlocks($blocks);
-        $pages = $this->backfillBodyOntoEarlierPages($pages);
         $pages = $this->ensureClosingFits($pages, $this->closingUnits($context));
 
         return $this->finalizePageMeta($pages);
@@ -178,8 +173,6 @@ final class FoGj03DocumentPaginator
                     }
 
                     $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
-                    // No cobrar más unidades de las que cabían: evita “página llena” ficticia.
-                    $chunkUnits = min($chunkUnits, max(1, $remaining));
                     $current['showCharges'] = true;
                     $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
                     if (! $current['chargesShowLead']) {
@@ -244,86 +237,6 @@ final class FoGj03DocumentPaginator
             'closing' => $page['showClosing'] = true,
             default => null,
         };
-    }
-
-    /**
-     * Sube artículos/evidencia a la hoja anterior si aún hay holgura, para no
-     * dejar el tercio inferior de p.1 vacío cuando el bloque siguiente cabe.
-     *
-     * @param  list<array{
-     *     showOpening: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showArticles: bool,
-     *     showEvidence: bool,
-     *     showClosing: bool,
-     *     used: int,
-     * }>  $pages
-     * @return list<array{
-     *     showOpening: bool,
-     *     showCharges: bool,
-     *     chargesShowLead: bool,
-     *     chargesIsContinuation: bool,
-     *     chargesChunk: string,
-     *     chargesShowTail: bool,
-     *     showArticles: bool,
-     *     showEvidence: bool,
-     *     showClosing: bool,
-     *     used: int,
-     * }>
-     */
-    private function backfillBodyOntoEarlierPages(array $pages): array
-    {
-        if (count($pages) < 2) {
-            return $pages;
-        }
-
-        $flagCosts = [
-            'showArticles' => (int) ceil(self::ARTICLES_BASE_UNITS + (3 * self::UNITS_PER_ARTICLE)),
-            'showEvidence' => self::EVIDENCE_UNITS,
-        ];
-
-        $changed = true;
-        while ($changed && count($pages) >= 2) {
-            $changed = false;
-            $prevIdx = count($pages) - 2;
-            $lastIdx = count($pages) - 1;
-            $prev = $pages[$prevIdx];
-            $last = $pages[$lastIdx];
-            $room = self::PAGE_UNITS - (int) $prev['used'];
-
-            foreach ($flagCosts as $flag => $cost) {
-                if (! ($last[$flag] ?? false) || ($prev[$flag] ?? false) || $cost > $room) {
-                    continue;
-                }
-
-                $prev[$flag] = true;
-                $prev['used'] += $cost;
-                $last[$flag] = false;
-                $last['used'] = max(0, (int) $last['used'] - $cost);
-                $pages[$prevIdx] = $prev;
-                $pages[$lastIdx] = $last;
-                $changed = true;
-
-                if (
-                    ! ($last['showOpening'] ?? false)
-                    && ! ($last['showCharges'] ?? false)
-                    && ! ($last['showArticles'] ?? false)
-                    && ! ($last['showEvidence'] ?? false)
-                    && ! ($last['showClosing'] ?? false)
-                    && trim((string) ($last['chargesChunk'] ?? '')) === ''
-                ) {
-                    array_pop($pages);
-                }
-
-                break;
-            }
-        }
-
-        return array_values($pages);
     }
 
     /**
