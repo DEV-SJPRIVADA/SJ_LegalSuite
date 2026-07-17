@@ -57,7 +57,11 @@ class FoGj04DiligenceActaService
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
         $citation = $this->drafts->citationDataFromFo03($case);
         $questionItems = $this->normalizeQuestions($payload['questions'] ?? []);
-        $questionPages = app(FoGj04PagePlanner::class)->plan($questionItems, false);
+        $questionPages = app(FoGj04PagePlanner::class)->plan([
+            'questions' => $questionItems,
+            'chargesDescription' => $citation['charges_description'],
+            'blankForDownload' => false,
+        ]);
 
         return [
             'workerName' => $workerName,

@@ -262,6 +262,51 @@ class OfficialLetterPdfLayoutTest extends TestCase
         $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
     }
 
+    public function test_fo_gj_04_long_charges_plans_pages_matching_physical_dompdf(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $html = view('disciplinary.forms.fo-gj-04-filled-download', [
+            'embeddedLogoSrc' => '',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '76269756',
+            'workerPosition' => 'GUARDA DE SEGURIDAD',
+            'openingDay' => '17',
+            'openingMonth' => 'julio',
+            'openingYear' => '2026',
+            'openingTime' => '09:00 AM',
+            'lawyerName' => 'Abogado asignado',
+            'breachDay' => '08',
+            'breachMonth' => 'julio',
+            'breachYear' => '2026',
+            'chargesDescription' => str_repeat(
+                'Falta grave por incumplimiento reiterado de turnos, protocolos y consignas operativas del puesto. ',
+                18,
+            ),
+            'workerManifestation' => 'yes',
+            'closingTime' => '10:30 AM',
+            'questions' => [
+                ['question' => '¿esta es la primera pregunta?', 'answer' => 'si'],
+                ['question' => '¿segunda?', 'answer' => 'si'],
+            ],
+            'signatureDataUri' => null,
+            'workerSignatureDataUri' => null,
+        ])->render();
+
+        $binary = HtmlLetterPdfGenerator::fromHtml($html);
+        $planned = preg_match_all('/<td class="ogj-meta-code">FO-GJ-04<\/td>/', $html);
+        $physical = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+
+        $this->assertGreaterThanOrEqual(2, $planned);
+        $this->assertSame(
+            $planned,
+            $physical,
+            'Cargos largos: hojas planificadas deben coincidir con Dompdf (sin hoja huérfana sin header)',
+        );
+        $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
+        $this->assertMatchesRegularExpression('/Página 1 de '.$planned.'/', $html);
+    }
+
     /**
      * @return array<string, mixed>
      */

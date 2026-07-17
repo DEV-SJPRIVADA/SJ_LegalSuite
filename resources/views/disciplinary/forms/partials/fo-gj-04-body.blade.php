@@ -56,7 +56,11 @@
         ];
     })->filter()->values()->all();
 
-    $pages = $questionPages ?? app(FoGj04PagePlanner::class)->plan($questionItems, (bool) $blankForDownload);
+    $pages = $questionPages ?? app(FoGj04PagePlanner::class)->plan([
+        'questions' => $questionItems,
+        'chargesDescription' => (string) $chargesDescription,
+        'blankForDownload' => (bool) $blankForDownload,
+    ]);
 
     $sharedIntroProps = compact(
         'blankForDownload',
@@ -95,11 +99,25 @@
                 'pageLine' => $page['pageLine'],
             ])
 
-            @if ($page['showIntro'])
-                @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps)
+            @if (
+                ($page['showIntroLead'] ?? false)
+                || ($page['showCharges'] ?? false)
+                || ($page['showIntroTerms'] ?? false)
+                || ($page['showIntroTail'] ?? false)
+            )
+                @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps + [
+                    'showIntroLead' => (bool) ($page['showIntroLead'] ?? false),
+                    'showCharges' => (bool) ($page['showCharges'] ?? false),
+                    'chargesShowLead' => (bool) ($page['chargesShowLead'] ?? false),
+                    'chargesIsContinuation' => (bool) ($page['chargesIsContinuation'] ?? false),
+                    'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
+                    'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
+                    'showIntroTerms' => (bool) ($page['showIntroTerms'] ?? false),
+                    'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
+                ])
             @endif
 
-            @if ($blankForDownload && $page['showIntro'] && ($page['questions'] ?? []) === [])
+            @if ($blankForDownload && ($page['showIntroLead'] ?? false) && ($page['questions'] ?? []) === [])
                 <p>(…)</p>
             @endif
 

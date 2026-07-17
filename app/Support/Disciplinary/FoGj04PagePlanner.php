@@ -5,11 +5,10 @@ namespace App\Support\Disciplinary;
 /**
  * Reparte FO-GJ-04 en páginas Letter explícitas (una `.ogj-page` = una hoja física).
  *
- * Reglas (mismo contrato que FO-GJ-03):
- * 1) El cuerpo fluye continuo: intro → preguntas → párrafo de cierre.
+ * Mismo contrato que FoGj03DocumentPaginator:
+ * 1) Cuerpo continuo: intro (cargos se trocean) → preguntas → párrafo de cierre.
  * 2) Cada hoja lleva encabezado HTML + “Página N de M”.
- * 3) Único bloque atómico: tabla de firmas. Si no caben enteras en la última hoja
- *    de cuerpo, pasan completas a una hoja nueva (nunca partidas).
+ * 3) Único bloque atómico: tabla de firmas.
  *
  * Constantes calibradas contra Dompdf Letter + --ogj-font-body: 12px.
  */
@@ -18,119 +17,277 @@ final class FoGj04PagePlanner
     private const PAGE_UNITS = 70;
 
     /**
-     * El intro (términos 1–5 + cargos) llena casi la hoja Letter en Dompdf.
-     * Dejar ~6 u. permite a lo sumo una pregunta muy corta en p.1; dos ya rebalsan.
+     * Holgura antes de colgar firmas en la misma hoja (anti-rebalse Dompdf).
      */
-    private const INTRO_OVERHEAD = 64;
+    private const CLOSING_SAFETY_UNITS = 5;
 
-    private const CONTINUATION_OVERHEAD = 2;
+    /** NOMBRE/CÉDULA/CARGO + apertura + partes + lead hasta “usted:”. */
+    private const INTRO_LEAD_UNITS = 24;
+
+    /** “comprendido como incumplimiento…”. */
+    private const CHARGES_TAIL_UNITS = 2;
+
+    /** “Con base…” + términos 1–5. */
+    private const INTRO_TERMS_UNITS = 24;
+
+    /** Manifestación + lead al cuestionario. */
+    private const INTRO_TAIL_UNITS = 8;
 
     private const QUESTION_BASE_UNITS = 2;
 
-    /** Párrafo “No siendo otro el motivo…” (fluye con el cuerpo, no es atómico). */
     private const CLOSING_TEXT_UNITS = 3;
 
-    /** Tabla de firmas (bloque atómico). */
     private const SIGNATURES_UNITS = 11;
-
-    private const CLOSING_SAFETY_UNITS = 5;
 
     private const CHARS_PER_LINE = 72;
 
-    /** Dompdf envuelve más ancho que el conteo ideal de caracteres. */
     private const TEXT_GROWTH_FACTOR = 1.35;
 
     /**
-     * @param  list<array{question: string, answer: string}>  $questions
+     * @param  array{
+     *     questions?: list<array{question: string, answer: string}>,
+     *     chargesDescription?: string,
+     *     blankForDownload?: bool,
+     * }  $context
      * @return list<array{
      *     pageNumber: int,
      *     totalPages: int,
      *     pageLine: string,
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>
      * }>
      */
-    public function plan(array $questions, bool $blankForDownload = false): array
+    public function plan(array $context = []): array
     {
-        $pages = $this->packBody($questions, $blankForDownload);
+        $bodyBlocks = $this->buildBodyBlocks($context);
+        $pages = $this->packBodyBlocks($bodyBlocks);
         $pages = $this->attachSignaturesAtomically($pages);
 
         return $this->finalizePageMeta($pages);
     }
 
     /**
-     * @param  list<array{question: string, answer: string}>  $questions
+     * @param  array<string, mixed>  $context
+     * @return list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}>
+     */
+    public function buildBodyBlocks(array $context): array
+    {
+        $blank = (bool) ($context['blankForDownload'] ?? false);
+        $chargesText = trim((string) ($context['chargesDescription'] ?? ''));
+        $questions = $this->normalizeQuestions($context['questions'] ?? []);
+
+        $blocks = [
+            ['type' => 'intro_lead', 'units' => self::INTRO_LEAD_UNITS],
+            ['type' => 'charges_lead', 'units' => 3],
+        ];
+
+        if ($blank) {
+            $blocks[] = ['type' => 'charges_text', 'units' => 2, 'text' => ''];
+        } elseif ($chargesText !== '') {
+            $blocks[] = [
+                'type' => 'charges_text',
+                'units' => max(1, (int) ceil($this->estimateTextLines($chargesText) * self::TEXT_GROWTH_FACTOR)),
+                'text' => $chargesText,
+            ];
+        } else {
+            $blocks[] = ['type' => 'charges_text', 'units' => 1, 'text' => ''];
+        }
+
+        $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
+        $blocks[] = ['type' => 'intro_terms', 'units' => self::INTRO_TERMS_UNITS];
+        $blocks[] = ['type' => 'intro_tail', 'units' => self::INTRO_TAIL_UNITS];
+
+        $number = 1;
+        foreach ($questions as $item) {
+            $blocks[] = [
+                'type' => 'question',
+                'units' => $this->estimateQuestionUnits($item),
+                'number' => $number,
+                'question' => $item['question'],
+                'answer' => $item['answer'],
+            ];
+            $number++;
+        }
+
+        $blocks[] = ['type' => 'closing_text', 'units' => self::CLOSING_TEXT_UNITS];
+
+        return $blocks;
+    }
+
+    /**
+     * @param  list<array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}>  $blocks
      * @return list<array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
      *     used: int
      * }>
      */
-    private function packBody(array $questions, bool $blankForDownload): array
+    private function packBodyBlocks(array $blocks): array
     {
         $pages = [];
         $current = $this->emptyPage();
-        $current['showIntro'] = true;
-        $current['used'] = self::INTRO_OVERHEAD;
-        $remaining = self::PAGE_UNITS - self::INTRO_OVERHEAD;
-        $questionNumber = 1;
+        $remaining = self::PAGE_UNITS;
 
-        if ($blankForDownload && $questions === []) {
-            // Marcador “(…)” en Blade: reserva mínima bajo el intro.
-            $current['used'] += 2;
-            $remaining -= 2;
-        }
+        foreach ($blocks as $block) {
+            $type = (string) $block['type'];
 
-        foreach ($questions as $item) {
-            $units = $this->estimateQuestionUnits($item);
+            if ($type === 'charges_text') {
+                $text = (string) ($block['text'] ?? '');
 
-            if ($units > $remaining && ! $this->pageIsEmptyBody($current)) {
-                $pages[] = $current;
-                $current = $this->emptyPage();
-                $current['used'] = self::CONTINUATION_OVERHEAD;
-                $remaining = self::PAGE_UNITS - self::CONTINUATION_OVERHEAD;
+                if ($text === '') {
+                    if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
+                        $pages[] = $current;
+                        $current = $this->emptyPage();
+                        $remaining = self::PAGE_UNITS;
+                    }
+                    $current['showCharges'] = true;
+                    $current['used'] += 1;
+                    $remaining -= 1;
+
+                    continue;
+                }
+
+                while ($text !== '') {
+                    if ($remaining < 2 && ! $this->pageIsEmpty($current)) {
+                        $pages[] = $current;
+                        $current = $this->emptyPage();
+                        $remaining = self::PAGE_UNITS;
+                    }
+
+                    $maxUnits = max(1, $remaining);
+                    [$chunk, $rest] = $this->takeTextForUnits($text, $maxUnits);
+
+                    if ($chunk === '' && ! $this->pageIsEmpty($current)) {
+                        $pages[] = $current;
+                        $current = $this->emptyPage();
+                        $remaining = self::PAGE_UNITS;
+
+                        continue;
+                    }
+
+                    if ($chunk === '') {
+                        [$chunk, $rest] = $this->takeTextForUnits($text, max(4, (int) ceil(self::PAGE_UNITS / 4)));
+                    }
+
+                    $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
+                    $chunkUnits = min($chunkUnits, max(1, $remaining));
+
+                    $current['showCharges'] = true;
+                    if (! $current['chargesShowLead']) {
+                        $current['chargesIsContinuation'] = true;
+                    }
+                    $current['chargesChunk'] = trim($current['chargesChunk'].' '.$chunk);
+                    $current['used'] += $chunkUnits;
+                    $remaining -= $chunkUnits;
+                    $text = $rest;
+                }
+
+                continue;
             }
 
-            $current['questions'][] = [
-                'number' => $questionNumber,
-                'question' => $item['question'],
-                'answer' => $item['answer'],
-            ];
-            $questionNumber++;
+            $units = max(1, (int) $block['units']);
+
+            if ($units > $remaining && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+            }
+
+            $this->applyBodyBlock($current, $block);
             $current['used'] += $units;
             $remaining -= $units;
         }
 
-        $closingText = self::CLOSING_TEXT_UNITS;
-        if ($closingText > $remaining && ! $this->pageIsEmptyBody($current)) {
+        if (! $this->pageIsEmpty($current) || $pages === []) {
             $pages[] = $current;
-            $current = $this->emptyPage();
-            $current['used'] = self::CONTINUATION_OVERHEAD;
-            $remaining = self::PAGE_UNITS - self::CONTINUATION_OVERHEAD;
         }
-
-        $current['showClosingText'] = true;
-        $current['used'] += $closingText;
-
-        $pages[] = $current;
 
         return $pages;
     }
 
     /**
+     * @param  array{
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
+     *     showClosingText: bool,
+     *     showClosing: bool,
+     *     questions: list<array{number: int, question: string, answer: string}>,
+     *     used: int
+     * }  $page
+     * @param  array{type: string, units: int, text?: string, number?: int, question?: string, answer?: string}  $block
+     */
+    private function applyBodyBlock(array &$page, array $block): void
+    {
+        match ((string) $block['type']) {
+            'intro_lead' => $page['showIntroLead'] = true,
+            'charges_lead' => (function () use (&$page): void {
+                $page['showCharges'] = true;
+                $page['chargesShowLead'] = true;
+            })(),
+            'charges_tail' => (function () use (&$page): void {
+                $page['showCharges'] = true;
+                $page['chargesShowTail'] = true;
+            })(),
+            'intro_terms' => $page['showIntroTerms'] = true,
+            'intro_tail' => $page['showIntroTail'] = true,
+            'closing_text' => $page['showClosingText'] = true,
+            'question' => $page['questions'][] = [
+                'number' => (int) ($block['number'] ?? count($page['questions']) + 1),
+                'question' => (string) ($block['question'] ?? ''),
+                'answer' => (string) ($block['answer'] ?? ''),
+            ],
+            default => null,
+        };
+    }
+
+    /**
      * @param  list<array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
      *     used: int
      * }>  $pages
      * @return list<array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
@@ -150,9 +307,8 @@ final class FoGj04PagePlanner
 
         $lastIdx = array_key_last($pages);
         $used = (int) $pages[$lastIdx]['used'];
-        $need = self::SIGNATURES_UNITS + self::CLOSING_SAFETY_UNITS;
 
-        if (($used + $need) <= self::PAGE_UNITS) {
+        if (($used + self::SIGNATURES_UNITS + self::CLOSING_SAFETY_UNITS) <= self::PAGE_UNITS) {
             $pages[$lastIdx]['showClosing'] = true;
             $pages[$lastIdx]['used'] = $used + self::SIGNATURES_UNITS;
 
@@ -169,7 +325,14 @@ final class FoGj04PagePlanner
 
     /**
      * @return array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
@@ -179,7 +342,14 @@ final class FoGj04PagePlanner
     private function emptyPage(): array
     {
         return [
-            'showIntro' => false,
+            'showIntroLead' => false,
+            'showCharges' => false,
+            'chargesShowLead' => false,
+            'chargesIsContinuation' => false,
+            'chargesChunk' => '',
+            'chargesShowTail' => false,
+            'showIntroTerms' => false,
+            'showIntroTail' => false,
             'showClosingText' => false,
             'showClosing' => false,
             'questions' => [],
@@ -189,18 +359,58 @@ final class FoGj04PagePlanner
 
     /**
      * @param  array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
      *     used: int
      * }  $page
      */
-    private function pageIsEmptyBody(array $page): bool
+    private function pageIsEmpty(array $page): bool
     {
-        return ! ($page['showIntro'] ?? false)
-            && ($page['questions'] ?? []) === []
-            && ! ($page['showClosingText'] ?? false);
+        return ! $page['showIntroLead']
+            && ! $page['showCharges']
+            && ! $page['showIntroTerms']
+            && ! $page['showIntroTail']
+            && ! $page['showClosingText']
+            && ! $page['showClosing']
+            && $page['questions'] === []
+            && trim($page['chargesChunk']) === '';
+    }
+
+    /**
+     * @param  mixed  $questions
+     * @return list<array{question: string, answer: string}>
+     */
+    private function normalizeQuestions(mixed $questions): array
+    {
+        if (! is_array($questions)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($questions as $q) {
+            if (! is_array($q)) {
+                continue;
+            }
+            $question = trim((string) ($q['question'] ?? $q['text'] ?? ''));
+            if ($question === '') {
+                continue;
+            }
+            $out[] = [
+                'question' => $question,
+                'answer' => trim((string) ($q['answer'] ?? '')),
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -238,8 +448,42 @@ final class FoGj04PagePlanner
     }
 
     /**
+     * @return array{0: string, 1: string}
+     */
+    private function takeTextForUnits(string $text, int $maxUnits): array
+    {
+        $text = trim($text);
+        if ($text === '' || $maxUnits < 1) {
+            return ['', $text];
+        }
+
+        $maxChars = max(20, $maxUnits * self::CHARS_PER_LINE);
+        if (mb_strlen($text) <= $maxChars) {
+            return [$text, ''];
+        }
+
+        $slice = mb_substr($text, 0, $maxChars);
+        $breakAt = mb_strrpos($slice, ' ');
+        if ($breakAt !== false && $breakAt > (int) ($maxChars * 0.4)) {
+            $slice = mb_substr($slice, 0, $breakAt);
+        }
+
+        $slice = rtrim($slice);
+        $rest = ltrim(mb_substr($text, mb_strlen($slice)));
+
+        return [$slice, $rest];
+    }
+
+    /**
      * @param  list<array{
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>,
@@ -249,7 +493,14 @@ final class FoGj04PagePlanner
      *     pageNumber: int,
      *     totalPages: int,
      *     pageLine: string,
-     *     showIntro: bool,
+     *     showIntroLead: bool,
+     *     showCharges: bool,
+     *     chargesShowLead: bool,
+     *     chargesIsContinuation: bool,
+     *     chargesChunk: string,
+     *     chargesShowTail: bool,
+     *     showIntroTerms: bool,
+     *     showIntroTail: bool,
      *     showClosingText: bool,
      *     showClosing: bool,
      *     questions: list<array{number: int, question: string, answer: string}>
@@ -266,7 +517,14 @@ final class FoGj04PagePlanner
                 'pageNumber' => $pageNumber,
                 'totalPages' => $total,
                 'pageLine' => 'Página '.$pageNumber.' de '.$total,
-                'showIntro' => (bool) ($page['showIntro'] ?? false),
+                'showIntroLead' => (bool) ($page['showIntroLead'] ?? false),
+                'showCharges' => (bool) ($page['showCharges'] ?? false),
+                'chargesShowLead' => (bool) ($page['chargesShowLead'] ?? false),
+                'chargesIsContinuation' => (bool) ($page['chargesIsContinuation'] ?? false),
+                'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
+                'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
+                'showIntroTerms' => (bool) ($page['showIntroTerms'] ?? false),
+                'showIntroTail' => (bool) ($page['showIntroTail'] ?? false),
                 'showClosingText' => (bool) ($page['showClosingText'] ?? false),
                 'showClosing' => (bool) ($page['showClosing'] ?? false),
                 'questions' => $page['questions'] ?? [],
