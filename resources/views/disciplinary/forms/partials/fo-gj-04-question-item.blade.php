@@ -8,7 +8,8 @@
     @if ($showTitle)
         <p class="ogj-04-question-title">{{ $number }}. PREGUNTA: {{ $questionText }}</p>
     @endif
-    @if ($showTitle || filled($answerText) || $blankForDownload || $isAnswerContinuation)
+    {{-- El planner emite título y respuesta como filas distintas: no pintar R: en la fila del título. --}}
+    @if (filled($answerText) || $blankForDownload || $isAnswerContinuation || ! $showTitle)
         <p class="ogj-04-question-answer">
             @if (! $isAnswerContinuation)
                 <strong>R:</strong>

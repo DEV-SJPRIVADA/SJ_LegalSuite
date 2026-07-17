@@ -23,7 +23,8 @@ final class FoGj04PagePlanner
 
     private const CLOSING_SAFETY_UNITS = 5;
 
-    private const INTRO_LEAD_UNITS = 14;
+    /** Dompdf Letter: intro densificado; 14 dejaba ~30% hueco tras términos en actas cortas. */
+    private const INTRO_LEAD_UNITS = 12;
 
     private const CHARGES_TAIL_UNITS = 2;
 
@@ -295,13 +296,7 @@ final class FoGj04PagePlanner
         }
 
         if ($type === 'answer_text') {
-            $page['questions'][] = [
-                'number' => $questionNumber,
-                'question' => '',
-                'answer' => '',
-                'showTitle' => false,
-                'isAnswerContinuation' => false,
-            ];
+            $this->appendOrMergeAnswer($page, $questionNumber, '', false);
         }
     }
 
@@ -337,14 +332,47 @@ final class FoGj04PagePlanner
         }
 
         if ($type === 'answer_text') {
-            $page['questions'][] = [
-                'number' => $questionNumber,
-                'question' => '',
-                'answer' => $chunk,
-                'showTitle' => false,
-                'isAnswerContinuation' => $isContinuation,
-            ];
+            $this->appendOrMergeAnswer($page, $questionNumber, $chunk, $isContinuation);
         }
+    }
+
+    /**
+     * Une la respuesta con el título de la misma pregunta si aún está en esta hoja
+     * (evita dos filas Blade → doble "R:" en el PDF).
+     *
+     * @param  array<string, mixed>  $page
+     */
+    private function appendOrMergeAnswer(
+        array &$page,
+        int $questionNumber,
+        string $answer,
+        bool $isContinuation,
+    ): void {
+        $questions = &$page['questions'];
+        $lastIndex = array_key_last($questions);
+
+        if ($lastIndex !== null) {
+            $last = $questions[$lastIndex];
+            if (
+                (int) ($last['number'] ?? 0) === $questionNumber
+                && (bool) ($last['showTitle'] ?? false)
+                && ! (bool) ($last['isAnswerContinuation'] ?? false)
+                && trim((string) ($last['answer'] ?? '')) === ''
+                && ! $isContinuation
+            ) {
+                $questions[$lastIndex]['answer'] = $answer;
+
+                return;
+            }
+        }
+
+        $questions[] = [
+            'number' => $questionNumber,
+            'question' => '',
+            'answer' => $answer,
+            'showTitle' => false,
+            'isAnswerContinuation' => $isContinuation,
+        ];
     }
 
     /**

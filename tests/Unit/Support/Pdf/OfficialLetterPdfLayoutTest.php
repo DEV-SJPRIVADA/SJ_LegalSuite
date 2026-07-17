@@ -214,6 +214,11 @@ class OfficialLetterPdfLayoutTest extends TestCase
             'Hojas HTML planificadas deben coincidir con páginas físicas Dompdf',
         );
         $this->assertSame($planned, $this->countPdfStreamNeedle($binary, 'FO-GJ-04'));
+        $this->assertDoesNotMatchRegularExpression(
+            '/PREGUNTA:[\s\S]*?ogj-04-guide[\s\S]*?ogj-04-answer-inline/u',
+            $html,
+            'No debe inyectar guía limpia y respuesta digitada a la vez',
+        );
     }
 
     public function test_fo_gj_04_long_questionnaire_plans_pages_matching_physical_dompdf(): void

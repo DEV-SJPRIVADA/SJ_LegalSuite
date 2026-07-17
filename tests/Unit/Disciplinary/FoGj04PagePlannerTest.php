@@ -192,7 +192,7 @@ class FoGj04PagePlannerTest extends TestCase
             $pages[0]['termChunks'],
         )));
         $this->assertNotEmpty($termNumsOnFirst);
-        // Con INTRO_LEAD ~16, la p.1 debe llegar al menos al término 3 (antes con 24 cortaba antes).
+        // Con INTRO_LEAD densificado, la p.1 debe llegar al menos al término 3.
         $this->assertGreaterThanOrEqual(3, max($termNumsOnFirst));
     }
 
@@ -209,10 +209,46 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertTrue($pages[0]['showIntroLead']);
         $this->assertNotEmpty($pages[0]['termChunks']);
 
-        // Tras bajar sobrecoste de términos, la cola del intro debe caber en p.1 (anti-hueco ~30%).
+        // Tras bajar sobrecoste de intro, la cola debe caber en p.1 (anti-hueco ~30%).
         $this->assertTrue(
-            $pages[0]['showIntroManifestation'] || $pages[0]['showIntroQuizLead'],
-            'La p.1 no debe cerrar tras el término 5 dejando hueco: debe retener manifestación o lead del cuestionario',
+            $pages[0]['showIntroManifestation']
+            || $pages[0]['showIntroQuizLead']
+            || $pages[0]['questions'] !== [],
+            'La p.1 no debe cerrar tras términos dejando hueco: debe retener cola intro o preguntas',
+        );
+    }
+
+    public function test_question_title_and_answer_merge_on_same_page(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'SI'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'SI'],
+            ],
+        ]);
+
+        foreach ($pages as $page) {
+            $byNumber = [];
+            foreach ($page['questions'] as $item) {
+                $n = (int) $item['number'];
+                $byNumber[$n][] = $item;
+            }
+
+            foreach ($byNumber as $n => $items) {
+                if (count($items) < 2) {
+                    continue;
+                }
+
+                $this->fail("La pregunta {$n} no debe quedar como título vacío + respuesta separada en la misma hoja");
+            }
+        }
+
+        $this->assertTrue(
+            collect($pages)->contains(fn (array $page): bool => collect($page['questions'])->contains(
+                fn (array $item): bool => ($item['showTitle'] ?? false) && trim((string) ($item['answer'] ?? '')) !== '',
+            )),
+            'Al menos una pregunta debe fusionar título y respuesta en la misma hoja',
         );
     }
 
