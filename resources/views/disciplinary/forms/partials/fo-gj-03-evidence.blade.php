@@ -16,14 +16,12 @@
     };
 
     $showLead = (bool) ($evidenceShowLead ?? true);
-    $isContinuation = (bool) ($evidenceIsContinuation ?? false);
     $chunk = trim((string) ($evidenceChunk ?? ''));
     $fullTraslado = FoGj03DocumentPaginator::evidenceTrasladoText();
 
     // Compat legacy: sin chunk explícito, pintar el párrafo completo.
     if ($chunk === '' && ($evidenceShowLead ?? null) === null && ($evidenceChunk ?? null) === null) {
         $showLead = true;
-        $isContinuation = false;
         $chunk = $fullTraslado;
     }
 @endphp
@@ -41,8 +39,6 @@
             @endif
         </li>
     </ul>
-@elseif ($isContinuation)
-    <p class="ogj-03-section-title">Elementos probatorios (continuación)</p>
 @endif
 
 @if ($chunk !== '')
