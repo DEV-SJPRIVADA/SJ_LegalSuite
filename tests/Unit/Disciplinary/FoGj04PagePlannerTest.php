@@ -177,6 +177,25 @@ class FoGj04PagePlannerTest extends TestCase
         $this->assertCount(8, $titles);
     }
 
+    public function test_short_charges_page_one_reaches_later_terms(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'si'],
+            ],
+        ]);
+
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $termNumsOnFirst = array_values(array_unique(array_map(
+            static fn (array $chunk): int => (int) $chunk['number'],
+            $pages[0]['termChunks'],
+        )));
+        $this->assertNotEmpty($termNumsOnFirst);
+        // Con INTRO_LEAD calibrado (~18), la p.1 debe llegar al menos al término 3 (antes con 24 cortaba antes y dejaba hueco).
+        $this->assertGreaterThanOrEqual(3, max($termNumsOnFirst));
+    }
+
     public function test_closing_text_flows_before_atomic_signatures(): void
     {
         $pages = $this->planner->plan([

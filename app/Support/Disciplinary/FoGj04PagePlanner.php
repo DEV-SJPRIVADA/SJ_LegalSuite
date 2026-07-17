@@ -14,15 +14,23 @@ namespace App\Support\Disciplinary;
  */
 final class FoGj04PagePlanner
 {
-    private const PAGE_UNITS = 66;
+    /**
+     * Capacidad bajo el encabezado.
+     * 66+INTRO 24 → hueco; 70+INTRO 15 → Dompdf rebalsa (planned < physical).
+     */
+    private const PAGE_UNITS = 68;
 
     private const CLOSING_SAFETY_UNITS = 5;
 
-    private const INTRO_LEAD_UNITS = 24;
+    /**
+     * Solo id + apertura + partes (sin cargos).
+     * 24 sobrestimaba (hueco); 12–15 subestimaba (rebalse Dompdf). Punto medio ~18–20.
+     */
+    private const INTRO_LEAD_UNITS = 18;
 
     private const CHARGES_TAIL_UNITS = 2;
 
-    private const TERMS_LEAD_UNITS = 3;
+    private const TERMS_LEAD_UNITS = 2;
 
     private const INTRO_MANIFESTATION_UNITS = 3;
 
@@ -34,9 +42,9 @@ final class FoGj04PagePlanner
 
     private const SIGNATURES_UNITS = 11;
 
-    private const CHARS_PER_LINE = 55;
+    private const CHARS_PER_LINE = 58;
 
-    private const TEXT_GROWTH_FACTOR = 1.55;
+    private const TEXT_GROWTH_FACTOR = 1.45;
 
     /**
      * Textos legales de los términos (Blade debe coincidir).
