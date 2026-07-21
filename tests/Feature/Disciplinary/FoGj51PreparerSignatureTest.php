@@ -161,12 +161,55 @@ class FoGj51PreparerSignatureTest extends TestCase
 
         $this->assertStringNotContainsString('fo51-interactive', $html);
         $this->assertStringNotContainsString('@media (max-width: 767px)', $html);
+        $this->assertStringContainsString('fo51-pdf', $html);
+        $this->assertStringContainsString('fo51-fault-line-tbl', $html);
+        $this->assertStringContainsString('fo51-obs-pdf', $html);
+        $this->assertStringNotContainsString('<textarea', $html);
         $this->assertStringContainsString('fo51-personal-inner', $html);
         $this->assertStringNotContainsString('.fo51-personal-cell {
         display: flex', $html);
         $this->assertStringContainsString('colspan="3"', $html);
         $this->assertStringContainsString('>NOMBRE:</span>', $html);
         $this->assertSame(6, substr_count($html, 'class="fo51-personal-cell"'));
+    }
+
+    public function test_filled_pdf_dompdf_fits_one_physical_page(): void
+    {
+        config(['services.pdf.driver' => 'dompdf']);
+
+        $signature = $this->sampleSignatureDataUri();
+
+        $html = view('disciplinary.forms.fo-gj-51-filled-download', [
+            'embeddedLogoSrc' => 'data:image/png;base64,AA==',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '76269756',
+            'workerCargo' => 'GUARDA DE SEGURIDAD',
+            'city' => 'Cali',
+            'shift' => 'Mañana',
+            'position' => 'Puesto 1',
+            'faultOtherDetail' => '',
+            'observations' => 'estoy realizando pruebas para probar la creación de PDF',
+            'preparerName' => 'Supervisor campo',
+            'preparerRole' => 'nivel2',
+            'preparerSignature' => $signature,
+            'reportDay' => '21',
+            'reportMonth' => '07',
+            'reportYear' => '2026',
+            'faultLeftChecked' => ['Retardo al Servicio'],
+            'faultRightChecked' => ['Incumplimiento de consignas'],
+            'faultOtherChecked' => false,
+            'jurPd' => '',
+            'entregaGh' => '',
+            'jurDd' => '',
+            'jurMm' => '',
+            'jurYyyy' => '',
+        ])->render();
+
+        $binary = \App\Support\Pdf\HtmlLetterPdfGenerator::fromHtml($html);
+        $physical = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+
+        $this->assertSame(1, $physical, 'FO-GJ-51 canónico debe caber en 1 hoja Letter Dompdf');
+        $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-51<\/td>/', $html));
     }
 
     private function makeSupervisor(): User
