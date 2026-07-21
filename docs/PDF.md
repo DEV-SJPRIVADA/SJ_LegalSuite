@@ -335,9 +335,108 @@ Mismo contrato que FO-GJ-03, extendido para acta de diligencia con cuestionario.
 
 ---
 
-## 8. Formas de una sola página
+## 8. FO-GJ-51 — Informe disciplinario (pantalla + PDF)
 
-FO-GJ-44, FO-GJ-54, FO-GJ-51 (típico), FO-GJ-DECISION, ACTA-COMITE (corto):
+**Componente único:** `resources/views/components/disciplinary/forms/fo-gj-51-preview.blade.php`  
+**Servicio PDF:** `app/Services/Disciplinary/FoGj51PdfBuilder.php` → `fo-gj-51-filled-download`  
+**Formulario web:** `fo-gj-51-informe-body` → modal (`fo-gj-51-informe-modal-shell`) o página `fo-gj-51-fill`
+
+### Dos modos de render (misma plantilla)
+
+| Modo | Activación | Uso |
+|------|------------|-----|
+| **Pantalla interactiva** | `renderAsPdf=false`, `blankForDownload=false` | Diligenciar, capturar firma, enviar a revisión |
+| **PDF Dompdf** | `renderAsPdf=true` en `fo-gj-51-filled-download` | `FoGj51PdfBuilder::buildBinary()` |
+| **Blanco (catálogo)** | `blankForDownload=true` | Descarga / preview en Formatos |
+
+Clases en el contenedor:
+
+- `.fo51-interactive` — formulario editable (flex en grilla personal y faltas; OK en navegador).
+- `.fo51-pdf` — reglas compactas solo para Dompdf (sin flexbox).
+- `.fo51-letter-screen-host` + `.ogj-letter-screen-sheet` — **solo pantalla**, no PDF.
+
+### Pantalla: hoja Letter centrada
+
+El formulario interactivo se envuelve en:
+
+```html
+<div class="ogj-letter-screen-scaler">
+  <div class="ogj-letter-screen-sheet"> <!-- 8.5in × min 11in, sombra -->
+    <official-letter-pdf-shell …>
+```
+
+- Centrado horizontal (`justify-content: center` en el scaler).
+- Escala Alpine si el modal es más estrecho que 8.5″ (mismo patrón que FO-GJ-03 en evidencias).
+- Dentro de la hoja, `.ogj-page` usa `width: 100%`, `padding: 0.5in`, `min-height: 10in` (reglas en `official-letter-pdf-styles` bajo `.ogj-letter-screen-sheet`).
+
+**No** aplica al PDF: Dompdf sigue con `.ogj-page { width: 7.5in; margin: 0.5in }` sin el envoltorio de pantalla.
+
+### PDF: alineación con la plantilla (1 hoja Letter)
+
+Dompdf **no soporta flexbox** de forma fiable. El modo `.fo51-pdf` evita flex y controles HTML pesados:
+
+| Bloque | Pantalla | PDF (`renderAsPdf`) |
+|--------|----------|---------------------|
+| Datos trabajador | `fo51-personal-inner` (flex) | `display: table` en etiqueta + valor |
+| Faltas | `fo51-fault-line` (flex + checkbox) | Mini-tabla `fo51-fault-line-tbl`: texto izq. + casilla al final (`fo51-fault-chk-box`) |
+| Observaciones | `<textarea rows="10">` | `<div class="fo51-obs-pdf">` (altura según texto, min ~72px) |
+| Elaborador / jurídico | `<input>` | `<span class="fo51-static">` |
+| Espaciado entre bloques | `margin-bottom: 11px` | `7px` en `.fo51-pdf .fo51-block` |
+
+Casillas de faltas en PDF: cuadrado con borde y **X** si está marcada (no `<input type="checkbox">`).
+
+### Grilla datos del trabajador (estructura fija)
+
+Tabla 4 columnas en `fo-gj-51-preview`:
+
+- Fila 1: **CC:** (25%) + **NOMBRE:** (`colspan="3"`).
+- Fila 2: **CARGO:** | **CIUDAD:** | **TURNO:** | **PUESTO:** (25% c/u).
+
+Etiquetas inline con `fo51-inline-lbl` + valor en `fo51-personal-val`. En móvil, `fo-gj-51-screen-mobile` apila celdas (`@media max-width: 767px`).
+
+### Firma del elaborador
+
+- Pantalla: `sjFo51PreparerSignature()` + `signature-capture-modal-alpine` → `fo51_preparer_signature` (data URI PNG).
+- PDF: `<img class="fo51-signature-img">` si hay firma capturada.
+- Validación: `PngSignatureDataUri` en `StoreFoGj51InformePdfRequest` / `FoGj51ProcessRequest`.
+
+### Expectativa Dompdf
+
+Forma canónica con observaciones cortas + firma: **1 página física** (`FoGj51PreparerSignatureTest::test_filled_pdf_dompdf_fits_one_physical_page`).
+
+### Archivos clave
+
+| Archivo | Rol |
+|---------|-----|
+| `fo-gj-51-preview.blade.php` | Plantilla + estilos FO-GJ-51 + modos pantalla/PDF |
+| `fo-gj-51-informe-body.blade.php` | Form POST, evidencias, modales |
+| `fo-gj-51-informe-modal-shell.blade.php` | Modal listado / evidencias |
+| `fo-gj-51-screen-mobile.blade.php` | CSS móvil (solo `.fo51-interactive`) |
+| `official-letter-pdf-shell.blade.php` | Encabezado FO-GJ-51 (logo, meta, código) |
+| `official-letter-pdf-styles.blade.php` | Letter compartido + reglas `.ogj-letter-screen-sheet` |
+
+### Troubleshooting FO-GJ-51
+
+| Síntoma | Causa | Dónde mirar |
+|---------|-------|-------------|
+| PDF con 2 hojas y pie jurídico suelto | `textarea` / inputs / flex en PDF | Debe usarse `renderAsPdf` + clase `.fo51-pdf` |
+| Casilla de falta pegada al texto en PDF | Flex en `fo51-fault-line` | Debe renderizarse `fo51-fault-line-tbl` |
+| Grilla trabajador “inflada” en PDF | Flex en `fo51-personal-inner` | Reglas `.fo51-pdf .fo51-personal-inner { display: table }` |
+| HTML carrado a la izquierda, bloque cuadrado | Sin `ogj-letter-screen-sheet` | Solo afecta pantalla; envolver preview interactivo |
+| Doble R: / guía + respuesta | N/A en FO-GJ-51 | (FO-GJ-04: ver sección 7) |
+
+### Tests
+
+| Test | Qué valida |
+|------|------------|
+| `FoGj51PreparerSignatureTest` | Firma obligatoria, HTML interactivo vs PDF, **1 hoja Dompdf**, `ogj-letter-screen-sheet` en formulario |
+| `FoGj51SnapshotFaultMapperTest` | Mapeo de faltas en snapshot |
+
+---
+
+## 9. Otras formas de una sola página
+
+FO-GJ-44, FO-GJ-54, FO-GJ-DECISION, ACTA-COMITE (corto); FO-GJ-51 detallado en **§8**.
 
 - Usan `official-letter-pdf-shell` o documento propio sin paginador PHP.
 - Un encabezado; Dompdf fluye el contenido.
@@ -345,7 +444,7 @@ FO-GJ-44, FO-GJ-54, FO-GJ-51 (típico), FO-GJ-DECISION, ACTA-COMITE (corto):
 
 ---
 
-## 9. Pruebas y calibración Dompdf
+## 10. Pruebas y calibración Dompdf
 
 ### Archivos de test
 
@@ -357,6 +456,7 @@ FO-GJ-44, FO-GJ-54, FO-GJ-51 (típico), FO-GJ-DECISION, ACTA-COMITE (corto):
 | `DompdfLetterPdfDriverTest` | `tests/Unit/Support/Pdf/DompdfLetterPdfDriverTest.php` | Smoke del driver |
 | `LetterPdfDriverTest` | `tests/Unit/Support/Pdf/LetterPdfDriverTest.php` | Selección de driver |
 | `EmbeddedPdfFontTest` | `tests/Unit/Support/Pdf/EmbeddedPdfFontTest.php` | TTF presentes |
+| `FoGj51PreparerSignatureTest` | `tests/Feature/Disciplinary/FoGj51PreparerSignatureTest.php` | FO-GJ-51 pantalla vs PDF, 1 hoja Dompdf |
 | `FoGj03DraftTest` / `FoGj04DraftTest` | `tests/Feature/Disciplinary/` | Rutas + preview inline |
 
 ### Metodología «planned vs physical»
@@ -384,7 +484,7 @@ Además se cuenta la aguja `FO-GJ-0X` en streams descomprimidos del PDF para ver
 | FO-GJ-03 citación típica | 1 planificada = 1 física |
 | FO-GJ-04 acta corta (1–2 preguntas) | ≥ 2 hojas |
 | FO-GJ-04 cargos largos / cuestionario largo | `planned === physical` estricto |
-| FO-GJ-03 cargos muy largos | `physical ≤ planned + 1` (holgura mínima) |
+| FO-GJ-51 informe típico | **1** página física Dompdf |
 
 ### Cómo recalibrar tras cambiar CSS o constantes
 
@@ -402,7 +502,7 @@ php vendor/bin/phpunit tests/Unit/Support/Pdf/OfficialLetterPdfLayoutTest.php --
 
 ---
 
-## 10. Después de cambiar plantillas
+## 11. Después de cambiar plantillas
 
 1. **`npm run build`** — si tocaste assets Vite o clases en vistas con Tailwind.
 2. **`php artisan view:clear`** — si la vista previa no refleja cambios.
@@ -411,7 +511,7 @@ php vendor/bin/phpunit tests/Unit/Support/Pdf/OfficialLetterPdfLayoutTest.php --
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Síntoma | Causa probable | Acción |
 |---------|----------------|--------|
@@ -427,7 +527,7 @@ php vendor/bin/phpunit tests/Unit/Support/Pdf/OfficialLetterPdfLayoutTest.php --
 
 ---
 
-## 12. Añadir un nuevo formato PDF
+## 13. Añadir un nuevo formato PDF
 
 1. Crear vistas `{codigo}-filled-download.blade.php` y opcional `{codigo}-blank-download.blade.php`.
 2. Incluir `official-letter-pdf-styles` (o estilos propios si no es FO-GJ).
@@ -440,7 +540,7 @@ php vendor/bin/phpunit tests/Unit/Support/Pdf/OfficialLetterPdfLayoutTest.php --
 
 ---
 
-## 13. Mapa de archivos clave
+## 14. Mapa de archivos clave
 
 ```
 app/Support/Pdf/
@@ -467,6 +567,9 @@ app/Services/Disciplinary/
   CitationNotificationSigningService.php
   DecisionNotificationSigningService.php
 
+resources/views/components/disciplinary/forms/
+  fo-gj-51-preview.blade.php       ← FO-GJ-51 pantalla + PDF (.fo51-pdf)
+
 resources/views/disciplinary/forms/
   partials/official-letter-pdf-styles.blade.php
   partials/fo-gj-03-*.blade.php
@@ -477,6 +580,7 @@ resources/views/disciplinary/forms/
 resources/fonts/pdf/               ← Liberation TTF
 public/images/logo solo.png        ← logo único
 
+tests/Feature/Disciplinary/FoGj51PreparerSignatureTest.php
 tests/Unit/Support/Pdf/OfficialLetterPdfLayoutTest.php
 tests/Unit/Disciplinary/FoGj03DocumentPaginatorTest.php
 tests/Unit/Disciplinary/FoGj04PagePlannerTest.php
@@ -484,7 +588,7 @@ tests/Unit/Disciplinary/FoGj04PagePlannerTest.php
 
 ---
 
-## 14. Referencias cruzadas
+## 15. Referencias cruzadas
 
 - `README.md` — sección «PDF disciplinarios», variables `.env`, Hostinger vs local.
 - `docs/ARCHITECTURE.md` — stack y estructura general del proyecto.
