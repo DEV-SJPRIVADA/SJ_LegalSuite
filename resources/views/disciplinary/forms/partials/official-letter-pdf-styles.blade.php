@@ -56,9 +56,16 @@
         padding: 0.5in;
     }
     .ogj-letter-screen-sheet .ogj-page {
-        /* Solo pantalla: simula el inset de @page letter. */
+        /* Solo pantalla: hoja 8.5×11 con inset 0.5in (sin margin extra de PDF). */
+        width: 100%;
+        margin: 0;
+        min-height: 10in;
         padding: 0.5in;
         box-sizing: border-box;
+    }
+    .ogj-letter-screen-sheet .ogj-wrap {
+        width: 100%;
+        background: transparent;
     }
     .ogj-block {
         border: 1px solid #000;

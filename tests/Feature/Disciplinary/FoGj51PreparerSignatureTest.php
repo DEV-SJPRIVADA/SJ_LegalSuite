@@ -117,7 +117,8 @@ class FoGj51PreparerSignatureTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('fo51-interactive', false);
+        $response->assertSee('class="fo51-interactive"', false);
+        $response->assertSee('class="ogj-letter-screen-sheet"', false);
         $response->assertSee('fo51-block-personal', false);
         $response->assertSee('fo51-personal-inner', false);
         $response->assertSee('fo51-inline-lbl', false);
@@ -159,7 +160,9 @@ class FoGj51PreparerSignatureTest extends TestCase
             'jurYyyy' => '',
         ])->render();
 
-        $this->assertStringNotContainsString('fo51-interactive', $html);
+        $this->assertDoesNotMatchRegularExpression('/<div[^>]*class="[^"]*fo51-interactive/', $html);
+        $this->assertStringNotContainsString('class="ogj-letter-screen-sheet"', $html);
+        $this->assertStringNotContainsString('x-ref="fo51LetterSheet"', $html);
         $this->assertStringNotContainsString('@media (max-width: 767px)', $html);
         $this->assertStringContainsString('fo51-pdf', $html);
         $this->assertStringContainsString('fo51-fault-line-tbl', $html);

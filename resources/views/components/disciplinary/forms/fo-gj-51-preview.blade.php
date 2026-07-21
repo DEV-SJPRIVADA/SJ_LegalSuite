@@ -106,6 +106,7 @@
 
     $fo51Interactive = ! ($renderAsPdf ?? false) && ! ($blankForDownload ?? false);
     $isPdfRender = (bool) ($renderAsPdf ?? false);
+    $useLetterScreen = ! $isPdfRender;
 @endphp
 
 @if ($fo51Interactive)
@@ -471,7 +472,33 @@
     .fo51-pdf .fo51-legal-cell--center {
         text-align: center;
     }
+    .fo51-letter-screen-host {
+        width: 100%;
+    }
+    .fo51-interactive .ogj-letter-screen-scaler {
+        padding: 0.75rem 0 1.25rem;
+    }
 </style>
+
+@if ($useLetterScreen)
+    <div
+        class="fo51-letter-screen-host"
+        x-data="{ scale: 1 }"
+        x-init="
+            const updateScale = () => {
+                const sheet = $refs.fo51LetterSheet;
+                if (! sheet) return;
+                const available = $el.clientWidth - 24;
+                const sheetWidth = sheet.offsetWidth;
+                scale = sheetWidth > available ? Math.max(available / sheetWidth, 0.45) : 1;
+            };
+            $nextTick(updateScale);
+            window.addEventListener('resize', updateScale);
+        "
+    >
+        <div class="ogj-letter-screen-scaler">
+            <div class="ogj-letter-screen-sheet" x-ref="fo51LetterSheet" :style="`transform: scale(${scale});`">
+@endif
 
 <div @class(['fo51-interactive' => $fo51Interactive, 'fo51-pdf' => $isPdfRender])>
 <x-disciplinary.forms.official-letter-pdf-shell
@@ -908,6 +935,12 @@
     </div>
 </x-disciplinary.forms.official-letter-pdf-shell>
 </div>
+
+@if ($useLetterScreen)
+            </div>
+        </div>
+    </div>
+@endif
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
     <p class="fo51-helper-note" style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">
