@@ -351,7 +351,16 @@ Usuarios demo (password `SJseguridad2026`):
 
 ---
 
-## 10. Próximos pasos sugeridos
+## 10. Documentación adicional
+
+| Documento | Contenido |
+|-----------|-----------|
+| [`docs/PDF.md`](PDF.md) | Construcción de PDF: motor Dompdf/Browsershot, paginadores FO-GJ-03/04, plantillas Blade, rutas, pruebas y calibración |
+| [`docs/GAP_DISCIPLINARIO_ETAPAS_A_B.md`](GAP_DISCIPLINARIO_ETAPAS_A_B.md) | Brechas etapas A–B |
+
+---
+
+## 11. Próximos pasos sugeridos
 
 1. **Autenticación**: instalar Laravel Breeze o Fortify (login + UI mínima).
 2. **Frontend del módulo** con **Livewire 3 + Alpine + Tailwind**:

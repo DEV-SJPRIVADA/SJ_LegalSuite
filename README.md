@@ -406,6 +406,8 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 ### PDF disciplinarios (HTML → tamaño carta / Letter)
 
+> **Documentación completa:** [`docs/PDF.md`](docs/PDF.md) — motor, paginadores FO-GJ-03/04, plantillas Blade, rutas, pruebas Dompdf y calibración.
+
 Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
 
 **Márgenes cartas FO-GJ:** Dompdf no respeta `box-sizing:border-box` (`width:100%` + padding = margen izquierdo y borde derecho cortado). Modelo: `@page { margin: 0 }` + `.ogj-page { width: 7.5in; margin: 0.5in; padding: 0 }` (Letter 8.5in). **FO-GJ-03** (`FoGj03DocumentPaginator`) y **FO-GJ-04** (`FoGj04PagePlanner`) usan el mismo modelo: páginas HTML explícitas + `ogj-page-break`, encabezado en cada hoja, cuerpo continuo, **solo firmas atómicas** (`page-break-inside: avoid`); meta **4 filas** (~76px) y “Página N de M” en el HTML (debe coincidir con hojas físicas Dompdf). Párrafos justificados. FO-GJ-03 canónico en **1** Letter; FO-GJ-04 suele ser **N** (intro denso + cuestionario). Encabezado **25% / 50% / 25%**. En blanco FO-GJ-03, numerales 66/68/76 son guías.
