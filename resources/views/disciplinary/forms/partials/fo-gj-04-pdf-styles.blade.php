@@ -29,7 +29,11 @@
         font-weight: normal;
         letter-spacing: 0.06em;
     }
-    .ogj-04-question { margin: 6px 0 8px; }
+    .ogj-04-question {
+        margin: 6px 0 8px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
     .ogj-04-list-num--continuation { padding-left: 14px; }
     .ogj-04-closing-text { margin: 4px 0 0; }
     /* Solo la tabla de firmas es atómica (mismo contrato FO-GJ-03). */

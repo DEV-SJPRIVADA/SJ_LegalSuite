@@ -218,7 +218,7 @@ class FoGj04PagePlannerTest extends TestCase
         );
     }
 
-    public function test_question_title_and_answer_merge_on_same_page(): void
+    public function test_question_title_and_answer_stay_together_on_same_page(): void
     {
         $pages = $this->planner->plan([
             'chargesDescription' => 'Incumplimiento breve del puesto.',
@@ -228,28 +228,45 @@ class FoGj04PagePlannerTest extends TestCase
             ],
         ]);
 
-        foreach ($pages as $page) {
-            $byNumber = [];
+        foreach ($pages as $pageIndex => $page) {
             foreach ($page['questions'] as $item) {
-                $n = (int) $item['number'];
-                $byNumber[$n][] = $item;
-            }
-
-            foreach ($byNumber as $n => $items) {
-                if (count($items) < 2) {
+                if (! ($item['showTitle'] ?? false)) {
                     continue;
                 }
 
-                $this->fail("La pregunta {$n} no debe quedar como título vacío + respuesta separada en la misma hoja");
+                $this->assertNotSame(
+                    '',
+                    trim((string) ($item['answer'] ?? '')),
+                    'La pregunta '.($item['number'] ?? '?').' no debe quedar sin su R: en la hoja '.($pageIndex + 1),
+                );
             }
         }
 
         $this->assertTrue(
-            collect($pages)->contains(fn (array $page): bool => collect($page['questions'])->contains(
-                fn (array $item): bool => ($item['showTitle'] ?? false) && trim((string) ($item['answer'] ?? '')) !== '',
-            )),
-            'Al menos una pregunta debe fusionar título y respuesta en la misma hoja',
+            $pages[0]['showIntroQuizLead'] || $pages[0]['questions'] !== [],
+            'La p.1 debe incluir cola del cuestionario o preguntas completas',
         );
+    }
+
+    public function test_short_questions_can_share_first_page(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'SI'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'SI'],
+            ],
+        ]);
+
+        $firstPageNumbers = array_map(
+            static fn (array $item): int => (int) $item['number'],
+            array_filter(
+                $pages[0]['questions'],
+                static fn (array $item): bool => (bool) ($item['showTitle'] ?? false),
+            ),
+        );
+
+        $this->assertContains(1, $firstPageNumbers);
     }
 
     public function test_closing_text_flows_before_atomic_signatures(): void

@@ -6,9 +6,9 @@ namespace App\Support\Disciplinary;
  * Reparte FO-GJ-04 en páginas Letter explícitas (una `.ogj-page` = una hoja física).
  *
  * Mismo contrato que FoGj03DocumentPaginator:
- * 1) Cuerpo continuo: casi todo se trocea (cargos, términos, cola intro, respuestas).
+ * 1) Cuerpo continuo: cargos, términos y cola intro se trocean; respuestas largas también.
  * 2) Cada hoja lleva encabezado HTML + “Página N de M”.
- * 3) Único bloque atómico: tabla de firmas.
+ * 3) Bloques atómicos: cada pregunta con su R: (salvo continuación de respuesta larga) y firmas.
  *
  * Constantes calibradas contra Dompdf Letter + --ogj-font-body: 12px.
  */
@@ -23,8 +23,8 @@ final class FoGj04PagePlanner
 
     private const CLOSING_SAFETY_UNITS = 5;
 
-    /** Dompdf Letter: intro densificado; 14 dejaba ~30% hueco tras términos en actas cortas. */
-    private const INTRO_LEAD_UNITS = 12;
+    /** Dompdf Letter: intro densificado; 12 aún dejaba hueco antes del cuestionario en actas cortas. */
+    private const INTRO_LEAD_UNITS = 11;
 
     private const CHARGES_TAIL_UNITS = 2;
 
@@ -32,7 +32,7 @@ final class FoGj04PagePlanner
 
     private const INTRO_MANIFESTATION_UNITS = 2;
 
-    private const INTRO_QUIZ_LEAD_UNITS = 3;
+    private const INTRO_QUIZ_LEAD_UNITS = 2;
 
     private const QUESTION_TITLE_UNITS = 2;
 
@@ -139,35 +139,12 @@ final class FoGj04PagePlanner
         $number = 1;
         foreach ($questions as $item) {
             $blocks[] = [
-                'type' => 'question_title',
-                'units' => self::QUESTION_TITLE_UNITS + max(0, $this->estimateTextLines($item['question']) - 1),
+                'type' => 'question_pair',
                 'number' => $number,
                 'question' => $item['question'],
+                'answer' => $item['answer'],
+                'blank' => $blank,
             ];
-
-            $answer = $item['answer'];
-            if ($blank) {
-                $blocks[] = [
-                    'type' => 'answer_text',
-                    'units' => 2,
-                    'text' => '',
-                    'number' => $number,
-                ];
-            } elseif ($answer !== '') {
-                $blocks[] = [
-                    'type' => 'answer_text',
-                    'units' => max(1, (int) ceil($this->estimateTextLines($answer) * self::TEXT_GROWTH_FACTOR)),
-                    'text' => $answer,
-                    'number' => $number,
-                ];
-            } else {
-                $blocks[] = [
-                    'type' => 'answer_text',
-                    'units' => 1,
-                    'text' => '',
-                    'number' => $number,
-                ];
-            }
             $number++;
         }
 
@@ -189,7 +166,13 @@ final class FoGj04PagePlanner
         foreach ($blocks as $block) {
             $type = (string) $block['type'];
 
-            if ($type === 'charges_text' || $type === 'term_text' || $type === 'answer_text') {
+            if ($type === 'question_pair') {
+                $this->packQuestionPair($pages, $current, $remaining, $block);
+
+                continue;
+            }
+
+            if ($type === 'charges_text' || $type === 'term_text') {
                 $this->packChunkableText($pages, $current, $remaining, $block);
 
                 continue;
@@ -213,6 +196,85 @@ final class FoGj04PagePlanner
         }
 
         return $pages;
+    }
+
+    /**
+     * Pregunta + R: atómicos: si no caben juntos, salto de página antes del bloque.
+     * Respuestas largas solo trocean el texto de la R:, nunca el título solo.
+     *
+     * @param  list<array<string, mixed>>  $pages
+     * @param  array<string, mixed>  $current
+     * @param  array{number: int, question: string, answer: string, blank: bool}  $block
+     */
+    private function packQuestionPair(array &$pages, array &$current, int &$remaining, array $block): void
+    {
+        $questionNumber = (int) $block['number'];
+        $question = (string) $block['question'];
+        $answer = (string) ($block['answer'] ?? '');
+        $blank = (bool) ($block['blank'] ?? false);
+
+        $titleUnits = $this->estimateQuestionTitleUnits($question);
+        $fullAnswerUnits = $this->estimateMinAnswerUnits($answer, $blank);
+        $minTogether = ($titleUnits + $fullAnswerUnits) <= self::PAGE_UNITS
+            ? $titleUnits + $fullAnswerUnits
+            : $titleUnits + ($blank ? 2 : 1);
+
+        if ($minTogether > $remaining && ! $this->pageIsEmpty($current)) {
+            $pages[] = $current;
+            $current = $this->emptyPage();
+            $remaining = self::PAGE_UNITS;
+        }
+
+        $this->applyBodyBlock($current, [
+            'type' => 'question_title',
+            'number' => $questionNumber,
+            'question' => $question,
+        ]);
+        $current['used'] += $titleUnits;
+        $remaining -= $titleUnits;
+
+        if ($blank || $answer === '') {
+            $this->appendOrMergeAnswer($current, $questionNumber, '', false);
+            $current['used'] += $fullAnswerUnits;
+            $remaining -= $fullAnswerUnits;
+
+            return;
+        }
+
+        $firstChunk = true;
+        $text = $answer;
+
+        while ($text !== '') {
+            if ($remaining < 1 && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+            }
+
+            $maxUnits = max(1, $remaining);
+            [$chunk, $rest] = $this->takeTextForUnits($text, $maxUnits);
+
+            if ($chunk === '' && ! $this->pageIsEmpty($current)) {
+                $pages[] = $current;
+                $current = $this->emptyPage();
+                $remaining = self::PAGE_UNITS;
+
+                continue;
+            }
+
+            if ($chunk === '') {
+                [$chunk, $rest] = $this->takeTextForUnits($text, max(4, (int) ceil(self::PAGE_UNITS / 4)));
+            }
+
+            $chunkUnits = max(1, (int) ceil($this->estimateTextLines($chunk) * self::TEXT_GROWTH_FACTOR));
+            $chunkUnits = min($chunkUnits, max(1, $remaining));
+
+            $this->appendOrMergeAnswer($current, $questionNumber, $chunk, ! $firstChunk);
+            $current['used'] += $chunkUnits;
+            $remaining -= $chunkUnits;
+            $text = $rest;
+            $firstChunk = false;
+        }
     }
 
     /**
@@ -295,9 +357,6 @@ final class FoGj04PagePlanner
             return;
         }
 
-        if ($type === 'answer_text') {
-            $this->appendOrMergeAnswer($page, $questionNumber, '', false);
-        }
     }
 
     /**
@@ -331,9 +390,6 @@ final class FoGj04PagePlanner
             return;
         }
 
-        if ($type === 'answer_text') {
-            $this->appendOrMergeAnswer($page, $questionNumber, $chunk, $isContinuation);
-        }
     }
 
     /**
@@ -512,11 +568,26 @@ final class FoGj04PagePlanner
      */
     public function estimateQuestionUnits(array $item): int
     {
-        $questionLines = $this->estimateTextLines((string) ($item['question'] ?? ''));
-        $answerLines = $this->estimateTextLines((string) ($item['answer'] ?? ''));
-        $raw = self::QUESTION_TITLE_UNITS + $questionLines + $answerLines;
+        return $this->estimateQuestionTitleUnits((string) ($item['question'] ?? ''))
+            + $this->estimateMinAnswerUnits((string) ($item['answer'] ?? ''), false);
+    }
 
-        return max(1, (int) ceil($raw * self::TEXT_GROWTH_FACTOR));
+    private function estimateQuestionTitleUnits(string $question): int
+    {
+        return self::QUESTION_TITLE_UNITS + max(0, $this->estimateTextLines($question) - 1);
+    }
+
+    private function estimateMinAnswerUnits(string $answer, bool $blank): int
+    {
+        if ($blank) {
+            return 2;
+        }
+
+        if (trim($answer) === '') {
+            return 1;
+        }
+
+        return max(1, (int) ceil($this->estimateTextLines($answer) * self::TEXT_GROWTH_FACTOR));
     }
 
     private function estimateTextLines(string $text): int
