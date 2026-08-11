@@ -43,22 +43,22 @@ final class CitationStageProgress
                 'hint' => 'Inicie el hilo con Planeación desde este expediente.',
             ],
             [
+                'key' => 'notification',
+                'label' => 'Información de notificación física',
+                'done' => $notificationDone,
+                'hint' => 'Planeación registra ingreso, turno, zona y supervisor en Coordinaciones.',
+            ],
+            [
                 'key' => 'planning_slots',
                 'label' => 'Fechas propuestas por Planeación',
                 'done' => $planningSlots,
-                'hint' => 'Planeación registra fechas en Coordinaciones.',
+                'hint' => 'Planeación publica fechas de diligencia en Coordinaciones.',
             ],
             [
                 'key' => 'definitive_date',
                 'label' => 'Fecha definitiva confirmada',
                 'done' => $dateConfirmed,
                 'hint' => 'Seleccione una de las opciones recibidas.',
-            ],
-            [
-                'key' => 'notification',
-                'label' => 'Información de notificación física',
-                'done' => $notificationDone,
-                'hint' => 'Solicite y complete ingreso, turno, zona y supervisor.',
             ],
             [
                 'key' => 'fo_gj_03',
@@ -118,21 +118,16 @@ final class CitationStageProgress
     {
         $blockers = [];
 
-        if ($this->notification->canPlanningRegisterNotification($case)) {
+        if (! $this->notification->hasNotificationInformationCompleted($case)) {
             $blockers[] = 'Planeación debe registrar la notificación física (ingreso, turno, zona y supervisor) en Coordinaciones.';
-        }
-
-        if ($case->citation_confirmed_date === null) {
-            $blockers[] = 'Aún no se ha confirmado la fecha definitiva de diligencia.';
         }
 
         if (! $case->hasPlanningProposedSlots()) {
             $blockers[] = 'Planeación debe publicar fechas de diligencia en el hilo.';
         }
 
-        if ($case->citation_confirmed_date !== null
-            && ! $this->notification->hasNotificationInformationCompleted($case)) {
-            $blockers[] = 'Complete la coordinación de notificación física (ingreso, turno, zona y supervisor) antes de cerrar.';
+        if ($case->citation_confirmed_date === null) {
+            $blockers[] = 'Aún no se ha confirmado la fecha definitiva de diligencia.';
         }
 
         return $blockers;
@@ -186,9 +181,9 @@ final class CitationStageProgress
     {
         $labels = [
             'coordination' => 'Coordinación iniciada',
+            'notification' => 'Información de notificación física',
             'planning_slots' => 'Fechas propuestas por Planeación',
             'definitive_date' => 'Fecha definitiva confirmada',
-            'notification' => 'Información de notificación física',
             'fo_gj_03' => 'FO-GJ-03 generado',
             'evidence' => 'Evidencia PDF cargada',
         ];
@@ -205,9 +200,9 @@ final class CitationStageProgress
     {
         return match ($stepKey) {
             'coordination' => 'Coordinación con Planeación',
+            'notification' => 'Notificación física del trabajador',
             'planning_slots' => 'Fechas propuestas por Planeación',
             'definitive_date' => 'Confirmar fecha de citación',
-            'notification' => 'Notificación física del trabajador',
             'fo_gj_03' => 'Generar FO-GJ-03',
             'evidence' => 'Evidencia de notificación (PDF)',
             default => 'Citación a diligencia',

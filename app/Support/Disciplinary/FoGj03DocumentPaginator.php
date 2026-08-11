@@ -43,23 +43,18 @@ final class FoGj03DocumentPaginator
 
     private const TEXT_GROWTH_FACTOR = 1.25;
 
-    /** Párrafo de traslado (texto legal fijo); se trocea como los cargos. */
-    private const EVIDENCE_TRASLADO_TEXT = 'Se corre traslado al trabajador de todas y cada una de las pruebas que fundamentan los cargos formulados. Se le hace saber que, el llamamiento a la diligencia de descargos no es propia de sanción disciplinaria, por el contrario, con ella buscamos garantizar el debido proceso, el derecho a la contradicción y a la defensa, conforme lo cual, podrá usted asistir con dos (02) testigos, controvertir las pruebas en su contra y allegar las pruebas que considere pertinentes informando por escrito al correo relacioneslaborales@sjsp.com.co con mínimo dos (02) horas de anticipación a la diligencia. En caso de tener alguna situación que imposibilite su presencia, deberá remitir dentro de los dos (2) días hábiles siguientes, la debida excusa para fijar nueva fecha, de lo contrario se entiende su renuncia al derecho a la defensa y se tendrán por cierto los hechos que motivaron la apertura del presente proceso disciplinario.';
-
     /**
      * Texto legal del traslado (Blade + paginador deben coincidir).
      */
-    public static function evidenceTrasladoText(): string
+    public static function evidenceTrasladoText(?WorkerLegalPhrasing $legalPhrasing = null): string
     {
-        return self::EVIDENCE_TRASLADO_TEXT;
+        return ($legalPhrasing ?? WorkerLegalPhrasing::masculine())->foGj03EvidenceTrasladoText();
     }
 
     /**
      * @param  array{
      *     chargesDescription?: string,
-     *     article66Numerals?: string,
-     *     article68Numerals?: string,
-     *     article76Numerals?: string,
+     *     statuteArticles?: list<array{article_number?: string, numerals?: string}>,
      *     locationText?: string,
      *     blankForDownload?: bool,
      *     evidenceType?: string,
@@ -128,11 +123,13 @@ final class FoGj03DocumentPaginator
 
         $blocks[] = ['type' => 'charges_tail', 'units' => self::CHARGES_TAIL_UNITS];
         $blocks[] = ['type' => 'articles', 'units' => $this->articlesUnits($context)];
+        $trasladoText = $this->resolveTrasladoText($context);
+
         $blocks[] = ['type' => 'evidence_lead', 'units' => self::EVIDENCE_LEAD_UNITS];
         $blocks[] = [
             'type' => 'evidence_text',
-            'units' => max(1, (int) ceil($this->estimateTextLines(self::EVIDENCE_TRASLADO_TEXT) * self::TEXT_GROWTH_FACTOR)),
-            'text' => self::EVIDENCE_TRASLADO_TEXT,
+            'units' => max(1, (int) ceil($this->estimateTextLines($trasladoText) * self::TEXT_GROWTH_FACTOR)),
+            'text' => $trasladoText,
         ];
 
         return $blocks;
@@ -422,12 +419,17 @@ final class FoGj03DocumentPaginator
     private function articlesUnits(array $context): int
     {
         $blank = (bool) ($context['blankForDownload'] ?? false);
+        $articles = $context['statuteArticles'] ?? [];
+        if (! is_array($articles) || $articles === []) {
+            $articles = $this->legacyArticleBlocks($context);
+        }
+
         $active = 0;
         $extraLines = 0;
 
-        foreach (['article66Numerals', 'article68Numerals', 'article76Numerals'] as $field) {
-            $val = trim((string) ($context[$field] ?? ''));
-            if ($blank || $val !== '') {
+        foreach ($articles as $article) {
+            $val = trim((string) ($article['numerals'] ?? ''));
+            if ($blank || $val !== '' || trim((string) ($article['article_number'] ?? '')) !== '') {
                 $active++;
                 if ($val !== '') {
                     $extraLines += max(0, $this->estimateTextLines($val) - 1);
@@ -438,6 +440,23 @@ final class FoGj03DocumentPaginator
         $active = max(1, $active);
 
         return (int) ceil(self::ARTICLES_BASE_UNITS + ($active * self::UNITS_PER_ARTICLE) + ($extraLines * self::TEXT_GROWTH_FACTOR));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<array{article_number: string, numerals: string}>
+     */
+    private function legacyArticleBlocks(array $context): array
+    {
+        $blocks = [];
+        foreach (['66' => 'article66Numerals', '68' => 'article68Numerals', '76' => 'article76Numerals'] as $number => $field) {
+            $val = trim((string) ($context[$field] ?? ''));
+            if ($val !== '') {
+                $blocks[] = ['article_number' => $number, 'numerals' => $val];
+            }
+        }
+
+        return $blocks;
     }
 
     /**
@@ -477,6 +496,20 @@ final class FoGj03DocumentPaginator
         $rest = ltrim(mb_substr($text, mb_strlen($slice)));
 
         return [$slice, $rest];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function resolveTrasladoText(array $context): string
+    {
+        if (isset($context['evidenceTrasladoText']) && is_string($context['evidenceTrasladoText'])) {
+            return $context['evidenceTrasladoText'];
+        }
+
+        $phrasing = $context['legalPhrasing'] ?? null;
+
+        return self::evidenceTrasladoText($phrasing instanceof WorkerLegalPhrasing ? $phrasing : null);
     }
 
     public function estimateTextLines(string $text): int

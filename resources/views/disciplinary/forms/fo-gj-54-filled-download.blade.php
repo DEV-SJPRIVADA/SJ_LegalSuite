@@ -38,6 +38,7 @@
             'newHearingPlace' => $newHearingPlace ?? '',
             'employerName' => $employerName ?? '',
             'signatureDataUri' => $signatureDataUri ?? null,
+            'legalPhrasing' => $legalPhrasing ?? null,
         ])
     </x-disciplinary.forms.official-letter-pdf-shell>
 </body>

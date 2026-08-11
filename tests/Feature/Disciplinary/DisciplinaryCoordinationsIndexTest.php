@@ -28,24 +28,17 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_planeacion_sees_register_notification_after_posting_diligence_slots(): void
+    public function test_planeacion_sees_citation_coordination_buttons_on_open_thread(): void
     {
         $planner = $this->makeUser('nivel3', 'planner-coord@test.local');
         $lawyer = $this->makeUser('nivel6', 'lawyer-coord@test.local');
-        $case = $this->makeCaseWithOpenThread($lawyer, CaseStatus::CITACION_PROGRAMADA);
-
-        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas disponibles',
-            [['date' => now()->addDays(5)->toDateString(), 'time' => '10:00', 'notes' => null]],
-            [],
-        );
+        $this->makeCaseWithOpenThread($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
         Livewire::actingAs($planner)
             ->test(\App\Livewire\Disciplinary\Coordinations\Index::class)
             ->assertOk()
-            ->assertSee('Registrar notificación');
+            ->assertSee('Registrar notificación')
+            ->assertSee('Proponer fechas de diligencia');
     }
 
     public function test_planeacion_can_view_coordinations_when_case_left_citacion_stage(): void

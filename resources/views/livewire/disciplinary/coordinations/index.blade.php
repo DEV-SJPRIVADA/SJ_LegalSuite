@@ -1,7 +1,6 @@
 @php
-    $actionNeeded = ($awaitingDiligenceDates ?? false)
+    $actionNeeded = ($canManageCitationCoordination ?? false)
         || ($awaitingDecisionPlanning ?? false)
-        || ($canRegisterNotification ?? false)
         || ($canRegisterDecisionNotification ?? false);
 @endphp
 
@@ -69,7 +68,7 @@
                         $workerName = trim((string) ($caseRow?->employee?->first_name.' '.$caseRow?->employee?->last_name));
                         $cityLabel = $caseRow?->municipality?->municipality_name ?: ($caseRow?->city ?? '—');
                         $isSelected = (int) $selectedThread === (int) $thread->id;
-                        $badge = $caseRow?->notification_requested_at && ! $caseRow?->notification_information_completed_at
+                        $badge = $caseRow?->awaitingCitationNotificationInformation()
                             ? 'Notificación'
                             : (($caseRow && ($caseRow->awaitingPlanningDiligenceSlots() || $caseRow->awaitingDecisionPlanningSlots())) ? 'Fechas' : null);
                         $badgeClass = $badge === 'Notificación'
@@ -186,22 +185,20 @@
                         <div class="shrink-0 border-t border-slate-200 bg-white dark:border-white/10 dark:bg-dash-ink/80">
                             @if ($actionNeeded)
                                 <div class="flex flex-wrap gap-1.5 border-b border-slate-100 px-3 py-2 dark:border-white/10">
-                                    @if ($awaitingDiligenceDates ?? false)
+                                    @if ($canManageCitationCoordination ?? false)
+                                        <button type="button" wire:click="openNotificationModal"
+                                            class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
+                                            {{ ($citationNotificationCompleted ?? false) ? 'Actualizar notificación' : 'Registrar notificación' }}
+                                        </button>
                                         <button type="button" wire:click="openDiligenceModal"
                                             class="inline-flex items-center rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
-                                            Proponer fechas de diligencia
+                                            {{ ($citationHasPlanningSlots ?? false) ? 'Reproponer fechas de diligencia' : 'Proponer fechas de diligencia' }}
                                         </button>
                                     @endif
                                     @if ($awaitingDecisionPlanning ?? false)
                                         <button type="button" wire:click="openDecisionPlanningModal"
                                             class="inline-flex items-center rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800">
                                             Programar decisión
-                                        </button>
-                                    @endif
-                                    @if ($canRegisterNotification ?? false)
-                                        <button type="button" wire:click="openNotificationModal"
-                                            class="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">
-                                            Registrar notificación
                                         </button>
                                     @endif
                                     @if ($canRegisterDecisionNotification ?? false)
@@ -234,8 +231,15 @@
                 @if ($showDiligenceModal)
                     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" wire:keydown.escape.window="closeDiligenceModal">
                         <div class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-white p-5 dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
-                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Fechas de diligencia</h3>
-                            <p class="text-xs text-slate-600 dark:text-slate-400">Se publicará en el chat y el abogado podrá confirmar una opción.</p>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                                {{ ($citationHasPlanningSlots ?? false) ? 'Reproponer fechas de diligencia' : 'Fechas de diligencia' }}
+                            </h3>
+                            <p class="text-xs text-slate-600 dark:text-slate-400">
+                                Se publicará en el chat y el abogado podrá confirmar una opción.
+                                @unless ($citationNotificationCompleted ?? false)
+                                    <span class="font-semibold text-amber-700 dark:text-amber-300">Registre primero la notificación física.</span>
+                                @endunless
+                            </p>
                             <textarea wire:model="agendaPlanningBody" rows="2"
                                 class="w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white"
                                 placeholder="Comentario opcional..."></textarea>
@@ -264,7 +268,13 @@
                     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" wire:keydown.escape.window="closeNotificationModal">
                         <div class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-white p-5 dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
                             <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                                {{ ($isDecisionCase ?? false) ? 'Notificación de decisión y supervisor' : 'Notificación física y supervisor' }}
+                                @if ($isDecisionCase ?? false)
+                                    Notificación de decisión y supervisor
+                                @elseif ($citationNotificationCompleted ?? false)
+                                    Actualizar notificación física
+                                @else
+                                    Notificación física y supervisor
+                                @endif
                             </h3>
                             <p class="text-xs text-slate-600 dark:text-slate-400">
                                 {{ ($isDecisionCase ?? false) ? 'Datos para notificar la decisión disciplinaria al trabajador.' : 'Datos para FO-GJ-03 y asignación al supervisor que notificará.' }}

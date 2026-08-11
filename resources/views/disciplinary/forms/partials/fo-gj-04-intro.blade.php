@@ -1,4 +1,8 @@
 @php
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $guide = $guide ?? static fn (string $size = 'md') => match ($size) {
         'sm' => '_ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -50,7 +54,7 @@
         con los respectivos soportes del proceso disciplinario y garantizando su derecho a la defensa y al debido proceso:
     </p>
 
-    <p class="ogj-04-party-indent"><strong>EL TRABAJADOR:</strong> {!! $blank($workerName, 'lg') !!}</p>
+    <p class="ogj-04-party-indent"><strong>{{ $legalPhrasing->foGj04PartyLabel() }}</strong> {!! $blank($workerName, 'lg') !!}</p>
 @endif
 
 @if ($showCharges)
@@ -91,7 +95,7 @@
 
 @if ($showIntroManifestation)
     <p>
-        Una vez enterado y entiendo perfectamente sus derechos, EL TRABAJADOR, manifestó:
+        {{ $legalPhrasing->foGj04ManifestationIntro() }}
         @if ($blankForDownload)
             <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
         @elseif (filled($manifestationText))
@@ -105,7 +109,7 @@
 @if ($showIntroQuizLead)
     <p>
         De esta forma, obedeciendo los lineamientos establecidos en el contrato de trabajo, el reglamento interno de
-        trabajo y el Código Sustantivo del Trabajo, se procederá a escuchar la versión libre del trabajador y a efectuar
+        trabajo y el Código Sustantivo del Trabajo, se procederá a escuchar la versión libre {{ $legalPhrasing->foGj04FreeVersionPhrase() }} y a efectuar
         el cuestionario relacionado con los hechos que generaron la realización del presente proceso disciplinario:
     </p>
 @endif

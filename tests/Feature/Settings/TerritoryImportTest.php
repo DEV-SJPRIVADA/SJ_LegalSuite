@@ -48,9 +48,14 @@ class TerritoryImportTest extends TestCase
         Livewire::actingAs($user)
             ->test(TerritoryImport::class)
             ->assertOk()
-            ->assertSee('Territorio')
+            ->assertSee('Territorio (Colombia)')
             ->assertSee('Importar DIVIPOLA')
             ->assertSee('Municipios');
+
+        $this->actingAs($user)
+            ->get(route('settings.territory-import', absolute: false))
+            ->assertOk()
+            ->assertSee('Artículos');
     }
 
     public function test_admin_can_search_municipalities_in_explorer(): void

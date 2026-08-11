@@ -10,6 +10,7 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Users\UserSignatureService;
 use App\Support\Disciplinary\SpanishDateParts;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
@@ -47,12 +48,14 @@ class FoGj54ReprogramacionService
         );
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
 
         return [
             'fecha' => now()->timezone('America/Bogota')->format('d/m/Y'),
             'workerName' => $workerName,
             'workerDocument' => (string) ($case->employee?->document_number ?? ''),
             'workerPosition' => (string) ($case->employee?->job_title ?? ''),
+            'legalPhrasing' => $legalPhrasing,
             'originalHearingDay' => (string) ($defaults['original_hearing_day'] ?? ''),
             'originalHearingMonth' => (string) ($defaults['original_hearing_month'] ?? ''),
             'originalHearingYear' => (string) ($defaults['original_hearing_year'] ?? ''),

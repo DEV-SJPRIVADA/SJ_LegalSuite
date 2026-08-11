@@ -107,4 +107,17 @@
         height: 17.5rem;
         touch-action: none;
     }
+
+    .settings-nav-tab {
+        @apply relative -mb-px inline-flex min-w-[8.5rem] items-center justify-center border border-black px-8 py-2.5 text-sm font-bold text-white no-underline transition;
+        clip-path: polygon(12% 0, 88% 0, 100% 100%, 0% 100%);
+    }
+
+    .settings-nav-tab:hover:not(.settings-nav-tab-active) {
+        @apply bg-white/10;
+    }
+
+    .settings-nav-tab-active {
+        @apply z-10 border-black bg-white text-slate-900 shadow-sm dark:bg-dash-ink dark:text-white;
+    }
 }

@@ -11,6 +11,7 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Users\UserSignatureService;
 use App\Support\Disciplinary\FoGj04PagePlanner;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
@@ -55,6 +56,7 @@ class FoGj04DiligenceActaService
         $hearingDate = $case->citation_confirmed_date;
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
         $citation = $this->drafts->citationDataFromFo03($case);
         $questionItems = $this->normalizeQuestions($payload['questions'] ?? []);
         $questionPages = app(FoGj04PagePlanner::class)->plan([
@@ -67,6 +69,7 @@ class FoGj04DiligenceActaService
             'workerName' => $workerName,
             'workerDocument' => (string) ($case->employee?->document_number ?? ''),
             'workerPosition' => (string) ($case->employee?->job_title ?? ''),
+            'legalPhrasing' => $legalPhrasing,
             'openingDay' => $hearingDate ? (string) $hearingDate->day : '',
             'openingMonth' => $hearingDate ? $this->spanishMonthName($hearingDate) : '',
             'openingYear' => $hearingDate ? (string) $hearingDate->year : '',

@@ -14,9 +14,7 @@
     'informeReportDate' => '',
     'breachDate' => '',
     'chargesDescription' => '',
-    'article66Numerals' => '',
-    'article68Numerals' => '',
-    'article76Numerals' => '',
+    'statuteArticles' => [],
     'signerName' => '',
     'signerRole' => '',
     'signatureDataUri' => null,
@@ -24,10 +22,12 @@
     'evidenceType' => 'signed',
     'witnesses' => [],
     'documentPages' => null,
+    'legalPhrasing' => null,
 ])
 
 @php
     use App\Support\Disciplinary\FoGj03DocumentPaginator;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
 
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
@@ -43,15 +43,16 @@
         return '<span class="ogj-03-guide ogj-03-guide-'.$size.'" aria-hidden="true">'.$guidePattern($size).'</span>';
     };
 
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $pages = $documentPages ?? app(FoGj03DocumentPaginator::class)->plan([
         'chargesDescription' => (string) $chargesDescription,
-        'article66Numerals' => (string) $article66Numerals,
-        'article68Numerals' => (string) $article68Numerals,
-        'article76Numerals' => (string) $article76Numerals,
+        'statuteArticles' => is_array($statuteArticles) ? $statuteArticles : [],
         'locationText' => (string) $locationText,
         'blankForDownload' => (bool) $blankForDownload,
         'evidenceType' => (string) $evidenceType,
         'witnesses' => is_array($witnesses) ? $witnesses : [],
+        'legalPhrasing' => $legalPhrasing,
     ]);
 
     $sharedHelpers = ['guidePattern' => $guidePattern, 'blank' => $blank];
@@ -67,6 +68,7 @@
         'hearingDay',
         'hearingTime',
         'locationText',
+        'legalPhrasing',
     ));
 
     $chargesBaseProps = array_merge($sharedHelpers, compact(
@@ -78,14 +80,13 @@
 
     $articlesProps = array_merge($sharedHelpers, compact(
         'blankForDownload',
-        'article66Numerals',
-        'article68Numerals',
-        'article76Numerals',
+        'statuteArticles',
     ));
 
     $evidenceProps = array_merge($sharedHelpers, compact(
         'blankForDownload',
         'informeReportDate',
+        'legalPhrasing',
     ));
 
     $closingProps = compact(

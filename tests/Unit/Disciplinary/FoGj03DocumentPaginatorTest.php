@@ -128,9 +128,11 @@ class FoGj03DocumentPaginatorTest extends TestCase
         return [
             'blankForDownload' => false,
             'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe; falta reiterada de presentación al puesto.',
-            'article66Numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42',
-            'article68Numerals' => '10, 34',
-            'article76Numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112',
+            'statuteArticles' => [
+                ['article_number' => '74', 'numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42'],
+                ['article_number' => '76', 'numerals' => '10, 34'],
+                ['article_number' => '79', 'numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112'],
+            ],
             'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali',
             'evidenceType' => 'signed',
         ];

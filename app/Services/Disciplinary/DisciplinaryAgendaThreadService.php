@@ -212,6 +212,10 @@ class DisciplinaryAgendaThreadService
         $hasStructuredSlots = $slots !== [];
 
         if ($hasStructuredSlots) {
+            if (! app(DisciplinaryCitationNotificationService::class)->canPlanningProposeDiligenceSlots($case)) {
+                throw new \InvalidArgumentException('Registre primero la información de notificación física antes de proponer fechas de diligencia.');
+            }
+
             $hasDate = false;
             foreach ($slots as $slot) {
                 if (filled($slot['date'] ?? null)) {
@@ -225,6 +229,15 @@ class DisciplinaryAgendaThreadService
         }
 
         return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots) {
+            if ($hasStructuredSlots && $case->citation_confirmed_date !== null) {
+                $case->forceFill([
+                    'citation_confirmed_date' => null,
+                    'citation_confirmed_time' => null,
+                    'citation_confirmed_by' => null,
+                    'citation_selected_message_id' => null,
+                ])->save();
+            }
+
             $messageKind = $hasStructuredSlots
                 ? AgendaMessageKind::PLANNING_RESPONSE
                 : AgendaMessageKind::GENERAL;

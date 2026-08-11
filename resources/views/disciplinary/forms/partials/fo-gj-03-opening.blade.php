@@ -1,4 +1,8 @@
 @php
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $displayCaseNumber = filled($caseNumber ?? null)
         ? $caseNumber
         : (filled($expedienteGj ?? null) ? 'GJ-PD:'.$expedienteGj : '');
@@ -29,10 +33,10 @@
     <p>CARGO. {!! $blank($workerPosition ?? '', 'md') !!}</p>
 </div>
 
-<p>Respetado trabajador;</p>
+<p>{{ $legalPhrasing->foGj03OpeningSalutation() }}</p>
 
 <p>
-    Dando cumplimiento al debido proceso, me permito citarlo el día
+    Dando cumplimiento al debido proceso, me permito {{ $legalPhrasing->foGj03CitationVerb() }} el día
     {!! $blank($hearingDay ?? '', 'lg') !!}
     a las
     {!! $blank($hearingTime ?? '', 'sm') !!}
@@ -42,5 +46,5 @@
     @else
         {{ filled($locationText ?? null) ? e($locationText) : '—' }}
     @endif
-    con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
+    con el fin de ejercer su derecho a la defensa para {{ $legalPhrasing->foGj03DefenseHearingPhrase() }} en razón a la apertura del proceso disciplinario.
 </p>

@@ -486,9 +486,29 @@ class DisciplinaryCase extends Model
 
     public function awaitingPlanningDiligenceSlots(): bool
     {
-        return $this->hasCoordinationStarted()
+        return $this->canPlanningManageCitationCoordination()
+            && $this->hasCitationNotificationInformationCompleted()
             && $this->citation_confirmed_date === null
             && ! $this->hasPlanningProposedSlots();
+    }
+
+    public function awaitingCitationNotificationInformation(): bool
+    {
+        return $this->canPlanningManageCitationCoordination()
+            && ! $this->hasCitationNotificationInformationCompleted();
+    }
+
+    public function canPlanningManageCitationCoordination(): bool
+    {
+        return $this->current_status === CaseStatus::CITACION_PROGRAMADA
+            && $this->hasCoordinationStarted()
+            && ($this->agendaThread?->isOpen() ?? false);
+    }
+
+    public function hasCitationNotificationInformationCompleted(): bool
+    {
+        return $this->notification_information_completed_at !== null
+            && $this->notification_supervisor_user_id !== null;
     }
 
     /** Planeación publicó programación de decisión en el hilo. */

@@ -20,10 +20,14 @@
     'lawyerRole' => 'Analista de relaciones laborales y cumplimiento SJ Seguridad Privada Ltda.',
     'signatureDataUri' => null,
     'workerSignatureDataUri' => null,
+    'legalPhrasing' => null,
 ])
 
 @php
     use App\Support\Disciplinary\FoGj04PagePlanner;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
 
     $guide = static fn (string $size = 'md') => match ($size) {
         'sm' => '_ _ _ _ _',
@@ -77,6 +81,7 @@
         'breachYear',
         'chargesDescription',
         'workerManifestation',
+        'legalPhrasing',
     ) + ['guide' => $guide, 'blank' => $blank];
 
     $sharedClosingProps = compact(
@@ -88,6 +93,7 @@
         'workerDocument',
         'signatureDataUri',
         'workerSignatureDataUri',
+        'legalPhrasing',
     ) + ['blank' => $blank];
 @endphp
 

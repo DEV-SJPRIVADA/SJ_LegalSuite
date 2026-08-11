@@ -1,5 +1,8 @@
 @php
     use App\Support\Disciplinary\FoGj03DocumentPaginator;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
 
     $guidePattern = $guidePattern ?? static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
@@ -17,7 +20,7 @@
 
     $showLead = (bool) ($evidenceShowLead ?? true);
     $chunk = trim((string) ($evidenceChunk ?? ''));
-    $fullTraslado = FoGj03DocumentPaginator::evidenceTrasladoText();
+    $fullTraslado = FoGj03DocumentPaginator::evidenceTrasladoText($legalPhrasing);
 
     // Compat legacy: sin chunk explícito, pintar el párrafo completo.
     if ($chunk === '' && ($evidenceShowLead ?? null) === null && ($evidenceChunk ?? null) === null) {

@@ -356,7 +356,7 @@ Usuarios demo (password `SJseguridad2026`):
 | Documento | Contenido |
 |-----------|-----------|
 | [`docs/PDF.md`](PDF.md) | Construcción de PDF: motor Dompdf/Browsershot, paginadores FO-GJ-03/04, plantillas Blade, rutas, pruebas y calibración |
-| [`docs/GAP_DISCIPLINARIO_ETAPAS_A_B.md`](GAP_DISCIPLINARIO_ETAPAS_A_B.md) | Brechas etapas A–B |
+| [`docs/GAP_DISCIPLINARIO_ETAPAS_A_B.md`](GAP_DISCIPLINARIO_ETAPAS_A_B.md) | Brechas etapas A–B (incluye B10–B12: orden notificación→fechas, plantillas de artículos, redacción por género) |
 
 ---
 

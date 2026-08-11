@@ -1,4 +1,8 @@
 @php
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $blank = $blank ?? static function (?string $value, string $size = 'md'): string {
         if (filled($value)) {
             return e($value);
@@ -31,7 +35,7 @@
                     <p>{{ $lawyerRole ?? '' }}</p>
                 </td>
                 <td>
-                    <p><strong>TRABAJADOR,</strong></p>
+                    <p><strong>{{ $legalPhrasing->foGj04SignatureLabel() }}</strong></p>
                     <div class="ogj-04-signature-slot">
                         @if ($workerSignatureDataUri ?? null)
                             <img src="{{ $workerSignatureDataUri }}" alt="Firma trabajador" class="ogj-04-signature-img">

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Disciplinary;
 
+use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\InformeSubmissionStatus;
@@ -20,10 +21,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class PendingEvidenceUploadTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -112,18 +115,16 @@ class PendingEvidenceUploadTest extends TestCase
     {
         $lawyer = $this->makeUserWithRole('nivel6', 'lawyer-pe-'.random_int(1000, 9999).'@test.local');
         $planner = $this->makeUserWithRole('nivel3', 'planner-pe-'.random_int(1000, 9999).'@test.local');
-        $supervisor = $this->makeUserWithRole('nivel7', 'supervisor-pe-'.random_int(1000, 9999).'@test.local');
 
-        $employee = Employee::query()->create([
-            'first_name' => 'Worker',
-            'last_name' => 'Evidence',
-            'document_number' => '9300'.random_int(100000, 999999),
-        ]);
+        $employee = $this->seedGuardaEmployee('9300'.random_int(100000, 999999));
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
 
         $case = DisciplinaryCase::query()->create([
             'case_number' => 'GJ-PD:000077',
             'employee_id' => $employee->id,
             'assigned_lawyer_id' => $lawyer->id,
+            'municipality_code' => $employee->municipality_code,
+            'city' => 'SANTIAGO DE CALI',
             'current_status' => CaseStatus::CITACION_PROGRAMADA,
             'opened_at' => now()->toDateString(),
             'coordination_started_at' => now(),
@@ -150,6 +151,14 @@ class PendingEvidenceUploadTest extends TestCase
             'disciplinary_case_id' => $case->id,
         ]);
 
+        app(DisciplinaryCitationNotificationService::class)
+            ->completeNotificationInformation($case->fresh(['agendaThread', 'assignedLawyer']), $planner, [
+                'notification_date' => now()->addDay()->toDateString(),
+                'notification_shift' => 'Tarde',
+                'notification_zone' => 'Centro',
+                'notification_supervisor_user_id' => $supervisor->id,
+            ]);
+
         app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
             $case->fresh(['agendaThread']),
             $planner,
@@ -158,13 +167,18 @@ class PendingEvidenceUploadTest extends TestCase
             [],
         );
 
-        app(DisciplinaryCitationNotificationService::class)
-            ->completeNotificationInformation($case->fresh(['agendaThread', 'assignedLawyer']), $planner, [
-                'notification_date' => now()->addDay()->toDateString(),
-                'notification_shift' => 'Tarde',
-                'notification_zone' => 'Centro',
-                'notification_supervisor_user_id' => $supervisor->id,
-            ]);
+        $planningMessage = $case->fresh(['agendaThread.messages'])
+            ->agendaThread
+            ->messages()
+            ->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)
+            ->first();
+
+        $case = app(DisciplinaryAgendaThreadService::class)->confirmCitationSlot(
+            $case->fresh(),
+            $lawyer,
+            (int) $planningMessage->id,
+            0,
+        );
 
         $path = 'signatures/'.$lawyer->id.'/signature.png';
         Storage::disk('local')->put($path, base64_decode(
@@ -181,9 +195,11 @@ class PendingEvidenceUploadTest extends TestCase
             'virtual_meeting_link' => '',
             'breach_date' => now()->subWeek()->toDateString(),
             'charges_description' => 'Incumplimiento reportado en informe disciplinario.',
-            'article_66_numerals' => '1, 3',
-            'article_68_numerals' => '10',
-            'article_76_numerals' => '12',
+            'statute_articles' => [
+                ['article_number' => '74', 'numerals' => '1, 3'],
+                ['article_number' => '76', 'numerals' => '10'],
+                ['article_number' => '79', 'numerals' => '12'],
+            ],
         ]);
 
         $case->forceFill([

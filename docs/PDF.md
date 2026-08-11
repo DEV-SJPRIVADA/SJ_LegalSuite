@@ -229,6 +229,11 @@ FoGj04DraftService (fo_gj_04_payload en DisciplinaryCase)
 **Archivo:** `app/Support/Disciplinary/FoGj03DocumentPaginator.php`  
 **Vista cuerpo:** `resources/views/disciplinary/forms/partials/fo-gj-03-body.blade.php`
 
+### Contenido dinámico (fuera del paginador)
+
+- **Artículos/numerales:** `FoGj03CitationArticleResolver` + plantillas por falta (`CitationFaultTemplateService`; UI Ajustes · Artículos).
+- **Género gramatical:** `WorkerLegalPhrasing` inyecta saludo, verbos y párrafo de traslado según `employees.gender` (también FO-GJ-04/54).
+
 ### Contrato de producto
 
 1. **Cuerpo continuo** — cargos y párrafo de traslado/evidencia se trocean entre hojas.

@@ -167,11 +167,8 @@ class CaseDetail extends Component
 
     public string $foGj03ChargesDescription = '';
 
-    public string $foGj03Article66Numerals = '';
-
-    public string $foGj03Article68Numerals = '';
-
-    public string $foGj03Article76Numerals = '';
+    /** @var list<array{article_number: string, numerals: string}> */
+    public array $foGj03StatuteArticles = [];
 
     public string $foGj03InformeReportDate = '';
 
@@ -778,7 +775,7 @@ class CaseDetail extends Component
         }
 
         $this->syncCaseFromDb();
-        session()->flash('success', 'Fecha definitiva de citación registrada. Complete la coordinación de notificación física antes de generar el FO-GJ-03.');
+        session()->flash('success', 'Fecha definitiva de citación registrada. Diligencie el FO-GJ-03 cuando complete los requisitos.');
     }
 
     public function requestNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
@@ -1021,11 +1018,26 @@ class CaseDetail extends Component
         $this->foGj03VirtualLink = (string) ($defaults['virtual_meeting_link'] ?? '');
         $this->foGj03BreachDate = (string) ($defaults['breach_date'] ?? '');
         $this->foGj03ChargesDescription = (string) ($defaults['charges_description'] ?? '');
-        $this->foGj03Article66Numerals = (string) ($defaults['article_66_numerals'] ?? '');
-        $this->foGj03Article68Numerals = (string) ($defaults['article_68_numerals'] ?? '');
-        $this->foGj03Article76Numerals = (string) ($defaults['article_76_numerals'] ?? '');
+        $this->foGj03StatuteArticles = is_array($defaults['statute_articles'] ?? null)
+            ? $defaults['statute_articles']
+            : [];
         $this->foGj03InformeReportDate = (string) ($defaults['informe_report_date'] ?? '');
         $this->showFoGj03DraftModal = true;
+    }
+
+    public function addFoGj03StatuteArticleRow(): void
+    {
+        $this->foGj03StatuteArticles[] = ['article_number' => '', 'numerals' => ''];
+    }
+
+    public function removeFoGj03StatuteArticleRow(int $index): void
+    {
+        if (! isset($this->foGj03StatuteArticles[$index])) {
+            return;
+        }
+
+        unset($this->foGj03StatuteArticles[$index]);
+        $this->foGj03StatuteArticles = array_values($this->foGj03StatuteArticles);
     }
 
     public function closeFoGj03DraftModal(): void
@@ -1044,9 +1056,7 @@ class CaseDetail extends Component
                 'virtual_meeting_link' => $this->foGj03VirtualLink,
                 'breach_date' => $this->foGj03BreachDate,
                 'charges_description' => $this->foGj03ChargesDescription,
-                'article_66_numerals' => $this->foGj03Article66Numerals,
-                'article_68_numerals' => $this->foGj03Article68Numerals,
-                'article_76_numerals' => $this->foGj03Article76Numerals,
+                'statute_articles' => $this->foGj03StatuteArticles,
             ]);
         } catch (ValidationException $e) {
             foreach ($e->errors() as $field => $messages) {

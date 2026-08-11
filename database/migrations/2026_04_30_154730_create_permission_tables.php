@@ -151,6 +151,7 @@ return new class extends Migration
             'users.view',
             'users.manage',
             'settings.manage-territory',
+            'settings.manage-citation-articles',
         ];
     }
 

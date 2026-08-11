@@ -42,7 +42,7 @@
             'route' => route('settings.territory-import'),
             'active' => request()->routeIs('settings.*'),
             'icon' => 'adjustments',
-            'available' => $u->can('settings.manage-territory'),
+            'available' => $u->can('settings.manage-territory') || $u->can('settings.manage-citation-articles'),
         ];
 
         $modules[] = [

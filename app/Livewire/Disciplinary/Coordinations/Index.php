@@ -235,6 +235,20 @@ class Index extends Component
 
     public function openNotificationModal(): void
     {
+        $thread = $this->resolveSelectedThread();
+        if ($thread instanceof DisciplinaryAgendaThread) {
+            $case = $thread->case;
+            if ($case?->hasCitationNotificationInformationCompleted()) {
+                $this->notificationDate = $case->notification_date?->format('Y-m-d') ?? '';
+                $this->notificationShift = (string) ($case->notification_shift ?? '');
+                $this->notificationZone = (string) ($case->notification_zone ?? '');
+                $this->notificationSupervisorUserId = $case->notification_supervisor_user_id;
+                $this->notificationNotes = (string) ($case->notification_notes ?? '');
+            } else {
+                $this->resetNotificationForm();
+            }
+        }
+
         $this->showNotificationModal = true;
         $this->showDiligenceModal = false;
     }
@@ -339,6 +353,12 @@ class Index extends Component
         $case = $thread->case()->firstOrFail();
         Gate::authorize('postAgendaPlanning', $case);
 
+        if (! app(DisciplinaryCitationNotificationService::class)->canPlanningProposeDiligenceSlots($case)) {
+            $this->addError('diligenceModal', 'Registre primero la información de notificación física.');
+
+            return;
+        }
+
         $this->validate([
             'agendaPlanningBody' => ['nullable', 'string', 'max:8000'],
             'planningSlots' => ['required', 'array', 'min:1', 'max:5'],
@@ -409,7 +429,7 @@ class Index extends Component
 
         $this->showNotificationModal = false;
         $this->resetNotificationForm();
-        session()->flash('success', 'Información de notificación registrada en el chat y en el expediente.');
+        session()->flash('success', 'Información de notificación guardada en el chat y en el expediente.');
     }
 
     public function render()
@@ -424,7 +444,7 @@ class Index extends Component
             if (! $tc) {
                 continue;
             }
-            if ($tc->notification_requested_at && ! $tc->notification_information_completed_at) {
+            if ($tc->awaitingCitationNotificationInformation()) {
                 $kpiNotif++;
             } elseif ($tc->awaitingPlanningDiligenceSlots() || $tc->awaitingDecisionPlanningSlots()) {
                 $kpiFechas++;
@@ -440,14 +460,18 @@ class Index extends Component
         $isDecisionCase = $pendingNotificationCase?->current_status === CaseStatus::DECISION;
         $canPostPlanning = $pendingNotificationCase
             && auth()->user()->can('postAgendaPlanning', $pendingNotificationCase);
+        $canManageCitationCoordination = $canPostPlanning
+            && ! $isDecisionCase
+            && $pendingNotificationCase->canPlanningManageCitationCoordination();
+        $citationNotificationCompleted = $pendingNotificationCase?->hasCitationNotificationInformationCompleted() ?? false;
+        $citationHasPlanningSlots = $pendingNotificationCase?->hasPlanningProposedSlots() ?? false;
         $awaitingDiligenceDates = $pendingNotificationCase
             && ! $isDecisionCase
             && $pendingNotificationCase->awaitingPlanningDiligenceSlots();
         $awaitingDecisionPlanning = $pendingNotificationCase
             && $isDecisionCase
             && $pendingNotificationCase->awaitingDecisionPlanningSlots();
-        $canRegisterNotification = $pendingNotificationCase
-            && ! $isDecisionCase
+        $canRegisterNotification = $canManageCitationCoordination
             && auth()->user()->can('postNotificationCoordination', $pendingNotificationCase);
         $canRegisterDecisionNotification = $pendingNotificationCase
             && $isDecisionCase
@@ -473,6 +497,9 @@ class Index extends Component
             'selectedThreadModel' => $selectedThreadModel,
             'hasPendingNotification' => $hasPendingNotification,
             'canPostPlanning' => $canPostPlanning,
+            'canManageCitationCoordination' => $canManageCitationCoordination,
+            'citationNotificationCompleted' => $citationNotificationCompleted,
+            'citationHasPlanningSlots' => $citationHasPlanningSlots,
             'awaitingDiligenceDates' => $awaitingDiligenceDates,
             'awaitingDecisionPlanning' => $awaitingDecisionPlanning,
             'canRegisterNotification' => $canRegisterNotification,

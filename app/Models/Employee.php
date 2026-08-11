@@ -7,6 +7,7 @@ use App\Enums\EmployeeDocumentType;
 use App\Enums\EmployeeGender;
 use App\Enums\EmployeeScope;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -114,6 +115,11 @@ class Employee extends Model
         }
 
         return $name;
+    }
+
+    public function legalPhrasing(): WorkerLegalPhrasing
+    {
+        return WorkerLegalPhrasing::fromGender($this->gender);
     }
 
     public function initials(): string

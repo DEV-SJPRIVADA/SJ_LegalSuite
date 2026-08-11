@@ -8,10 +8,14 @@
     $coordPct = $kpiMunicipalities > 0 ? (int) round(($kpiWithCoordinates / $kpiMunicipalities) * 100) : 0;
     $lastUpdatedLabel = $kpiLastUpdated?->format('d/m/Y H:i') ?? '—';
 @endphp
+
+@push('module-nav')
+    <x-settings.nav active="territory" />
+@endpush
+
 <div class="territory-settings mx-auto flex h-[calc(100dvh-3.25rem)] max-h-[calc(100dvh-3.25rem)] w-full max-w-[1600px] flex-col overflow-hidden px-3 py-2 sm:px-5 sm:py-3 lg:px-6">
     <header class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-white/10">
         <h1 class="truncate text-lg font-bold text-slate-900 dark:text-white">Territorio (Colombia)</h1>
-        <x-dashboard.button href="{{ route('dashboard') }}" variant="ghost" class="!h-8 shrink-0 text-xs">← Inicio</x-dashboard.button>
     </header>
 
     @if (session('success'))

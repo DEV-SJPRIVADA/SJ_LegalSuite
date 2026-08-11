@@ -1,6 +1,7 @@
 @php
     use App\Enums\Disciplinary\CaseStatus;
     use App\Support\Disciplinary\CitationStageProgress;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
     use App\Services\Disciplinary\DisciplinaryCitationWorkflowService;
     use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
@@ -49,6 +50,9 @@
             ($currentStepKey === 'fo_gj_03' && $case->citation_confirmed_date && $isAssignedLawyer && ! $canGenerateFoGj03)
             || ($currentStepKey === 'evidence' && auth()->user()->can('viewCitationEvidence', $case))
         );
+    $employeeGenderReady = $case->employee
+        ? WorkerLegalPhrasing::fromEmployee($case->employee)->hasDefiniteGender()
+        : false;
 @endphp
 
 @if ($showStageB)
@@ -57,6 +61,20 @@
             ? 'border-slate-200 bg-slate-50/80 ring-slate-200/80 dark:border-white/10 dark:bg-slate-900/25 dark:ring-white/10'
             : 'border-indigo-200 bg-white ring-indigo-100 dark:border-indigo-400/25 dark:bg-indigo-950/15 dark:ring-indigo-500/20' }}"
         data-stage-block="b">
+
+        @if (! $citationReadOnly && $case->employee && ! $employeeGenderReady)
+            <div class="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-500/40 dark:bg-amber-950/40" role="alert">
+                <p class="text-sm font-semibold text-amber-950 dark:text-amber-100">Complete el género del trabajador</p>
+                <p class="mt-1 text-sm text-amber-900 dark:text-amber-200">
+                    Los formatos FO-GJ-03, FO-GJ-04 y FO-GJ-54 requieren género <strong>Masculino</strong> o <strong>Femenino</strong> en el catálogo de empleados para la redacción legal correcta.
+                    Actualice la ficha de <strong>{{ $case->employee->displayName() }}</strong> antes de generar documentos.
+                </p>
+                <a href="{{ route('employees.index') }}"
+                    class="mt-2 inline-flex text-xs font-semibold text-amber-900 underline dark:text-amber-200">
+                    Ir a empleados
+                </a>
+            </div>
+        @endif
 
         {{-- Cabecera: título + stepper + avanzar etapa --}}
         <div class="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10

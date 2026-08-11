@@ -109,9 +109,11 @@ class FoGj03DraftTest extends TestCase
                 'virtual_meeting_link' => '',
                 'breach_date' => now()->subWeek()->toDateString(),
                 'charges_description' => '   ',
-                'article_66_numerals' => '1, 3, 4',
-                'article_68_numerals' => '10, 34',
-                'article_76_numerals' => '3, 12, 15',
+                'statute_articles' => [
+                    ['article_number' => '74', 'numerals' => '1, 3, 4'],
+                    ['article_number' => '76', 'numerals' => '10, 34'],
+                    ['article_number' => '79', 'numerals' => '3, 12, 15'],
+                ],
             ]);
             $this->fail('Expected ValidationException for empty charges_description.');
         } catch (ValidationException $e) {
@@ -199,9 +201,11 @@ class FoGj03DraftTest extends TestCase
             'virtual_meeting_link' => '',
             'breach_date' => now()->subWeek()->toDateString(),
             'charges_description' => 'Incumplimiento de consignas operativas en ronda asignada.',
-            'article_66_numerals' => '1, 3, 4',
-            'article_68_numerals' => '10, 34',
-            'article_76_numerals' => '3, 12, 15',
+            'statute_articles' => [
+                ['article_number' => '74', 'numerals' => '1, 3, 4'],
+                ['article_number' => '76', 'numerals' => '10, 34'],
+                ['article_number' => '79', 'numerals' => '3, 12, 15'],
+            ],
         ], $overrides));
     }
 

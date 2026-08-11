@@ -22,10 +22,12 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class DisciplinaryCitationNotificationTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -34,31 +36,39 @@ class DisciplinaryCitationNotificationTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_lawyer_can_request_notification_information(): void
+    public function test_planner_can_update_notification_information(): void
     {
-        ['case' => $case, 'lawyer' => $lawyer] = $this->makeCitacionCaseWithCoordination();
+        ['case' => $case, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
+        $supervisorA = $this->makeSupervisor('supervisor-a@test.local');
+        $supervisorB = $this->makeSupervisor('supervisor-b@test.local');
+        $service = app(DisciplinaryCitationNotificationService::class);
 
-        $message = app(DisciplinaryCitationNotificationService::class)
-            ->requestNotificationInformation($case->fresh(['agendaThread']), $lawyer);
+        Notification::fake();
+
+        $service->completeNotificationInformation($case->fresh(['agendaThread', 'assignedLawyer']), $planner, [
+            'notification_date' => now()->addDay()->toDateString(),
+            'notification_shift' => 'Mañana',
+            'notification_zone' => 'Zona Norte',
+            'notification_supervisor_user_id' => $supervisorA->id,
+        ]);
+
+        $service->completeNotificationInformation($case->fresh(['agendaThread', 'assignedLawyer']), $planner, [
+            'notification_date' => now()->addDays(2)->toDateString(),
+            'notification_shift' => 'Tarde',
+            'notification_zone' => 'Zona Sur',
+            'notification_supervisor_user_id' => $supervisorB->id,
+        ]);
 
         $case->refresh();
-        $this->assertNotNull($case->notification_requested_at);
-        $this->assertSame($lawyer->id, $case->notification_requested_by);
-        $this->assertSame(AgendaMessageKind::LAWYER_NOTIFICATION_REQUEST, $message->message_kind);
+        $this->assertSame('Tarde', $case->notification_shift);
+        $this->assertSame('Zona Sur', $case->notification_zone);
+        $this->assertSame($supervisorB->id, $case->notification_supervisor_user_id);
     }
 
-    public function test_planner_can_complete_notification_after_planning_posts_diligence_slots(): void
+    public function test_planner_can_complete_notification_before_diligence_slots(): void
     {
         ['case' => $case, 'lawyer' => $lawyer, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
         $supervisor = $this->makeSupervisor('supervisor-a@test.local');
-
-        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas de diligencia',
-            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
-            [],
-        );
 
         $this->assertTrue(
             app(DisciplinaryCitationNotificationService::class)->canPlanningRegisterNotification($case->fresh())
@@ -93,6 +103,20 @@ class DisciplinaryCitationNotificationTest extends TestCase
         ]);
     }
 
+    public function test_diligence_slots_blocked_until_notification_completed(): void
+    {
+        ['case' => $case, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
+            $case->fresh(['agendaThread']),
+            $planner,
+            'Fechas de diligencia',
+            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
+            [],
+        );
+    }
+
     public function test_operations_reviewer_can_reassign_notification_supervisor(): void
     {
         $context = $this->makeCitacionCaseWithNotificationCompleted();
@@ -116,17 +140,9 @@ class DisciplinaryCitationNotificationTest extends TestCase
         ]);
     }
 
-    public function test_lawyer_manual_notification_request_blocked_when_planning_slots_exist(): void
+    public function test_lawyer_manual_notification_request_blocked_when_planning_can_register(): void
     {
-        ['case' => $case, 'lawyer' => $lawyer, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
-
-        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas',
-            [['date' => now()->addDays(2)->toDateString(), 'time' => '09:00', 'notes' => null]],
-            [],
-        );
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeCitacionCaseWithCoordination();
 
         $this->expectException(\InvalidArgumentException::class);
         app(DisciplinaryCitationNotificationService::class)
@@ -172,9 +188,11 @@ class DisciplinaryCitationNotificationTest extends TestCase
             'virtual_meeting_link' => '',
             'breach_date' => now()->subDays(5)->toDateString(),
             'charges_description' => 'Hechos objeto de la citación disciplinaria.',
-            'article_66_numerals' => '1, 3',
-            'article_68_numerals' => '10',
-            'article_76_numerals' => '3, 12',
+            'statute_articles' => [
+                ['article_number' => '74', 'numerals' => '1, 3'],
+                ['article_number' => '76', 'numerals' => '10'],
+                ['article_number' => '79', 'numerals' => '3, 12'],
+            ],
         ], $overrides));
     }
 
@@ -205,16 +223,14 @@ class DisciplinaryCitationNotificationTest extends TestCase
     {
         $lawyer = $this->makeUserWithRole('nivel6', 'lawyer@test.local');
         $planner = $this->makeUserWithRole('nivel3', 'planner@test.local');
-        $employee = Employee::query()->create([
-            'first_name' => 'Worker',
-            'last_name' => 'Test',
-            'document_number' => '9100'.random_int(100000, 999999),
-        ]);
+        $employee = $this->seedGuardaEmployee('9100'.random_int(100000, 999999));
 
         $case = DisciplinaryCase::query()->create([
             'case_number' => 'DISC-NOTIF-'.random_int(1000, 9999),
             'employee_id' => $employee->id,
             'assigned_lawyer_id' => $lawyer->id,
+            'municipality_code' => $employee->municipality_code,
+            'city' => 'SANTIAGO DE CALI',
             'current_status' => CaseStatus::CITACION_PROGRAMADA,
             'opened_at' => now()->toDateString(),
             'coordination_started_at' => now(),
@@ -251,14 +267,6 @@ class DisciplinaryCitationNotificationTest extends TestCase
             'disciplinary_case_id' => $context['case']->id,
         ]);
 
-        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
-            $context['case']->fresh(['agendaThread']),
-            $context['planner'],
-            'Fechas de diligencia',
-            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
-            [],
-        );
-
         app(DisciplinaryCitationNotificationService::class)
             ->completeNotificationInformation($context['case']->fresh(['agendaThread', 'assignedLawyer']), $context['planner'], [
                 'notification_date' => now()->addDay()->toDateString(),
@@ -267,10 +275,31 @@ class DisciplinaryCitationNotificationTest extends TestCase
                 'notification_supervisor_user_id' => $supervisor->id,
             ]);
 
+        app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
+            $context['case']->fresh(['agendaThread']),
+            $context['planner'],
+            'Fechas de diligencia',
+            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
+            [],
+        );
+
+        $planningMessage = $context['case']->fresh(['agendaThread.messages'])
+            ->agendaThread
+            ->messages()
+            ->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)
+            ->first();
+
+        $confirmedCase = app(DisciplinaryAgendaThreadService::class)->confirmCitationSlot(
+            $context['case']->fresh(),
+            $context['lawyer'],
+            (int) $planningMessage->id,
+            0,
+        );
+
         return array_merge($context, [
             'nivel7' => $supervisor,
             'reviewer' => $reviewer,
-            'case' => $context['case']->fresh(),
+            'case' => $confirmedCase->fresh(),
         ]);
     }
 
@@ -305,7 +334,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
 
     private function makeSupervisor(string $email): User
     {
-        return $this->makeUserWithRole('nivel7', $email);
+        return $this->seedFieldUserWithCities('nivel7', ['76001']);
     }
 
     private function makeUserWithRole(string $role, string $email): User

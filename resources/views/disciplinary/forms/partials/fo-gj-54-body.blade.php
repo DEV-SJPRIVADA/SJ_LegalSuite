@@ -20,9 +20,14 @@
     'newHearingPlace' => '',
     'employerName' => '',
     'signatureDataUri' => null,
+    'legalPhrasing' => null,
 ])
 
 @php
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $guidePattern = static fn (string $size): string => match ($size) {
         'xs' => '_ _ _',
         'sm' => '_ _ _ _ _ _',
@@ -54,7 +59,7 @@
         <p>CARGO: {!! $blank($workerPosition, 'md') !!}</p>
     </div>
 
-    <p>Respetado colaborador.</p>
+    <p>{{ $legalPhrasing->foGj54OpeningSalutation() }}</p>
 
     <p>
         Para el día
@@ -65,7 +70,7 @@
         {!! $blank($originalHearingYear, 'sm') !!}
         a las
         {!! $blank($originalHearingTime, 'sm') !!}
-        horas se encontraba citado usted para ser escuchado en diligencia disciplinaria, sobre los hechos ocurridos el pasado
+        {{ $legalPhrasing->foGj54ScheduledHearingPhrase() }}
         {!! $blank($factsDay, 'xs') !!}
         de
         {!! $blank($factsMonth, 'sm') !!}
@@ -89,7 +94,7 @@
         {!! $blank($newHearingTime, 'sm') !!}
         horas,
         {!! $blank($newHearingPlace, 'xl') !!}
-        con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
+        con el fin de ejercer su derecho a la defensa para {{ $legalPhrasing->foGj03DefenseHearingPhrase() }} en razón a la apertura del proceso disciplinario.
     </p>
 
     <p>De conformidad en lo anterior, se firma por quienes intervienen:</p>
@@ -107,7 +112,7 @@
                 <p>Área Jurídica – SJ Seguridad Privada Ltda.</p>
             </td>
             <td>
-                <p>El Trabajador;</p>
+                <p>{{ $legalPhrasing->foGj54SignatureSectionLabel() }}</p>
                 <div class="ogj-03-sign-line"></div>
                 <p>Nombre: {!! $blank($workerName, 'md') !!}</p>
                 <p>Cargo: {!! $blank($workerPosition, 'md') !!}</p>

@@ -21,12 +21,11 @@
         'informeReportDate' => $informeReportDate ?? '',
         'breachDate' => $breachDate ?? '',
         'chargesDescription' => $chargesDescription ?? '',
-        'article66Numerals' => $article66Numerals ?? '',
-        'article68Numerals' => $article68Numerals ?? '',
-        'article76Numerals' => $article76Numerals ?? '',
+        'statuteArticles' => $statuteArticles ?? [],
         'signerName' => $signerName ?? '',
         'signerRole' => $signerRole ?? '',
         'signatureDataUri' => $signatureDataUri ?? null,
+        'legalPhrasing' => $legalPhrasing ?? null,
     ])
 </body>
 </html>
