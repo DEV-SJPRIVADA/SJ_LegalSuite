@@ -4,7 +4,6 @@ namespace Tests\Feature\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\Decision;
-use App\Livewire\Disciplinary\Administrativa\PendingDecisionHrIndex;
 use App\Livewire\Disciplinary\Supervisor\PendingEvidenceIndex;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -53,49 +52,45 @@ class DecisionStageCompletionTest extends TestCase
         ]);
     }
 
-    public function test_hr_must_upload_annex_before_completing_review(): void
+    public function test_lawyer_uploads_termination_package_and_finalizes_with_conclusion(): void
     {
-        $admin = $this->user('nivel4', 'hr-decision@test.local');
-        $case = $this->makeTerminationCaseForHr();
+        $lawyer = $this->user('nivel6', 'finalize-term@test.local');
+        $case = DisciplinaryCase::query()->create([
+            'case_number' => 'DISC-FIN-TERM-'.random_int(1000, 9999),
+            'employee_id' => Employee::query()->create([
+                'first_name' => 'Fin',
+                'last_name' => 'Term',
+                'document_number' => '9901'.random_int(100000, 999999),
+            ])->id,
+            'assigned_lawyer_id' => $lawyer->id,
+            'current_status' => CaseStatus::DECISION,
+            'opened_at' => now()->toDateString(),
+            'decision' => Decision::TERMINACION_CONTRATO,
+            'decision_comunicado_generated_at' => now(),
+        ]);
 
-        Livewire::actingAs($admin)
-            ->test(PendingDecisionHrIndex::class)
-            ->call('completeHrReview', $case->id)
-            ->assertForbidden();
+        $workflow = app(DisciplinaryDecisionWorkflowService::class);
+        $file = UploadedFile::fake()->create('paquete-terminacion.pdf', 120, 'application/pdf');
+        $workflow->uploadTerminationPackage($case, $lawyer, $file);
 
-        $file = UploadedFile::fake()->create('liquidacion.pdf', 100, 'application/pdf');
+        $finalized = $workflow->finalizeCase($case->fresh(['documents']), $lawyer, 'Se termina el contrato y se archiva el expediente tras notificación.');
 
-        Livewire::actingAs($admin)
-            ->test(PendingDecisionHrIndex::class)
-            ->set('hrAnnexFileByCase.'.$case->id, $file)
-            ->call('uploadHrAnnex', $case->id)
-            ->assertHasNoErrors()
-            ->call('completeHrReview', $case->id)
-            ->assertHasNoErrors();
-
-        $case->refresh();
-        $this->assertNotNull($case->decision_hr_review_completed_at);
-        $this->assertTrue($case->hasDecisionHrAnnex());
+        $this->assertSame(CaseStatus::FINALIZADO, $finalized->current_status);
+        $this->assertStringContainsString('Se termina el contrato', (string) $finalized->decision_notes);
     }
 
-    public function test_finalize_archived_decision_moves_case_to_archivado_status(): void
+    public function test_finalize_notice_with_evidence_and_conclusion(): void
     {
-        $lawyer = $this->user('nivel6', 'finalize-archived@test.local');
-        $case = $this->makeDecisionReadyToFinalize($lawyer, Decision::ARCHIVADO);
+        $lawyer = $this->user('nivel6', 'finalize-notice@test.local');
+        $case = $this->makeDecisionReadyToFinalize($lawyer, Decision::AMONESTACION_ESCRITA);
 
-        app(DisciplinaryDecisionWorkflowService::class)->finalizeCase($case, $lawyer);
+        $finalized = app(DisciplinaryDecisionWorkflowService::class)->finalizeCase(
+            $case,
+            $lawyer,
+            'Se notifica llamado de atención y se cierra el proceso disciplinario.',
+        );
 
-        $this->assertSame(CaseStatus::ARCHIVADO, $case->fresh()->current_status);
-    }
-
-    public function test_finalize_absuelto_moves_case_to_finalizado_status(): void
-    {
-        $lawyer = $this->user('nivel6', 'finalize-absuelto@test.local');
-        $case = $this->makeDecisionReadyToFinalize($lawyer, Decision::ABSUELTO);
-
-        app(DisciplinaryDecisionWorkflowService::class)->finalizeCase($case, $lawyer);
-
-        $this->assertSame(CaseStatus::FINALIZADO, $case->fresh()->current_status);
+        $this->assertSame(CaseStatus::FINALIZADO, $finalized->current_status);
     }
 
     /** @return array{case: DisciplinaryCase, nivel7: User} */
@@ -183,11 +178,9 @@ class DecisionStageCompletionTest extends TestCase
 
         if ($decision === Decision::TERMINACION_CONTRATO) {
             $workflow = app(DisciplinaryDecisionWorkflowService::class);
-            $admin = $this->user('nivel4', 'hr-fin-'.random_int(1000, 9999).'@test.local');
-            $file = UploadedFile::fake()->create('anexo.pdf', 80, 'application/pdf');
-            $workflow->uploadHrAnnex($case, $admin, $file);
-            $workflow->completeHrReview($case->fresh(['documents']), $admin);
-            $case = $case->fresh();
+            $file = UploadedFile::fake()->create('paquete.pdf', 80, 'application/pdf');
+            $workflow->uploadTerminationPackage($case, $lawyer, $file);
+            $case = $case->fresh(['documents']);
         }
 
         return $case;

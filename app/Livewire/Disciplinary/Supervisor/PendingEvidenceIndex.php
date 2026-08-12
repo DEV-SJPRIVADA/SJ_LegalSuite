@@ -816,12 +816,12 @@ class PendingEvidenceIndex extends Component
                 $type === CitationEvidenceType::SIGNED && $case->decision === Decision::SUSPENSION
                     => 'FO-GJ-47-firmado-'.$case->case_number.'.pdf',
                 $type === CitationEvidenceType::SIGNED
-                    => 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf',
+                    => 'FO-GJ-45-firmado-'.$case->case_number.'.pdf',
                 $case->decision === Decision::AMONESTACION_ESCRITA
                     => 'FO-GJ-46-rechazo-testigos-'.$case->case_number.'.pdf',
                 $case->decision === Decision::SUSPENSION
                     => 'FO-GJ-47-rechazo-testigos-'.$case->case_number.'.pdf',
-                default => 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf',
+                default => 'FO-GJ-45-rechazo-testigos-'.$case->case_number.'.pdf',
             };
 
             return [

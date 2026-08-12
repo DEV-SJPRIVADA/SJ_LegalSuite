@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\Disciplinary\FoGj03Modality;
 use App\Support\Disciplinary\FoGj46HearingLead;
 use App\Support\Disciplinary\SpanishDateParts;
+use App\Support\Disciplinary\DecisionStatuteArticles;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -51,17 +52,16 @@ class FoGj46DraftService
         $hearingParts = SpanishDateParts::fromDate($hearing?->timezone('America/Bogota'));
         $hearingTime = $case->resolvedDiligenceHearingTimeLabel() ?? '';
 
-        $articles55 = (string) ($existing['articles_55'] ?? $this->defaultArticlesLine($fo03, '55'));
-        $articles57 = (string) ($existing['articles_57'] ?? $this->defaultArticlesLine($fo03, '57'));
-        $articles60 = (string) ($existing['articles_60'] ?? $this->defaultArticlesLine($fo03, '60'));
+        $statuteArticles = DecisionStatuteArticles::resolve($fo03, $existing);
 
         return [
             'document_code' => self::DOCUMENT_CODE,
             'hearing_lead' => $leadDefault->value,
             'facts_narrative' => (string) ($existing['facts_narrative'] ?? ''),
-            'articles_55' => $articles55,
-            'articles_57' => $articles57,
-            'articles_60' => $articles60,
+            'statute_articles' => $statuteArticles,
+            'articles_55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+            'articles_57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+            'articles_60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
             'signer_name' => (string) ($existing['signer_name'] ?? ''),
             'signer_title' => (string) ($existing['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA'),
             'modality' => $modality->value,
@@ -105,14 +105,11 @@ class FoGj46DraftService
             $missing[] = 'relato de los hechos (después de la fecha de incumplimiento)';
         }
 
-        if (trim((string) ($payload['articles_55'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 55';
-        }
-        if (trim((string) ($payload['articles_57'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 57';
-        }
-        if (trim((string) ($payload['articles_60'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 60';
+        $statuteMissing = DecisionStatuteArticles::missingRequirements(
+            DecisionStatuteArticles::resolve($case->fo_gj_03_payload ?? [], $payload),
+        );
+        foreach ($statuteMissing as $item) {
+            $missing[] = $item;
         }
 
         if (trim((string) ($payload['signer_name'] ?? '')) === '') {
@@ -173,12 +170,16 @@ class FoGj46DraftService
             ]);
         }
 
-        $articles55 = trim((string) ($input['articles_55'] ?? ''));
-        $articles57 = trim((string) ($input['articles_57'] ?? ''));
-        $articles60 = trim((string) ($input['articles_60'] ?? ''));
-        if ($articles55 === '' || $articles57 === '' || $articles60 === '') {
+        $statuteArticles = DecisionStatuteArticles::normalizeInput(
+            is_array($input['statute_articles'] ?? null) ? $input['statute_articles'] : [],
+        );
+        if ($statuteArticles === []) {
+            $statuteArticles = DecisionStatuteArticles::resolve($case->fo_gj_03_payload ?? [], []);
+        }
+        $statuteMissing = DecisionStatuteArticles::missingRequirements($statuteArticles);
+        if ($statuteMissing !== []) {
             throw ValidationException::withMessages([
-                'foGj46Articles55' => 'Complete los numerales de los artículos 55, 57 y 60.',
+                'decisionStatuteArticles' => 'Complete los numerales de todos los artículos (mismos del FO-GJ-03). Falta: '.implode(', ', $statuteMissing),
             ]);
         }
 
@@ -204,13 +205,13 @@ class FoGj46DraftService
                 'document_code' => self::DOCUMENT_CODE,
                 'hearing_lead' => $lead->value,
                 'facts_narrative' => $facts,
-                'articles_55' => $articles55,
-                'articles_57' => $articles57,
-                'articles_60' => $articles60,
+                'statute_articles' => $statuteArticles,
+                'articles_55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+                'articles_57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+                'articles_60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
                 'signer_name' => $signerName,
                 'signer_title' => $signerTitle !== '' ? $signerTitle : 'DIRECTORA DE GESTIÓN HUMANA',
                 'subject' => self::SUBJECT_FIXED,
-                // Snapshot de datos de sistema al guardar
                 'modality' => $defaults['modality'],
                 'hearing_day' => $defaults['hearing_day'],
                 'hearing_month' => $defaults['hearing_month'],
@@ -219,6 +220,7 @@ class FoGj46DraftService
                 'breach_day' => $defaults['breach_day'],
                 'breach_month' => $defaults['breach_month'],
                 'breach_year' => $defaults['breach_year'],
+                'informe_report_date' => $defaults['informe_report_date'] ?? '',
             ],
             'decision_draft_completed_at' => now(),
             'decision_draft_completed_by' => $actor->id,
@@ -238,35 +240,5 @@ class FoGj46DraftService
         }
 
         return $case->decision_payload ?? [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $fo03
-     */
-    private function defaultArticlesLine(array $fo03, string $articleNumber): string
-    {
-        $blocks = $fo03['statute_articles'] ?? $fo03['articles'] ?? [];
-        if (! is_array($blocks)) {
-            return '';
-        }
-
-        foreach ($blocks as $block) {
-            if (! is_array($block)) {
-                continue;
-            }
-            $number = trim((string) ($block['article_number'] ?? $block['number'] ?? ''));
-            if ($number !== $articleNumber) {
-                continue;
-            }
-            $numerals = $block['numerals'] ?? [];
-            if (is_string($numerals)) {
-                return trim($numerals);
-            }
-            if (is_array($numerals)) {
-                return implode(', ', array_map('strval', $numerals));
-            }
-        }
-
-        return '';
     }
 }

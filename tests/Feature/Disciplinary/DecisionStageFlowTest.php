@@ -66,7 +66,7 @@ class DecisionStageFlowTest extends TestCase
         $lawyer = $this->user('nivel6', 'decision-gen@test.local');
         $case = $this->caseInDecision($lawyer);
         $case->forceFill([
-            'decision' => Decision::AMONESTACION_VERBAL,
+            'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_coordination_started_at' => now(),
             'decision_notification_completed_at' => now(),
             'decision_notification_supervisor_user_id' => User::factory()->create(['is_active' => true])->id,
@@ -85,7 +85,7 @@ class DecisionStageFlowTest extends TestCase
         $lawyer = $this->user('nivel6', 'decision-finalize-blocked@test.local');
         $case = $this->caseInDecision($lawyer);
         $case->forceFill([
-            'decision' => Decision::ARCHIVADO,
+            'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_coordination_started_at' => now(),
             'decision_comunicado_generated_at' => now(),
         ])->save();

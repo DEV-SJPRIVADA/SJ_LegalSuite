@@ -3,6 +3,7 @@
     'case' => null,
     'thread' => null,
     'selectableSlots' => false,
+    'slotWireModel' => 'selectedCitationSlotKey',
     /** lawyer = jurídico a la derecha; planning = planeación a la derecha */
     'perspective' => 'lawyer',
 ])
@@ -148,8 +149,8 @@
                             <li>
                                 @if ($selectableSlots && $date !== '')
                                     <label class="flex cursor-pointer items-start gap-2 rounded-md px-0.5 py-0.5 hover:opacity-90">
-                                        <input type="radio" name="citation_slot_from_chat" value="{{ $slotKey }}"
-                                            wire:model.live="selectedCitationSlotKey"
+                                        <input type="radio" name="agenda_slot_from_chat_{{ $slotWireModel }}" value="{{ $slotKey }}"
+                                            wire:model.live="{{ $slotWireModel }}"
                                             class="mt-0.5 border-slate-300 text-indigo-600 focus:ring-indigo-500
                                                 {{ $mine ? 'border-white/40 bg-white/10 text-white focus:ring-white/40' : '' }}">
                                         <span>

@@ -2,22 +2,20 @@
     use App\Enums\Disciplinary\Decision;
     use App\Support\Disciplinary\DecisionBranch;
     use App\Support\Disciplinary\DecisionStageProgress;
+    use App\Services\Disciplinary\DecisionCoordinationService;
 
     $stageSteps = $decisionStageSteps ?? collect();
     $currentStep = $decisionCurrentStep ?? ['key' => 'type', 'label' => '', 'status' => 'current', 'hint' => ''];
     $currentStepKey = (string) ($currentStep['key'] ?? 'type');
     $stepNumber = $decisionCurrentStepNumber ?? 1;
-    $totalSteps = $decisionTotalSteps ?? 6;
+    $totalSteps = $decisionTotalSteps ?? 5;
     $decisionDoc = $case->latestDecisionComunicadoDocument();
     $branch = $decisionBranch ?? DecisionBranch::forDecision($case->decision);
     $isFoGj46 = $case->decision === Decision::AMONESTACION_ESCRITA;
     $isFoGj47 = $case->decision === Decision::SUSPENSION;
-    $isFoGj45 = in_array($case->decision, [
-        Decision::AMONESTACION_VERBAL,
-        Decision::ABSUELTO,
-        Decision::ARCHIVADO,
-    ], true);
+    $isFoGj45 = $case->decision === Decision::TERMINACION_CONTRATO;
     $stageProgressHelper = app(DecisionStageProgress::class);
+    $coordination = app(DecisionCoordinationService::class);
     $actionTitle = match (true) {
         $currentStepKey === 'draft' && $isFoGj46 => 'FO-GJ-46 · Llamado de atención',
         $currentStepKey === 'draft' && $isFoGj47 => 'FO-GJ-47 · Suspensión disciplinaria',
@@ -25,12 +23,13 @@
         default => $stageProgressHelper->actionBarTitle($currentStepKey),
     };
     $typeSelected = $case->decision !== null && $case->decision_coordination_started_at !== null;
-    $coordinationDone = $case->decision_notification_completed_at !== null;
+    $hasOptions = $coordination->hasOpenOptions($case);
+    $notificationConfirmed = $coordination->hasConfirmedNotification($case);
     $draftCompleted = $case->decision_draft_completed_at !== null;
     $comunicadoGenerated = $case->decision_comunicado_generated_at !== null || $decisionDoc !== null;
     $evidenceUploaded = $case->decision_evidence_uploaded_at !== null;
-    $hrCompleted = $case->decision_hr_review_completed_at !== null;
-    $needsHr = $branch !== null && DecisionBranch::requiresHrReview($branch);
+    $hrCompleted = $case->decision_hr_review_completed_at !== null || $case->hasDecisionHrAnnex();
+    $needsPackage = $branch !== null && DecisionBranch::requiresLawyerTerminationPackage($branch);
     $canSelectType = auth()->user()->can('selectDecisionType', $case);
     $canEditDraft = auth()->user()->can('editDecisionDraft', $case);
     $canPreview = auth()->user()->can('previewDecisionComunicado', $case);
@@ -40,6 +39,13 @@
     $canPostAgenda = auth()->user()->can('postAgendaLawyer', $case);
     $decisionReadOnly = $decisionReadOnly ?? false;
     $showStageD = ($showsDecisionStagePanel ?? false) || $decisionReadOnly;
+    $canConfirmOption = ! $decisionReadOnly
+        && $isAssignedLawyer
+        && $coordination->canLawyerConfirm($case, auth()->user())
+        && ($selectedDecisionSlotKey ?? '') !== '';
+    $canRequestNewOptions = ! $decisionReadOnly
+        && $isAssignedLawyer
+        && $coordination->canLawyerRequestNewOptions($case, auth()->user());
     $draftButtonLabel = match (true) {
         $isFoGj46 => $draftCompleted ? 'Editar FO-GJ-46' : 'Diligenciar FO-GJ-46',
         $isFoGj47 => $draftCompleted ? 'Editar FO-GJ-47' : 'Diligenciar FO-GJ-47',
@@ -132,10 +138,11 @@
                 @if ($currentStep['hint'] ?? '')
                     <p class="text-sm text-slate-600 dark:text-slate-400">{{ $currentStep['hint'] }}</p>
                 @endif
-                @if ($coordinationDone && $case->decision_notification_date)
+                @if ($notificationConfirmed && $case->decision_notification_date)
                     <p class="text-sm text-slate-700 dark:text-slate-300">
                         Notificación: <strong>{{ $case->decision_notification_date->format('d/m/Y') }}</strong>
                         · Turno: <strong>{{ $case->decision_notification_shift }}</strong>
+                        · Zona: <strong>{{ $case->decision_notification_zone }}</strong>
                         · Supervisor: <strong>{{ $case->decision_notification_supervisor_name }}</strong>
                     </p>
                 @endif
@@ -148,51 +155,74 @@
                         {{ $previewButtonLabel }}
                     </button>
                 @elseif (! $decisionReadOnly)
-                @if (! $typeSelected && $canSelectType && $isAssignedLawyer)
-                    <button type="button" wire:click="openDecisionTypeModal"
-                        class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
-                        Registrar tipo de decisión
-                    </button>
-                @elseif ($typeSelected && $currentStepKey === 'draft' && $isAssignedLawyer && ! $comunicadoGenerated)
-                    @if ($canEditDraft)
-                        <button type="button" wire:click="openDecisionDraftModal"
-                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
-                            {{ $draftButtonLabel }}
+                    @if (! $typeSelected && $canSelectType && $isAssignedLawyer)
+                        <button type="button" wire:click="openDecisionTypeModal"
+                            class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
+                            Registrar tipo de decisión
                         </button>
                     @endif
-                    @if ($canPreview)
+
+                    @if ($canConfirmOption)
+                        <button type="button" wire:click="confirmDecisionSlot"
+                            class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
+                            Confirmar opción
+                        </button>
+                    @endif
+
+                    @if ($canRequestNewOptions)
+                        <button type="button" wire:click="requestNewDecisionOptions"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
+                            Solicitar otras fechas
+                        </button>
+                    @endif
+
+                    @if ($typeSelected && $notificationConfirmed && $currentStepKey === 'draft' && $isAssignedLawyer && ! $comunicadoGenerated)
+                        @if ($canEditDraft)
+                            <button type="button" wire:click="openDecisionDraftModal"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
+                                {{ $draftButtonLabel }}
+                            </button>
+                        @endif
+                        @if ($canPreview)
+                            <button type="button" wire:click="openDecisionPdfPreview"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
+                                Vista previa PDF
+                            </button>
+                        @endif
+                        @if ($canGenerate)
+                            <button type="button" wire:click="generateDecisionComunicado"
+                                class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
+                                {{ $generateButtonLabel }}
+                            </button>
+                        @endif
+                    @elseif ($comunicadoGenerated && $canPreview)
                         <button type="button" wire:click="openDecisionPdfPreview"
                             class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
-                            Vista previa PDF
+                            {{ $previewButtonLabel }}
                         </button>
                     @endif
-                    @if ($canGenerate)
-                        <button type="button" wire:click="generateDecisionComunicado"
-                            class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
-                            {{ $generateButtonLabel }}
-                        </button>
-                    @endif
-                @elseif ($comunicadoGenerated && $canPreview)
-                    <button type="button" wire:click="openDecisionPdfPreview"
-                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
-                        {{ $previewButtonLabel }}
-                    </button>
-                @endif
                 @endif
             </div>
         </div>
 
         <div class="px-4 py-4 space-y-4">
-            @if ($typeSelected && $currentStepKey === 'coordination')
+            @error('selectedDecisionSlotKey')
+                <p class="text-sm text-red-600">{{ $message }}</p>
+            @enderror
+            @error('decisionCoordination')
+                <p class="text-sm text-red-600">{{ $message }}</p>
+            @enderror
+
+            @if ($typeSelected && $currentStepKey === 'coordination' && ! $decisionReadOnly)
                 <div class="rounded-lg border border-violet-200/80 bg-violet-50/40 p-4 dark:border-white/10 dark:bg-violet-950/25">
                     <p class="text-sm text-slate-700 dark:text-slate-300">
-                        @if ($case->awaitingDecisionPlanningSlots())
-                            Coordinación abierta con planeación. Espere fechas de turno y supervisor en
-                            <strong>Coordinaciones</strong>.
-                        @elseif ($coordinationDone)
-                            Programación completada. Puede diligenciar {{ $isFoGj46 ? 'el FO-GJ-46' : ($isFoGj47 ? 'el FO-GJ-47' : ($isFoGj45 ? 'el FO-GJ-45' : 'el comunicado de decisión')) }}.
+                        @if (! $hasOptions)
+                            Coordinación abierta. Planeación debe publicar <strong>una o más opciones</strong> (fecha, turno, zona y supervisor) en
+                            <strong>Coordinaciones</strong> o desde el chat.
+                        @elseif (! $notificationConfirmed)
+                            Hay opciones en el chat. Seleccione una con el radio y pulse <strong>Confirmar opción</strong>.
                         @else
-                            Planeación publicó fechas; falta registrar supervisor y datos de notificación.
+                            Programación confirmada.
                         @endif
                     </p>
                 </div>
@@ -201,21 +231,33 @@
             @if ($typeSelected && $canPostAgenda && ! $decisionReadOnly)
                 <div class="rounded-lg border border-violet-200/80 bg-violet-50/40 p-4 dark:border-white/10 dark:bg-violet-950/25">
                     <p class="text-sm text-slate-700 dark:text-slate-300">
-                        Use el botón <strong>Chat planeación</strong> (esquina inferior) para coordinar fechas y supervisor con planeación.
+                        Use <strong>Chat planeación</strong> para ver opciones, confirmar o solicitar otras fechas.
                     </p>
                 </div>
             @endif
 
-            @if ($comunicadoGenerated && ! $evidenceUploaded && ! $decisionReadOnly)
+            @if ($comunicadoGenerated && ! $evidenceUploaded && ! $decisionReadOnly && ! $isFoGj45)
                 <p class="text-sm text-amber-800 dark:text-amber-200">
                     El supervisor asignado debe cargar la evidencia de notificación en <strong>Evidencias pendientes</strong>.
+                    Luego use <strong>Finalizar proceso</strong> para escribir la conclusión y cerrar el caso.
                 </p>
             @endif
 
-            @if ($needsHr && $comunicadoGenerated && ! $hrCompleted)
-                <p class="text-sm text-amber-800 dark:text-amber-200">
-                    Gestión humana debe completar anexos laborales antes de finalizar el proceso (terminación de contrato).
-                </p>
+            @if ($isFoGj45 && $comunicadoGenerated && ! $hrCompleted && ! $decisionReadOnly)
+                <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-500/30 dark:bg-amber-950/30">
+                    <p class="text-sm font-medium text-amber-900 dark:text-amber-100">Paquete PDF de terminación</p>
+                    <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                        Cargue un solo PDF con los documentos firmados (certificado laboral, orden de egreso, seguridad social, liquidación, etc.).
+                    </p>
+                    <div class="mt-3 flex flex-wrap items-end gap-2">
+                        <input type="file" wire:model="terminationPackageFile" accept="application/pdf" class="block w-full max-w-sm text-sm text-slate-700 dark:text-slate-200" />
+                        <button type="button" wire:click="uploadTerminationPackage" class="inline-flex items-center rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700">
+                            Subir paquete
+                        </button>
+                    </div>
+                    @error('terminationPackageFile') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    <div wire:loading wire:target="terminationPackageFile,uploadTerminationPackage" class="mt-2 text-xs text-slate-500">Cargando…</div>
+                </div>
             @endif
 
             @if ($evidenceUploaded)
@@ -224,6 +266,13 @@
                     @if ($case->decision_evidence_type)
                         ({{ \App\Enums\Disciplinary\CitationEvidenceType::tryFrom($case->decision_evidence_type)?->label() ?? $case->decision_evidence_type }}).
                     @endif
+                    Puede cerrar el caso con una breve conclusión.
+                </p>
+            @endif
+
+            @if ($isFoGj45 && $hrCompleted)
+                <p class="text-sm text-emerald-800 dark:text-emerald-300">
+                    Paquete de terminación cargado. Puede cerrar el caso con una breve conclusión.
                 </p>
             @endif
         </div>

@@ -1,6 +1,7 @@
 @php
     $actionNeeded = ($canManageCitationCoordination ?? false)
         || ($awaitingDecisionPlanning ?? false)
+        || ($canRepublishDecisionPlanning ?? false)
         || ($canRegisterDecisionNotification ?? false);
 @endphp
 
@@ -195,10 +196,10 @@
                                             {{ ($citationHasPlanningSlots ?? false) ? 'Reproponer fechas de diligencia' : 'Proponer fechas de diligencia' }}
                                         </button>
                                     @endif
-                                    @if ($awaitingDecisionPlanning ?? false)
+                                    @if (($awaitingDecisionPlanning ?? false) || ($canRepublishDecisionPlanning ?? false))
                                         <button type="button" wire:click="openDecisionPlanningModal"
                                             class="inline-flex items-center rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-800">
-                                            Programar decisión
+                                            {{ ($decisionHasPlanningSlots ?? false) ? 'Reproponer opciones de decisión' : 'Programar decisión' }}
                                         </button>
                                     @endif
                                     @if ($canRegisterDecisionNotification ?? false)
@@ -361,7 +362,9 @@
                             <section class="space-y-3 rounded-lg border border-violet-200 p-4 dark:border-violet-500/30">
                                 <div>
                                     <h4 class="text-sm font-bold text-slate-900 dark:text-white">Opciones para notificar al trabajador</h4>
-                                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">Proponga una o más ventanas operativas (fecha, hora, turno, zona y supervisor de turno).</p>
+                                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                                        Proponga una o más ventanas (fecha, hora, turno, zona y supervisor). El abogado confirmará una opción; no hace falta un segundo registro.
+                                    </p>
                                 </div>
                                 @foreach ($decisionNotificationSlots as $i => $slot)
                                     <div class="space-y-2 rounded-md bg-violet-50/50 p-3 dark:bg-violet-950/20">

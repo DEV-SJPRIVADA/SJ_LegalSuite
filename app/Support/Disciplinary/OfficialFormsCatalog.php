@@ -70,7 +70,7 @@ final class OfficialFormsCatalog
                 'code' => 'FO-GJ-45',
                 'title' => 'Acta de archivo',
                 'phase' => 'D · Decisión / cierre',
-                'summary' => 'Acta de archivo del proceso disciplinario (cierre sin sanción escrita: verbal / absuelto / archivado).',
+                'summary' => 'Acta de archivo en terminación de contrato (junto al paquete PDF de anexos firmados).',
                 'pdf' => null,
             ],
             [
@@ -85,13 +85,6 @@ final class OfficialFormsCatalog
                 'title' => 'Suspensión disciplinaria',
                 'phase' => 'D · Decisión / cierre',
                 'summary' => 'Comunicado de suspensión de contrato laboral: días, fechas (inicio con planeación + cálculo de fin/retorno) y fundamento jurídico.',
-                'pdf' => null,
-            ],
-            [
-                'code' => 'FO-GJ-DECISION',
-                'title' => 'Comunicado de decisión de sanción o cierre del proceso',
-                'phase' => 'D · Decisión / cierre',
-                'summary' => 'Comunicación genérica de decisión (p. ej. terminación de contrato) cuando no aplica FO-GJ-45/46/47.',
                 'pdf' => null,
             ],
             [
@@ -181,11 +174,6 @@ final class OfficialFormsCatalog
                 'inline' => 'FO-GJ-47-suspension-en-blanco.pdf',
                 'download' => 'FO-GJ-47-suspension-en-blanco.pdf',
             ],
-            'FO-GJ-DECISION' => [
-                'view' => 'disciplinary.forms.decision-comunicado-blank-download',
-                'inline' => 'FO-GJ-DECISION-en-blanco.pdf',
-                'download' => 'FO-GJ-DECISION-en-blanco.pdf',
-            ],
         ];
     }
 
@@ -270,11 +258,6 @@ final class OfficialFormsCatalog
 
         if (strtoupper($normalizedCode) === 'FO-GJ-47') {
             $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-47-body.blade.php');
-            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
-        }
-
-        if (strtoupper($normalizedCode) === 'FO-GJ-DECISION') {
-            $bodyPath = resource_path('views/disciplinary/forms/partials/decision-comunicado-body.blade.php');
             $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 

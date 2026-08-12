@@ -455,6 +455,10 @@ class DisciplinaryAgendaThreadService
         $hasStructuredSlots = $slots !== [];
 
         return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots, $decisionPayload) {
+            if ($hasStructuredSlots) {
+                app(DecisionCoordinationService::class)->clearConfirmationOnRepublish($case->fresh(), $actor);
+            }
+
             $displayBody = $body !== ''
                 ? $body
                 : ($hasStructuredSlots

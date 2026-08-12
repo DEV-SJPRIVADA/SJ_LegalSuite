@@ -8,6 +8,7 @@ use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Support\Disciplinary\SuspensionPeriodCalculator;
+use App\Support\Disciplinary\DecisionStatuteArticles;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -38,9 +39,7 @@ class FoGj47DraftService
         $startRaw = $this->resolveSuspensionStart($case);
         $days = (int) ($existing['suspension_days'] ?? 0);
 
-        $articles55 = (string) ($existing['articles_55'] ?? $this->defaultArticlesLine($fo03, '55'));
-        $articles57 = (string) ($existing['articles_57'] ?? $this->defaultArticlesLine($fo03, '57'));
-        $articles60 = (string) ($existing['articles_60'] ?? $this->defaultArticlesLine($fo03, '60'));
+        $statuteArticles = DecisionStatuteArticles::resolve($fo03, $existing);
 
         $period = null;
         if ($startRaw !== null && $days >= 1) {
@@ -58,9 +57,10 @@ class FoGj47DraftService
             'start_long' => $period['start_long'] ?? '',
             'end_long' => $period['end_long'] ?? '',
             'return_long' => $period['return_long'] ?? '',
-            'articles_55' => $articles55,
-            'articles_57' => $articles57,
-            'articles_60' => $articles60,
+            'statute_articles' => $statuteArticles,
+            'articles_55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+            'articles_57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+            'articles_60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
             'signer_name' => (string) ($existing['signer_name'] ?? ''),
             'signer_title' => (string) ($existing['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA'),
             'subject' => self::SUBJECT_FIXED,
@@ -101,14 +101,11 @@ class FoGj47DraftService
             $missing[] = 'fecha de inicio de suspensión (planeación)';
         }
 
-        if (trim((string) ($payload['articles_55'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 55';
-        }
-        if (trim((string) ($payload['articles_57'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 57';
-        }
-        if (trim((string) ($payload['articles_60'] ?? '')) === '') {
-            $missing[] = 'numerales artículo 60';
+        $statuteMissing = DecisionStatuteArticles::missingRequirements(
+            DecisionStatuteArticles::resolve($case->fo_gj_03_payload ?? [], $payload),
+        );
+        foreach ($statuteMissing as $item) {
+            $missing[] = $item;
         }
 
         if (trim((string) ($payload['signer_name'] ?? '')) === '') {
@@ -167,12 +164,16 @@ class FoGj47DraftService
             ]);
         }
 
-        $articles55 = trim((string) ($input['articles_55'] ?? ''));
-        $articles57 = trim((string) ($input['articles_57'] ?? ''));
-        $articles60 = trim((string) ($input['articles_60'] ?? ''));
-        if ($articles55 === '' || $articles57 === '' || $articles60 === '') {
+        $statuteArticles = DecisionStatuteArticles::normalizeInput(
+            is_array($input['statute_articles'] ?? null) ? $input['statute_articles'] : [],
+        );
+        if ($statuteArticles === []) {
+            $statuteArticles = DecisionStatuteArticles::resolve($case->fo_gj_03_payload ?? [], []);
+        }
+        $statuteMissing = DecisionStatuteArticles::missingRequirements($statuteArticles);
+        if ($statuteMissing !== []) {
             throw ValidationException::withMessages([
-                'foGj47Articles55' => 'Complete los numerales de los artículos 55, 57 y 60.',
+                'decisionStatuteArticles' => 'Complete los numerales de todos los artículos (mismos del FO-GJ-03). Falta: '.implode(', ', $statuteMissing),
             ]);
         }
 
@@ -198,9 +199,10 @@ class FoGj47DraftService
                 'start_long' => $period['start_long'],
                 'end_long' => $period['end_long'],
                 'return_long' => $period['return_long'],
-                'articles_55' => $articles55,
-                'articles_57' => $articles57,
-                'articles_60' => $articles60,
+                'statute_articles' => $statuteArticles,
+                'articles_55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+                'articles_57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+                'articles_60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
                 'signer_name' => $signerName,
                 'signer_title' => $signerTitle !== '' ? $signerTitle : 'DIRECTORA DE GESTIÓN HUMANA',
                 'subject' => self::SUBJECT_FIXED,
@@ -270,35 +272,5 @@ class FoGj47DraftService
         }
 
         return (string) ($hit->notification_payload['suspension_start'] ?? '');
-    }
-
-    /**
-     * @param  array<string, mixed>  $fo03
-     */
-    private function defaultArticlesLine(array $fo03, string $articleNumber): string
-    {
-        $blocks = $fo03['statute_articles'] ?? $fo03['articles'] ?? [];
-        if (! is_array($blocks)) {
-            return '';
-        }
-
-        foreach ($blocks as $block) {
-            if (! is_array($block)) {
-                continue;
-            }
-            $number = trim((string) ($block['article_number'] ?? $block['number'] ?? ''));
-            if ($number !== $articleNumber) {
-                continue;
-            }
-            $numerals = $block['numerals'] ?? [];
-            if (is_string($numerals)) {
-                return trim($numerals);
-            }
-            if (is_array($numerals)) {
-                return implode(', ', array_map('strval', $numerals));
-            }
-        }
-
-        return '';
     }
 }

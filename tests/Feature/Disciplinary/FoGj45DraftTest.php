@@ -25,15 +25,14 @@ class FoGj45DraftTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_closure_branch_maps_verbal_absuelto_archivado(): void
+    public function test_termination_branch_maps_to_fo_gj_45(): void
     {
         $this->assertSame(
-            [Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO],
-            DecisionBranch::choicesForBranch(DecisionBranch::CLOSURE),
+            [Decision::TERMINACION_CONTRATO],
+            DecisionBranch::choicesForBranch(DecisionBranch::TERMINATION),
         );
-        $this->assertSame(DecisionBranch::CLOSURE, DecisionBranch::forDecision(Decision::ARCHIVADO));
-        $this->assertSame(DecisionBranch::CLOSURE, DecisionBranch::forDecision(Decision::ABSUELTO));
-        $this->assertSame(DecisionBranch::CLOSURE, DecisionBranch::forDecision(Decision::AMONESTACION_VERBAL));
+        $this->assertSame(DecisionBranch::TERMINATION, DecisionBranch::forDecision(Decision::TERMINACION_CONTRATO));
+        $this->assertTrue(DecisionBranch::requiresLawyerTerminationPackage(DecisionBranch::TERMINATION));
     }
 
     public function test_catalog_includes_fo_gj_45_blank_pdf(): void
@@ -43,15 +42,16 @@ class FoGj45DraftTest extends TestCase
             'disciplinary.forms.fo-gj-45-blank-download',
             OfficialFormsCatalog::htmlBlankPdfView('FO-GJ-45'),
         );
+        $this->assertFalse(OfficialFormsCatalog::hasBlankPdf('FO-GJ-DECISION'));
     }
 
     public function test_save_draft_persists_fo_gj_45_payload(): void
     {
-        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDecisionCaseReadyForDraft(Decision::ARCHIVADO);
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDecisionCaseReadyForDraft(Decision::TERMINACION_CONTRATO);
 
         $saved = app(FoGj45DraftService::class)->saveDraft($case, $lawyer, [
-            'body_paragraph' => 'Por medio de la presente, me permito comunicarle que, dando cumplimiento al debido proceso en el marco del trámite disciplinario iniciado con el informe de fecha 10 de mayo de 2024, derivado de una falta menor, esta Dirección ha RESUELTO:',
-            'resolutive_first' => 'NO IMPONER SANCIÓN DISCIPLINARIA',
+            'body_paragraph' => 'Por medio de la presente, me permito comunicarle que, dando cumplimiento al debido proceso en el marco del trámite disciplinario iniciado con el informe de fecha 10 de mayo de 2024, derivado de una falta grave, esta Dirección ha RESUELTO:',
+            'resolutive_first' => 'TERMINAR EL CONTRATO DE TRABAJO',
             'resolutive_second' => 'ARCHIVAR el presente proceso',
             'signer_name' => 'Ana Gómez',
             'signer_title' => 'DIRECTORA GESTIÓN HUMANA',
@@ -60,38 +60,39 @@ class FoGj45DraftTest extends TestCase
         $this->assertNotNull($saved->decision_draft_completed_at);
         $this->assertSame(FoGj45DraftService::DOCUMENT_CODE, $saved->decision_payload['document_code'] ?? null);
         $this->assertSame('Ana Gómez', $saved->decision_payload['signer_name'] ?? null);
-        $this->assertStringContainsString('informe de fecha', (string) ($saved->decision_payload['body_paragraph'] ?? ''));
         $this->assertTrue(app(FoGj45DraftService::class)->isReadyForPdf($saved));
     }
 
     public function test_save_draft_requires_body_paragraph(): void
     {
-        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDecisionCaseReadyForDraft(Decision::ABSUELTO);
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDecisionCaseReadyForDraft(Decision::TERMINACION_CONTRATO);
 
         $this->expectException(ValidationException::class);
 
         app(FoGj45DraftService::class)->saveDraft($case, $lawyer, [
             'body_paragraph' => '',
-            'resolutive_first' => 'NO IMPONER SANCIÓN DISCIPLINARIA',
+            'resolutive_first' => 'TERMINAR EL CONTRATO DE TRABAJO',
             'resolutive_second' => 'ARCHIVAR el presente proceso',
             'signer_name' => 'Ana Gómez',
         ]);
     }
 
-    public function test_applies_to_all_closure_decisions_not_notice(): void
+    public function test_does_not_apply_to_notice_or_suspension(): void
     {
         $lawyer = $this->makeLawyer();
         $service = app(FoGj45DraftService::class);
 
-        foreach ([Decision::ARCHIVADO, Decision::ABSUELTO, Decision::AMONESTACION_VERBAL] as $decision) {
-            $case = $this->baseCase($lawyer);
-            $case->forceFill(['decision' => $decision])->save();
-            $this->assertTrue($service->appliesTo($case->fresh()), $decision->value);
-        }
-
         $notice = $this->baseCase($lawyer);
         $notice->forceFill(['decision' => Decision::AMONESTACION_ESCRITA])->save();
         $this->assertFalse($service->appliesTo($notice->fresh()));
+
+        $suspension = $this->baseCase($lawyer);
+        $suspension->forceFill(['decision' => Decision::SUSPENSION])->save();
+        $this->assertFalse($service->appliesTo($suspension->fresh()));
+
+        $termination = $this->baseCase($lawyer);
+        $termination->forceFill(['decision' => Decision::TERMINACION_CONTRATO])->save();
+        $this->assertTrue($service->appliesTo($termination->fresh()));
     }
 
     /** @return array{case: DisciplinaryCase, lawyer: User} */

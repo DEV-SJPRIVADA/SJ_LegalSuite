@@ -584,7 +584,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! app(DisciplinaryDecisionWorkflowService::class)->userCanCompleteHrReview($user)) {
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
             return false;
         }
 
@@ -592,13 +592,9 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($case->decision_hr_review_completed_at !== null) {
-            return false;
-        }
-
         $branch = DecisionBranch::forDecision($case->decision);
 
-        return $branch !== null && DecisionBranch::requiresHrReview($branch);
+        return $branch !== null && DecisionBranch::requiresLawyerTerminationPackage($branch);
     }
 
     public function captureFoGj04WorkerSignature(User $user, DisciplinaryCase $case): bool

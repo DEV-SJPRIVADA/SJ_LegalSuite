@@ -533,25 +533,34 @@ class DisciplinaryCase extends Model
             && $this->notification_supervisor_user_id !== null;
     }
 
-    /** Planeación publicó programación de decisión en el hilo. */
+    /** Planeación publicó opciones de notificación de decisión en el hilo. */
     public function hasDecisionPlanningReply(): bool
     {
-        $this->loadMissing('agendaThread.messages');
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->hasOpenOptions($this);
+    }
 
-        foreach ($this->agendaThread?->messages ?? [] as $message) {
-            if ($message->message_kind === AgendaMessageKind::DECISION_PLANNING_RESPONSE) {
-                return true;
-            }
-        }
-
-        return false;
+    public function hasDecisionNotificationConfirmed(): bool
+    {
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->hasConfirmedNotification($this);
     }
 
     public function awaitingDecisionPlanningSlots(): bool
     {
-        return $this->current_status === CaseStatus::DECISION
-            && $this->decision_coordination_started_at !== null
-            && ! $this->hasDecisionPlanningReply();
+        if ($this->current_status !== CaseStatus::DECISION || $this->decision_coordination_started_at === null) {
+            return false;
+        }
+
+        if ($this->hasDecisionNotificationConfirmed()) {
+            return false;
+        }
+
+        return ! $this->hasDecisionPlanningReply();
+    }
+
+    /** Planeación puede reproponer aunque ya haya opciones (antes de entrega). */
+    public function canPlanningRepublishDecisionOptions(): bool
+    {
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->canPlanningPublishOptions($this);
     }
 
     public function currentStage(): HasMany
@@ -899,6 +908,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_DECISION_HR_ANEXO_PREFIX = 'Anexo laboral gestión humana';
 
+    public const NOTE_DECISION_TERMINATION_PACKAGE_PREFIX = 'Paquete terminación contrato';
+
     /**
      * PDF de citación FO-GJ-03 generado desde el expediente (no evidencia de notificación).
      */
@@ -992,6 +1003,7 @@ class DisciplinaryCase extends Model
 
         return $docs->contains(
             fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+                || str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_TERMINATION_PACKAGE_PREFIX)
         );
     }
 
@@ -1004,6 +1016,7 @@ class DisciplinaryCase extends Model
 
         return $docs->filter(
             fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+                || str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_TERMINATION_PACKAGE_PREFIX)
         )->values();
     }
 

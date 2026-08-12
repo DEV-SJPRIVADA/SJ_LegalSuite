@@ -34,7 +34,8 @@ class FoGj46DraftTest extends TestCase
             DecisionBranch::choicesForBranch(DecisionBranch::NOTICE),
         );
         $this->assertSame(DecisionBranch::NOTICE, DecisionBranch::forDecision(Decision::AMONESTACION_ESCRITA));
-        $this->assertSame(DecisionBranch::CLOSURE, DecisionBranch::forDecision(Decision::ARCHIVADO));
+        $this->assertSame(DecisionBranch::SUSPENSION, DecisionBranch::forDecision(Decision::SUSPENSION));
+        $this->assertSame(DecisionBranch::TERMINATION, DecisionBranch::forDecision(Decision::TERMINACION_CONTRATO));
         $this->assertSame('Llamado de atención', Decision::AMONESTACION_ESCRITA->label());
     }
 
@@ -54,9 +55,11 @@ class FoGj46DraftTest extends TestCase
         $saved = app(FoGj46DraftService::class)->saveDraft($case, $lawyer, [
             'hearing_lead' => FoGj46HearingLead::Surtida->value,
             'facts_narrative' => 'incurrió en falta grave al reglamento.',
-            'articles_55' => '1',
-            'articles_57' => '2',
-            'articles_60' => '3',
+            'statute_articles' => [
+                ['article_number' => '55', 'numerals' => '1'],
+                ['article_number' => '57', 'numerals' => '2'],
+                ['article_number' => '60', 'numerals' => '3'],
+            ],
             'signer_name' => 'Ana Gómez',
             'signer_title' => 'DIRECTORA DE GESTIÓN HUMANA',
         ]);
@@ -65,7 +68,24 @@ class FoGj46DraftTest extends TestCase
         $this->assertSame(FoGj46DraftService::DOCUMENT_CODE, $saved->decision_payload['document_code'] ?? null);
         $this->assertSame('surtida', $saved->decision_payload['hearing_lead'] ?? null);
         $this->assertSame('Ana Gómez', $saved->decision_payload['signer_name'] ?? null);
+        $this->assertSame('1', $saved->decision_payload['statute_articles'][0]['numerals'] ?? null);
         $this->assertTrue(app(FoGj46DraftService::class)->isReadyForPdf($saved));
+    }
+
+    public function test_defaults_preload_statute_articles_from_fo_gj_03(): void
+    {
+        ['case' => $case] = $this->makeDecisionCaseReadyForDraft([
+            ['article_number' => '74', 'numerals' => ['1', '2', '6']],
+            ['article_number' => '76', 'numerals' => '32'],
+            ['article_number' => '79', 'numerals' => '5'],
+        ]);
+
+        $defaults = app(FoGj46DraftService::class)->defaultsForCase($case);
+
+        $this->assertCount(3, $defaults['statute_articles']);
+        $this->assertSame('74', $defaults['statute_articles'][0]['article_number']);
+        $this->assertSame('1, 2, 6', $defaults['statute_articles'][0]['numerals']);
+        $this->assertSame('76', $defaults['statute_articles'][1]['article_number']);
     }
 
     public function test_save_draft_requires_hearing_lead(): void
@@ -93,8 +113,8 @@ class FoGj46DraftTest extends TestCase
         $this->assertFalse(app(FoGj46DraftService::class)->appliesTo($case->fresh()));
     }
 
-    /** @return array{case: DisciplinaryCase, lawyer: User} */
-    private function makeDecisionCaseReadyForDraft(): array
+    /** @param  list<array{article_number: string, numerals: mixed}>|null  $statuteArticles */
+    private function makeDecisionCaseReadyForDraft(?array $statuteArticles = null): array
     {
         $lawyer = $this->makeLawyer();
         $case = $this->baseCase($lawyer);
@@ -112,7 +132,7 @@ class FoGj46DraftTest extends TestCase
                 'breach_date' => now()->subDays(10)->toDateString(),
                 'modality' => 'presencial',
                 'charges_description' => 'Falta disciplinaria de prueba.',
-                'statute_articles' => [
+                'statute_articles' => $statuteArticles ?? [
                     ['article_number' => '55', 'numerals' => ['1', '2']],
                     ['article_number' => '57', 'numerals' => ['3']],
                     ['article_number' => '60', 'numerals' => ['1']],

@@ -19,6 +19,7 @@ use App\Services\Disciplinary\CitationNotificationSigningService;
 use App\Services\Disciplinary\ComiteActaService;
 use App\Services\Disciplinary\ComiteDraftService;
 use App\Services\Disciplinary\DecisionComunicadoService;
+use App\Services\Disciplinary\DecisionCoordinationService;
 use App\Services\Disciplinary\DecisionDraftService;
 use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Services\Disciplinary\DiligenceAttendanceService;
@@ -121,6 +122,9 @@ class CaseDetail extends Component
 
     /** Clave compuesta messageId-slotIndex para selección visual de fecha. */
     public string $selectedCitationSlotKey = '';
+
+    /** Clave compuesta messageId-slotIndex para opción de notificación de decisión. */
+    public string $selectedDecisionSlotKey = '';
 
     public bool $showCitationAdvanceValidation = false;
 
@@ -292,11 +296,8 @@ class CaseDetail extends Component
 
     public string $foGj46FactsNarrative = '';
 
-    public string $foGj46Articles55 = '';
-
-    public string $foGj46Articles57 = '';
-
-    public string $foGj46Articles60 = '';
+    /** @var list<array{article_number: string, numerals: string, label?: string}> */
+    public array $decisionStatuteArticles = [];
 
     public string $foGj46SignerName = '';
 
@@ -307,12 +308,6 @@ class CaseDetail extends Component
     public string $foGj47SuspensionDays = '';
 
     public string $foGj47SuspensionStart = '';
-
-    public string $foGj47Articles55 = '';
-
-    public string $foGj47Articles57 = '';
-
-    public string $foGj47Articles60 = '';
 
     public string $foGj47SignerName = '';
 
@@ -329,6 +324,11 @@ class CaseDetail extends Component
     public string $foGj45SignerTitle = '';
 
     public bool $showDecisionPdfPreviewModal = false;
+
+    public string $decisionFinalizeConclusion = '';
+
+    /** @var mixed */
+    public $terminationPackageFile = null;
 
     public bool $showDecisionFinalizeConfirm = false;
 
@@ -828,6 +828,56 @@ class CaseDetail extends Component
 
         $this->syncCaseFromDb();
         session()->flash('success', 'Fecha definitiva de citación registrada. Diligencie el FO-GJ-03 cuando complete los requisitos.');
+    }
+
+    public function confirmDecisionSlot(DecisionCoordinationService $coordination): void
+    {
+        Gate::authorize('postAgendaLawyer', $this->case);
+
+        $this->validate([
+            'selectedDecisionSlotKey' => ['required', 'string', 'regex:/^\d+-\d+$/'],
+        ], [], [
+            'selectedDecisionSlotKey' => 'opción de notificación',
+        ]);
+
+        [$messageId, $slotIndex] = array_map('intval', explode('-', $this->selectedDecisionSlotKey, 2));
+
+        try {
+            $this->case = $coordination->confirmOption(
+                $this->case->fresh(['agendaThread', 'employee']),
+                auth()->user(),
+                $messageId,
+                $slotIndex,
+            );
+        } catch (\Throwable $e) {
+            $this->addError('selectedDecisionSlotKey', $e->getMessage());
+
+            return;
+        }
+
+        $this->selectedDecisionSlotKey = '';
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Opción de notificación confirmada. Puede diligenciar el comunicado FO-GJ.');
+    }
+
+    public function requestNewDecisionOptions(DecisionCoordinationService $coordination): void
+    {
+        Gate::authorize('postAgendaLawyer', $this->case);
+
+        try {
+            $this->case = $coordination->requestNewOptions(
+                $this->case->fresh(['agendaThread']),
+                auth()->user(),
+            );
+        } catch (\Throwable $e) {
+            $this->addError('decisionCoordination', $e->getMessage());
+
+            return;
+        }
+
+        $this->selectedDecisionSlotKey = '';
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Solicitud enviada. Planeación puede publicar nuevas opciones.');
     }
 
     public function requestNotificationCoordination(DisciplinaryCitationNotificationService $notification): void
@@ -1956,7 +2006,6 @@ class CaseDetail extends Component
                 DecisionBranch::SUSPENSION,
                 DecisionBranch::NOTICE,
                 DecisionBranch::TERMINATION,
-                DecisionBranch::CLOSURE,
             ])],
             'decisionTypeSelection' => ['required', 'string'],
         ], [], [
@@ -1987,22 +2036,20 @@ class CaseDetail extends Component
     public function openDecisionDraftModal(DecisionDraftService $drafts): void
     {
         Gate::authorize('editDecisionDraft', $this->case);
-        $defaults = $drafts->defaultsForCase($this->case);
+        $defaults = $drafts->defaultsForCase($this->case->fresh(['employee', 'assignedLawyer']));
 
         if (($defaults['is_fo_gj_46'] ?? false) === true) {
             $this->foGj46HearingLead = (string) ($defaults['hearing_lead'] ?? '');
             $this->foGj46FactsNarrative = (string) ($defaults['facts_narrative'] ?? '');
-            $this->foGj46Articles55 = (string) ($defaults['articles_55'] ?? '');
-            $this->foGj46Articles57 = (string) ($defaults['articles_57'] ?? '');
-            $this->foGj46Articles60 = (string) ($defaults['articles_60'] ?? '');
+            $this->decisionStatuteArticles = is_array($defaults['statute_articles'] ?? null)
+                ? $defaults['statute_articles']
+                : [];
             $this->foGj46SignerName = (string) ($defaults['signer_name'] ?? '');
             $this->foGj46SignerTitle = (string) ($defaults['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA');
             $this->resetErrorBag([
                 'foGj46HearingLead',
                 'foGj46FactsNarrative',
-                'foGj46Articles55',
-                'foGj46Articles57',
-                'foGj46Articles60',
+                'decisionStatuteArticles',
                 'foGj46SignerName',
                 'foGj46SignerTitle',
             ]);
@@ -2010,18 +2057,16 @@ class CaseDetail extends Component
             $this->foGj47OpeningNarrative = (string) ($defaults['opening_narrative'] ?? '');
             $this->foGj47SuspensionDays = (string) ($defaults['suspension_days'] ?? '');
             $this->foGj47SuspensionStart = (string) ($defaults['suspension_start'] ?? '');
-            $this->foGj47Articles55 = (string) ($defaults['articles_55'] ?? '');
-            $this->foGj47Articles57 = (string) ($defaults['articles_57'] ?? '');
-            $this->foGj47Articles60 = (string) ($defaults['articles_60'] ?? '');
+            $this->decisionStatuteArticles = is_array($defaults['statute_articles'] ?? null)
+                ? $defaults['statute_articles']
+                : [];
             $this->foGj47SignerName = (string) ($defaults['signer_name'] ?? '');
             $this->foGj47SignerTitle = (string) ($defaults['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA');
             $this->resetErrorBag([
                 'foGj47OpeningNarrative',
                 'foGj47SuspensionDays',
                 'foGj47SuspensionStart',
-                'foGj47Articles55',
-                'foGj47Articles57',
-                'foGj47Articles60',
+                'decisionStatuteArticles',
                 'foGj47SignerName',
                 'foGj47SignerTitle',
             ]);
@@ -2064,9 +2109,7 @@ class CaseDetail extends Component
                 Decision::AMONESTACION_ESCRITA => [
                     'hearing_lead' => $this->foGj46HearingLead,
                     'facts_narrative' => $this->foGj46FactsNarrative,
-                    'articles_55' => $this->foGj46Articles55,
-                    'articles_57' => $this->foGj46Articles57,
-                    'articles_60' => $this->foGj46Articles60,
+                    'statute_articles' => $this->decisionStatuteArticles,
                     'signer_name' => $this->foGj46SignerName,
                     'signer_title' => $this->foGj46SignerTitle,
                 ],
@@ -2074,26 +2117,20 @@ class CaseDetail extends Component
                     'opening_narrative' => $this->foGj47OpeningNarrative,
                     'suspension_days' => $this->foGj47SuspensionDays,
                     'suspension_start' => $this->foGj47SuspensionStart,
-                    'articles_55' => $this->foGj47Articles55,
-                    'articles_57' => $this->foGj47Articles57,
-                    'articles_60' => $this->foGj47Articles60,
+                    'statute_articles' => $this->decisionStatuteArticles,
                     'signer_name' => $this->foGj47SignerName,
                     'signer_title' => $this->foGj47SignerTitle,
                 ],
-                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => [
+                Decision::TERMINACION_CONTRATO => [
                     'body_paragraph' => $this->foGj45BodyParagraph,
                     'resolutive_first' => $this->foGj45ResolutiveFirst,
                     'resolutive_second' => $this->foGj45ResolutiveSecond,
                     'signer_name' => $this->foGj45SignerName,
                     'signer_title' => $this->foGj45SignerTitle,
                 ],
-                default => [
-                    'subject' => $this->decisionSubject,
-                    'body_narrative' => $this->decisionBodyNarrative,
-                    'suspension_start' => $this->decisionSuspensionStart,
-                    'suspension_end' => $this->decisionSuspensionEnd,
-                    'relief_notes' => $this->decisionReliefNotes,
-                ],
+                default => throw ValidationException::withMessages([
+                    'foGj45BodyParagraph' => 'Tipo de decisión no válido para diligenciamiento.',
+                ]),
             };
 
             $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), $input);
@@ -2107,8 +2144,8 @@ class CaseDetail extends Component
             match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'Borrador FO-GJ-46 (llamado de atención) guardado.',
                 Decision::SUSPENSION => 'Borrador FO-GJ-47 (suspensión) guardado.',
-                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'Borrador FO-GJ-45 (acta de archivo) guardado.',
-                default => 'Borrador del comunicado guardado.',
+                Decision::TERMINACION_CONTRATO => 'Borrador FO-GJ-45 (acta de archivo) guardado.',
+                default => 'Borrador guardado.',
             },
         );
     }
@@ -2125,8 +2162,8 @@ class CaseDetail extends Component
             $field = match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'foGj46HearingLead',
                 Decision::SUSPENSION => 'foGj47OpeningNarrative',
-                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'foGj45BodyParagraph',
-                default => 'decisionBodyNarrative',
+                Decision::TERMINACION_CONTRATO => 'foGj45BodyParagraph',
+                default => 'foGj45BodyParagraph',
             };
             $this->addError($field, $e->getMessage());
 
@@ -2138,8 +2175,8 @@ class CaseDetail extends Component
             match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'FO-GJ-46 generado y guardado en el expediente.',
                 Decision::SUSPENSION => 'FO-GJ-47 generado y guardado en el expediente.',
-                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'FO-GJ-45 generado y guardado en el expediente.',
-                default => 'Comunicado de decisión generado y guardado en el expediente.',
+                Decision::TERMINACION_CONTRATO => 'FO-GJ-45 generado y guardado en el expediente.',
+                default => 'Documento de decisión generado y guardado en el expediente.',
             },
         );
     }
@@ -2159,24 +2196,64 @@ class CaseDetail extends Component
     public function requestFinalizeDecision(): void
     {
         Gate::authorize('finalizeDecisionCase', $this->case);
+        $this->decisionFinalizeConclusion = (string) ($this->case->decision_notes ?? '');
+        $this->resetErrorBag('decisionFinalizeConclusion');
         $this->showDecisionFinalizeConfirm = true;
     }
 
     public function cancelFinalizeDecision(): void
     {
         $this->showDecisionFinalizeConfirm = false;
+        $this->decisionFinalizeConclusion = '';
     }
 
     public function confirmFinalizeDecision(DisciplinaryDecisionWorkflowService $workflow): void
     {
+        Gate::authorize('finalizeDecisionCase', $this->case);
+
+        $this->validate([
+            'decisionFinalizeConclusion' => ['required', 'string', 'min:10', 'max:2000'],
+        ], [], [
+            'decisionFinalizeConclusion' => 'conclusión',
+        ]);
+
         try {
-            $this->case = $workflow->finalizeCase($this->case->fresh(), auth()->user());
+            $this->case = $workflow->finalizeCase(
+                $this->case->fresh(),
+                auth()->user(),
+                $this->decisionFinalizeConclusion,
+            );
         } catch (ValidationException $e) {
             throw $e;
         }
 
         $this->showDecisionFinalizeConfirm = false;
+        $this->decisionFinalizeConclusion = '';
         session()->flash('success', 'Proceso disciplinario finalizado.');
+    }
+
+    public function uploadTerminationPackage(DisciplinaryDecisionWorkflowService $workflow): void
+    {
+        Gate::authorize('uploadDecisionHrAnnex', $this->case);
+
+        $this->validate([
+            'terminationPackageFile' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+        ], [], [
+            'terminationPackageFile' => 'paquete PDF de terminación',
+        ]);
+
+        try {
+            $this->case = $workflow->uploadTerminationPackage(
+                $this->case->fresh(),
+                auth()->user(),
+                $this->terminationPackageFile,
+            );
+        } catch (ValidationException $e) {
+            throw $e;
+        }
+
+        $this->terminationPackageFile = null;
+        session()->flash('success', 'Paquete PDF de terminación cargado en el expediente.');
     }
 
     public function openDocumentPreview(int $documentId): void

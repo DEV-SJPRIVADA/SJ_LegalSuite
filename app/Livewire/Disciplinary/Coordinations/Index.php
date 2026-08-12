@@ -471,12 +471,14 @@ class Index extends Component
         $awaitingDecisionPlanning = $pendingNotificationCase
             && $isDecisionCase
             && $pendingNotificationCase->awaitingDecisionPlanningSlots();
+        $canRepublishDecisionPlanning = $pendingNotificationCase
+            && $isDecisionCase
+            && $pendingNotificationCase->canPlanningRepublishDecisionOptions();
         $canRegisterNotification = $canManageCitationCoordination
             && auth()->user()->can('postNotificationCoordination', $pendingNotificationCase);
-        $canRegisterDecisionNotification = $pendingNotificationCase
-            && $isDecisionCase
-            && auth()->user()->can('postDecisionNotificationCoordination', $pendingNotificationCase);
-        $hasPendingNotification = $canRegisterNotification || $canRegisterDecisionNotification;
+        $canRegisterDecisionNotification = false;
+        $hasPendingNotification = $canRegisterNotification;
+        $decisionHasPlanningSlots = $pendingNotificationCase?->hasDecisionPlanningReply() ?? false;
         $decisionBranch = $pendingNotificationCase?->decision
             ? DecisionBranch::forDecision($pendingNotificationCase->decision)
             : null;
@@ -502,8 +504,10 @@ class Index extends Component
             'citationHasPlanningSlots' => $citationHasPlanningSlots,
             'awaitingDiligenceDates' => $awaitingDiligenceDates,
             'awaitingDecisionPlanning' => $awaitingDecisionPlanning,
+            'canRepublishDecisionPlanning' => $canRepublishDecisionPlanning,
             'canRegisterNotification' => $canRegisterNotification,
             'canRegisterDecisionNotification' => $canRegisterDecisionNotification,
+            'decisionHasPlanningSlots' => $decisionHasPlanningSlots,
             'isDecisionCase' => $isDecisionCase,
             'decisionBranch' => $decisionBranch,
             'liveCaseId' => $liveCaseId,

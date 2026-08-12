@@ -65,9 +65,11 @@ class FoGj47DraftTest extends TestCase
             'opening_narrative' => 'Por medio de la presente me permito comunicarle que, dentro del trámite disciplinario…',
             'suspension_days' => 1,
             'suspension_start' => '2024-06-04',
-            'articles_55' => '1',
-            'articles_57' => '2',
-            'articles_60' => '3',
+            'statute_articles' => [
+                ['article_number' => '55', 'numerals' => '1'],
+                ['article_number' => '57', 'numerals' => '2'],
+                ['article_number' => '60', 'numerals' => '3'],
+            ],
             'signer_name' => 'Ligia María Álvarez',
             'signer_title' => 'DIRECTORA DE GESTIÓN HUMANA',
         ]);
@@ -78,7 +80,20 @@ class FoGj47DraftTest extends TestCase
         $this->assertSame('2024-06-04', $saved->decision_payload['suspension_start'] ?? null);
         $this->assertSame('2024-06-04', $saved->decision_payload['suspension_end'] ?? null);
         $this->assertSame('2024-06-05', $saved->decision_payload['suspension_return'] ?? null);
+        $this->assertSame('55', $saved->decision_payload['statute_articles'][0]['article_number'] ?? null);
         $this->assertTrue(app(FoGj47DraftService::class)->isReadyForPdf($saved));
+    }
+
+    public function test_defaults_preload_statute_articles_from_fo_gj_03(): void
+    {
+        ['case' => $case] = $this->makeSuspensionCaseReadyForDraft([
+            ['article_number' => '74', 'numerals' => '1, 2'],
+            ['article_number' => '76', 'numerals' => '32'],
+        ]);
+
+        $defaults = app(FoGj47DraftService::class)->defaultsForCase($case);
+        $this->assertSame('74', $defaults['statute_articles'][0]['article_number']);
+        $this->assertSame('1, 2', $defaults['statute_articles'][0]['numerals']);
     }
 
     public function test_save_draft_requires_days(): void
@@ -98,8 +113,8 @@ class FoGj47DraftTest extends TestCase
         ]);
     }
 
-    /** @return array{case: DisciplinaryCase, lawyer: User} */
-    private function makeSuspensionCaseReadyForDraft(): array
+    /** @param  list<array{article_number: string, numerals: mixed}>|null  $statuteArticles */
+    private function makeSuspensionCaseReadyForDraft(?array $statuteArticles = null): array
     {
         $lawyer = User::factory()->create([
             'email' => 'fo47-'.random_int(1000, 9999).'@test.local',
@@ -133,7 +148,7 @@ class FoGj47DraftTest extends TestCase
             'fo_gj_03_payload' => [
                 'breach_date' => now()->subDays(10)->toDateString(),
                 'modality' => 'presencial',
-                'statute_articles' => [
+                'statute_articles' => $statuteArticles ?? [
                     ['article_number' => '55', 'numerals' => ['1']],
                     ['article_number' => '57', 'numerals' => ['2']],
                     ['article_number' => '60', 'numerals' => ['3']],

@@ -5,11 +5,7 @@
 
     $isFoGj46 = ($case->decision ?? null) === Decision::AMONESTACION_ESCRITA;
     $isFoGj47 = ($case->decision ?? null) === Decision::SUSPENSION;
-    $isFoGj45 = in_array($case->decision ?? null, [
-        Decision::AMONESTACION_VERBAL,
-        Decision::ABSUELTO,
-        Decision::ARCHIVADO,
-    ], true);
+    $isFoGj45 = ($case->decision ?? null) === Decision::TERMINACION_CONTRATO;
 @endphp
 
 @if ($showDecisionTypeModal ?? false)
@@ -27,7 +23,6 @@
                         <option value="{{ DecisionBranch::SUSPENSION }}">{{ DecisionBranch::label(DecisionBranch::SUSPENSION) }}</option>
                         <option value="{{ DecisionBranch::NOTICE }}">{{ DecisionBranch::label(DecisionBranch::NOTICE) }}</option>
                         <option value="{{ DecisionBranch::TERMINATION }}">{{ DecisionBranch::label(DecisionBranch::TERMINATION) }}</option>
-                        <option value="{{ DecisionBranch::CLOSURE }}">{{ DecisionBranch::label(DecisionBranch::CLOSURE) }}</option>
                     </select>
                     @error('decisionBranchSelection') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
@@ -73,7 +68,7 @@
                     </p>
                 @elseif ($isFoGj47)
                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Indique los días; el sistema calcula fin y retorno a partir de la fecha de inicio (planeación). Arts. 55/57/60 desde FO-GJ-03.
+                        Indique los días; el sistema calcula fin y retorno a partir de la fecha de inicio (planeación). Artículos/numerales desde FO-GJ-03.
                     </p>
                 @elseif ($isFoGj45)
                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -98,22 +93,25 @@
                         <textarea wire:model="foGj46FactsNarrative" rows="6" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" placeholder="…incurrió en…"></textarea>
                         @error('foGj46FactsNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-3">
-                        <div>
-                            <label class="block text-sm font-medium">Art. 55 (numerales)</label>
-                            <input type="text" wire:model="foGj46Articles55" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj46Articles55') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Art. 57 (numerales)</label>
-                            <input type="text" wire:model="foGj46Articles57" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj46Articles57') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Art. 60 (numerales)</label>
-                            <input type="text" wire:model="foGj46Articles60" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj46Articles60') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Artículos y numerales (mismos del FO-GJ-03)</p>
+                        @forelse ($decisionStatuteArticles as $i => $block)
+                            <div class="grid gap-2 sm:grid-cols-[7rem_1fr] items-end rounded-md border border-slate-200 p-2 dark:border-white/10">
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Artículo</label>
+                                    <input type="text" wire:model="decisionStatuteArticles.{{ $i }}.article_number" readonly
+                                        class="mt-0.5 w-full rounded-md border-slate-300 bg-slate-50 text-sm dark:border-white/20 dark:bg-white/5" />
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Numerales</label>
+                                    <input type="text" wire:model="decisionStatuteArticles.{{ $i }}.numerals"
+                                        class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/20 dark:bg-white/5" />
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-amber-700 dark:text-amber-300">No hay artículos en el FO-GJ-03 de este expediente. Revise la citación.</p>
+                        @endforelse
+                        @error('decisionStatuteArticles') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -146,22 +144,25 @@
                             @error('foGj47SuspensionStart') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-3">
-                        <div>
-                            <label class="block text-sm font-medium">Art. 55 (numerales)</label>
-                            <input type="text" wire:model="foGj47Articles55" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj47Articles55') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Art. 57 (numerales)</label>
-                            <input type="text" wire:model="foGj47Articles57" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj47Articles57') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium">Art. 60 (numerales)</label>
-                            <input type="text" wire:model="foGj47Articles60" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('foGj47Articles60') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Artículos y numerales (mismos del FO-GJ-03)</p>
+                        @forelse ($decisionStatuteArticles as $i => $block)
+                            <div class="grid gap-2 sm:grid-cols-[7rem_1fr] items-end rounded-md border border-slate-200 p-2 dark:border-white/10">
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Artículo</label>
+                                    <input type="text" wire:model="decisionStatuteArticles.{{ $i }}.article_number" readonly
+                                        class="mt-0.5 w-full rounded-md border-slate-300 bg-slate-50 text-sm dark:border-white/20 dark:bg-white/5" />
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Numerales</label>
+                                    <input type="text" wire:model="decisionStatuteArticles.{{ $i }}.numerals"
+                                        class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/20 dark:bg-white/5" />
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-amber-700 dark:text-amber-300">No hay artículos en el FO-GJ-03 de este expediente. Revise la citación.</p>
+                        @endforelse
+                        @error('decisionStatuteArticles') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -203,24 +204,6 @@
                             @error('foGj45SignerTitle') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
-                @else
-                    <div>
-                        <label class="block text-sm font-medium">Asunto</label>
-                        <input type="text" wire:model="decisionSubject" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                        @error('decisionSubject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Cuerpo del comunicado</label>
-                        <textarea wire:model="decisionBodyNarrative" rows="8" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
-                        @error('decisionBodyNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    @if ($decisionBranch === DecisionBranch::TERMINATION)
-                        <div>
-                            <label class="block text-sm font-medium">Observaciones de relevo</label>
-                            <textarea wire:model="decisionReliefNotes" rows="3" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
-                            @error('decisionReliefNotes') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                    @endif
                 @endif
             </div>
             <div class="flex shrink-0 justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-white/10">
@@ -255,12 +238,19 @@
 
 @if ($showDecisionFinalizeConfirm ?? false)
     <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/50" wire:key="decision-finalize-confirm">
-        <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Finalizar proceso disciplinario</h3>
-            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Confirme que la notificación y los requisitos de cierre están completos.</p>
+        <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Cerrar proceso disciplinario</h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Escriba una breve conclusión del cierre. El expediente pasará a finalizado.
+            </p>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Conclusión</label>
+                <textarea wire:model="decisionFinalizeConclusion" rows="4" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" placeholder="Resuma el resultado del proceso y el cierre administrativo…"></textarea>
+                @error('decisionFinalizeConclusion') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
             <div class="mt-6 flex justify-end gap-2">
                 <button type="button" wire:click="cancelFinalizeDecision" class="rounded-md px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300">Cancelar</button>
-                <button type="button" wire:click="confirmFinalizeDecision" class="rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">Confirmar cierre</button>
+                <button type="button" wire:click="confirmFinalizeDecision" class="rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">Cerrar caso</button>
             </div>
         </div>
     </div>

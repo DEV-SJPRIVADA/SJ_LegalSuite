@@ -90,22 +90,17 @@ class DisciplinaryDecisionWorkflowService
         }
 
         if ($case->decision_comunicado_generated_at === null && $case->latestDecisionComunicadoDocument() === null) {
-            $missing[] = 'comunicado de decisión generado';
-        }
-
-        if ($case->decision_evidence_uploaded_at === null) {
-            $missing[] = 'evidencia de notificación cargada';
+            $missing[] = 'documento FO-GJ de decisión generado';
         }
 
         $branch = DecisionBranch::forDecision($case->decision);
-        if ($branch !== null && DecisionBranch::requiresHrReview($branch)) {
-            if (! $case->hasDecisionHrAnnex()) {
-                $missing[] = 'anexos laborales de gestión humana';
-            }
 
-            if ($case->decision_hr_review_completed_at === null) {
-                $missing[] = 'revisión de gestión humana';
+        if ($branch !== null && DecisionBranch::requiresLawyerTerminationPackage($branch)) {
+            if (! $case->hasDecisionHrAnnex()) {
+                $missing[] = 'paquete PDF de terminación (anexos firmados) cargado por el abogado';
             }
+        } elseif ($case->decision_evidence_uploaded_at === null) {
+            $missing[] = 'evidencia de notificación cargada';
         }
 
         return $missing;
@@ -115,14 +110,14 @@ class DisciplinaryDecisionWorkflowService
     {
         if ((int) $case->assigned_lawyer_id !== (int) $lawyer->id) {
             throw ValidationException::withMessages([
-                'decisionFinalize' => 'Solo el abogado titular puede finalizar el proceso.',
+                'decisionFinalizeConclusion' => 'Solo el abogado titular puede finalizar el proceso.',
             ]);
         }
 
         $missing = $this->missingFinalizeRequirements($case);
         if ($missing !== []) {
             throw ValidationException::withMessages([
-                'decisionFinalize' => 'No es posible finalizar. Falta: '.implode(', ', $missing),
+                'decisionFinalizeConclusion' => 'No es posible finalizar. Falta: '.implode(', ', $missing),
             ]);
         }
     }
@@ -131,13 +126,19 @@ class DisciplinaryDecisionWorkflowService
     {
         $this->assertCanFinalize($case, $lawyer);
 
-        $case = $case->fresh();
-
-        if ($case->decision === Decision::ARCHIVADO) {
-            return $this->workflow->archive($case, $lawyer, $note);
+        $conclusion = trim((string) $note);
+        if ($conclusion === '') {
+            throw ValidationException::withMessages([
+                'decisionFinalizeConclusion' => 'Indique una breve conclusión antes de cerrar el caso.',
+            ]);
         }
 
-        return $this->workflow->finalize($case, $lawyer, $note);
+        $case = $case->fresh();
+        $case->forceFill([
+            'decision_notes' => $conclusion,
+        ])->save();
+
+        return $this->workflow->finalize($case->fresh(), $lawyer, $conclusion);
     }
 
     public function markEvidenceUploaded(DisciplinaryCase $case, CitationEvidenceType $type): DisciplinaryCase
@@ -222,28 +223,30 @@ class DisciplinaryDecisionWorkflowService
 
     public function uploadHrAnnex(DisciplinaryCase $case, User $actor, UploadedFile $file): DisciplinaryCase
     {
+        return $this->uploadTerminationPackage($case, $actor, $file);
+    }
+
+    /**
+     * Paquete PDF único de terminación (certificado, egreso, SS, liquidación, etc.) — lo carga el abogado titular.
+     */
+    public function uploadTerminationPackage(DisciplinaryCase $case, User $actor, UploadedFile $file): DisciplinaryCase
+    {
         if ($case->current_status !== CaseStatus::DECISION) {
             throw ValidationException::withMessages([
-                'hrAnnexFile' => 'El expediente no está en etapa de decisión.',
+                'terminationPackageFile' => 'El expediente no está en etapa de decisión.',
             ]);
         }
 
         $branch = DecisionBranch::forDecision($case->decision);
-        if ($branch === null || ! DecisionBranch::requiresHrReview($branch)) {
+        if ($branch === null || ! DecisionBranch::requiresLawyerTerminationPackage($branch)) {
             throw ValidationException::withMessages([
-                'hrAnnexFile' => 'Este tipo de decisión no requiere gestión humana.',
+                'terminationPackageFile' => 'Este tipo de decisión no requiere paquete de terminación.',
             ]);
         }
 
-        if (! $this->userCanCompleteHrReview($actor)) {
+        if ((int) $case->assigned_lawyer_id !== (int) $actor->id) {
             throw ValidationException::withMessages([
-                'hrAnnexFile' => 'No tiene permisos para cargar anexos laborales.',
-            ]);
-        }
-
-        if ($case->decision_hr_review_completed_at !== null) {
-            throw ValidationException::withMessages([
-                'hrAnnexFile' => 'La gestión humana ya fue completada.',
+                'terminationPackageFile' => 'Solo el abogado titular puede cargar el paquete de terminación.',
             ]);
         }
 
@@ -258,7 +261,19 @@ class DisciplinaryDecisionWorkflowService
             DocumentType::EVIDENCIA,
             $actor,
             $stage,
-            DisciplinaryCase::NOTE_DECISION_HR_ANEXO_PREFIX.' — '.$file->getClientOriginalName(),
+            DisciplinaryCase::NOTE_DECISION_TERMINATION_PACKAGE_PREFIX.' — '.$file->getClientOriginalName(),
+        );
+
+        $case->forceFill([
+            'decision_hr_review_completed_at' => now(),
+            'decision_hr_review_completed_by' => $actor->id,
+        ])->save();
+
+        $this->audit->logCase(
+            $case->fresh(),
+            $actor,
+            ActionType::DECISION_RRHH_COMPLETADA,
+            'Paquete PDF de terminación cargado por el abogado titular.',
         );
 
         return $case->fresh(['documents']);

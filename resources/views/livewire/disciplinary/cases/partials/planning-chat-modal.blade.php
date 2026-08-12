@@ -16,6 +16,14 @@
         && ! $coordinationIsClosed
         && ! ($diligenceSlotDisplay['confirmed'] ?? false)
         && auth()->user()->can('postAgendaLawyer', $case);
+    $canSelectDecisionSlot = $isDecisionFlow
+        && ! $isCitacionFlow
+        && ! ($decisionReadOnly ?? false)
+        && ! $coordinationIsClosed
+        && ! ($case->hasDecisionNotificationConfirmed() ?? false)
+        && auth()->user()->can('postAgendaLawyer', $case);
+    $selectableSlots = $canSelectCitationSlot || $canSelectDecisionSlot;
+    $slotWireModel = $canSelectDecisionSlot ? 'selectedDecisionSlotKey' : 'selectedCitationSlotKey';
     $showLegacyInformeHistory = $case->current_status === CaseStatus::INFORME
         && $agendaThread
         && $agendaThread->messages->isNotEmpty();
@@ -110,7 +118,8 @@
                                     :message="$msg"
                                     :case="$case"
                                     perspective="lawyer"
-                                    :selectable-slots="$canSelectCitationSlot"
+                                    :selectable-slots="$selectableSlots"
+                                    :slot-wire-model="$slotWireModel"
                                     wire:key="planning-chat-msg-{{ $msg->id }}" />
                             @endforeach
                         </ul>
@@ -126,6 +135,14 @@
             @can('postAgendaLawyer', $case)
                 @if (! $coordinationIsClosed && ! ($showLegacyInformeHistory && $composerDisabled))
                     <div class="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-dash-ink">
+                        @if ($canSelectDecisionSlot && ($selectedDecisionSlotKey ?? '') !== '')
+                            <div class="mb-2 flex justify-end">
+                                <button type="button" wire:click="confirmDecisionSlot"
+                                    class="inline-flex items-center rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700">
+                                    Confirmar opción seleccionada
+                                </button>
+                            </div>
+                        @endif
                         <x-disciplinary.agenda-chat-composer
                             body-model="agendaLawyerBody"
                             uploads-property="agendaLawyerUploads"

@@ -160,7 +160,7 @@ class OfficialLetterPdfLayoutTest extends TestCase
             'fo-gj-44-filled-download',
             'fo-gj-54-filled-download',
             'fo-gj-51-filled-download',
-            'decision-comunicado-filled-download',
+            'fo-gj-45-filled-download',
         ];
 
         foreach ($views as $view) {

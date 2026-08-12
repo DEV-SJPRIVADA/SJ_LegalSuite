@@ -16,6 +16,7 @@
     'breachDay' => '',
     'breachMonth' => '',
     'breachYear' => '',
+    'statuteArticles' => [],
     'articles55' => '',
     'articles57' => '',
     'articles60' => '',
@@ -28,6 +29,25 @@
     'legalPhrasing' => null,
 ])
 
+@php
+    use App\Support\Disciplinary\DecisionStatuteArticles;
+
+    $statuteArticles = is_array($statuteArticles) ? $statuteArticles : [];
+    if ($statuteArticles === [] && ($articles55 !== '' || $articles57 !== '' || $articles60 !== '')) {
+        $statuteArticles = DecisionStatuteArticles::normalizeBlocks([
+            ['article_number' => '55', 'numerals' => $articles55],
+            ['article_number' => '57', 'numerals' => $articles57],
+            ['article_number' => '60', 'numerals' => $articles60],
+        ]);
+    }
+    if ($statuteArticles === [] && $blankForDownload) {
+        $statuteArticles = DecisionStatuteArticles::normalizeBlocks([
+            ['article_number' => '55', 'numerals' => ''],
+            ['article_number' => '57', 'numerals' => ''],
+            ['article_number' => '60', 'numerals' => ''],
+        ]);
+    }
+@endphp
 @php
     use App\Support\Disciplinary\WorkerLegalPhrasing;
 
@@ -103,9 +123,14 @@
         <strong>Fundamento jurídico:</strong> Esta decisión se fundamenta en el Reglamento de Trabajo, en especial:
     </p>
     <ul class="ogj-03-justify" style="margin:0.35rem 0 0.75rem 1.25rem; padding:0;">
-        <li>Artículo 55 (Obligaciones especiales): numerales {!! $blank($articles55, 'lg') !!}.</li>
-        <li>Artículo 57 (Prohibiciones): numerales {!! $blank($articles57, 'lg') !!}.</li>
-        <li>Artículo 60 (Faltas graves): numerales {!! $blank($articles60, 'lg') !!}.</li>
+        @forelse ($statuteArticles as $block)
+            <li>
+                {{ DecisionStatuteArticles::lineLabel((string) ($block['article_number'] ?? ''), $block['label'] ?? null) }}:
+                numerales {!! $blank((string) ($block['numerals'] ?? ''), 'lg') !!}.
+            </li>
+        @empty
+            <li>Artículo {!! $blank('', 'sm') !!}: numerales {!! $blank('', 'lg') !!}.</li>
+        @endforelse
     </ul>
 
     <p class="ogj-03-justify">

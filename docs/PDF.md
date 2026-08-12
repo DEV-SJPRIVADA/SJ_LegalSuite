@@ -159,14 +159,18 @@ Factory de respuesta HTTP: `OfficialFormHtmlBlankPdfFactory`
 | **FO-GJ-44** | Constancia inasistencia | `fo-gj-44-filled-download` | `fo-gj-44-blank-download` | `FoGj44ConstanciaService` |
 | **FO-GJ-54** | Reprogramación | `fo-gj-54-filled-download` | `fo-gj-54-blank-download` | `FoGj54ReprogramacionService` |
 | **ACTA-COMITE** | Acta comité | `comite-acta-filled-download` | `comite-acta-blank-download` | `ComiteActaService` |
-| **FO-GJ-DECISION** | Comunicado decisión | `decision-comunicado-filled-download` | `decision-comunicado-blank-download` | `DecisionComunicadoService` |
+| **FO-GJ-45** | Acta de archivo (terminación) | `fo-gj-45-filled-download` | `fo-gj-45-blank-download` | `DecisionComunicadoService` / `FoGj45DraftService` |
+| **FO-GJ-46** | Llamado de atención | `fo-gj-46-filled-download` | `fo-gj-46-blank-download` | `DecisionComunicadoService` / `FoGj46DraftService` |
+| **FO-GJ-47** | Suspensión | `fo-gj-47-filled-download` | `fo-gj-47-blank-download` | `DecisionComunicadoService` / `FoGj47DraftService` |
 
 ### Variantes firmadas (supervisor)
 
 | Vista | Servicio |
 |-------|----------|
 | `fo-gj-03-signed-notification-download` | `CitationNotificationSigningService` |
-| `decision-comunicado-signed-notification-download` | `DecisionNotificationSigningService` |
+| `fo-gj-45-signed-notification-download` | `DecisionNotificationSigningService` |
+| `fo-gj-46-signed-notification-download` | `DecisionNotificationSigningService` |
+| `fo-gj-47-signed-notification-download` | `DecisionNotificationSigningService` |
 
 ### Estilos por formulario
 
@@ -441,7 +445,7 @@ Forma canónica con observaciones cortas + firma: **1 página física** (`FoGj51
 
 ## 9. Otras formas de una sola página
 
-FO-GJ-44, FO-GJ-54, FO-GJ-DECISION, ACTA-COMITE (corto); FO-GJ-51 detallado en **§8**.
+FO-GJ-44, FO-GJ-54, FO-GJ-45/46/47, ACTA-COMITE (corto); FO-GJ-51 detallado en **§8**.
 
 - Usan `official-letter-pdf-shell` o documento propio sin paginador PHP.
 - Un encabezado; Dompdf fluye el contenido.

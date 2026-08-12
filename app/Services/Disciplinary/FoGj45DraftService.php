@@ -10,7 +10,7 @@ use App\Support\Disciplinary\DecisionBranch;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Borrador FO-GJ-45 (Acta de archivo) — rama CLOSURE.
+ * Borrador FO-GJ-45 (Acta de archivo) — rama TERMINATION.
  * Persistido en `decision_payload` con `document_code = FO-GJ-45`.
  */
 class FoGj45DraftService
@@ -19,7 +19,7 @@ class FoGj45DraftService
 
     public const SUBJECT_FIXED = 'acta de archivo';
 
-    public const DEFAULT_RESOLUTIVE_FIRST = 'NO IMPONER SANCIÓN DISCIPLINARIA';
+    public const DEFAULT_RESOLUTIVE_FIRST = 'TERMINAR EL CONTRATO DE TRABAJO';
 
     public const DEFAULT_RESOLUTIVE_SECOND = 'ARCHIVAR el presente proceso';
 
@@ -27,7 +27,7 @@ class FoGj45DraftService
 
     public function appliesTo(DisciplinaryCase $case): bool
     {
-        return DecisionBranch::forDecision($case->decision) === DecisionBranch::CLOSURE;
+        return DecisionBranch::forDecision($case->decision) === DecisionBranch::TERMINATION;
     }
 
     /** @return array<string, mixed> */
@@ -59,7 +59,7 @@ class FoGj45DraftService
         }
 
         if (! $this->appliesTo($case)) {
-            $missing[] = 'decisión de cierre sin sanción escrita (verbal / absuelto / archivado)';
+            $missing[] = 'decisión de terminación de contrato';
         }
 
         if ($case->decision_notification_completed_at === null) {
@@ -99,7 +99,7 @@ class FoGj45DraftService
     {
         if ($case->current_status !== CaseStatus::DECISION || ! $this->appliesTo($case)) {
             throw ValidationException::withMessages([
-                'foGj45BodyParagraph' => 'El FO-GJ-45 solo aplica a cierre sin sanción escrita en etapa de decisión.',
+                'foGj45BodyParagraph' => 'El FO-GJ-45 solo aplica a terminación de contrato en etapa de decisión.',
             ]);
         }
 
