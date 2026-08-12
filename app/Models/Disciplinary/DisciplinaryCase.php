@@ -893,6 +893,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_47_GENERATED = 'FO-GJ-47 suspensión disciplinaria generada desde expediente';
 
+    public const NOTE_FO_GJ_45_GENERATED = 'FO-GJ-45 acta de archivo generada desde expediente';
+
     public const NOTE_DECISION_EVIDENCE_PREFIX = 'Evidencia notificación decisión';
 
     public const NOTE_DECISION_HR_ANEXO_PREFIX = 'Anexo laboral gestión humana';
@@ -967,6 +969,7 @@ class DisciplinaryCase extends Model
             fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::DECISION
                 && (
                     str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_45_GENERATED)
                     || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_46_GENERATED)
                     || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_47_GENERATED)
                 )

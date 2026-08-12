@@ -128,6 +128,21 @@ final class WorkerLegalPhrasing
         return $this->foGj54OpeningSalutation();
     }
 
+    public function foGj45OpeningSalutation(): string
+    {
+        return $this->foGj54OpeningSalutation();
+    }
+
+    /** Bloque de firmas FO-GJ-45: «El trabajador;» / «La trabajadora;» */
+    public function foGj45WorkerSignatureLead(): string
+    {
+        return match ($this->variant) {
+            EmployeeGender::Femenino => 'La trabajadora;',
+            EmployeeGender::Masculino => 'El trabajador;',
+            default => 'La persona vinculada;',
+        };
+    }
+
     /** «NOTIFICAR al trabajador / a la trabajadora…» */
     public function foGj47NotifyWorkerPhrase(): string
     {

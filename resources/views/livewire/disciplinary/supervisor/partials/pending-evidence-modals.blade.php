@@ -212,11 +212,16 @@
     </div>
 @endif
 
-{{-- Fase B (decisión): FO-GJ-46 / FO-GJ-47 / FO-GJ-DECISION + firma --}}
+{{-- Fase B (decisión): FO-GJ-45 / FO-GJ-46 / FO-GJ-47 / FO-GJ-DECISION + firma --}}
 @if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null) && empty($signedNotificationPreviewToken))
     @php
         $decisionIsFo46 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::AMONESTACION_ESCRITA;
         $decisionIsFo47 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::SUSPENSION;
+        $decisionIsFo45 = in_array($decisionNotificationCase->decision ?? null, [
+            \App\Enums\Disciplinary\Decision::AMONESTACION_VERBAL,
+            \App\Enums\Disciplinary\Decision::ABSUELTO,
+            \App\Enums\Disciplinary\Decision::ARCHIVADO,
+        ], true);
     @endphp
     <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
         x-data="{ scale: 1 }"
@@ -234,6 +239,8 @@
                             FO-GJ-46 · Llamado de atención
                         @elseif ($decisionIsFo47)
                             FO-GJ-47 · Suspensión
+                        @elseif ($decisionIsFo45)
+                            FO-GJ-45 · Acta de archivo
                         @else
                             Comunicado de decisión
                         @endif
@@ -284,12 +291,20 @@
                                                 <td class="ogj-logo-cell">
                                                     <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
                                                 </td>
-                                                <td class="ogj-title">{{ $decisionIsFo46 ? 'Llamado de atención' : 'Comunicado de decisión de sanción o cierre del proceso' }}</td>
+                                                <td class="ogj-title">
+                                                    @if ($decisionIsFo46)
+                                                        Llamado de atención
+                                                    @elseif ($decisionIsFo45)
+                                                        ACTA DE ARCHIVO
+                                                    @else
+                                                        Comunicado de decisión de sanción o cierre del proceso
+                                                    @endif
+                                                </td>
                                                 <td class="ogj-meta">
                                                     <table class="ogj-meta-grid" role="presentation">
-                                                        <tr><td class="ogj-meta-code">{{ $decisionIsFo46 ? 'FO-GJ-46' : 'FO-GJ-DECISION' }}</td></tr>
-                                                        <tr><td>{{ $decisionIsFo46 ? 'Noviembre de 2023' : ($decisionNotificationViewData['issuedDate'] ?? '') }}</td></tr>
-                                                        <tr><td>{{ $decisionIsFo46 ? 'Versión 02' : 'Versión 01' }}</td></tr>
+                                                        <tr><td class="ogj-meta-code">{{ $decisionIsFo46 ? 'FO-GJ-46' : ($decisionIsFo45 ? 'FO-GJ-45' : 'FO-GJ-DECISION') }}</td></tr>
+                                                        <tr><td>{{ ($decisionIsFo46 || $decisionIsFo45) ? 'Noviembre de 2023' : ($decisionNotificationViewData['issuedDate'] ?? '') }}</td></tr>
+                                                        <tr><td>{{ ($decisionIsFo46 || $decisionIsFo45) ? 'Versión 02' : 'Versión 01' }}</td></tr>
                                                         <tr><td>Página 1 de 1</td></tr>
                                                     </table>
                                                 </td>
@@ -298,6 +313,8 @@
                                     </table>
                                     @if ($decisionIsFo46)
                                         @include('disciplinary.forms.partials.fo-gj-46-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @elseif ($decisionIsFo45)
+                                        @include('disciplinary.forms.partials.fo-gj-45-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
                                     @else
                                         @include('disciplinary.forms.partials.decision-comunicado-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
                                     @endif

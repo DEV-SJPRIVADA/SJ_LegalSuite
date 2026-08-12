@@ -318,6 +318,16 @@ class CaseDetail extends Component
 
     public string $foGj47SignerTitle = '';
 
+    public string $foGj45BodyParagraph = '';
+
+    public string $foGj45ResolutiveFirst = '';
+
+    public string $foGj45ResolutiveSecond = '';
+
+    public string $foGj45SignerName = '';
+
+    public string $foGj45SignerTitle = '';
+
     public bool $showDecisionPdfPreviewModal = false;
 
     public bool $showDecisionFinalizeConfirm = false;
@@ -2015,6 +2025,19 @@ class CaseDetail extends Component
                 'foGj47SignerName',
                 'foGj47SignerTitle',
             ]);
+        } elseif (($defaults['is_fo_gj_45'] ?? false) === true) {
+            $this->foGj45BodyParagraph = (string) ($defaults['body_paragraph'] ?? '');
+            $this->foGj45ResolutiveFirst = (string) ($defaults['resolutive_first'] ?? '');
+            $this->foGj45ResolutiveSecond = (string) ($defaults['resolutive_second'] ?? '');
+            $this->foGj45SignerName = (string) ($defaults['signer_name'] ?? '');
+            $this->foGj45SignerTitle = (string) ($defaults['signer_title'] ?? 'DIRECTORA GESTIÓN HUMANA');
+            $this->resetErrorBag([
+                'foGj45BodyParagraph',
+                'foGj45ResolutiveFirst',
+                'foGj45ResolutiveSecond',
+                'foGj45SignerName',
+                'foGj45SignerTitle',
+            ]);
         } else {
             $this->decisionSubject = (string) ($defaults['subject'] ?? '');
             $this->decisionBodyNarrative = (string) ($defaults['body_narrative'] ?? '');
@@ -2057,6 +2080,13 @@ class CaseDetail extends Component
                     'signer_name' => $this->foGj47SignerName,
                     'signer_title' => $this->foGj47SignerTitle,
                 ],
+                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => [
+                    'body_paragraph' => $this->foGj45BodyParagraph,
+                    'resolutive_first' => $this->foGj45ResolutiveFirst,
+                    'resolutive_second' => $this->foGj45ResolutiveSecond,
+                    'signer_name' => $this->foGj45SignerName,
+                    'signer_title' => $this->foGj45SignerTitle,
+                ],
                 default => [
                     'subject' => $this->decisionSubject,
                     'body_narrative' => $this->decisionBodyNarrative,
@@ -2077,6 +2107,7 @@ class CaseDetail extends Component
             match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'Borrador FO-GJ-46 (llamado de atención) guardado.',
                 Decision::SUSPENSION => 'Borrador FO-GJ-47 (suspensión) guardado.',
+                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'Borrador FO-GJ-45 (acta de archivo) guardado.',
                 default => 'Borrador del comunicado guardado.',
             },
         );
@@ -2094,6 +2125,7 @@ class CaseDetail extends Component
             $field = match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'foGj46HearingLead',
                 Decision::SUSPENSION => 'foGj47OpeningNarrative',
+                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'foGj45BodyParagraph',
                 default => 'decisionBodyNarrative',
             };
             $this->addError($field, $e->getMessage());
@@ -2106,6 +2138,7 @@ class CaseDetail extends Component
             match ($this->case->decision) {
                 Decision::AMONESTACION_ESCRITA => 'FO-GJ-46 generado y guardado en el expediente.',
                 Decision::SUSPENSION => 'FO-GJ-47 generado y guardado en el expediente.',
+                Decision::AMONESTACION_VERBAL, Decision::ABSUELTO, Decision::ARCHIVADO => 'FO-GJ-45 generado y guardado en el expediente.',
                 default => 'Comunicado de decisión generado y guardado en el expediente.',
             },
         );

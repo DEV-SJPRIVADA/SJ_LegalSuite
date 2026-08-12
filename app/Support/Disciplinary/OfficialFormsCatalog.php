@@ -67,6 +67,13 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-04-acta-diligencia.pdf'),
             ],
             [
+                'code' => 'FO-GJ-45',
+                'title' => 'Acta de archivo',
+                'phase' => 'D · Decisión / cierre',
+                'summary' => 'Acta de archivo del proceso disciplinario (cierre sin sanción escrita: verbal / absuelto / archivado).',
+                'pdf' => null,
+            ],
+            [
                 'code' => 'FO-GJ-46',
                 'title' => 'Llamado de atención',
                 'phase' => 'D · Decisión / cierre',
@@ -84,7 +91,7 @@ final class OfficialFormsCatalog
                 'code' => 'FO-GJ-DECISION',
                 'title' => 'Comunicado de decisión de sanción o cierre del proceso',
                 'phase' => 'D · Decisión / cierre',
-                'summary' => 'Comunicación genérica de decisión (terminación u otros cierres) mientras se implementa FO-GJ-45.',
+                'summary' => 'Comunicación genérica de decisión (p. ej. terminación de contrato) cuando no aplica FO-GJ-45/46/47.',
                 'pdf' => null,
             ],
             [
@@ -158,6 +165,11 @@ final class OfficialFormsCatalog
                 'view' => 'disciplinary.forms.comite-acta-blank-download',
                 'inline' => 'ACTA-COMITE-en-blanco.pdf',
                 'download' => 'ACTA-COMITE-en-blanco.pdf',
+            ],
+            'FO-GJ-45' => [
+                'view' => 'disciplinary.forms.fo-gj-45-blank-download',
+                'inline' => 'FO-GJ-45-acta-archivo-en-blanco.pdf',
+                'download' => 'FO-GJ-45-acta-archivo-en-blanco.pdf',
             ],
             'FO-GJ-46' => [
                 'view' => 'disciplinary.forms.fo-gj-46-blank-download',
@@ -244,6 +256,11 @@ final class OfficialFormsCatalog
                 $bodyPath = resource_path('views/disciplinary/forms/'.$relativePath);
                 $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
             }
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-45') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-45-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 
         if (strtoupper($normalizedCode) === 'FO-GJ-46') {

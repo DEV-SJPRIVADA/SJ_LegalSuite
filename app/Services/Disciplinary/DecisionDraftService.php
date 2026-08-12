@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 class DecisionDraftService
 {
     public function __construct(
+        private readonly FoGj45DraftService $foGj45Drafts,
         private readonly FoGj46DraftService $foGj46Drafts,
         private readonly FoGj47DraftService $foGj47Drafts,
     ) {}
@@ -26,6 +27,10 @@ class DecisionDraftService
             return $this->foGj47Drafts->defaultsForCase($case);
         }
 
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return $this->foGj45Drafts->defaultsForCase($case);
+        }
+
         $existing = $case->decision_payload ?? [];
         $branch = DecisionBranch::forDecision($case->decision);
 
@@ -37,6 +42,7 @@ class DecisionDraftService
             'relief_notes' => (string) ($existing['relief_notes'] ?? ''),
             'requires_suspension_dates' => $branch !== null && DecisionBranch::requiresSuspensionDates($branch),
             'requires_relief' => $branch === DecisionBranch::TERMINATION,
+            'is_fo_gj_45' => false,
             'is_fo_gj_46' => false,
             'is_fo_gj_47' => false,
         ];
@@ -58,6 +64,10 @@ class DecisionDraftService
 
         if ($this->foGj47Drafts->appliesTo($case)) {
             return $this->foGj47Drafts->missingDraftRequirements($case);
+        }
+
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return $this->foGj45Drafts->missingDraftRequirements($case);
         }
 
         $missing = [];
@@ -118,6 +128,10 @@ class DecisionDraftService
             return $this->foGj47Drafts->payloadForPdf($case);
         }
 
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return $this->foGj45Drafts->payloadForPdf($case);
+        }
+
         $missing = $this->missingDraftRequirements($case);
         if ($missing !== []) {
             throw ValidationException::withMessages([
@@ -139,6 +153,10 @@ class DecisionDraftService
 
         if ($this->foGj47Drafts->appliesTo($case)) {
             return $this->foGj47Drafts->saveDraft($case, $actor, $input);
+        }
+
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return $this->foGj45Drafts->saveDraft($case, $actor, $input);
         }
 
         if ($case->current_status !== CaseStatus::DECISION) {

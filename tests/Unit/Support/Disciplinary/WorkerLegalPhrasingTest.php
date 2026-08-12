@@ -111,4 +111,17 @@ class WorkerLegalPhrasingTest extends TestCase
         $this->assertStringContainsString('SJ SEGURIDAD LTDA', $male->foGj47PostArticlesClosingParagraph());
         $this->assertStringContainsString('dos (02) días hábiles', $male->foGj47AppealParagraph());
     }
+
+    public function test_fo_gj_45_signature_lead_by_gender(): void
+    {
+        $male = WorkerLegalPhrasing::fromGender(EmployeeGender::Masculino);
+        $female = WorkerLegalPhrasing::fromGender(EmployeeGender::Femenino);
+        $neutral = WorkerLegalPhrasing::fromGender(EmployeeGender::NoIndica);
+
+        $this->assertSame('El trabajador;', $male->foGj45WorkerSignatureLead());
+        $this->assertSame('La trabajadora;', $female->foGj45WorkerSignatureLead());
+        $this->assertSame('La persona vinculada;', $neutral->foGj45WorkerSignatureLead());
+        $this->assertSame('Respetado colaborador.', $male->foGj45OpeningSalutation());
+        $this->assertSame('Respetada colaboradora.', $female->foGj45OpeningSalutation());
+    }
 }

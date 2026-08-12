@@ -15,7 +15,7 @@ final class DecisionBranch
 
     public const TERMINATION = 'termination';
 
-    /** Cierre sin sanción escrita (verbal / absuelto / archivado). Acta FO-GJ-45 pendiente. */
+    /** Cierre sin sanción escrita (verbal / absuelto / archivado). Acta FO-GJ-45. */
     public const CLOSURE = 'closure';
 
     public static function forDecision(?Decision $decision): ?string

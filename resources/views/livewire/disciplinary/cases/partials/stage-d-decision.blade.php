@@ -12,10 +12,16 @@
     $branch = $decisionBranch ?? DecisionBranch::forDecision($case->decision);
     $isFoGj46 = $case->decision === Decision::AMONESTACION_ESCRITA;
     $isFoGj47 = $case->decision === Decision::SUSPENSION;
+    $isFoGj45 = in_array($case->decision, [
+        Decision::AMONESTACION_VERBAL,
+        Decision::ABSUELTO,
+        Decision::ARCHIVADO,
+    ], true);
     $stageProgressHelper = app(DecisionStageProgress::class);
     $actionTitle = match (true) {
         $currentStepKey === 'draft' && $isFoGj46 => 'FO-GJ-46 · Llamado de atención',
         $currentStepKey === 'draft' && $isFoGj47 => 'FO-GJ-47 · Suspensión disciplinaria',
+        $currentStepKey === 'draft' && $isFoGj45 => 'FO-GJ-45 · Acta de archivo',
         default => $stageProgressHelper->actionBarTitle($currentStepKey),
     };
     $typeSelected = $case->decision !== null && $case->decision_coordination_started_at !== null;
@@ -37,16 +43,19 @@
     $draftButtonLabel = match (true) {
         $isFoGj46 => $draftCompleted ? 'Editar FO-GJ-46' : 'Diligenciar FO-GJ-46',
         $isFoGj47 => $draftCompleted ? 'Editar FO-GJ-47' : 'Diligenciar FO-GJ-47',
+        $isFoGj45 => $draftCompleted ? 'Editar FO-GJ-45' : 'Diligenciar FO-GJ-45',
         default => $draftCompleted ? 'Editar comunicado' : 'Diligenciar comunicado',
     };
     $generateButtonLabel = match (true) {
         $isFoGj46 => 'Generar FO-GJ-46',
         $isFoGj47 => 'Generar FO-GJ-47',
+        $isFoGj45 => 'Generar FO-GJ-45',
         default => 'Generar y guardar',
     };
     $previewButtonLabel = match (true) {
         $isFoGj46 => 'Consultar FO-GJ-46 (PDF)',
         $isFoGj47 => 'Consultar FO-GJ-47 (PDF)',
+        $isFoGj45 => 'Consultar FO-GJ-45 (PDF)',
         default => 'Consultar comunicado (PDF)',
     };
 @endphp
@@ -181,7 +190,7 @@
                             Coordinación abierta con planeación. Espere fechas de turno y supervisor en
                             <strong>Coordinaciones</strong>.
                         @elseif ($coordinationDone)
-                            Programación completada. Puede diligenciar {{ $isFoGj46 ? 'el FO-GJ-46' : ($isFoGj47 ? 'el FO-GJ-47' : 'el comunicado de decisión') }}.
+                            Programación completada. Puede diligenciar {{ $isFoGj46 ? 'el FO-GJ-46' : ($isFoGj47 ? 'el FO-GJ-47' : ($isFoGj45 ? 'el FO-GJ-45' : 'el comunicado de decisión')) }}.
                         @else
                             Planeación publicó fechas; falta registrar supervisor y datos de notificación.
                         @endif

@@ -331,6 +331,20 @@
         margin: 0 0 6px;
         line-height: 1px;
     }
+    /* FO-GJ-45: hueco para firma manuscrita / imagen entre rótulo y la raya */
+    .ogj-45-body .ogj-03-sign-line {
+        height: auto;
+        min-height: 3.35rem;
+        line-height: normal;
+        padding: 0.15rem 0 0.2rem;
+        margin: 0.45rem 0 0.55rem;
+        box-sizing: border-box;
+        display: flex;
+        align-items: flex-end;
+    }
+    .ogj-45-body .ogj-03-signature-img {
+        max-height: 52px;
+    }
     .ogj-03-refusal-text {
         margin: 0 0 1px;
         padding: 0;

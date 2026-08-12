@@ -5,6 +5,11 @@
 
     $isFoGj46 = ($case->decision ?? null) === Decision::AMONESTACION_ESCRITA;
     $isFoGj47 = ($case->decision ?? null) === Decision::SUSPENSION;
+    $isFoGj45 = in_array($case->decision ?? null, [
+        Decision::AMONESTACION_VERBAL,
+        Decision::ABSUELTO,
+        Decision::ARCHIVADO,
+    ], true);
 @endphp
 
 @if ($showDecisionTypeModal ?? false)
@@ -56,6 +61,8 @@
                         Diligenciar FO-GJ-46 · Llamado de atención
                     @elseif ($isFoGj47)
                         Diligenciar FO-GJ-47 · Suspensión disciplinaria
+                    @elseif ($isFoGj45)
+                        Diligenciar FO-GJ-45 · Acta de archivo
                     @else
                         Diligenciar comunicado de decisión
                     @endif
@@ -67,6 +74,10 @@
                 @elseif ($isFoGj47)
                     <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
                         Indique los días; el sistema calcula fin y retorno a partir de la fecha de inicio (planeación). Arts. 55/57/60 desde FO-GJ-03.
+                    </p>
+                @elseif ($isFoGj45)
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Digite el párrafo completo, incluyendo «esta Dirección ha RESUELTO:». Los resolutivos PRIMERO/SEGUNDO y el firmante (Cordialmente) son editables.
                     </p>
                 @endif
             </div>
@@ -164,6 +175,34 @@
                             @error('foGj47SignerTitle') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
+                @elseif ($isFoGj45)
+                    <div>
+                        <label class="block text-sm font-medium">Párrafo del acta (obligatorio)</label>
+                        <textarea wire:model="foGj45BodyParagraph" rows="8" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" placeholder="Por medio de la presente, me permito comunicarle que, dando cumplimiento al debido proceso en el marco del trámite disciplinario iniciado con el informe de fecha … de … de …, derivado de …, esta Dirección ha RESUELTO:"></textarea>
+                        @error('foGj45BodyParagraph') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">PRIMERO</label>
+                        <textarea wire:model="foGj45ResolutiveFirst" rows="2" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
+                        @error('foGj45ResolutiveFirst') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">SEGUNDO</label>
+                        <textarea wire:model="foGj45ResolutiveSecond" rows="2" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
+                        @error('foGj45ResolutiveSecond') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium">Nombre de quien firma</label>
+                            <input type="text" wire:model="foGj45SignerName" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj45SignerName') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Cargo del firmante</label>
+                            <input type="text" wire:model="foGj45SignerTitle" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj45SignerTitle') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
                 @else
                     <div>
                         <label class="block text-sm font-medium">Asunto</label>
@@ -201,6 +240,8 @@
                         Vista previa · FO-GJ-46
                     @elseif ($isFoGj47)
                         Vista previa · FO-GJ-47
+                    @elseif ($isFoGj45)
+                        Vista previa · FO-GJ-45
                     @else
                         Vista previa · Comunicado de decisión
                     @endif
