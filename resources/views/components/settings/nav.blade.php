@@ -6,6 +6,7 @@
     $isDark = ($uiTheme ?? 'light') === 'dark';
     $canTerritory = auth()->user()?->can('settings.manage-territory') ?? false;
     $canArticles = auth()->user()?->can('settings.manage-citation-articles') ?? false;
+    $canQuestions = auth()->user()?->can('settings.manage-diligence-questions') ?? false;
 
     $tabs = [];
     if ($canTerritory) {
@@ -18,6 +19,12 @@
         $tabs['articles'] = [
             'label' => 'Artículos',
             'route' => route('settings.citation-articles'),
+        ];
+    }
+    if ($canQuestions) {
+        $tabs['questions'] = [
+            'label' => 'Preguntas',
+            'route' => route('settings.diligence-questions'),
         ];
     }
 

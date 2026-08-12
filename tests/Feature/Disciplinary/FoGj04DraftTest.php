@@ -30,6 +30,40 @@ class FoGj04DraftTest extends TestCase
         Storage::fake('local');
     }
 
+    public function test_fo_gj_04_catalog_question_text_survives_catalog_deletion(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->attachSignature($lawyer);
+
+        $catalogQuestion = \App\Models\Disciplinary\DiligenceActaQuestion::query()->create([
+            'text' => 'Tenía conocimiento de sus obligaciones laborales',
+            'sort_order' => 1,
+        ]);
+
+        app(FoGj04DraftService::class)->saveDraft($case->fresh(), $lawyer, [
+            'worker_manifestation' => FoGj04DraftService::MANIFESTATION_WANTS_TO_RESPOND,
+            'opening_time' => '10:00 AM',
+            'closing_time' => '11:30 AM',
+            'questions' => [
+                [
+                    'question' => $catalogQuestion->text,
+                    'answer' => 'Sí, las conocía.',
+                    'source' => 'catalog',
+                    'catalog_question_id' => $catalogQuestion->id,
+                ],
+            ],
+        ]);
+
+        $catalogQuestion->delete();
+
+        $payload = $case->fresh()->fo_gj_04_payload;
+        $this->assertSame('catalog', $payload['questions'][0]['source'] ?? null);
+        $this->assertStringContainsString('obligaciones laborales', $payload['questions'][0]['question'] ?? '');
+
+        $data = app(FoGj04DiligenceActaService::class)->buildViewData($case->fresh());
+        $this->assertStringContainsString('obligaciones laborales', $data['questions'][0]['question'] ?? '');
+    }
+
     public function test_fo_gj_04_defaults_start_with_empty_questions(): void
     {
         ['case' => $case] = $this->makeDiligenceCase();

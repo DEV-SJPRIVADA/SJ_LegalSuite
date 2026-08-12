@@ -138,6 +138,42 @@ class FoGj03DraftTest extends TestCase
         $this->assertSame('No diligenció la minuta de rondas asignadas.', $data['chargesDescription']);
     }
 
+    public function test_fo_gj_03_persists_and_renders_additional_evidence_items(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
+        $this->completeDraft($case, $lawyer, [
+            'evidence_items' => [
+                ['text' => 'Video de cámara del puesto Norte'],
+                '  ',
+                ['text' => 'Testimonio del supervisor de zona'],
+            ],
+        ]);
+
+        $payload = $case->fresh()->fo_gj_03_payload;
+        $this->assertSame([
+            'Video de cámara del puesto Norte',
+            'Testimonio del supervisor de zona',
+        ], $payload['evidence_items'] ?? null);
+
+        $data = app(FoGj03CitationService::class)->buildViewData($case->fresh());
+        $this->assertSame([
+            'Video de cámara del puesto Norte',
+            'Testimonio del supervisor de zona',
+        ], $data['additionalEvidenceItems']);
+
+        $html = view('disciplinary.forms.partials.fo-gj-03-evidence', [
+            'blankForDownload' => false,
+            'informeReportDate' => '01/05/2026',
+            'additionalEvidenceItems' => $data['additionalEvidenceItems'],
+            'evidenceShowLead' => true,
+            'evidenceChunk' => 'Traslado de pruebas.',
+        ])->render();
+
+        $this->assertStringContainsString('Informes Disciplinarios', $html);
+        $this->assertStringContainsString('Video de cámara del puesto Norte', $html);
+        $this->assertStringContainsString('Testimonio del supervisor de zona', $html);
+    }
+
     /** @return array{case: DisciplinaryCase, lawyer: User} */
     private function makeReadyCaseWithoutDraft(): array
     {
@@ -146,6 +182,7 @@ class FoGj03DraftTest extends TestCase
             'first_name' => 'Worker',
             'last_name' => 'Test',
             'document_number' => '9100'.random_int(100000, 999999),
+            'gender' => 'masculino',
         ]);
 
         $case = DisciplinaryCase::query()->create([

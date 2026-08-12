@@ -21,6 +21,13 @@
     $showLead = (bool) ($evidenceShowLead ?? true);
     $chunk = trim((string) ($evidenceChunk ?? ''));
     $fullTraslado = FoGj03DocumentPaginator::evidenceTrasladoText($legalPhrasing);
+    $additionalEvidenceItems = collect($additionalEvidenceItems ?? [])
+        ->map(static fn (mixed $item): string => is_array($item)
+            ? trim((string) ($item['text'] ?? ''))
+            : trim((string) $item))
+        ->filter()
+        ->values()
+        ->all();
 
     // Compat legacy: sin chunk explícito, pintar el párrafo completo.
     if ($chunk === '' && ($evidenceShowLead ?? null) === null && ($evidenceChunk ?? null) === null) {
@@ -41,6 +48,9 @@
                 del {{ $informeReportDate }}
             @endif
         </li>
+        @foreach ($additionalEvidenceItems as $evidenceItem)
+            <li>{{ $evidenceItem }}</li>
+        @endforeach
     </ul>
 @endif
 

@@ -47,7 +47,8 @@ class CitationArticlesIndexTest extends TestCase
             ->get(route('settings.citation-articles', absolute: false))
             ->assertOk()
             ->assertSee('Territorio')
-            ->assertSee('Artículos');
+            ->assertSee('Artículos')
+            ->assertSee('Preguntas');
     }
 
     public function test_admin_can_save_fault_template(): void

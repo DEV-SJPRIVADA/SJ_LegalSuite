@@ -4,6 +4,7 @@ namespace App\Livewire\Disciplinary\Supervisor;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CitationEvidenceType;
+use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -809,9 +810,19 @@ class PendingEvidenceIndex extends Component
             $payload = $decisionSigning->validateNotificationPayload($inputPayload);
             $binary = $decisionSigning->renderNotificationPdf($case, $payload);
             $type = CitationEvidenceType::from($payload['evidence_type']);
-            $filename = $type === CitationEvidenceType::SIGNED
-                ? 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf'
-                : 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf';
+            $filename = match (true) {
+                $type === CitationEvidenceType::SIGNED && $case->decision === Decision::AMONESTACION_ESCRITA
+                    => 'FO-GJ-46-firmado-'.$case->case_number.'.pdf',
+                $type === CitationEvidenceType::SIGNED && $case->decision === Decision::SUSPENSION
+                    => 'FO-GJ-47-firmado-'.$case->case_number.'.pdf',
+                $type === CitationEvidenceType::SIGNED
+                    => 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf',
+                $case->decision === Decision::AMONESTACION_ESCRITA
+                    => 'FO-GJ-46-rechazo-testigos-'.$case->case_number.'.pdf',
+                $case->decision === Decision::SUSPENSION
+                    => 'FO-GJ-47-rechazo-testigos-'.$case->case_number.'.pdf',
+                default => 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf',
+            };
 
             return [
                 'context' => 'decision',

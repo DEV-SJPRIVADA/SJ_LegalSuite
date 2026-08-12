@@ -15,6 +15,9 @@ final class DecisionBranch
 
     public const TERMINATION = 'termination';
 
+    /** Cierre sin sanción escrita (verbal / absuelto / archivado). Acta FO-GJ-45 pendiente. */
+    public const CLOSURE = 'closure';
+
     public static function forDecision(?Decision $decision): ?string
     {
         if ($decision === null) {
@@ -24,10 +27,10 @@ final class DecisionBranch
         return match ($decision) {
             Decision::SUSPENSION => self::SUSPENSION,
             Decision::TERMINACION_CONTRATO => self::TERMINATION,
+            Decision::AMONESTACION_ESCRITA => self::NOTICE,
             Decision::AMONESTACION_VERBAL,
-            Decision::AMONESTACION_ESCRITA,
             Decision::ABSUELTO,
-            Decision::ARCHIVADO => self::NOTICE,
+            Decision::ARCHIVADO => self::CLOSURE,
             default => null,
         };
     }
@@ -36,8 +39,9 @@ final class DecisionBranch
     {
         return match ($branch) {
             self::SUSPENSION => 'Suspensión',
-            self::NOTICE => 'Llamado de atención / recordatorio / archivo',
+            self::NOTICE => 'Llamado de atención',
             self::TERMINATION => 'Terminación de contrato',
+            self::CLOSURE => 'Cierre sin sanción escrita',
             default => 'Decisión disciplinaria',
         };
     }
@@ -58,9 +62,9 @@ final class DecisionBranch
         return match ($branch) {
             self::SUSPENSION => [Decision::SUSPENSION],
             self::TERMINATION => [Decision::TERMINACION_CONTRATO],
-            self::NOTICE => [
+            self::NOTICE => [Decision::AMONESTACION_ESCRITA],
+            self::CLOSURE => [
                 Decision::AMONESTACION_VERBAL,
-                Decision::AMONESTACION_ESCRITA,
                 Decision::ABSUELTO,
                 Decision::ARCHIVADO,
             ],

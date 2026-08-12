@@ -15,6 +15,7 @@
     'breachDate' => '',
     'chargesDescription' => '',
     'statuteArticles' => [],
+    'additionalEvidenceItems' => [],
     'signerName' => '',
     'signerRole' => '',
     'signatureDataUri' => null,
@@ -44,10 +45,12 @@
     };
 
     $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+    $additionalEvidenceItems = is_array($additionalEvidenceItems) ? $additionalEvidenceItems : [];
 
     $pages = $documentPages ?? app(FoGj03DocumentPaginator::class)->plan([
         'chargesDescription' => (string) $chargesDescription,
         'statuteArticles' => is_array($statuteArticles) ? $statuteArticles : [],
+        'additionalEvidenceItems' => $additionalEvidenceItems,
         'locationText' => (string) $locationText,
         'blankForDownload' => (bool) $blankForDownload,
         'evidenceType' => (string) $evidenceType,
@@ -87,6 +90,7 @@
         'blankForDownload',
         'informeReportDate',
         'legalPhrasing',
+        'additionalEvidenceItems',
     ));
 
     $closingProps = compact(

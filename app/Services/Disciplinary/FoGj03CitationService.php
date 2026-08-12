@@ -77,6 +77,7 @@ class FoGj03CitationService
             'statuteArticles' => $this->articles->normalizeSavedBlocks(
                 $this->articles->blocksFromPayload($payload),
             ),
+            'additionalEvidenceItems' => $this->drafts->normalizeEvidenceItems($payload['evidence_items'] ?? []),
             'signerName' => $lawyer?->name ?? '',
             'signerRole' => $lawyer?->displayJobTitle() ?? 'Analista de Relaciones Laborales',
             'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,

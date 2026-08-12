@@ -1,4 +1,5 @@
 @php
+    use App\Enums\Disciplinary\Decision;
     use App\Support\Disciplinary\DecisionBranch;
     use App\Support\Disciplinary\DecisionStageProgress;
 
@@ -7,10 +8,16 @@
     $currentStepKey = (string) ($currentStep['key'] ?? 'type');
     $stepNumber = $decisionCurrentStepNumber ?? 1;
     $totalSteps = $decisionTotalSteps ?? 6;
-    $stageProgressHelper = app(DecisionStageProgress::class);
-    $actionTitle = $stageProgressHelper->actionBarTitle($currentStepKey);
     $decisionDoc = $case->latestDecisionComunicadoDocument();
     $branch = $decisionBranch ?? DecisionBranch::forDecision($case->decision);
+    $isFoGj46 = $case->decision === Decision::AMONESTACION_ESCRITA;
+    $isFoGj47 = $case->decision === Decision::SUSPENSION;
+    $stageProgressHelper = app(DecisionStageProgress::class);
+    $actionTitle = match (true) {
+        $currentStepKey === 'draft' && $isFoGj46 => 'FO-GJ-46 · Llamado de atención',
+        $currentStepKey === 'draft' && $isFoGj47 => 'FO-GJ-47 · Suspensión disciplinaria',
+        default => $stageProgressHelper->actionBarTitle($currentStepKey),
+    };
     $typeSelected = $case->decision !== null && $case->decision_coordination_started_at !== null;
     $coordinationDone = $case->decision_notification_completed_at !== null;
     $draftCompleted = $case->decision_draft_completed_at !== null;
@@ -27,6 +34,21 @@
     $canPostAgenda = auth()->user()->can('postAgendaLawyer', $case);
     $decisionReadOnly = $decisionReadOnly ?? false;
     $showStageD = ($showsDecisionStagePanel ?? false) || $decisionReadOnly;
+    $draftButtonLabel = match (true) {
+        $isFoGj46 => $draftCompleted ? 'Editar FO-GJ-46' : 'Diligenciar FO-GJ-46',
+        $isFoGj47 => $draftCompleted ? 'Editar FO-GJ-47' : 'Diligenciar FO-GJ-47',
+        default => $draftCompleted ? 'Editar comunicado' : 'Diligenciar comunicado',
+    };
+    $generateButtonLabel = match (true) {
+        $isFoGj46 => 'Generar FO-GJ-46',
+        $isFoGj47 => 'Generar FO-GJ-47',
+        default => 'Generar y guardar',
+    };
+    $previewButtonLabel = match (true) {
+        $isFoGj46 => 'Consultar FO-GJ-46 (PDF)',
+        $isFoGj47 => 'Consultar FO-GJ-47 (PDF)',
+        default => 'Consultar comunicado (PDF)',
+    };
 @endphp
 
 @if ($showStageD)
@@ -114,7 +136,7 @@
                 @if ($decisionReadOnly && $comunicadoGenerated && $canPreview)
                     <button type="button" wire:click="openDecisionPdfPreview"
                         class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20">
-                        Consultar comunicado (PDF)
+                        {{ $previewButtonLabel }}
                     </button>
                 @elseif (! $decisionReadOnly)
                 @if (! $typeSelected && $canSelectType && $isAssignedLawyer)
@@ -126,7 +148,7 @@
                     @if ($canEditDraft)
                         <button type="button" wire:click="openDecisionDraftModal"
                             class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
-                            {{ $draftCompleted ? 'Editar comunicado' : 'Diligenciar comunicado' }}
+                            {{ $draftButtonLabel }}
                         </button>
                     @endif
                     @if ($canPreview)
@@ -138,13 +160,13 @@
                     @if ($canGenerate)
                         <button type="button" wire:click="generateDecisionComunicado"
                             class="inline-flex items-center rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700">
-                            Generar y guardar
+                            {{ $generateButtonLabel }}
                         </button>
                     @endif
                 @elseif ($comunicadoGenerated && $canPreview)
                     <button type="button" wire:click="openDecisionPdfPreview"
                         class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-violet-800 ring-1 ring-violet-300 hover:bg-violet-50 dark:bg-white/10 dark:text-violet-100 dark:ring-violet-400/40">
-                        Consultar comunicado (PDF)
+                        {{ $previewButtonLabel }}
                     </button>
                 @endif
                 @endif
@@ -159,7 +181,7 @@
                             Coordinación abierta con planeación. Espere fechas de turno y supervisor en
                             <strong>Coordinaciones</strong>.
                         @elseif ($coordinationDone)
-                            Programación completada. Puede diligenciar el comunicado de decisión.
+                            Programación completada. Puede diligenciar {{ $isFoGj46 ? 'el FO-GJ-46' : ($isFoGj47 ? 'el FO-GJ-47' : 'el comunicado de decisión') }}.
                         @else
                             Planeación publicó fechas; falta registrar supervisor y datos de notificación.
                         @endif

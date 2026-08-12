@@ -6,7 +6,7 @@ use App\Enums\EmployeeGender;
 use App\Models\Employee;
 
 /**
- * Redacción gramatical por género para formatos disciplinarios (FO-GJ-03, 04, 54).
+ * Redacción gramatical por género para formatos disciplinarios (FO-GJ-03, 04, 46, 54).
  */
 final class WorkerLegalPhrasing
 {
@@ -123,12 +123,57 @@ final class WorkerLegalPhrasing
         };
     }
 
+    public function foGj47OpeningSalutation(): string
+    {
+        return $this->foGj54OpeningSalutation();
+    }
+
+    /** «NOTIFICAR al trabajador / a la trabajadora…» */
+    public function foGj47NotifyWorkerPhrase(): string
+    {
+        return match ($this->variant) {
+            EmployeeGender::Femenino => 'NOTIFICAR a la trabajadora',
+            EmployeeGender::Masculino => 'NOTIFICAR al trabajador',
+            default => 'NOTIFICAR a la persona vinculada',
+        };
+    }
+
+    public function foGj47SuspensionEffectParagraph(): string
+    {
+        return 'Adicionalmente, me permito advertir que la suspensión tiene como efecto para '.$this->foGj47WorkerArticleNoun().' la interrupción de la obligación de prestar el servicio y para la empresa la interrupción del pago de los salarios y demás prestaciones asociadas.';
+    }
+
+    /** «el trabajador» / «la trabajadora» / «la persona vinculada» */
+    public function foGj47WorkerArticleNoun(): string
+    {
+        return match ($this->variant) {
+            EmployeeGender::Femenino => 'la trabajadora',
+            EmployeeGender::Masculino => 'el trabajador',
+            default => 'la persona vinculada',
+        };
+    }
+
+    public function foGj47FactsAnalysisParagraph(): string
+    {
+        return 'Una vez analizados los hechos y pruebas presentados, así como sus explicaciones, se ha concluido que usted incurrió en la mencionada falta, sin que los argumentos que expuso en la diligencia de versión libre justifiquen su actuar, toda vez que, no cumplió a cabalidad con las instrucciones propias para desempeñar su cargo y, por lo tanto, se encuentra evidencia fehaciente de su inobservancia, procediendo así, a imponerle la sanción que se le notifica por este medio. Sin embargo, por parte de la empresa se decide brindarle una oportunidad para demostrar su compromiso dejando claro que no es concebible una segunda comisión de ningún tipo de falta.';
+    }
+
+    public function foGj47PostArticlesClosingParagraph(): string
+    {
+        return 'Bajo lo anteriormente referido, procede la imposición de la sanción disciplinaria y tras observarse que es la primera vez que incurre en la conducta. Se le requiere para que, en lo sucesivo, dé cumplimiento a las consignas generales y particulares de SJ SEGURIDAD LTDA, particularmente teniendo en cuenta los hechos que dieron lugar al informe disciplinario.';
+    }
+
+    public function foGj47AppealParagraph(): string
+    {
+        return 'Contra la decisión de sanción procede el recurso de apelación, el cual, si lo considera pertinente, podrá presentar en un plazo máximo de dos (02) días hábiles a partir de la fecha de notificación del presente documento, si no lo hace la sanción quedará en firme, ejecutándose así.';
+    }
+
     public function foGj54ScheduledHearingPhrase(): string
     {
         return match ($this->variant) {
-            EmployeeGender::Femenino => 'horas se encontraba citada usted para ser escuchada en diligencia disciplinaria, sobre los hechos ocurridos el pasado',
-            EmployeeGender::Masculino => 'horas se encontraba citado usted para ser escuchado en diligencia disciplinaria, sobre los hechos ocurridos el pasado',
-            default => 'horas tenía usted programada la diligencia disciplinaria para ser escuchado sobre los hechos ocurridos el pasado',
+            EmployeeGender::Femenino => 'usted se encontraba citada para ser escuchada en diligencia disciplinaria.',
+            EmployeeGender::Masculino => 'usted se encontraba citado para ser escuchado en diligencia disciplinaria.',
+            default => 'usted tenía programada la diligencia disciplinaria.',
         };
     }
 
@@ -139,5 +184,54 @@ final class WorkerLegalPhrasing
             EmployeeGender::Masculino => 'El Trabajador;',
             default => 'Persona vinculada;',
         };
+    }
+
+    public function foGj46HearingLeadPhrase(FoGj46HearingLead $lead): string
+    {
+        return match ($lead) {
+            FoGj46HearingLead::Surtida => 'y una vez surtida la',
+            FoGj46HearingLead::Citado => match ($this->variant) {
+                EmployeeGender::Femenino => 'usted fue citada a una',
+                EmployeeGender::Masculino => 'usted fue citado a una',
+                default => 'usted fue citado(a) a una',
+            },
+        };
+    }
+
+    /**
+     * Puente fijo tras la fecha de diligencia/citación, antes de la fecha de incumplimiento.
+     * «Citado» inserta el párrafo de inasistencia; «surtida» solo el análisis.
+     */
+    public function foGj46PostHearingBridge(?FoGj46HearingLead $lead): string
+    {
+        $analysis = 'se procedió con el análisis integral de los hechos investigados y del material probatorio recaudado. Como resultado, se estableció que el día';
+
+        if ($lead === FoGj46HearingLead::Citado) {
+            return 'con el fin de escuchar sus descargos frente a los hechos investigados. No obstante, usted no asistió a la citación ni presentó una excusa o justificación por su inasistencia, razón por la cual el proceso continuó, en garantía del debido proceso. '.$analysis;
+        }
+
+        return $analysis;
+    }
+
+    /** Sustantivo individual: «en su calidad de …». */
+    public function foGj46WorkerNoun(): string
+    {
+        return match ($this->variant) {
+            EmployeeGender::Femenino => 'trabajadora',
+            EmployeeGender::Masculino => 'trabajador',
+            default => 'trabajador(a)',
+        };
+    }
+
+    public function foGj46ExhortationParagraph1(): string
+    {
+        $noun = $this->foGj46WorkerNoun();
+
+        return 'No obstante, lo anterior, se le requiere para que, en lo sucesivo, cumpla de manera estricta con las responsabilidades y funciones inherentes a su cargo, teniendo en cuenta los hechos que dieron lugar al informe disciplinario. El incumplimiento evidenciado constituye una vulneración a las obligaciones y prohibiciones que le son exigibles en su calidad de '.$noun.', reflejando una falta de cuidado y diligencia en el desarrollo de las labores que le han sido encomendadas. Dicha situación resulta incompatible con el nivel de responsabilidad, compromiso y proactividad que deben caracterizar el desempeño de los trabajadores de la empresa.';
+    }
+
+    public function foGj46ExhortationParagraph2(): string
+    {
+        return 'Por lo anterior, le invitamos a revisar minuciosamente su desempeño y a ajustar su comportamiento a las obligaciones y responsabilidades que le han sido confiadas, buscando siempre la mejora continua en sus funciones. Además, se le recuerda que, en caso de reincidencia en esta o en cualquier conducta que comprometa la calidad, competencia, eficacia, eficiencia y responsabilidad en el ejercicio de sus funciones, se procederá a aplicar correctivos que corresponden.';
     }
 }

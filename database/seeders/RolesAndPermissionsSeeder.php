@@ -40,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
             'settings.manage-territory',
             'settings.manage-citation-articles',
+            'settings.manage-diligence-questions',
         ];
 
         foreach ($permissions as $perm) {

@@ -22,6 +22,7 @@
         'breachDate' => $breachDate ?? '',
         'chargesDescription' => $chargesDescription ?? '',
         'statuteArticles' => $statuteArticles ?? [],
+        'additionalEvidenceItems' => $additionalEvidenceItems ?? [],
         'signerName' => $signerName ?? '',
         'signerRole' => $signerRole ?? '',
         'signatureDataUri' => $signatureDataUri ?? null,

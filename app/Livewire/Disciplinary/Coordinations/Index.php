@@ -155,7 +155,7 @@ class Index extends Component
         if ($branch !== null && DecisionBranch::requiresSuspensionDates($branch)) {
             $this->validate([
                 'decisionSuspensionStart' => ['required', 'date'],
-                'decisionSuspensionEnd' => ['required', 'date', 'after_or_equal:decisionSuspensionStart'],
+                'decisionSuspensionEnd' => ['nullable', 'date', 'after_or_equal:decisionSuspensionStart'],
             ]);
         }
 

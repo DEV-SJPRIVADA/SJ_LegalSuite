@@ -3,7 +3,6 @@
 namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
-use App\Enums\Disciplinary\Decision;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Support\Disciplinary\DecisionBranch;
@@ -11,9 +10,22 @@ use Illuminate\Validation\ValidationException;
 
 class DecisionDraftService
 {
+    public function __construct(
+        private readonly FoGj46DraftService $foGj46Drafts,
+        private readonly FoGj47DraftService $foGj47Drafts,
+    ) {}
+
     /** @return array<string, mixed> */
     public function defaultsForCase(DisciplinaryCase $case): array
     {
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return $this->foGj46Drafts->defaultsForCase($case);
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return $this->foGj47Drafts->defaultsForCase($case);
+        }
+
         $existing = $case->decision_payload ?? [];
         $branch = DecisionBranch::forDecision($case->decision);
 
@@ -25,6 +37,8 @@ class DecisionDraftService
             'relief_notes' => (string) ($existing['relief_notes'] ?? ''),
             'requires_suspension_dates' => $branch !== null && DecisionBranch::requiresSuspensionDates($branch),
             'requires_relief' => $branch === DecisionBranch::TERMINATION,
+            'is_fo_gj_46' => false,
+            'is_fo_gj_47' => false,
         ];
     }
 
@@ -38,6 +52,14 @@ class DecisionDraftService
     /** @return list<string> */
     public function missingDraftRequirements(DisciplinaryCase $case): array
     {
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return $this->foGj46Drafts->missingDraftRequirements($case);
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return $this->foGj47Drafts->missingDraftRequirements($case);
+        }
+
         $missing = [];
 
         if ($case->current_status !== CaseStatus::DECISION) {
@@ -88,6 +110,14 @@ class DecisionDraftService
     /** @return array<string, mixed> */
     public function payloadForPdf(DisciplinaryCase $case): array
     {
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return $this->foGj46Drafts->payloadForPdf($case);
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return $this->foGj47Drafts->payloadForPdf($case);
+        }
+
         $missing = $this->missingDraftRequirements($case);
         if ($missing !== []) {
             throw ValidationException::withMessages([
@@ -99,16 +129,18 @@ class DecisionDraftService
     }
 
     /**
-     * @param  array{
-     *     subject: string,
-     *     body_narrative: string,
-     *     suspension_start?: string|null,
-     *     suspension_end?: string|null,
-     *     relief_notes?: string|null,
-     * }  $input
+     * @param  array<string, mixed>  $input
      */
     public function saveDraft(DisciplinaryCase $case, User $actor, array $input): DisciplinaryCase
     {
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return $this->foGj46Drafts->saveDraft($case, $actor, $input);
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return $this->foGj47Drafts->saveDraft($case, $actor, $input);
+        }
+
         if ($case->current_status !== CaseStatus::DECISION) {
             throw ValidationException::withMessages([
                 'decisionBodyNarrative' => 'El comunicado solo se diligencia en etapa de decisión.',

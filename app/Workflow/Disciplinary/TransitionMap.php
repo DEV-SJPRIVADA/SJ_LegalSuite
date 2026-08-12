@@ -51,6 +51,7 @@ final class TransitionMap
             ],
             CaseStatus::REPROGRAMADO->value => [
                 CaseStatus::CITACION_PROGRAMADA,
+                CaseStatus::DILIGENCIA, // tras FO-GJ-54 + evidencia de recibido (reprogramación operativa)
             ],
             CaseStatus::COMITE_DISCIPLINARIO->value => [
                 CaseStatus::DILIGENCIA,
@@ -59,6 +60,7 @@ final class TransitionMap
             CaseStatus::DILIGENCIA->value => [
                 CaseStatus::DECISION,
                 CaseStatus::JUSTIFICACION_PENDIENTE,
+                CaseStatus::REPROGRAMADO, // reprogramación operativa (FO-GJ-54) antes de registrar asistencia
             ],
             CaseStatus::DECISION->value => [
                 CaseStatus::APELACION,

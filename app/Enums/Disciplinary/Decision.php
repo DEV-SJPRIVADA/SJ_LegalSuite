@@ -16,7 +16,7 @@ enum Decision: string
         return match ($this) {
             self::ABSUELTO => 'Absuelto',
             self::AMONESTACION_VERBAL => 'Amonestación verbal',
-            self::AMONESTACION_ESCRITA => 'Amonestación escrita',
+            self::AMONESTACION_ESCRITA => 'Llamado de atención',
             self::SUSPENSION => 'Suspensión',
             self::TERMINACION_CONTRATO => 'Terminación de contrato',
             self::ARCHIVADO => 'Archivado',

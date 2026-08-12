@@ -152,6 +152,7 @@ return new class extends Migration
             'users.manage',
             'settings.manage-territory',
             'settings.manage-citation-articles',
+            'settings.manage-diligence-questions',
         ];
     }
 

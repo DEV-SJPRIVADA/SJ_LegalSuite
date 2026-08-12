@@ -120,6 +120,23 @@ class FoGj03DocumentPaginatorTest extends TestCase
         $this->assertTrue($pages[0]['evidenceShowLead']);
     }
 
+    public function test_additional_evidence_items_increase_evidence_lead_units(): void
+    {
+        $base = $this->paginator->buildBodyBlocks($this->typicalContext());
+        $withExtra = $this->paginator->buildBodyBlocks([
+            ...$this->typicalContext(),
+            'additionalEvidenceItems' => [
+                'Video de cámara del puesto Norte',
+                'Testimonio del supervisor de zona',
+            ],
+        ]);
+
+        $baseLead = collect($base)->firstWhere('type', 'evidence_lead')['units'] ?? 0;
+        $extraLead = collect($withExtra)->firstWhere('type', 'evidence_lead')['units'] ?? 0;
+
+        $this->assertGreaterThan($baseLead, $extraLead);
+    }
+
     /**
      * @return array<string, mixed>
      */

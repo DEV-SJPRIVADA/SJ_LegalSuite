@@ -35,6 +35,9 @@ final class FoGj03DocumentPaginator
     /** Intro + lista de informes (cabe en huecos pequeños de p.1). */
     private const EVIDENCE_LEAD_UNITS = 4;
 
+    /** Unidades extra por cada viñeta de elemento probatorio adicional. */
+    private const UNITS_PER_EVIDENCE_ITEM = 1.4;
+
     private const CLOSING_UNITS = 11;
 
     private const WITNESSES_UNITS = 10;
@@ -55,6 +58,7 @@ final class FoGj03DocumentPaginator
      * @param  array{
      *     chargesDescription?: string,
      *     statuteArticles?: list<array{article_number?: string, numerals?: string}>,
+     *     additionalEvidenceItems?: list<string>,
      *     locationText?: string,
      *     blankForDownload?: bool,
      *     evidenceType?: string,
@@ -125,7 +129,7 @@ final class FoGj03DocumentPaginator
         $blocks[] = ['type' => 'articles', 'units' => $this->articlesUnits($context)];
         $trasladoText = $this->resolveTrasladoText($context);
 
-        $blocks[] = ['type' => 'evidence_lead', 'units' => self::EVIDENCE_LEAD_UNITS];
+        $blocks[] = ['type' => 'evidence_lead', 'units' => $this->evidenceLeadUnits($context)];
         $blocks[] = [
             'type' => 'evidence_text',
             'units' => max(1, (int) ceil($this->estimateTextLines($trasladoText) * self::TEXT_GROWTH_FACTOR)),
@@ -440,6 +444,43 @@ final class FoGj03DocumentPaginator
         $active = max(1, $active);
 
         return (int) ceil(self::ARTICLES_BASE_UNITS + ($active * self::UNITS_PER_ARTICLE) + ($extraLines * self::TEXT_GROWTH_FACTOR));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function evidenceLeadUnits(array $context): int
+    {
+        $extra = 0;
+        foreach ($this->normalizeAdditionalEvidenceItems($context) as $item) {
+            $extra += max(1, (int) ceil($this->estimateTextLines($item) * self::UNITS_PER_EVIDENCE_ITEM));
+        }
+
+        return self::EVIDENCE_LEAD_UNITS + $extra;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    private function normalizeAdditionalEvidenceItems(array $context): array
+    {
+        $raw = $context['additionalEvidenceItems'] ?? [];
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($raw as $row) {
+            $text = is_array($row)
+                ? trim((string) ($row['text'] ?? ''))
+                : trim((string) $row);
+            if ($text !== '') {
+                $items[] = $text;
+            }
+        }
+
+        return $items;
     }
 
     /**

@@ -12,6 +12,8 @@ class DecisionNotificationSigningService
 {
     public function __construct(
         private readonly DecisionComunicadoService $comunicado,
+        private readonly FoGj46DraftService $foGj46Drafts,
+        private readonly FoGj47DraftService $foGj47Drafts,
         private readonly CitationNotificationSigningService $citationSigning,
     ) {}
 
@@ -56,7 +58,13 @@ class DecisionNotificationSigningService
             ],
         );
 
-        return HtmlLetterPdfGenerator::fromView('disciplinary.forms.decision-comunicado-signed-notification-download', $viewData);
+        $view = match (true) {
+            $this->foGj47Drafts->appliesTo($case) => 'disciplinary.forms.fo-gj-47-signed-notification-download',
+            $this->foGj46Drafts->appliesTo($case) => 'disciplinary.forms.fo-gj-46-signed-notification-download',
+            default => 'disciplinary.forms.decision-comunicado-signed-notification-download',
+        };
+
+        return HtmlLetterPdfGenerator::fromView($view, $viewData);
     }
 
     public function assertValidSignatureDataUri(?string $dataUri, string $field, string $emptyMessage): string

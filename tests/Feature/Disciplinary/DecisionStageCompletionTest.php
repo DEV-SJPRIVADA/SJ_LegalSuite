@@ -16,10 +16,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class DecisionStageCompletionTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -47,7 +49,7 @@ class DecisionStageCompletionTest extends TestCase
         $this->assertNotNull($case->decision_evidence_uploaded_at);
         $this->assertDatabaseHas('disciplinary_documents', [
             'disciplinary_case_id' => $case->id,
-            'original_name' => 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf',
+            'original_name' => 'FO-GJ-46-firmado-'.$case->case_number.'.pdf',
         ]);
     }
 
@@ -96,27 +98,37 @@ class DecisionStageCompletionTest extends TestCase
         $this->assertSame(CaseStatus::FINALIZADO, $case->fresh()->current_status);
     }
 
-    /** @return array{case: DisciplinaryCase, supervisor: User} */
+    /** @return array{case: DisciplinaryCase, nivel7: User} */
     private function makeDecisionSupervisorQueueCase(): array
     {
-        $supervisor = $this->user('nivel7', 'sup-decision-'.random_int(1000, 9999).'@test.local');
         $lawyer = $this->user('nivel6', 'law-decision-'.random_int(1000, 9999).'@test.local');
-        $employee = Employee::query()->create([
-            'first_name' => 'Worker',
-            'last_name' => 'Decision',
-            'document_number' => '9700'.random_int(100000, 999999),
-        ]);
+        $employee = $this->seedGuardaEmployee('9700'.random_int(100000, 999999));
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
 
         $case = DisciplinaryCase::query()->create([
             'case_number' => 'DISC-DEC-'.random_int(1000, 9999),
             'employee_id' => $employee->id,
             'assigned_lawyer_id' => $lawyer->id,
+            'municipality_code' => $employee->municipality_code,
             'current_status' => CaseStatus::DECISION,
             'opened_at' => now()->toDateString(),
             'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_payload' => [
-                'subject' => 'Comunicado de amonestación',
-                'body_narrative' => 'Se comunica la decisión adoptada.',
+                'document_code' => 'FO-GJ-46',
+                'hearing_lead' => 'surtida',
+                'facts_narrative' => 'incurrió en incumplimiento de obligaciones laborales.',
+                'articles_55' => '1, 2',
+                'articles_57' => '3',
+                'articles_60' => '1',
+                'signer_name' => 'María Pérez',
+                'signer_title' => 'DIRECTORA DE GESTIÓN HUMANA',
+                'modality' => 'presencial',
+                'hearing_day' => '10',
+                'hearing_month' => 'enero',
+                'hearing_year' => '2026',
+                'breach_day' => '5',
+                'breach_month' => 'enero',
+                'breach_year' => '2026',
             ],
             'decision_draft_completed_at' => now(),
             'decision_comunicado_generated_at' => now(),

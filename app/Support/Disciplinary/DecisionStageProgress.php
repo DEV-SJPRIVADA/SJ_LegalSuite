@@ -3,6 +3,7 @@
 namespace App\Support\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\Decision;
 use App\Models\Disciplinary\DisciplinaryCase;
 use Illuminate\Support\Collection;
 
@@ -51,9 +52,17 @@ final class DecisionStageProgress
             ],
             [
                 'key' => 'draft',
-                'label' => 'Comunicado',
+                'label' => match ($case->decision) {
+                    Decision::AMONESTACION_ESCRITA => 'FO-GJ-46',
+                    Decision::SUSPENSION => 'FO-GJ-47',
+                    default => 'Comunicado',
+                },
                 'done' => $draftDone && $comunicadoDone,
-                'hint' => 'Diligencie el comunicado de decisión y genere el PDF en el expediente.',
+                'hint' => match ($case->decision) {
+                    Decision::AMONESTACION_ESCRITA => 'Diligencie el FO-GJ-46 (llamado de atención) y genere el PDF en el expediente.',
+                    Decision::SUSPENSION => 'Diligencie el FO-GJ-47 (suspensión) y genere el PDF en el expediente.',
+                    default => 'Diligencie el comunicado de decisión y genere el PDF en el expediente.',
+                },
             ],
             [
                 'key' => 'notification',

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Support\Disciplinary;
 
 use App\Enums\EmployeeGender;
+use App\Support\Disciplinary\FoGj46HearingLead;
 use App\Support\Disciplinary\WorkerLegalPhrasing;
 use Tests\TestCase;
 
@@ -58,7 +59,56 @@ class WorkerLegalPhrasingTest extends TestCase
         $male = WorkerLegalPhrasing::fromGender(EmployeeGender::Masculino);
         $female = WorkerLegalPhrasing::fromGender(EmployeeGender::Femenino);
 
-        $this->assertStringContainsString('citado usted', $male->foGj54ScheduledHearingPhrase());
-        $this->assertStringContainsString('citada usted', $female->foGj54ScheduledHearingPhrase());
+        $this->assertStringContainsString('citado para ser escuchado', $male->foGj54ScheduledHearingPhrase());
+        $this->assertStringContainsString('citada para ser escuchada', $female->foGj54ScheduledHearingPhrase());
+        $this->assertSame('Respetado colaborador.', $male->foGj54OpeningSalutation());
+        $this->assertSame('Respetada colaboradora.', $female->foGj54OpeningSalutation());
+    }
+
+    public function test_fo_gj_46_gender_concordance(): void
+    {
+        $male = WorkerLegalPhrasing::fromGender(EmployeeGender::Masculino);
+        $female = WorkerLegalPhrasing::fromGender(EmployeeGender::Femenino);
+        $neutral = WorkerLegalPhrasing::fromGender(EmployeeGender::NoIndica);
+
+        $this->assertSame(
+            'usted fue citado a una',
+            $male->foGj46HearingLeadPhrase(FoGj46HearingLead::Citado),
+        );
+        $this->assertSame(
+            'usted fue citada a una',
+            $female->foGj46HearingLeadPhrase(FoGj46HearingLead::Citado),
+        );
+        $this->assertSame(
+            'usted fue citado(a) a una',
+            $neutral->foGj46HearingLeadPhrase(FoGj46HearingLead::Citado),
+        );
+        $this->assertSame('y una vez surtida la', $female->foGj46HearingLeadPhrase(FoGj46HearingLead::Surtida));
+
+        $surtidaBridge = $male->foGj46PostHearingBridge(FoGj46HearingLead::Surtida);
+        $citadoBridge = $male->foGj46PostHearingBridge(FoGj46HearingLead::Citado);
+        $this->assertStringStartsWith('se procedió con el análisis integral', $surtidaBridge);
+        $this->assertStringNotContainsString('no asistió a la citación', $surtidaBridge);
+        $this->assertStringContainsString('con el fin de escuchar sus descargos', $citadoBridge);
+        $this->assertStringContainsString('usted no asistió a la citación', $citadoBridge);
+        $this->assertStringContainsString('se procedió con el análisis integral', $citadoBridge);
+
+        $this->assertSame('trabajador', $male->foGj46WorkerNoun());
+        $this->assertSame('trabajadora', $female->foGj46WorkerNoun());
+        $this->assertStringContainsString('calidad de trabajadora', $female->foGj46ExhortationParagraph1());
+        $this->assertStringContainsString('calidad de trabajador,', $male->foGj46ExhortationParagraph1());
+        $this->assertStringContainsString('le invitamos a revisar minuciosamente', $male->foGj46ExhortationParagraph2());
+    }
+
+    public function test_fo_gj_47_fixed_paragraphs(): void
+    {
+        $male = WorkerLegalPhrasing::fromGender(EmployeeGender::Masculino);
+        $female = WorkerLegalPhrasing::fromGender(EmployeeGender::Femenino);
+
+        $this->assertStringContainsString('para el trabajador la interrupción', $male->foGj47SuspensionEffectParagraph());
+        $this->assertStringContainsString('para la trabajadora la interrupción', $female->foGj47SuspensionEffectParagraph());
+        $this->assertStringContainsString('versión libre justifiquen su actuar', $male->foGj47FactsAnalysisParagraph());
+        $this->assertStringContainsString('SJ SEGURIDAD LTDA', $male->foGj47PostArticlesClosingParagraph());
+        $this->assertStringContainsString('dos (02) días hábiles', $male->foGj47AppealParagraph());
     }
 }

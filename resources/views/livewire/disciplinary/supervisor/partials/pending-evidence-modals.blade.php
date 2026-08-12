@@ -212,8 +212,12 @@
     </div>
 @endif
 
-{{-- Fase B (decisión): comunicado FO-GJ-DECISION + firma del trabajador o testigos --}}
+{{-- Fase B (decisión): FO-GJ-46 / FO-GJ-47 / FO-GJ-DECISION + firma --}}
 @if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null) && empty($signedNotificationPreviewToken))
+    @php
+        $decisionIsFo46 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::AMONESTACION_ESCRITA;
+        $decisionIsFo47 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::SUSPENSION;
+    @endphp
     <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
         x-data="{ scale: 1 }"
         x-on:keydown.escape.window="$wire.closeDecisionNotificationModal()"
@@ -226,7 +230,14 @@
             <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
                 <div>
                     <h2 id="decision-notification-modal-title" class="text-base font-bold text-slate-900 dark:text-white">
-                        Comunicado de decisión · {{ $decisionNotificationCase->case_number }}
+                        @if ($decisionIsFo46)
+                            FO-GJ-46 · Llamado de atención
+                        @elseif ($decisionIsFo47)
+                            FO-GJ-47 · Suspensión
+                        @else
+                            Comunicado de decisión
+                        @endif
+                        · {{ $decisionNotificationCase->case_number }}
                     </h2>
                     <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {{ $decisionNotificationCase->employee?->first_name }} {{ $decisionNotificationCase->employee?->last_name }}
@@ -253,35 +264,46 @@
                 ">
                 <div class="ogj-letter-screen-scaler">
                     <div class="ogj-letter-screen-sheet" x-ref="decisionLetterSheet" :style="`transform: scale(${scale});`">
-                        @include('disciplinary.forms.partials.official-letter-pdf-styles')
-                        <div class="ogj-wrap">
-                            <div class="ogj-page ogj-page--screen-preview">
-                                <table class="ogj-tbl ogj-head-grid" role="presentation">
-                                    <colgroup>
-                                        <col style="width:102px">
-                                        <col>
-                                        <col style="width:114px">
-                                    </colgroup>
-                                    <tbody>
-                                        <tr>
-                                            <td class="ogj-logo-cell">
-                                                <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
-                                            </td>
-                                            <td class="ogj-title">Comunicado de decisión de sanción o cierre del proceso</td>
-                                            <td class="ogj-meta">
-                                                <table class="ogj-meta-grid" role="presentation">
-                                                    <tr><td class="ogj-meta-code">FO-GJ-DECISION</td></tr>
-                                                    <tr><td>{{ $decisionNotificationViewData['issuedDate'] ?? '' }}</td></tr>
-                                                    <tr><td>Versión 01</td></tr>
-                                                    <tr><td>Página 1 de 1</td></tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                @include('disciplinary.forms.partials.decision-comunicado-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                        @if ($decisionIsFo47)
+                            @include('disciplinary.forms.partials.fo-gj-47-body', array_merge($decisionNotificationViewData, [
+                                'blankForDownload' => false,
+                                'embeddedLogoSrc' => \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri(),
+                            ]))
+                        @else
+                            @include('disciplinary.forms.partials.official-letter-pdf-styles')
+                            <div class="ogj-wrap">
+                                <div class="ogj-page ogj-page--screen-preview">
+                                    <table class="ogj-tbl ogj-head-grid" role="presentation">
+                                        <colgroup>
+                                            <col style="width:102px">
+                                            <col>
+                                            <col style="width:114px">
+                                        </colgroup>
+                                        <tbody>
+                                            <tr>
+                                                <td class="ogj-logo-cell">
+                                                    <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
+                                                </td>
+                                                <td class="ogj-title">{{ $decisionIsFo46 ? 'Llamado de atención' : 'Comunicado de decisión de sanción o cierre del proceso' }}</td>
+                                                <td class="ogj-meta">
+                                                    <table class="ogj-meta-grid" role="presentation">
+                                                        <tr><td class="ogj-meta-code">{{ $decisionIsFo46 ? 'FO-GJ-46' : 'FO-GJ-DECISION' }}</td></tr>
+                                                        <tr><td>{{ $decisionIsFo46 ? 'Noviembre de 2023' : ($decisionNotificationViewData['issuedDate'] ?? '') }}</td></tr>
+                                                        <tr><td>{{ $decisionIsFo46 ? 'Versión 02' : 'Versión 01' }}</td></tr>
+                                                        <tr><td>Página 1 de 1</td></tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    @if ($decisionIsFo46)
+                                        @include('disciplinary.forms.partials.fo-gj-46-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @else
+                                        @include('disciplinary.forms.partials.decision-comunicado-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @endif
+                                </div>
                             </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
             </div>

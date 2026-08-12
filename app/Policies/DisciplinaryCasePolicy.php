@@ -379,15 +379,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($case->current_status !== CaseStatus::JUSTIFICACION_PENDIENTE) {
-            return false;
-        }
-
-        if ($case->diligence_attendance !== DiligenceAttendance::ABSENT) {
-            return false;
-        }
-
-        return $case->fo_gj_54_generated_at === null;
+        return app(FoGj54DraftService::class)->canEditDraft($case);
     }
 
     public function previewFoGj54(User $user, DisciplinaryCase $case): bool
@@ -410,6 +402,19 @@ class DisciplinaryCasePolicy
         }
 
         return app(FoGj54ReprogramacionService::class)->canGenerate($case);
+    }
+
+    public function uploadFoGj54Evidence(User $user, DisciplinaryCase $case): bool
+    {
+        if ($this->deniesMutation($user)) {
+            return false;
+        }
+
+        if ((int) $case->assigned_lawyer_id !== (int) $user->id) {
+            return false;
+        }
+
+        return app(FoGj54ReprogramacionService::class)->canUploadReceiptEvidence($case);
     }
 
     public function manageDiligenceJustification(User $user, DisciplinaryCase $case): bool

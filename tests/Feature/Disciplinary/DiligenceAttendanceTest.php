@@ -70,6 +70,7 @@ class DiligenceAttendanceTest extends TestCase
             ->call('openStageCard', 'c')
             ->assertSee('Asistió')
             ->assertSee('No asistió')
+            ->assertSee('Reprogramar diligencia')
             ->assertSee('Primer paso obligatorio');
     }
 

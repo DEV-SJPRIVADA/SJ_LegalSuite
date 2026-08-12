@@ -87,6 +87,7 @@ class DisciplinaryCase extends Model
         'fo_gj_54_draft_completed_by',
         'fo_gj_54_generated_at',
         'fo_gj_54_generated_by',
+        'fo_gj_54_evidence_uploaded_at',
         'diligence_justification_received_at',
         'diligence_justification_received_by',
         'diligence_justification_notes',
@@ -159,6 +160,7 @@ class DisciplinaryCase extends Model
             'fo_gj_54_payload' => 'array',
             'fo_gj_54_draft_completed_at' => 'datetime',
             'fo_gj_54_generated_at' => 'datetime',
+            'fo_gj_54_evidence_uploaded_at' => 'datetime',
             'diligence_justification_received_at' => 'datetime',
             'comite_payload' => 'array',
             'comite_draft_completed_at' => 'datetime',
@@ -362,8 +364,28 @@ class DisciplinaryCase extends Model
             return true;
         }
 
+        if ($this->isOperationalReschedulePending()) {
+            return true;
+        }
+
         return $this->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
             && $this->diligence_attendance === DiligenceAttendance::ABSENT;
+    }
+
+    /** Reprogramación operativa FO-GJ-54 en curso (conserva FO-GJ-03). */
+    public function isOperationalReschedulePending(): bool
+    {
+        if ($this->current_status !== CaseStatus::REPROGRAMADO) {
+            return false;
+        }
+
+        if ($this->diligence_attendance !== null) {
+            return false;
+        }
+
+        $payload = $this->fo_gj_54_payload ?? [];
+
+        return ($payload['mode'] ?? null) === 'operational';
     }
 
     /**
@@ -867,6 +889,10 @@ class DisciplinaryCase extends Model
 
     public const NOTE_DECISION_COMUNICADO_GENERATED = 'Comunicado de decisión generado desde expediente';
 
+    public const NOTE_FO_GJ_46_GENERATED = 'FO-GJ-46 llamado de atención generado desde expediente';
+
+    public const NOTE_FO_GJ_47_GENERATED = 'FO-GJ-47 suspensión disciplinaria generada desde expediente';
+
     public const NOTE_DECISION_EVIDENCE_PREFIX = 'Evidencia notificación decisión';
 
     public const NOTE_DECISION_HR_ANEXO_PREFIX = 'Anexo laboral gestión humana';
@@ -939,7 +965,11 @@ class DisciplinaryCase extends Model
 
         $match = $docs->first(
             fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::DECISION
-                && str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+                && (
+                    str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_46_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_47_GENERATED)
+                )
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;

@@ -249,7 +249,7 @@ class FoGj04DraftService
 
     /**
      * @param  array<int, mixed>  $raw
-     * @return list<array{question: string, answer: string}>
+     * @return list<array{question: string, answer: string, source: string, catalog_question_id: int|null}>
      */
     public function questionsForForm(array $raw): array
     {
@@ -260,9 +260,19 @@ class FoGj04DraftService
                 continue;
             }
 
+            $source = (string) ($row['source'] ?? 'custom');
+            if (! in_array($source, ['catalog', 'custom'], true)) {
+                $source = 'custom';
+            }
+
+            $catalogId = $row['catalog_question_id'] ?? null;
+            $catalogId = is_numeric($catalogId) ? (int) $catalogId : null;
+
             $items[] = [
                 'question' => (string) ($row['question'] ?? $row['text'] ?? ''),
                 'answer' => (string) ($row['answer'] ?? ''),
+                'source' => $source,
+                'catalog_question_id' => $catalogId,
             ];
         }
 
@@ -271,7 +281,7 @@ class FoGj04DraftService
 
     /**
      * @param  array<int, mixed>  $raw
-     * @return list<array{question: string, answer: string}>
+     * @return list<array{question: string, answer: string, source: string, catalog_question_id: int|null}>
      */
     public function parseAndValidateQuestions(array $raw): array
     {
@@ -280,6 +290,17 @@ class FoGj04DraftService
         foreach ($raw as $row) {
             if (! is_array($row)) {
                 continue;
+            }
+
+            $source = (string) ($row['source'] ?? 'custom');
+            if (! in_array($source, ['catalog', 'custom'], true)) {
+                $source = 'custom';
+            }
+
+            $catalogId = $row['catalog_question_id'] ?? null;
+            $catalogId = is_numeric($catalogId) ? (int) $catalogId : null;
+            if ($source !== 'catalog') {
+                $catalogId = null;
             }
 
             $question = self::formatQuestionMarks((string) ($row['question'] ?? $row['text'] ?? ''));
@@ -301,9 +322,12 @@ class FoGj04DraftService
                 ]);
             }
 
+            // Snapshot: el texto del catálogo se congela en el payload (eliminar del admin no afecta actas).
             $questions[] = [
                 'question' => $question,
                 'answer' => $answer,
+                'source' => $source,
+                'catalog_question_id' => $catalogId,
             ];
         }
 

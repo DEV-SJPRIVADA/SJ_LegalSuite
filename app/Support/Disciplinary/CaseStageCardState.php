@@ -69,10 +69,18 @@ final class CaseStageCardState
 
         if (in_array($case->current_status, [
             CaseStatus::CITACION_PROGRAMADA,
-            CaseStatus::REPROGRAMADO,
             CaseStatus::CITACION_NO_ASISTIO,
             CaseStatus::JUSTIFICACION_PENDIENTE,
         ], true)) {
+            return self::ACTIVE;
+        }
+
+        if ($case->current_status === CaseStatus::REPROGRAMADO) {
+            // Reprogramación operativa: la Etapa B (FO-GJ-03) ya quedó; el trámite sigue en C.
+            if ($case->isOperationalReschedulePending()) {
+                return self::COMPLETED;
+            }
+
             return self::ACTIVE;
         }
 

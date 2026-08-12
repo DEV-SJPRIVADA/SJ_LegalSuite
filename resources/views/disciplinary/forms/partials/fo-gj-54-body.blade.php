@@ -8,25 +8,26 @@
     'originalHearingMonth' => '',
     'originalHearingYear' => '',
     'originalHearingTime' => '',
-    'factsDay' => '',
-    'factsMonth' => '',
-    'clientSite' => '',
-    'shiftStart' => '',
-    'shiftEnd' => '',
+    'informeReportDateLong' => '',
+    'chargesDescription' => '',
+    'rescheduleCausePhrase' => '',
     'newHearingDay' => '',
     'newHearingMonth' => '',
     'newHearingYear' => '',
     'newHearingTime' => '',
-    'newHearingPlace' => '',
+    'modality' => 'presencial',
+    'modalityLocationText' => '',
     'employerName' => '',
     'signatureDataUri' => null,
     'legalPhrasing' => null,
 ])
 
 @php
+    use App\Support\Disciplinary\FoGj03Modality;
     use App\Support\Disciplinary\WorkerLegalPhrasing;
 
     $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+    $isVirtual = (string) $modality === FoGj03Modality::Virtual->value;
 
     $guidePattern = static fn (string $size): string => match ($size) {
         'xs' => '_ _ _',
@@ -70,21 +71,27 @@
         {!! $blank($originalHearingYear, 'sm') !!}
         a las
         {!! $blank($originalHearingTime, 'sm') !!}
+        horas,
         {{ $legalPhrasing->foGj54ScheduledHearingPhrase() }}
-        {!! $blank($factsDay, 'xs') !!}
-        de
-        {!! $blank($factsMonth, 'sm') !!}
-        del presente año, cuando presuntamente usted no presentó a laborar a las instalaciones del cliente
-        {!! $blank($clientSite, 'xl') !!}
-        a su turno laboral de
-        {!! $blank($shiftStart, 'sm') !!}
-        a
-        {!! $blank($shiftEnd, 'sm') !!}
-        horas, generando así, traumatismo en la operación al no haber reportado a tiempo el cambio de turno establecido.
     </p>
 
-    <p>
-        Dando cumplimiento al debido proceso me permito informarle que por temas operativos de la compañía la diligencia disciplinaria será reprogramada para el día
+    <p class="ogj-03-justify">
+        De acuerdo con el informe disciplinario del
+        {!! $blank($informeReportDateLong, 'lg') !!},
+        se reporta que
+        @if ($blankForDownload)
+            <span class="ogj-03-guide ogj-03-guide-xl" aria-hidden="true">{{ $guidePattern('xl') }}</span>.
+        @elseif (filled($chargesDescription))
+            {{ $chargesDescription }}
+        @else
+            —.
+        @endif
+    </p>
+
+    <p class="ogj-03-justify">
+        Dando cumplimiento al debido proceso y en atención a que la citación inicialmente programada no pudo realizarse debido a
+        {!! $blank($rescheduleCausePhrase, 'lg') !!},
+        me permito informarle que la diligencia disciplinaria será reprogramada para el día
         {!! $blank($newHearingDay, 'xs') !!}
         de
         {!! $blank($newHearingMonth, 'sm') !!}
@@ -93,8 +100,13 @@
         a las
         {!! $blank($newHearingTime, 'sm') !!}
         horas,
-        {!! $blank($newHearingPlace, 'xl') !!}
-        con el fin de ejercer su derecho a la defensa para {{ $legalPhrasing->foGj03DefenseHearingPhrase() }} en razón a la apertura del proceso disciplinario.
+        @if ($isVirtual)
+            de manera virtual a través de la plataforma Microsoft Teams, a la cual podrá acceder mediante el siguiente enlace:
+            {!! $blank($modalityLocationText, 'xl') !!}
+        @else
+            de manera presencial
+            {!! $blank($modalityLocationText, 'xl') !!}
+        @endif
     </p>
 
     <p>De conformidad en lo anterior, se firma por quienes intervienen:</p>
@@ -102,20 +114,20 @@
     <table class="ogj-03-signatures" role="presentation">
         <tr>
             <td>
-                <p>Representantes del empleador;</p>
+                <p>Representante del empleador,</p>
                 <div class="ogj-03-sign-line">
                     @if (! $blankForDownload && filled($signatureDataUri))
                         <img src="{{ $signatureDataUri }}" alt="Firma empleador" class="ogj-03-signature-img">
                     @endif
                 </div>
-                <p>Nombre: {!! $blank($employerName, 'md') !!}</p>
+                <p>{!! $blank($employerName, 'md') !!}</p>
                 <p>Área Jurídica – SJ Seguridad Privada Ltda.</p>
             </td>
             <td>
                 <p>{{ $legalPhrasing->foGj54SignatureSectionLabel() }}</p>
                 <div class="ogj-03-sign-line"></div>
-                <p>Nombre: {!! $blank($workerName, 'md') !!}</p>
-                <p>Cargo: {!! $blank($workerPosition, 'md') !!}</p>
+                <p>{!! $blank($workerName, 'md') !!}</p>
+                <p>{!! $blank($workerPosition, 'md') !!}</p>
             </td>
         </tr>
     </table>

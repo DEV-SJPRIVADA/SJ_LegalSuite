@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             FaultsCatalogSeeder::class,
             CitationFaultTemplatesSeeder::class,
+            DiligenceActaQuestionsSeeder::class,
             DemoUsersSeeder::class,
         ]);
     }

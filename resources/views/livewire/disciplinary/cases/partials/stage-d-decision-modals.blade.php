@@ -1,6 +1,10 @@
 @php
     use App\Enums\Disciplinary\Decision;
     use App\Support\Disciplinary\DecisionBranch;
+    use App\Support\Disciplinary\FoGj46HearingLead;
+
+    $isFoGj46 = ($case->decision ?? null) === Decision::AMONESTACION_ESCRITA;
+    $isFoGj47 = ($case->decision ?? null) === Decision::SUSPENSION;
 @endphp
 
 @if ($showDecisionTypeModal ?? false)
@@ -18,6 +22,7 @@
                         <option value="{{ DecisionBranch::SUSPENSION }}">{{ DecisionBranch::label(DecisionBranch::SUSPENSION) }}</option>
                         <option value="{{ DecisionBranch::NOTICE }}">{{ DecisionBranch::label(DecisionBranch::NOTICE) }}</option>
                         <option value="{{ DecisionBranch::TERMINATION }}">{{ DecisionBranch::label(DecisionBranch::TERMINATION) }}</option>
+                        <option value="{{ DecisionBranch::CLOSURE }}">{{ DecisionBranch::label(DecisionBranch::CLOSURE) }}</option>
                     </select>
                     @error('decisionBranchSelection') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
@@ -46,39 +51,137 @@
     <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/50" wire:keydown.escape.window="closeDecisionDraftModal" wire:key="decision-draft-modal">
         <div class="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl dark:bg-dash-ink dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
             <div class="shrink-0 border-b border-slate-200 px-5 py-4 dark:border-white/10">
-                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Diligenciar comunicado de decisión</h3>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+                    @if ($isFoGj46)
+                        Diligenciar FO-GJ-46 · Llamado de atención
+                    @elseif ($isFoGj47)
+                        Diligenciar FO-GJ-47 · Suspensión disciplinaria
+                    @else
+                        Diligenciar comunicado de decisión
+                    @endif
+                </h3>
+                @if ($isFoGj46)
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Modalidad, fechas de diligencia e incumplimiento se toman del FO-GJ-03 / citación.
+                    </p>
+                @elseif ($isFoGj47)
+                    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        Indique los días; el sistema calcula fin y retorno a partir de la fecha de inicio (planeación). Arts. 55/57/60 desde FO-GJ-03.
+                    </p>
+                @endif
             </div>
             <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                <div>
-                    <label class="block text-sm font-medium">Asunto</label>
-                    <input type="text" wire:model="decisionSubject" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                    @error('decisionSubject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-medium">Cuerpo del comunicado</label>
-                    <textarea wire:model="decisionBodyNarrative" rows="8" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
-                    @error('decisionBodyNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                </div>
-                @if ($decisionBranch && \App\Support\Disciplinary\DecisionBranch::requiresSuspensionDates($decisionBranch))
+                @if ($isFoGj46)
+                    <div>
+                        <label class="block text-sm font-medium">Apertura del párrafo (obligatorio)</label>
+                        <select wire:model="foGj46HearingLead" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5">
+                            <option value="">— Seleccione —</option>
+                            @foreach (FoGj46HearingLead::cases() as $lead)
+                                <option value="{{ $lead->value }}">{{ $lead->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('foGj46HearingLead') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Relato de hechos (después de la fecha de incumplimiento)</label>
+                        <textarea wire:model="foGj46FactsNarrative" rows="6" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" placeholder="…incurrió en…"></textarea>
+                        @error('foGj46FactsNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium">Art. 55 (numerales)</label>
+                            <input type="text" wire:model="foGj46Articles55" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj46Articles55') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Art. 57 (numerales)</label>
+                            <input type="text" wire:model="foGj46Articles57" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj46Articles57') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Art. 60 (numerales)</label>
+                            <input type="text" wire:model="foGj46Articles60" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj46Articles60') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium">Inicio suspensión</label>
-                            <input type="date" wire:model="decisionSuspensionStart" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('decisionSuspensionStart') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            <label class="block text-sm font-medium">Nombre de quien firma</label>
+                            <input type="text" wire:model="foGj46SignerName" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj46SignerName') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Fin suspensión</label>
-                            <input type="date" wire:model="decisionSuspensionEnd" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
-                            @error('decisionSuspensionEnd') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            <label class="block text-sm font-medium">Cargo del firmante</label>
+                            <input type="text" wire:model="foGj46SignerTitle" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj46SignerTitle') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
-                @endif
-                @if ($decisionBranch === DecisionBranch::TERMINATION)
+                @elseif ($isFoGj47)
                     <div>
-                        <label class="block text-sm font-medium">Observaciones de relevo</label>
-                        <textarea wire:model="decisionReliefNotes" rows="3" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
-                        @error('decisionReliefNotes') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <label class="block text-sm font-medium">Párrafo introductorio (obligatorio)</label>
+                        <textarea wire:model="foGj47OpeningNarrative" rows="7" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" placeholder="Por medio de la presente me permito comunicarle que…"></textarea>
+                        @error('foGj47OpeningNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium">Días de suspensión</label>
+                            <input type="number" min="1" max="90" wire:model="foGj47SuspensionDays" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47SuspensionDays') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Inicio de la sanción</label>
+                            <input type="date" wire:model="foGj47SuspensionStart" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            <p class="mt-1 text-xs text-slate-500">Preferible la fecha confirmada por planeación; el sistema calcula fin y retorno.</p>
+                            @error('foGj47SuspensionStart') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium">Art. 55 (numerales)</label>
+                            <input type="text" wire:model="foGj47Articles55" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47Articles55') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Art. 57 (numerales)</label>
+                            <input type="text" wire:model="foGj47Articles57" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47Articles57') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Art. 60 (numerales)</label>
+                            <input type="text" wire:model="foGj47Articles60" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47Articles60') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium">Nombre firmante (Gestión Humana)</label>
+                            <input type="text" wire:model="foGj47SignerName" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47SignerName') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Cargo del firmante</label>
+                            <input type="text" wire:model="foGj47SignerTitle" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                            @error('foGj47SignerTitle') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                @else
+                    <div>
+                        <label class="block text-sm font-medium">Asunto</label>
+                        <input type="text" wire:model="decisionSubject" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5" />
+                        @error('decisionSubject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Cuerpo del comunicado</label>
+                        <textarea wire:model="decisionBodyNarrative" rows="8" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
+                        @error('decisionBodyNarrative') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    @if ($decisionBranch === DecisionBranch::TERMINATION)
+                        <div>
+                            <label class="block text-sm font-medium">Observaciones de relevo</label>
+                            <textarea wire:model="decisionReliefNotes" rows="3" class="mt-1 w-full rounded-md border-slate-300 dark:border-white/20 dark:bg-white/5"></textarea>
+                            @error('decisionReliefNotes') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
                 @endif
             </div>
             <div class="flex shrink-0 justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-white/10">
@@ -93,7 +196,15 @@
     <div class="fixed inset-0 z-[86] flex flex-col bg-black/60 p-4" wire:keydown.escape.window="closeDecisionPdfPreview" wire:key="decision-pdf-preview">
         <div class="mx-auto flex h-full w-full max-w-4xl flex-col rounded-xl bg-white shadow-xl dark:bg-dash-ink">
             <div class="flex shrink-0 items-center justify-between border-b px-4 py-3 dark:border-white/10">
-                <h3 class="font-semibold text-slate-900 dark:text-white">Vista previa · Comunicado de decisión</h3>
+                <h3 class="font-semibold text-slate-900 dark:text-white">
+                    @if ($isFoGj46)
+                        Vista previa · FO-GJ-46
+                    @elseif ($isFoGj47)
+                        Vista previa · FO-GJ-47
+                    @else
+                        Vista previa · Comunicado de decisión
+                    @endif
+                </h3>
                 <button type="button" wire:click="closeDecisionPdfPreview" class="text-sm font-medium text-violet-700 hover:underline dark:text-violet-300">Cerrar</button>
             </div>
             <iframe class="min-h-0 flex-1" src="{{ route('disciplinary.cases.decision-comunicado.pdf', ['case' => $case, 'inline' => 1]) }}"></iframe>

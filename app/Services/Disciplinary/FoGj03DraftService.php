@@ -44,6 +44,7 @@ class FoGj03DraftService
             'breach_date' => (string) ($existing['breach_date'] ?? ''),
             'charges_description' => (string) ($existing['charges_description'] ?? ''),
             'statute_articles' => $statuteArticles,
+            'evidence_items' => $this->normalizeEvidenceItems($existing['evidence_items'] ?? []),
             'informe_report_date' => $this->resolveInformeReportDate($case),
         ];
     }
@@ -178,6 +179,8 @@ class FoGj03DraftService
             ]);
         }
 
+        $evidenceItems = $this->normalizeEvidenceItems($input['evidence_items'] ?? []);
+
         if (! $actor->hasSignature()) {
             throw ValidationException::withMessages([
                 'fo_gj_03' => 'Suba su firma digital en Mi perfil antes de guardar el FO-GJ-03.',
@@ -192,6 +195,7 @@ class FoGj03DraftService
             'breach_date_display' => $breachFormatted,
             'charges_description' => $chargesDescription,
             'statute_articles' => $statuteArticles,
+            'evidence_items' => $evidenceItems,
             'informe_report_date' => $this->resolveInformeReportDate($case),
         ];
 
@@ -244,5 +248,35 @@ class FoGj03DraftService
         }
 
         return $blocks;
+    }
+
+    /**
+     * Elementos probatorios adicionales (además del informe disciplinario automático).
+     *
+     * @param  mixed  $raw
+     * @return list<string>
+     */
+    public function normalizeEvidenceItems(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($raw as $row) {
+            if (is_array($row)) {
+                $text = trim((string) ($row['text'] ?? ''));
+            } else {
+                $text = trim((string) $row);
+            }
+
+            if ($text === '') {
+                continue;
+            }
+
+            $items[] = $text;
+        }
+
+        return array_values($items);
     }
 }

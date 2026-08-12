@@ -33,7 +33,11 @@
     $canEditFoGj54Draft = auth()->user()->can('editFoGj54Draft', $case);
     $canPreviewFoGj54 = auth()->user()->can('previewFoGj54', $case);
     $canGenerateFoGj54 = auth()->user()->can('generateFoGj54', $case);
+    $canUploadFoGj54Evidence = auth()->user()->can('uploadFoGj54Evidence', $case);
     $foGj54DraftCompleted = $case->fo_gj_54_draft_completed_at !== null;
+    $isOperationalReschedule = $case->isOperationalReschedulePending();
+    $foGj54OperationalGenerated = $isOperationalReschedule && $case->fo_gj_54_generated_at !== null;
+    $foGj54OperationalAwaitingEvidence = $foGj54OperationalGenerated && $case->fo_gj_54_evidence_uploaded_at === null;
     $canEditComiteDraft = auth()->user()->can('editComiteDraft', $case);
     $canPreviewComite = auth()->user()->can('previewComite', $case);
     $canGenerateComite = auth()->user()->can('generateComite', $case);
@@ -48,6 +52,7 @@
     $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) auth()->id();
     $panelTitle = match (true) {
         $isComitePanel => 'Etapa C · Comité disciplinario',
+        $isOperationalReschedule => 'Etapa C · Reprogramación operativa (FO-GJ-54)',
         $case->current_status === CaseStatus::JUSTIFICACION_PENDIENTE => 'Etapa C · Justificación de inasistencia',
         default => 'Etapa C · Diligencia disciplinaria (FO-GJ-04)',
     };
@@ -132,15 +137,83 @@
             <div class="flex flex-wrap items-center gap-2 shrink-0">
                 @if ($diligenceReadOnly)
                     {{-- Solo lectura: sin acciones --}}
+                @elseif ($isOperationalReschedule && $isAssignedLawyer)
+                    @if (! $foGj54OperationalGenerated && $canEditFoGj54Draft)
+                        <button type="button" wire:click="openFoGj54DraftModal"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            {{ $foGj54DraftCompleted ? 'Editar FO-GJ-54' : 'Diligenciar FO-GJ-54' }}
+                        </button>
+                    @endif
+                    @if ($canPreviewFoGj54 && $foGj54DraftCompleted)
+                        <button type="button" wire:click="openFoGj54PdfPreview"
+                            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                            Vista previa / descargar FO-GJ-54
+                        </button>
+                    @endif
+                    @if ($canGenerateFoGj54)
+                        <button type="button" wire:click="generateFoGj54AndAcceptJustification"
+                            class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                            Generar FO-GJ-54
+                        </button>
+                    @endif
+                    @if ($foGj54OperationalAwaitingEvidence && $canUploadFoGj54Evidence)
+                        <input type="file" id="fo-gj-54-evidence-{{ $case->id }}" class="sr-only" accept="application/pdf"
+                            wire:model.live="foGj54EvidenceFile">
+                        <label for="fo-gj-54-evidence-{{ $case->id }}"
+                            class="inline-flex cursor-pointer items-center rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                            Cargar evidencia recibido (PDF)
+                        </label>
+                        @if ($foGj54EvidenceFile)
+                            <button type="button" wire:click="uploadFoGj54ReceiptEvidence"
+                                class="inline-flex items-center rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+                                Confirmar y volver a diligencia
+                            </button>
+                        @endif
+                        @error('foGj54EvidenceFile')
+                            <p class="w-full basis-full text-right text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    @endif
                 @elseif (! $attendanceRegistered && $canRegisterAttendance && $isAssignedLawyer)
-                    <button type="button" wire:click="requestRegisterDiligenceAttendance('attended')"
-                        class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                        Asistió
-                    </button>
-                    <button type="button" wire:click="requestRegisterDiligenceAttendance('absent')"
-                        class="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
-                        No asistió
-                    </button>
+                    @php
+                        $foGj54OperationalDraftPending = $foGj54DraftCompleted
+                            && ($case->fo_gj_54_payload['mode'] ?? null) === \App\Services\Disciplinary\FoGj54DraftService::MODE_OPERATIONAL
+                            && $case->fo_gj_54_generated_at === null;
+                    @endphp
+                    @if ($foGj54OperationalDraftPending)
+                        @if ($canEditFoGj54Draft)
+                            <button type="button" wire:click="openFoGj54DraftModal"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                                Editar FO-GJ-54
+                            </button>
+                        @endif
+                        @if ($canPreviewFoGj54)
+                            <button type="button" wire:click="openFoGj54PdfPreview"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                                Vista previa / descargar FO-GJ-54
+                            </button>
+                        @endif
+                        @if ($canGenerateFoGj54)
+                            <button type="button" wire:click="generateFoGj54AndAcceptJustification"
+                                class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                                Generar FO-GJ-54
+                            </button>
+                        @endif
+                    @else
+                        <button type="button" wire:click="requestRegisterDiligenceAttendance('attended')"
+                            class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            Asistió
+                        </button>
+                        <button type="button" wire:click="requestRegisterDiligenceAttendance('absent')"
+                            class="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
+                            No asistió
+                        </button>
+                        @if ($canEditFoGj54Draft)
+                            <button type="button" wire:click="openFoGj54DraftModal"
+                                class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-100 dark:ring-white/20 dark:hover:bg-white/15">
+                                Reprogramar diligencia
+                            </button>
+                        @endif
+                    @endif
                 @elseif ($workerAttended && $currentStepKey === 'acta' && $case->citation_confirmed_date && $isAssignedLawyer && ! $case->fo_gj_04_generated_at)
                     @if ($canEditFoGj04Draft)
                         <button type="button" wire:click="openFoGj04DraftModal"
@@ -287,14 +360,54 @@
         @enderror
 
         <div class="space-y-4 px-4 py-4">
-            @if (! $attendanceRegistered && $currentStepKey === 'attendance')
-                <div class="rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm dark:border-amber-500/30 dark:bg-amber-950/25">
-                    <p class="font-semibold text-amber-950 dark:text-amber-100">Primer paso obligatorio</p>
-                    <p class="mt-1 text-amber-900/90 dark:text-amber-100/85">
-                        Registre si el trabajador <strong>asistió</strong> o <strong>no asistió</strong> a la diligencia programada.
-                        Esta decisión queda guardada en el expediente y <strong>no puede modificarse</strong> después.
+            @if ($isOperationalReschedule)
+                <div class="rounded-lg border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm dark:border-indigo-500/30 dark:bg-indigo-950/25">
+                    <p class="font-semibold text-indigo-950 dark:text-indigo-100">Reprogramación operativa (FO-GJ-03 se conserva)</p>
+                    <p class="mt-1 text-indigo-900/90 dark:text-indigo-100/85">
+                        1) Defina la nueva fecha (usted o planeación) ·
+                        2) Genere y descargue el FO-GJ-54 ·
+                        3) Notifique al trabajador ·
+                        4) Cargue el PDF firmado como evidencia de recibido ·
+                        5) El expediente vuelve a Etapa C para registrar asistencia.
                     </p>
+                    @if (! $case->citation_confirmed_date)
+                        <p class="mt-2 text-amber-800 dark:text-amber-200">
+                            Pendiente: confirmar nueva fecha con planeación (chat) o diligenciarla en el FO-GJ-54.
+                        </p>
+                    @endif
+                    @if ($foGj54OperationalAwaitingEvidence)
+                        <p class="mt-2 font-medium text-indigo-950 dark:text-indigo-100">
+                            FO-GJ-54 generado. Cargue la evidencia de recibido para volver a diligencia.
+                        </p>
+                    @endif
                 </div>
+            @elseif (! $attendanceRegistered && $currentStepKey === 'attendance')
+                @php
+                    $foGj54OperationalDraftPendingHint = $foGj54DraftCompleted
+                        && ($case->fo_gj_54_payload['mode'] ?? null) === \App\Services\Disciplinary\FoGj54DraftService::MODE_OPERATIONAL
+                        && $case->fo_gj_54_generated_at === null;
+                @endphp
+                @if ($foGj54OperationalDraftPendingHint)
+                    <div class="rounded-lg border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm dark:border-indigo-500/30 dark:bg-indigo-950/25">
+                        <p class="font-semibold text-indigo-950 dark:text-indigo-100">FO-GJ-54 diligenciado</p>
+                        <p class="mt-1 text-indigo-900/90 dark:text-indigo-100/85">
+                            Use <strong>Generar FO-GJ-54</strong> para incorporar el documento al expediente y continuar la reprogramación.
+                            Luego notifique al trabajador y cargue la evidencia de recibido.
+                        </p>
+                    </div>
+                @else
+                    <div class="rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm dark:border-amber-500/30 dark:bg-amber-950/25">
+                        <p class="font-semibold text-amber-950 dark:text-amber-100">Primer paso obligatorio</p>
+                        <p class="mt-1 text-amber-900/90 dark:text-amber-100/85">
+                            Registre si el trabajador <strong>asistió</strong> o <strong>no asistió</strong> a la diligencia programada.
+                            Esta decisión queda guardada en el expediente y <strong>no puede modificarse</strong> después.
+                        </p>
+                        <p class="mt-2 text-amber-900/90 dark:text-amber-100/85">
+                            Si por fuerza mayor debe aplazarse <strong>antes</strong> de la comparecencia,
+                            use <strong>Reprogramar diligencia</strong> (FO-GJ-54). No regenera FO-GJ-03.
+                        </p>
+                    </div>
+                @endif
             @endif
 
             @if ($actaDoc)

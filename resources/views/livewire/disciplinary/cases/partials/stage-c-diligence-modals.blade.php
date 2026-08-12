@@ -70,38 +70,66 @@
                 </div>
 
                 <div class="sm:col-span-2">
-                    <div class="flex items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
                         <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Cuestionario <span class="text-red-600">*</span></label>
-                        <button type="button" wire:click="addFoGj04Question"
-                            class="rounded-md px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:text-teal-200 dark:ring-teal-400/40">
-                            + Agregar pregunta
-                        </button>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" wire:click="openFoGj04CatalogPicker"
+                                class="rounded-md px-2 py-1 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-300 hover:bg-indigo-50 dark:text-indigo-200 dark:ring-indigo-400/40">
+                                + Desde catálogo
+                            </button>
+                            <button type="button" wire:click="addFoGj04Question"
+                                class="rounded-md px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:text-teal-200 dark:ring-teal-400/40">
+                                + Pregunta personalizada
+                            </button>
+                        </div>
                     </div>
                     <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                        Redacte cada pregunta y la respuesta que manifestó el trabajador. Al guardar se normalizan los signos ¿?.
-                        La firma del trabajador quedará en blanco para captura posterior.
+                        Seleccione preguntas del catálogo (texto fijo) o cree una personalizada solo para esta acta.
+                        Puede reordenarlas. Al guardar se normalizan los signos ¿?.
                     </p>
 
                     @if (count($foGj04Questions ?? []) === 0)
                         <p class="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-500 dark:border-white/15 dark:text-slate-400">
-                            Sin preguntas. Use «Agregar pregunta» para comenzar el cuestionario.
+                            Sin preguntas. Use «Desde catálogo» o «Pregunta personalizada».
                         </p>
                     @else
                         <div class="mt-2 space-y-4">
                             @foreach ($foGj04Questions as $index => $question)
-                                <div class="rounded-lg border border-slate-200 p-3 dark:border-white/10" wire:key="fo-gj-04-q-{{ $index }}">
+                                @php
+                                    $isCatalog = ($question['source'] ?? 'custom') === 'catalog';
+                                @endphp
+                                <div class="rounded-lg border border-slate-200 p-3 dark:border-white/10" wire:key="fo-gj-04-q-{{ $index }}-{{ $question['catalog_question_id'] ?? 'c' }}">
                                     <div class="flex items-start justify-between gap-2">
-                                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pregunta {{ $index + 1 }}</span>
-                                        <button type="button" wire:click="removeFoGj04Question({{ $index }})"
-                                            class="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 dark:text-red-300 dark:ring-red-500/40"
-                                            title="Quitar pregunta">
-                                            Quitar
-                                        </button>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pregunta {{ $index + 1 }}</span>
+                                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $isCatalog ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200' : 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300' }}">
+                                                {{ $isCatalog ? 'Catálogo' : 'Personalizada' }}
+                                            </span>
+                                        </div>
+                                        <div class="flex shrink-0 items-center gap-1">
+                                            <button type="button" wire:click="moveFoGj04QuestionUp({{ $index }})"
+                                                class="rounded-md px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/20"
+                                                title="Subir">↑</button>
+                                            <button type="button" wire:click="moveFoGj04QuestionDown({{ $index }})"
+                                                class="rounded-md px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/20"
+                                                title="Bajar">↓</button>
+                                            <button type="button" wire:click="removeFoGj04Question({{ $index }})"
+                                                class="rounded-md px-2 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 dark:text-red-300 dark:ring-red-500/40"
+                                                title="Quitar pregunta">
+                                                Quitar
+                                            </button>
+                                        </div>
                                     </div>
                                     <label class="mt-2 block text-[11px] font-semibold text-slate-600 dark:text-slate-400">Pregunta</label>
-                                    <input type="text" wire:model="foGj04Questions.{{ $index }}.question"
-                                        placeholder="Ej. Reconoce los hechos descritos en la citación"
-                                        class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                    @if ($isCatalog)
+                                        <p class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-100">
+                                            {{ $question['question'] ?? '' }}
+                                        </p>
+                                    @else
+                                        <input type="text" wire:model="foGj04Questions.{{ $index }}.question"
+                                            placeholder="Ej. Reconoce los hechos descritos en la citación"
+                                            class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                    @endif
                                     <label class="mt-2 block text-[11px] font-semibold text-slate-600 dark:text-slate-400">R: Respuesta del trabajador <span class="text-red-600">*</span></label>
                                     <textarea wire:model="foGj04Questions.{{ $index }}.answer" rows="3"
                                         placeholder="Transcripción de lo manifestado por el trabajador"
@@ -128,6 +156,63 @@
             <div class="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
                 <button type="button" wire:click="closeFoGj04DraftModal" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
                 <button type="button" wire:click="saveFoGj04Draft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700">Guardar diligenciamiento</button>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if ($showFoGj04CatalogPicker ?? false)
+    @php
+        $foGj04CatalogItems = \App\Models\Disciplinary\DiligenceActaQuestion::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+        $foGj04AlreadyCatalogIds = collect($foGj04Questions ?? [])
+            ->filter(fn ($row) => ($row['source'] ?? '') === 'catalog')
+            ->map(fn ($row) => (int) ($row['catalog_question_id'] ?? 0))
+            ->filter()
+            ->all();
+    @endphp
+    <div class="fixed inset-0 z-[88] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-04-catalog-picker">
+        <div class="flex max-h-[85dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10">
+            <div class="border-b px-4 py-3 dark:border-white/10">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Seleccionar preguntas del catálogo</h2>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">El texto quedará bloqueado en el acta. Puede reordenar después.</p>
+            </div>
+            <div class="overflow-y-auto px-4 py-3 space-y-2">
+                @forelse ($foGj04CatalogItems as $catalogItem)
+                    @php $already = in_array($catalogItem->id, $foGj04AlreadyCatalogIds, true); @endphp
+                    <label @class([
+                        'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                        'border-slate-200 dark:border-white/10' => ! $already,
+                        'border-slate-100 bg-slate-50 opacity-60 dark:border-white/5 dark:bg-white/[0.02]' => $already,
+                    ])>
+                        <input type="checkbox"
+                            value="{{ $catalogItem->id }}"
+                            wire:model="foGj04CatalogPickerIds"
+                            @disabled($already)
+                            class="mt-0.5 rounded border-slate-300 text-indigo-600">
+                        <span class="text-slate-800 dark:text-slate-100">
+                            {{ $catalogItem->text }}
+                            @if ($already)
+                                <span class="ml-1 text-[10px] font-semibold uppercase text-slate-500">Ya agregada</span>
+                            @endif
+                        </span>
+                    </label>
+                @empty
+                    <p class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        No hay preguntas en el catálogo. Un administrador puede crearlas en Ajustes · Preguntas.
+                    </p>
+                @endforelse
+                @error('foGj04CatalogPickerIds')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+            <div class="flex justify-end gap-2 border-t px-4 py-3 dark:border-white/10">
+                <button type="button" wire:click="closeFoGj04CatalogPicker" class="rounded-md px-4 py-2 text-sm font-semibold ring-1 ring-slate-300">Cancelar</button>
+                <button type="button" wire:click="addFoGj04QuestionsFromCatalog"
+                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                    @disabled($foGj04CatalogItems->isEmpty())>
+                    Agregar seleccionadas
+                </button>
             </div>
         </div>
     </div>
@@ -272,18 +357,97 @@
 @endif
 
 @if ($showFoGj54DraftModal ?? false)
+    @php
+        $foGj54ChargesPreview = app(\App\Services\Disciplinary\FoGj54DraftService::class)->chargesFromFo03($case);
+    @endphp
     <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-54-draft-modal">
         <div class="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10">
-            <div class="border-b px-4 py-4 dark:border-white/10"><h2 class="text-lg font-bold">Diligenciar FO-GJ-54</h2></div>
+            <div class="border-b px-4 py-4 dark:border-white/10">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">
+                    {{ ($foGj54OperationalMode ?? false) ? 'Reprogramar diligencia · FO-GJ-54' : 'Diligenciar FO-GJ-54' }}
+                </h2>
+                @if ($foGj54OperationalMode ?? false)
+                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                        FO-GJ-03 se conserva. Genere FO-GJ-54, notifique al trabajador y cargue la evidencia de recibido.
+                    </p>
+                @endif
+            </div>
             <div class="overflow-y-auto px-4 py-4 space-y-3">
-                <input type="text" wire:model="foGj54ClientSite" placeholder="Instalaciones del cliente" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" wire:model="foGj54ShiftStart" placeholder="Turno desde" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                    <input type="text" wire:model="foGj54ShiftEnd" placeholder="Turno hasta" class="rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Formulación de cargos (FO-GJ-03)</p>
+                    <p class="mt-1 text-slate-700 dark:text-slate-200">
+                        @if (filled($foGj54ChargesPreview['informe_report_date_long'] ?? null))
+                            Informe del {{ $foGj54ChargesPreview['informe_report_date_long'] }}.
+                        @else
+                            <span class="text-amber-700 dark:text-amber-300">Sin fecha de informe en FO-GJ-03.</span>
+                        @endif
+                    </p>
+                    <p class="mt-1 text-slate-700 dark:text-slate-200">
+                        @if (filled($foGj54ChargesPreview['charges_description'] ?? null))
+                            {{ $foGj54ChargesPreview['charges_description'] }}
+                        @else
+                            <span class="text-amber-700 dark:text-amber-300">Sin formulación de cargos en FO-GJ-03.</span>
+                        @endif
+                    </p>
                 </div>
-                <input type="date" wire:model="foGj54NewHearingDate" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                <input type="text" wire:model="foGj54NewHearingTime" placeholder="Nueva hora" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                <input type="text" wire:model="foGj54NewHearingPlace" placeholder="Lugar nueva diligencia" class="w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Motivo de reprogramación <span class="text-red-600">*</span></label>
+                    <select wire:model="foGj54RescheduleCause"
+                        class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                        <option value="">Seleccione…</option>
+                        @foreach (\App\Support\Disciplinary\FoGj54RescheduleCause::cases() as $causeOption)
+                            <option value="{{ $causeOption->value }}">{{ $causeOption->label() }}</option>
+                        @endforeach
+                    </select>
+                    @error('foGj54RescheduleCause')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+
+                @if (($foGj54OperationalMode ?? false) && $case->current_status === \App\Enums\Disciplinary\CaseStatus::DILIGENCIA)
+                    <label class="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+                        <input type="checkbox" wire:model.live="foGj54DeferDateToPlanning" class="mt-0.5 rounded border-slate-300 text-teal-600">
+                        <span class="text-slate-700 dark:text-slate-200">
+                            <strong>Coordinar fechas con planeación</strong> (chat). Al guardar se inicia la reprogramación
+                            sin generar aún el FO-GJ-54. Cuando haya fecha, diligencie y genere el documento.
+                        </span>
+                    </label>
+                @endif
+
+                @if (! ($foGj54OperationalMode ?? false) || ! ($foGj54DeferDateToPlanning ?? false))
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Modalidad <span class="text-red-600">*</span></label>
+                        <select wire:model.live="foGj54Modality"
+                            class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            <option value="presencial">Presencial</option>
+                            <option value="virtual">Virtual</option>
+                        </select>
+                        @error('foGj54Modality')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        @if ($foGj54Modality === 'presencial')
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {{ \App\Services\Disciplinary\FoGj03DraftService::PRESENCIAL_LOCATION }}
+                            </p>
+                        @endif
+                    </div>
+                    @if ($foGj54Modality === 'virtual')
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Enlace Microsoft Teams <span class="text-red-600">*</span></label>
+                            <input type="url" wire:model="foGj54VirtualLink" placeholder="https://…"
+                                class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                            @error('foGj54VirtualLink')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Nueva fecha de diligencia <span class="text-red-600">*</span></label>
+                        <input type="date" wire:model="foGj54NewHearingDate" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                        @error('foGj54NewHearingDate')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Nueva hora <span class="text-red-600">*</span></label>
+                        <input type="text" wire:model="foGj54NewHearingTime" placeholder="HH:MM"
+                            class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                        @error('foGj54NewHearingTime')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                @endif
                 @error('fo_gj_54')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
             </div>
             <div class="flex justify-end gap-2 border-t px-4 py-4 dark:border-white/10">
