@@ -195,7 +195,6 @@ class User extends Authenticatable
         if ($this->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return 'Supervisión';
         }
-        }
 
         if ($this->hasPlatformLevel(PlatformLevel::Nivel2)) {
             return 'Diciplinarios';
