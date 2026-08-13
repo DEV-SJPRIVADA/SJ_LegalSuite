@@ -40,6 +40,32 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         /*
+         * Liberar la conexión HTTP antes de trabajos afterResponse (SMTP, etc.).
+         * Sin esto, el navegador del portal de aportación espera a que Office365 termine.
+         * Debe registrarse temprano: los callbacks terminating se ejecutan en orden FIFO.
+         */
+        $this->app->terminating(function () {
+            if ($this->app->runningUnitTests()) {
+                return;
+            }
+
+            if (\function_exists('fastcgi_finish_request')) {
+                @\fastcgi_finish_request();
+            } elseif (\function_exists('litespeed_finish_request')) {
+                @\litespeed_finish_request();
+            }
+
+            if (\function_exists('session_write_close')) {
+                @\session_write_close();
+            }
+
+            while (\ob_get_level() > 0) {
+                @\ob_end_flush();
+            }
+            @\flush();
+        });
+
+        /*
          * Laravel @vite inserta <link rel="preload" as="style"> además del stylesheet.
          * Con Livewire (wire:navigate) Chrome suele advertir «preloaded but not used» en bucle.
          * El stylesheet normal basta; el preload de CSS no aporta y ensucia la consola.

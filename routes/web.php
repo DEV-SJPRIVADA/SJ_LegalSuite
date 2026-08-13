@@ -3,6 +3,7 @@
 use App\Http\Controllers\Disciplinary\ComiteActaCaseController;
 use App\Http\Controllers\Disciplinary\DecisionComunicadoCaseController;
 use App\Http\Controllers\Licitaciones\LicitacionAdjuntoInlineController;
+use App\Http\Controllers\Licitaciones\LicitacionAportacionController;
 use App\Http\Controllers\Licitaciones\LicitacionInformesExportController;
 use App\Http\Controllers\Licitaciones\LicitacionesPortalController;
 use App\Http\Controllers\Disciplinary\DisciplinaryAgendaAttachmentDownloadController;
@@ -53,6 +54,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 Route::view('/', 'welcome');
+
+Route::get('licitaciones/aportacion/{token}', [LicitacionAportacionController::class, 'show'])
+    ->middleware('throttle:60,1')
+    ->where('token', '[A-Za-z0-9]{64}')
+    ->name('licitaciones.aportacion');
+Route::post('licitaciones/aportacion/{token}', [LicitacionAportacionController::class, 'store'])
+    ->middleware('throttle:20,1')
+    ->where('token', '[A-Za-z0-9]{64}')
+    ->name('licitaciones.aportacion.store');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('password/first-login', ForcePasswordChange::class)->name('password.force-change');

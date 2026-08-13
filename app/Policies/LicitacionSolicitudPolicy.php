@@ -61,4 +61,16 @@ class LicitacionSolicitudPolicy
 
         return $this->view($user, $solicitud);
     }
+
+    public function manageInvitados(User $user, LicitacionSolicitud $solicitud): bool
+    {
+        return $this->update($user, $solicitud)
+            || $solicitud->created_by_id === $user->id
+            || $solicitud->usuario_responsable_id === $user->id;
+    }
+
+    public function reviewDocument(User $user, LicitacionSolicitud $solicitud): bool
+    {
+        return $this->manageInvitados($user, $solicitud);
+    }
 }

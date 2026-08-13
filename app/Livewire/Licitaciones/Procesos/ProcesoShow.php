@@ -30,7 +30,13 @@ class ProcesoShow extends Component
     public function uploadAdjunto(LicitacionDocumentService $documents): void
     {
         Gate::authorize('uploadDocument', $this->licitacion);
-        $this->validate(['nuevoAdjunto' => ['required', 'file', 'max:20480']]);
+        $this->validate(
+            ['nuevoAdjunto' => ['required', 'file', 'max:51200']],
+            [
+                'nuevoAdjunto.required' => 'Seleccione un archivo.',
+                'nuevoAdjunto.max' => 'El archivo no puede superar los 50 MB.',
+            ],
+        );
         $documents->uploadForLicitacion($this->licitacion, $this->nuevoAdjunto, auth()->user());
         $this->reset('nuevoAdjunto');
         $this->licitacion->load('adjuntos.usuario');

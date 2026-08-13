@@ -30,6 +30,7 @@ class LicitacionSolicitud extends Model
         'fecha_limite',
         'estado',
         'created_by_id',
+        'email_notificacion',
         'archivo_adjunto',
     ];
 
@@ -73,6 +74,11 @@ class LicitacionSolicitud extends Model
     public function historial(): HasMany
     {
         return $this->hasMany(LicitacionHistorialActividad::class, 'solicitud_id');
+    }
+
+    public function invitados(): HasMany
+    {
+        return $this->hasMany(LicitacionSolicitudInvitado::class, 'solicitud_id');
     }
 
     public function scopeForActor(Builder $query, User $user): Builder

@@ -50,6 +50,8 @@ class SolicitudesIndex extends Component
 
     public ?string $fecha_limite = null;
 
+    public string $email_notificacion = '';
+
     public function mount(): void
     {
         Gate::authorize('viewAny', LicitacionSolicitud::class);
@@ -64,6 +66,8 @@ class SolicitudesIndex extends Component
     {
         Gate::authorize('create', LicitacionSolicitud::class);
         $this->resetForm();
+        $this->email_notificacion = (string) (auth()->user()?->email ?? '');
+        $this->usuario_responsable_id = auth()->id();
         $this->showForm = true;
     }
 
@@ -82,6 +86,7 @@ class SolicitudesIndex extends Component
             'descripcion' => ['nullable', 'string'],
             'area_responsable' => ['required', 'string', 'max:255'],
             'usuario_responsable_id' => ['required', 'exists:users,id'],
+            'email_notificacion' => ['required', 'email', 'max:255'],
             'tipo_solicitud' => ['required', Rule::enum(RequestType::class)],
             'periodicidad' => ['nullable', Rule::enum(Periodicity::class)],
             'tipo_peticion' => ['required', Rule::enum(PetitionType::class)],
@@ -125,10 +130,11 @@ class SolicitudesIndex extends Component
     {
         $this->reset([
             'editingId', 'licitacion_id', 'numero_radicado', 'nombre', 'descripcion',
-            'area_responsable', 'usuario_responsable_id', 'tipo_solicitud', 'periodicidad',
+            'area_responsable', 'usuario_responsable_id', 'email_notificacion', 'tipo_solicitud', 'periodicidad',
             'tipo_peticion', 'fecha_limite',
         ]);
         $this->tipo_solicitud = RequestType::Esporadica->value;
         $this->tipo_peticion = PetitionType::Informacion->value;
+        $this->email_notificacion = (string) (auth()->user()?->email ?? '');
     }
 }

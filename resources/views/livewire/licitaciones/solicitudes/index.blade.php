@@ -54,6 +54,7 @@
                 <form wire:submit="save" class="space-y-3">
                     <div><label class="{{ $label }}">Radicado</label><input wire:model="numero_radicado" class="{{ $field }}">@error('numero_radicado')<p class="text-xs text-red-600">{{ $message }}</p>@enderror</div>
                     <div><label class="{{ $label }}">Nombre</label><input wire:model="nombre" class="{{ $field }}"></div>
+                    <div><label class="{{ $label }}">Descripción / docs requeridos</label><textarea wire:model="descripcion" rows="2" class="{{ $field }}" placeholder="Qué documentación deben aportar…"></textarea></div>
                     <div><label class="{{ $label }}">Tipo</label>
                         <select wire:model.live="tipo_solicitud" class="{{ $field }}">
                             <option value="esporadica">Esporádica</option><option value="fija">Fija</option>
@@ -66,6 +67,12 @@
                     <div><label class="{{ $label }}">Área responsable</label><input wire:model="area_responsable" class="{{ $field }}"></div>
                     <div><label class="{{ $label }}">Usuario responsable</label>
                         <select wire:model="usuario_responsable_id" class="{{ $field }}"><option value="">—</option>@foreach($usuarios as $u)<option value="{{ $u->id }}">{{ $u->name }}</option>@endforeach</select></div>
+                    <div>
+                        <label class="{{ $label }}">Correo para notificaciones</label>
+                        <input type="email" wire:model="email_notificacion" class="{{ $field }}" placeholder="soporte.admin@sjsp.com.co">
+                        <p class="mt-1 text-[11px] text-slate-500">Ahí llegará el aviso cuando aporten documentos.</p>
+                        @error('email_notificacion')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
                     <div><label class="{{ $label }}">Fecha límite</label><input type="date" wire:model="fecha_limite" class="{{ $field }}"></div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" wire:click="closeForm">Cancelar</button>
