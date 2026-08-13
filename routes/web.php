@@ -21,7 +21,6 @@ use App\Http\Controllers\Disciplinary\FoGj44CaseController;
 use App\Http\Controllers\Disciplinary\FoGj51InformeController;
 use App\Http\Controllers\Disciplinary\FoGj54CaseController;
 use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
-use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
 use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
