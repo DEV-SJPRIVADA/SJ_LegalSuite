@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
@@ -103,10 +104,9 @@ class DisciplinaryDecisionNotificationService
             throw new \InvalidArgumentException('Planeación debe publicar la programación en el hilo antes de registrar la notificación.');
         }
 
-        $supervisor = User::query()
+        $supervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {

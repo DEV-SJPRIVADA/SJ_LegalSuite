@@ -25,7 +25,10 @@
 
         <div class="bg-white rounded-xl ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10">
             <label class="{{ $label }}">Buscar</label>
-            <input type="search" wire:model.live.debounce.350ms="search" placeholder="Proceso, entidad, objeto…" class="{{ $field }}">
+            <div class="relative">
+                <x-ui.search-field-icon />
+                <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.350ms="search" placeholder="Proceso, entidad, objeto…" class="{{ $field }} pl-8" aria-label="Buscar licitaciones">
+            </div>
         </div>
 
         <div class="overflow-hidden rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">

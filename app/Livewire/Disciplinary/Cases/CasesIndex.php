@@ -3,6 +3,7 @@
 namespace App\Livewire\Disciplinary\Cases;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\PlatformLevel;
 use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
@@ -74,7 +75,7 @@ class CasesIndex extends Component
     {
         $user = auth()->user();
 
-        if (! $user->can('viewAny', DisciplinaryCase::class) || $user->hasRole('nivel3')) {
+        if (! $user->can('viewAny', DisciplinaryCase::class) || $user->hasPlatformLevel(PlatformLevel::Nivel3)) {
             if ($user->hasDisciplinaryPortalAccess()) {
                 $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
 
@@ -206,7 +207,7 @@ class CasesIndex extends Component
     #[Computed]
     public function lawyers()
     {
-        return User::query()->role('nivel6')->orderBy('name')->get(['id', 'name']);
+        return User::queryByPlatformLevels(PlatformLevel::Nivel6)->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]
@@ -290,6 +291,14 @@ class CasesIndex extends Component
             ->orderByDesc('opened_at');
     }
 
+    private function operacionesReviewers()
+    {
+        return User::queryByPlatformLevels(PlatformLevel::Nivel2)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
     public function render()
     {
         $cases = $this->casesQuery()->paginate($this->perPage);
@@ -298,11 +307,7 @@ class CasesIndex extends Component
             'cases' => $cases,
             'statuses' => CaseStatus::cases(),
             'stageColors' => WorkflowStageBuckets::letterColorClasses(),
-            'operacionesReviewers' => User::query()
-                ->role('nivel2')
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'operacionesReviewers' => $this->operacionesReviewers(),
         ]);
     }
 }

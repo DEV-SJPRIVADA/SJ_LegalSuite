@@ -79,9 +79,13 @@
 
     <div class="mb-2 shrink-0">
         <label for="supervisor-queue-search" class="sr-only">Buscar</label>
-        <input id="supervisor-queue-search" type="search" wire:model.live.debounce.350ms="search"
-            placeholder="N° de caso, nombre o documento…" autocomplete="off"
-            class="w-full max-w-md rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white">
+        <div class="relative max-w-md">
+            <x-ui.search-field-icon />
+            <input id="supervisor-queue-search" type="text" inputmode="search" wire:model.live.debounce.350ms="search"
+                placeholder="N° de caso, nombre o documento…" autocomplete="off"
+                class="w-full rounded-md border-slate-300 pl-8 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                aria-label="Buscar evidencias pendientes">
+        </div>
         @if ($search !== '')
             <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 <span class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ number_format($visibleCount) }}</span>

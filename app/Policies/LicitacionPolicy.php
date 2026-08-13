@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\PlatformLevel;
 use App\Models\Licitaciones\Licitacion;
 use App\Models\User;
 use Spatie\Permission\Exceptions\PermissionDoesNotExist;
@@ -10,7 +11,7 @@ class LicitacionPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        if ($user->hasRole('admin') && ! $user->read_only) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1) && ! $user->read_only) {
             return true;
         }
 

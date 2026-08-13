@@ -167,7 +167,7 @@
             <div class="leading-tight min-w-0">
                 <p class="text-sm font-medium truncate {{ $isNeon ? 'text-white' : 'text-slate-900' }}">{{ auth()->user()->name }}</p>
                 <p class="text-[11px] truncate {{ $isNeon ? 'text-slate-400' : 'text-slate-500' }}">
-                    {{ auth()->user()->roles->pluck('name')->first() ?? 'usuario' }}
+                    {{ auth()->user()->roles->first()?->displaySubtitle() ?? auth()->user()->roles->pluck('name')->first() ?? 'usuario' }}
                 </p>
             </div>
         </div>

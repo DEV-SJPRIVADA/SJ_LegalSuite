@@ -196,7 +196,7 @@ class UsersIndex extends Component
     #[Computed]
     public function kpiAdmins(): int
     {
-        return User::query()->role(PlatformLevel::Nivel1->value)->count();
+        return User::queryByPlatformLevels(PlatformLevel::Nivel1)->count();
     }
 
     #[Computed]
@@ -330,7 +330,7 @@ class UsersIndex extends Component
         $this->email = $user->email;
         $this->documentNumber = (string) ($user->document_number ?? '');
         $this->phone = (string) ($user->phone ?? '');
-        $this->assignPlatformAdmin = $user->hasRole(PlatformLevel::Nivel1->value);
+        $this->assignPlatformAdmin = $user->hasPlatformLevel(PlatformLevel::Nivel1);
         $this->organizationalAreaId = $this->assignPlatformAdmin ? null : $user->organizational_area_id;
         $this->jobPositionId = $this->assignPlatformAdmin ? null : $user->job_position_id;
         $this->authorizedMunicipalityCodes = $user->authorizedMunicipalities()

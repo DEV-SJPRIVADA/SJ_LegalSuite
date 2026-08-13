@@ -5,6 +5,7 @@ namespace App\Services\Disciplinary;
 use App\Enums\Disciplinary\CaseBucket;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\Fault;
 use App\Models\User;
@@ -24,7 +25,7 @@ class DisciplinaryDashboardService
 {
     public function usesAssignedOnlyScope(User $actor): bool
     {
-        return $actor->hasRole('nivel6') && ! $actor->hasRole('nivel1');
+        return $actor->hasPlatformLevel(PlatformLevel::Nivel6) && ! $actor->hasPlatformLevel(PlatformLevel::Nivel1);
     }
 
     /**
@@ -346,7 +347,7 @@ class DisciplinaryDashboardService
             ->leftJoin('disciplinary_cases as dc', 'dc.assigned_lawyer_id', '=', 'users.id')
             ->whereNull('dc.deleted_at')
             ->when(
-                $actor && $actor->hasRole('nivel6') && ! $actor->hasRole('nivel1'),
+                $actor && $actor->hasPlatformLevel(PlatformLevel::Nivel6) && ! $actor->hasPlatformLevel(PlatformLevel::Nivel1),
                 fn ($q) => $q->where('users.id', $actor->id),
             )
             ->groupBy('users.id', 'users.name')

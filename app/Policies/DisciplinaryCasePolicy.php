@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DiligenceAttendance;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Disciplinary\ComiteActaService;
@@ -54,7 +55,7 @@ class DisciplinaryCasePolicy
 
     public function before(User $user, string $ability): ?bool
     {
-        if (! $user->hasRole('nivel1')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return null;
         }
 
@@ -76,45 +77,49 @@ class DisciplinaryCasePolicy
 
     public function viewAny(User $user): bool
     {
-        if ($user->hasRole('nivel7')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return false;
         }
 
-        return $user->hasAnyRole([
-            'nivel5', 'nivel6', 'nivel4', 'nivel2',
-            'nivel8', 'nivel9',
-        ])
+        return $user->hasPlatformLevel(
+            PlatformLevel::Nivel5,
+            PlatformLevel::Nivel6,
+            PlatformLevel::Nivel4,
+            PlatformLevel::Nivel2,
+            PlatformLevel::Nivel8,
+            PlatformLevel::Nivel9,
+        )
             || $user->hasPermissionTo('disciplinary.view');
     }
 
     public function view(User $user, DisciplinaryCase $case): bool
     {
-        if ($user->hasRole('nivel5')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel5)) {
             return true;
         }
 
-        if ($user->hasRole('nivel7')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return false;
         }
 
-        if ($user->hasRole('nivel8')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel8)) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('nivel9')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel9)) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('nivel6')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel6)) {
             return (int) $case->assigned_lawyer_id === (int) $user->id
                 || $case->isInInformePool();
         }
 
-        if ($user->hasRole('nivel3')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel3)) {
             return false;
         }
 
-        if ($user->hasRole('nivel2')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel2)) {
             return $case->isVisibleToOperacionesReviewer($user);
         }
 
@@ -131,7 +136,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8, PlatformLevel::Nivel9)) {
             return false;
         }
 
@@ -144,11 +149,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8, PlatformLevel::Nivel9)) {
             return false;
         }
 
-        if ($user->hasRole('nivel6')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel6)) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
@@ -162,11 +167,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasAnyRole(['nivel7', 'nivel8', 'nivel9'])) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8, PlatformLevel::Nivel9)) {
             return false;
         }
 
-        if ($user->hasRole('nivel6')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel6)) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
@@ -187,7 +192,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('nivel9')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel9)) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
@@ -200,7 +205,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasRole('nivel1')
+        return $user->hasPlatformLevel(PlatformLevel::Nivel1)
             || $user->hasPermissionTo('disciplinary.assign');
     }
 
@@ -211,7 +216,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('nivel6')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel6)) {
             return false;
         }
 
@@ -546,7 +551,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel3) && ! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
@@ -664,7 +669,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel3) && ! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
@@ -700,7 +705,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('nivel7')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return false;
         }
 
@@ -723,7 +728,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if (! $user->hasRole('nivel7')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return false;
         }
 
@@ -777,11 +782,11 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('nivel1')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return true;
         }
 
-        return $user->hasRole('nivel3');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel3);
     }
 
     public function closeCoordination(User $user, DisciplinaryCase $case): bool
@@ -791,7 +796,7 @@ class DisciplinaryCasePolicy
         }
 
         $isAssignedLawyer = (int) $case->assigned_lawyer_id === (int) $user->id;
-        $isJuridicalDirection = $user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign');
+        $isJuridicalDirection = $user->hasPlatformLevel(PlatformLevel::Nivel1) || $user->hasPermissionTo('disciplinary.assign');
 
         return $case->agendaThread !== null
             && $case->agendaThread->isOpen()
@@ -814,7 +819,7 @@ class DisciplinaryCasePolicy
             return true;
         }
 
-        if (! $user->hasRole('nivel6') || (int) $case->assigned_lawyer_id !== (int) $user->id) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel6) || (int) $case->assigned_lawyer_id !== (int) $user->id) {
             return false;
         }
 
@@ -833,15 +838,15 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($user->hasRole('nivel6')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel6)) {
             return $case->assigned_lawyer_id === $user->id;
         }
 
-        if ($user->hasAnyRole(['nivel7', 'nivel8'])) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8)) {
             return $case->isVisibleToDisciplinaryFieldPool();
         }
 
-        if ($user->hasRole('nivel2')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel2)) {
             return $case->isVisibleToOperacionesReviewer($user);
         }
 
@@ -860,11 +865,11 @@ class DisciplinaryCasePolicy
 
     public function viewDashboard(User $user): bool
     {
-        if ($user->hasAnyRole(['nivel3', 'nivel7'])) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel3, PlatformLevel::Nivel7)) {
             return false;
         }
 
-        return $user->hasAnyRole(['nivel5', 'nivel6'])
+        return $user->hasPlatformLevel(PlatformLevel::Nivel5, PlatformLevel::Nivel6)
             || $user->hasPermissionTo('disciplinary.view-dashboard');
     }
 
@@ -872,7 +877,7 @@ class DisciplinaryCasePolicy
     public function viewOfficialForms(User $user): bool
     {
         if ($user->isMinimalDisciplinaryPortalUser()
-            || $user->hasRole('nivel3')
+            || $user->hasPlatformLevel(PlatformLevel::Nivel3)
             || $user->isDisciplinaryOperacionesReviewer()) {
             return false;
         }
@@ -887,7 +892,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        return $user->hasRole('nivel1')
+        return $user->hasPlatformLevel(PlatformLevel::Nivel1)
             || $user->hasPermissionTo('disciplinary.assign');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Support\Notifications;
 
+use App\Enums\PlatformLevel;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\DatabaseNotification;
@@ -11,7 +12,7 @@ final class InAppNotificationFeed
     /** Usuarios con rol «admin» consultan todas las filas dirigidas a usuarios de la aplicación. */
     public static function adminSeesEveryonesNotifications(User $viewer): bool
     {
-        return $viewer->hasRole('nivel1');
+        return $viewer->hasPlatformLevel(PlatformLevel::Nivel1);
     }
 
     /**

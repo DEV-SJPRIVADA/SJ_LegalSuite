@@ -5,6 +5,7 @@ namespace App\Services\Disciplinary;
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
@@ -203,10 +204,9 @@ class DisciplinaryCitationNotificationService
             throw new \InvalidArgumentException('La coordinación no está disponible para registrar notificación.');
         }
 
-        $supervisor = User::query()
+        $supervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {
@@ -299,10 +299,9 @@ class DisciplinaryCitationNotificationService
             throw new \InvalidArgumentException('Aún no hay supervisor de notificación asignado.');
         }
 
-        $newSupervisor = User::query()
+        $newSupervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
             ->whereKey($newSupervisorUserId)
             ->where('is_active', true)
-            ->role('nivel7')
             ->first();
 
         if (! $newSupervisor instanceof User) {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PlatformLevel;
 use App\Enums\UserArea;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Licitaciones\Licitacion;
@@ -131,11 +132,11 @@ class User extends Authenticatable
      */
     public function isDisciplinaryFieldOperator(): bool
     {
-        if ($this->hasRole('nivel1')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
-        return $this->hasAnyRole(['nivel7', 'nivel8']);
+        return $this->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8);
     }
 
     /**
@@ -143,11 +144,11 @@ class User extends Authenticatable
      */
     public function isDisciplinaryOperacionesReviewer(): bool
     {
-        if ($this->hasRole('nivel1')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
-        return $this->hasRole('nivel2');
+        return $this->hasPlatformLevel(PlatformLevel::Nivel2);
     }
 
     /**
@@ -155,24 +156,24 @@ class User extends Authenticatable
      */
     public function isDisciplinaryProgramador(): bool
     {
-        if ($this->hasRole('nivel1')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
-        return $this->hasRole('nivel9');
+        return $this->hasPlatformLevel(PlatformLevel::Nivel9);
     }
 
     /**
      * Etiqueta del único ítem del sidebar reducido (sin menú jurídico amplio).
-     * Roles «director» u «operaciones» → «Diciplinarios» (nombre del módulo); campo/programador/etc. → «Informes».
+     * Dirección de operaciones → «Diciplinarios»; campo/programador/etc. → «Informes».
      */
     public function minimalDisciplinarySidebarLabel(): string
     {
-        if ($this->hasRole('nivel7')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return 'Evidencias';
         }
 
-        if ($this->hasAnyRole(['director', 'nivel2'])) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel2)) {
             return 'Diciplinarios';
         }
 
@@ -182,11 +183,11 @@ class User extends Authenticatable
     /** Punto de entrada del módulo disciplinario según rol y permisos. */
     public function disciplinaryPortalUrl(): string
     {
-        if ($this->hasRole('nivel3')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel3)) {
             return route('disciplinary.coordinations.index');
         }
 
-        if ($this->hasRole('nivel7')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel7)) {
             return route('disciplinary.evidences-pending.index');
         }
 
@@ -206,7 +207,7 @@ class User extends Authenticatable
      */
     public function canViewHomeCommandCenter(): bool
     {
-        return $this->hasRole('nivel1');
+        return $this->hasPlatformLevel(PlatformLevel::Nivel1);
     }
 
     /**
@@ -239,11 +240,11 @@ class User extends Authenticatable
      */
     public function disciplinaryCasesNavUrl(): string
     {
-        if ($this->hasAnyRole(['nivel6', 'nivel5'])) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel6, PlatformLevel::Nivel5)) {
             return route('disciplinary.cases.index');
         }
 
-        if ($this->can('viewAny', DisciplinaryCase::class) && ! $this->hasRole('nivel3')) {
+        if ($this->can('viewAny', DisciplinaryCase::class) && ! $this->hasPlatformLevel(PlatformLevel::Nivel3)) {
             return route('disciplinary.cases.index');
         }
 
@@ -252,7 +253,7 @@ class User extends Authenticatable
 
     public function hasDisciplinaryPortalAccess(): bool
     {
-        if ($this->hasAnyRole(['nivel3', 'nivel7'])) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel3, PlatformLevel::Nivel7)) {
             return true;
         }
 
@@ -289,11 +290,99 @@ class User extends Authenticatable
      */
     public function canSeeFullAppSidebar(): bool
     {
-        if ($this->hasRole('nivel1')) {
-            return true;
+        return $this->hasPlatformLevel(
+            PlatformLevel::Nivel1,
+            PlatformLevel::Nivel5,
+            PlatformLevel::Nivel6,
+        );
+    }
+
+    /**
+     * Detecta nivel de plataforma por nombre actual, nombre legado (admin, abogado…) o level_number.
+     * Evita hasRole() de Spatie tras el rename, que puede devolver false si la caché aún tiene el slug viejo.
+     */
+    public function hasPlatformLevel(PlatformLevel ...$levels): bool
+    {
+        if ($levels === []) {
+            return false;
         }
 
-        return $this->hasAnyRole(['nivel6', 'nivel5']);
+        $wanted = [];
+        foreach ($levels as $level) {
+            $wanted[$level->value] = true;
+            $wanted[$level->number()] = true;
+        }
+
+        foreach (PlatformLevel::legacyMap() as $legacy => $slug) {
+            if (isset($wanted[$slug])) {
+                $wanted[$legacy] = true;
+            }
+        }
+
+        $this->loadMissing('roles');
+
+        foreach ($this->roles as $role) {
+            if (isset($wanted[$role->name])) {
+                return true;
+            }
+
+            if ($role->level_number && isset($wanted[(int) $role->level_number])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Nombres de rol Spatie presentes en BD para esos niveles (slug actual + legado).
+     *
+     * @return list<string>
+     */
+    public static function existingRoleNamesForLevels(PlatformLevel ...$levels): array
+    {
+        $names = [];
+        foreach ($levels as $level) {
+            $names[] = $level->value;
+            foreach (PlatformLevel::legacyMap() as $legacy => $slug) {
+                if ($slug === $level->value) {
+                    $names[] = $legacy;
+                }
+            }
+        }
+
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn('name', array_values(array_unique($names)))
+            ->pluck('name')
+            ->all();
+    }
+
+    /**
+     * Usuarios con alguno de los niveles (acepta slugs actuales y nombres legado si aún existen).
+     *
+     * @param  PlatformLevel  ...$levels
+     */
+    public static function queryByPlatformLevels(PlatformLevel ...$levels)
+    {
+        return static::constrainByPlatformLevels(static::query(), ...$levels);
+    }
+
+    /**
+     * Aplica el filtro de niveles a una query existente sin lanzar RoleDoesNotExist.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public static function constrainByPlatformLevels(Builder $query, PlatformLevel ...$levels): Builder
+    {
+        $existing = static::existingRoleNamesForLevels(...$levels);
+
+        if ($existing === []) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        return $query->role($existing);
     }
 
     /**
@@ -301,11 +390,11 @@ class User extends Authenticatable
      */
     public function isMinimalDisciplinaryPortalUser(): bool
     {
-        if ($this->hasRole('nivel1')) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
-        return $this->hasAnyRole(['nivel7', 'nivel8', 'nivel9']);
+        return $this->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8, PlatformLevel::Nivel9);
     }
 
     public function scopeActive(Builder $query): Builder
@@ -344,7 +433,7 @@ class User extends Authenticatable
 
     public function scopeLawyers(Builder $query): Builder
     {
-        return $query->role('nivel6');
+        return static::constrainByPlatformLevels($query, PlatformLevel::Nivel6);
     }
 
     public function initials(): string
@@ -367,7 +456,7 @@ class User extends Authenticatable
 
     public function isPlatformAdmin(): bool
     {
-        return $this->hasRole('nivel1');
+        return $this->hasPlatformLevel(PlatformLevel::Nivel1);
     }
 
     public function cargoDisplayLabel(): string

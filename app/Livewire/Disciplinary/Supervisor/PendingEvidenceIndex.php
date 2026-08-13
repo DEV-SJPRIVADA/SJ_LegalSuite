@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Services\Disciplinary\CitationNotificationSigningService;
 use App\Services\Disciplinary\DisciplinaryAuditService;
@@ -91,7 +92,7 @@ class PendingEvidenceIndex extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->hasRole('nivel7'), 403);
+        abort_unless(auth()->user()->hasPlatformLevel(PlatformLevel::Nivel7), 403);
 
         if (request()->boolean('informe_modal')) {
             Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
@@ -212,7 +213,7 @@ class PendingEvidenceIndex extends Component
         DisciplinaryCitationWorkflowService $citationWorkflow,
         DisciplinaryAuditService $audit,
     ): void {
-        abort_unless(auth()->user()->hasRole('nivel7'), 403);
+        abort_unless(auth()->user()->hasPlatformLevel(PlatformLevel::Nivel7), 403);
 
         $case = $this->resolveSupervisorPendingCase($caseId);
         Gate::authorize('uploadCitationEvidence', $case);
@@ -266,7 +267,7 @@ class PendingEvidenceIndex extends Component
         DisciplinaryDecisionWorkflowService $decisionWorkflow,
         DisciplinaryAuditService $audit,
     ): void {
-        abort_unless(auth()->user()->hasRole('nivel7'), 403);
+        abort_unless(auth()->user()->hasPlatformLevel(PlatformLevel::Nivel7), 403);
 
         $case = $this->resolveDecisionPendingCase($caseId);
         Gate::authorize('uploadDecisionEvidence', $case);
@@ -636,7 +637,7 @@ class PendingEvidenceIndex extends Component
 
     public function render(FoGj03CitationService $foGj03, DecisionComunicadoService $decisionComunicado)
     {
-        abort_unless(auth()->user()->hasRole('nivel7'), 403);
+        abort_unless(auth()->user()->hasPlatformLevel(PlatformLevel::Nivel7), 403);
 
         $notificationCase = null;
         $notificationViewData = null;
@@ -708,8 +709,7 @@ class PendingEvidenceIndex extends Component
             'signedNotificationPreviewUrl' => $signedNotificationPreviewUrl,
             'signedNotificationDownloadUrl' => $signedNotificationDownloadUrl,
             'signedNotificationPreviewFilename' => $this->signedNotificationPreviewFilename,
-            'operacionesReviewers' => User::query()
-                ->role('nivel2')
+            'operacionesReviewers' => User::queryByPlatformLevels(PlatformLevel::Nivel2)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\Disciplinary\StageStatus;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryStage;
 use App\Models\User;
@@ -93,15 +94,15 @@ class AlertsService
      */
     private function sinAsignar(int $limit, ?User $user): array
     {
-        if ($user && $user->hasRole('nivel6') && ! $user->hasRole('nivel1')) {
+        if ($user && $user->hasPlatformLevel(PlatformLevel::Nivel6) && ! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return ['count' => 0, 'items' => []];
         }
 
-        if ($user && $user->hasRole('nivel9') && ! $user->hasRole('nivel1')) {
+        if ($user && $user->hasPlatformLevel(PlatformLevel::Nivel9) && ! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return ['count' => 0, 'items' => []];
         }
 
-        if ($user && $user->hasAnyRole(['nivel7', 'nivel8']) && ! $user->hasRole('nivel1')) {
+        if ($user && $user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8) && ! $user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return ['count' => 0, 'items' => []];
         }
 

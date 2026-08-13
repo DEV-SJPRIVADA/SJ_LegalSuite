@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Disciplinary;
 
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use Illuminate\Support\Facades\Storage;
@@ -26,16 +27,16 @@ class DisciplinaryAgendaThreadAttachmentInlineController
             abort(404);
         }
 
-        $canView = $user->hasRole('nivel3')
+        $canView = $user->hasPlatformLevel(PlatformLevel::Nivel3)
             || (int) $case->assigned_lawyer_id === (int) $user->id
-            || $user->hasRole('nivel1')
+            || $user->hasPlatformLevel(PlatformLevel::Nivel1)
             || $user->hasPermissionTo('disciplinary.assign');
 
         if (! $canView) {
             abort(403);
         }
 
-        if ($user->hasRole('nivel3') && ! $thread->isOpen()) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel3) && ! $thread->isOpen()) {
             abort(403);
         }
 

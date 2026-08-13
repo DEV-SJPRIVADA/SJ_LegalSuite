@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Licitaciones\Procesos;
 
+use App\Enums\PlatformLevel;
 use App\Models\Licitaciones\Licitacion;
 use App\Models\User;
 use App\Services\Licitaciones\LicitacionService;
@@ -164,7 +165,9 @@ class ProcesosIndex extends Component
             ->orderByDesc('created_at')
             ->paginate(15);
 
-        $abogados = User::role(['admin', 'abogado'])->orderBy('name')->get(['id', 'name']);
+        $abogados = User::queryByPlatformLevels(PlatformLevel::Nivel1, PlatformLevel::Nivel6)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('livewire.licitaciones.procesos.index', compact('licitaciones', 'abogados'));
     }

@@ -3,6 +3,7 @@
 namespace App\Livewire\Disciplinary\Administrativa;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Support\Disciplinary\DecisionBranch;
@@ -24,7 +25,7 @@ class PendingDecisionHrIndex extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user->hasRole('nivel4') && ! $user->hasRole('nivel1')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel4, PlatformLevel::Nivel1)) {
             abort(403);
         }
     }

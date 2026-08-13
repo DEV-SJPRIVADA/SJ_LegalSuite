@@ -8,6 +8,7 @@ use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\DiligenceAttendance;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Exceptions\Disciplinary\InvalidStateTransitionException;
 use App\Models\Disciplinary\DisciplinaryAction;
@@ -633,7 +634,7 @@ class CaseDetail extends Component
 
         if ($newLawyerId !== null) {
             $lawyer = User::query()->find($newLawyerId);
-            if (! $lawyer || ! $lawyer->hasRole('nivel6')) {
+            if (! $lawyer || ! $lawyer->hasPlatformLevel(PlatformLevel::Nivel6)) {
                 $this->addError('assignedLawyerId', 'Seleccione un usuario con rol abogado.');
                 $this->assignedLawyerId = $currentId;
 
@@ -2396,7 +2397,7 @@ class CaseDetail extends Component
             'advanceStageLabel' => StageType::CITACION->label(),
             'relatedCases' => $this->relatedCasesSameDocument(),
             'lawyerCandidates' => Gate::allows('assign', $this->case)
-                ? User::query()->role('nivel6')->active()->orderBy('name')->get(['id', 'name'])
+                ? User::queryByPlatformLevels(PlatformLevel::Nivel6)->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
             'supervisorCandidates' => app(FieldDisciplinaryScopeService::class)
                 ->applySupervisorCandidatesForMunicipality(

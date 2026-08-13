@@ -71,9 +71,9 @@
         <section class="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 lg:col-span-8">
             <div class="shrink-0 border-b border-slate-100 px-3 py-2 dark:border-white/10">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div class="relative min-w-0 flex-1">
-                        <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="search" wire:model.live.debounce.350ms="search" placeholder="Buscar municipio, departamento o código…" class="{{ $fieldCompact }} w-full pl-8" aria-label="Buscar municipios">
+                    <div class="relative min-w-0 flex-1 overflow-hidden">
+                        <x-ui.search-field-icon />
+                        <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.350ms="search" placeholder="Buscar municipio, departamento o código…" class="{{ $fieldCompact }} w-full pl-8" aria-label="Buscar municipios">
                     </div>
                     <select wire:model.live="departmentFilter" class="{{ $fieldCompact }} min-w-[10rem]" aria-label="Filtrar por departamento">
                         <option value="">Todos los departamentos</option>

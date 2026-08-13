@@ -21,7 +21,10 @@
 
     <div class="py-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if (session('success'))<div class="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{{ session('success') }}</div>@endif
-        <input type="search" wire:model.live.debounce.350ms="search" placeholder="Buscar radicado, nombre, área…" class="{{ $field }}">
+        <div class="relative">
+            <x-ui.search-field-icon />
+            <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.350ms="search" placeholder="Buscar radicado, nombre, área…" class="{{ $field }} pl-8" aria-label="Buscar solicitudes">
+        </div>
 
         <div class="overflow-hidden rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
             <table class="min-w-full text-sm">

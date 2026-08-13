@@ -55,7 +55,12 @@
                         @endforeach
                     </select>
                 </div>
-                <div><label class="{{ $label }}">Buscar archivo</label><input type="search" wire:model.live.debounce.350ms="busqueda" class="{{ $field }}" placeholder="Nombre del archivo…"></div>
+                <div><label class="{{ $label }}">Buscar archivo</label>
+                    <div class="relative">
+                        <x-ui.search-field-icon />
+                        <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.350ms="busqueda" class="{{ $field }} pl-8" placeholder="Nombre del archivo…" aria-label="Buscar archivo">
+                    </div>
+                </div>
             @endif
         </div>
 

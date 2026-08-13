@@ -30,9 +30,9 @@
 
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
         <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 dark:border-white/10 sm:px-4">
-            <div class="relative min-w-0 flex-1">
-                <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="search" wire:model.live.debounce.300ms="search" placeholder="Buscar empleado, documento o remitente…" class="{{ $fieldCompact }}" aria-label="Buscar informes">
+            <div class="relative min-w-0 flex-1 overflow-hidden">
+                <x-ui.search-field-icon />
+                <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.300ms="search" placeholder="Buscar empleado, documento o remitente…" class="{{ $fieldCompact }}" aria-label="Buscar informes">
             </div>
             <p class="text-[11px] text-slate-500 dark:text-slate-400" wire:loading.remove wire:target="{{ $listTargets }}">
                 @if ($pending->total() > 0)

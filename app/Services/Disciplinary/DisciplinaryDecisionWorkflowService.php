@@ -8,6 +8,7 @@ use App\Enums\Disciplinary\CitationEvidenceType;
 use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Support\Disciplinary\DecisionBranch;
@@ -218,7 +219,7 @@ class DisciplinaryDecisionWorkflowService
             return false;
         }
 
-        return $user->hasRole('nivel4') || $user->hasRole('nivel1');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel4, PlatformLevel::Nivel1);
     }
 
     public function uploadHrAnnex(DisciplinaryCase $case, User $actor, UploadedFile $file): DisciplinaryCase

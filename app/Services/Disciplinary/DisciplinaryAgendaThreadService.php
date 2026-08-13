@@ -6,6 +6,7 @@ use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Events\Disciplinary\AgendaThreadMessagePosted;
 use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
@@ -36,11 +37,11 @@ class DisciplinaryAgendaThreadService
             return false;
         }
 
-        if ($user->hasRole('nivel1')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return true;
         }
 
-        return $user->hasRole('nivel3');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel3);
     }
 
     public function userCanCloseCoordination(User $user, DisciplinaryCase $case): bool
@@ -53,7 +54,7 @@ class DisciplinaryAgendaThreadService
             return true;
         }
 
-        return $user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel1) || $user->hasPermissionTo('disciplinary.assign');
     }
 
     public function userIsCaseLawyer(User $user, DisciplinaryCase $case): bool
@@ -96,10 +97,9 @@ class DisciplinaryAgendaThreadService
                 'Coordinación de citación (FO-GJ-03) iniciada con planeación.',
             );
 
-            $recipients = User::query()
+            $recipients = User::queryByPlatformLevels(PlatformLevel::Nivel3)
                 ->where('is_active', true)
                 ->where('read_only', false)
-                ->role('nivel3')
                 ->get();
 
             if ($recipients->isNotEmpty()) {
@@ -567,10 +567,9 @@ class DisciplinaryAgendaThreadService
         DisciplinaryAgendaMessage $message,
         User $lawyer,
     ): void {
-        $recipients = User::query()
+        $recipients = User::queryByPlatformLevels(PlatformLevel::Nivel3)
             ->where('is_active', true)
             ->where('read_only', false)
-            ->role('nivel3')
             ->whereKeyNot($lawyer->id)
             ->get();
 

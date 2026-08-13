@@ -116,7 +116,10 @@
                         Alcance territorial
                     </h3>
                     <x-employees.form-field label="Ciudades autorizadas" required hint="Supervisor y operador: disciplinarios de guardas en estas ciudades.">
-                        <input type="search" wire:model.live.debounce.250ms="citySearch" class="{{ $field }} mb-2" placeholder="Buscar municipio o código DIVIPOLA…">
+                        <div class="relative mb-2">
+                            <x-ui.search-field-icon />
+                            <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.250ms="citySearch" class="{{ $field }} pl-8" placeholder="Buscar municipio o código DIVIPOLA…" aria-label="Buscar municipio">
+                        </div>
                         <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 dark:border-white/15 dark:bg-dash-lift">
                             @forelse ($this->filteredMunicipalitiesForForm as $department => $municipalities)
                                 <p class="mt-2 first:mt-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-dash-muted">{{ $department }}</p>

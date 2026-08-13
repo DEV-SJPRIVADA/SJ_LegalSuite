@@ -9,7 +9,7 @@
         $links[] = ['key' => 'home', 'label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
 
-    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel) && ! auth()->user()->hasRole('nivel3')) {
+    if (auth()->user()->can('viewDashboard', $disciplinaryCaseModel) && ! auth()->user()->hasPlatformLevel(\App\Enums\PlatformLevel::Nivel3)) {
         $links[] = ['key' => 'dashboard', 'label' => 'Dashboard', 'route' => route('disciplinary.dashboard'), 'active' => request()->routeIs('disciplinary.dashboard')];
     }
 
@@ -44,7 +44,7 @@
         $links[] = ['key' => 'formats', 'label' => 'Formatos', 'route' => route('disciplinary.formats.index'), 'active' => request()->routeIs('disciplinary.formats.*'), 'soon' => false];
     }
 
-    if (! auth()->user()->hasRole('nivel3')) {
+    if (! auth()->user()->hasPlatformLevel(\App\Enums\PlatformLevel::Nivel3)) {
         $links[] = ['key' => 'history', 'label' => 'Historial', 'route' => null, 'active' => false, 'soon' => true];
     }
 

@@ -23,7 +23,7 @@ class DisciplinaryFoGj03EvidenceEnabledNotification extends Notification
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        $url = $notifiable->hasRole('nivel7')
+        $url = $notifiable instanceof \App\Models\User && $notifiable->hasPlatformLevel(\App\Enums\PlatformLevel::Nivel7)
             ? route('disciplinary.evidences-pending.index')
             : route('disciplinary.cases.show', $this->case);
 

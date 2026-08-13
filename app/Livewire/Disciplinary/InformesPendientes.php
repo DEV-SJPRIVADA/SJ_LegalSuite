@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Disciplinary;
 
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
 use Illuminate\Contracts\View\View;
@@ -182,7 +183,7 @@ class InformesPendientes extends Component
         $query = InformeSubmission::query()->pendingReview();
 
         $user = auth()->user();
-        if (! $user->hasRole('nivel1') && ! $user->can('disciplinary.review-inform-all')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel1) && ! $user->can('disciplinary.review-inform-all')) {
             $query->where('assigned_reviewer_id', $user->id);
         }
 

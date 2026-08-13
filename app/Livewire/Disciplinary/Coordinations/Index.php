@@ -3,6 +3,7 @@
 namespace App\Livewire\Disciplinary\Coordinations;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
@@ -70,7 +71,7 @@ class Index extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user->hasRole('nivel3') && ! $user->hasRole('nivel1') && ! $user->hasPermissionTo('disciplinary.assign')) {
+        if (! $user->hasPlatformLevel(PlatformLevel::Nivel3, PlatformLevel::Nivel1) && ! $user->hasPermissionTo('disciplinary.assign')) {
             abort(403);
         }
     }

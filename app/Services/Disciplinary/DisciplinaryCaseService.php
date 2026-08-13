@@ -4,6 +4,7 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\PlatformLevel;
 use App\Exceptions\Disciplinary\CaseAlreadyClaimedException;
 use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -79,7 +80,7 @@ class DisciplinaryCaseService
      */
     public function claimByLawyer(DisciplinaryCase $case, User $lawyer): DisciplinaryCase
     {
-        if (! $lawyer->hasRole('nivel6')) {
+        if (! $lawyer->hasPlatformLevel(PlatformLevel::Nivel6)) {
             throw new \InvalidArgumentException('Solo usuarios con rol abogado pueden reclamar casos del pool.');
         }
 

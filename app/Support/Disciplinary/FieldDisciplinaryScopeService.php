@@ -2,6 +2,7 @@
 
 namespace App\Support\Disciplinary;
 
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Employee;
 use App\Models\User;
@@ -14,11 +15,11 @@ final class FieldDisciplinaryScopeService
 {
     public function requiresTerritorialScope(User $user): bool
     {
-        if ($user->hasRole('nivel1')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return false;
         }
 
-        return $user->hasAnyRole(['nivel7', 'nivel8']);
+        return $user->hasPlatformLevel(PlatformLevel::Nivel7, PlatformLevel::Nivel8);
     }
 
     public function hasConfiguredScope(User $user): bool
@@ -98,8 +99,7 @@ final class FieldDisciplinaryScopeService
             return $query->whereRaw('1 = 0');
         }
 
-        return $query
-            ->role('nivel7')
+        return User::constrainByPlatformLevels($query, PlatformLevel::Nivel7)
             ->active()
             ->whereHas('authorizedMunicipalities', fn (Builder $inner) => $inner
                 ->where('user_authorized_municipalities.municipality_code', $municipalityCode));

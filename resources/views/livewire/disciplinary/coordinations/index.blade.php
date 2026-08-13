@@ -42,13 +42,13 @@
         <aside class="flex max-h-[40%] w-full shrink-0 flex-col border-b border-slate-200 dark:border-white/10 lg:max-h-none lg:w-[22rem] lg:border-b-0 lg:border-r">
             <div class="shrink-0 border-b border-slate-200 p-2.5 dark:border-white/10">
                 <label for="coord-search" class="sr-only">Buscar coordinación</label>
-                <div class="relative">
-                    <svg class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
+                <div class="relative overflow-hidden">
+                    <x-ui.search-field-icon />
                     <input
                         id="coord-search"
-                        type="search"
+                        type="text"
+                        inputmode="search"
+                        autocomplete="off"
                         wire:model.live.debounce.300ms="search"
                         placeholder="Caso, trabajador, ciudad…"
                         class="h-8 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-dash-lift dark:text-slate-100 dark:placeholder:text-slate-500"

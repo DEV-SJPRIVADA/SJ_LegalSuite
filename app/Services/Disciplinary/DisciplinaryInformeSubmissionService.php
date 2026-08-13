@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\CaseStatus;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\InformeSubmissionStatus;
 use App\Enums\Disciplinary\StageType;
+use App\Enums\PlatformLevel;
 use App\Models\ColombianMunicipality;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryDocument;
@@ -46,7 +47,7 @@ class DisciplinaryInformeSubmissionService
         array $evidenceImages = [],
     ): InformeSubmission {
         $reviewer = User::query()->whereKey($assignedReviewerId)->where('is_active', true)->first();
-        if (! $reviewer || ! $reviewer->hasRole('nivel2')) {
+        if (! $reviewer || ! $reviewer->hasPlatformLevel(PlatformLevel::Nivel2)) {
             throw new \InvalidArgumentException('Seleccione un revisor de operaciones válido.');
         }
 

@@ -127,15 +127,20 @@
             <div class="flex flex-wrap items-end gap-2">
                 <div class="min-w-[12rem] flex-1">
                     <label for="dcf-case-search" class="sr-only">Buscador</label>
-                    <input
-                        id="dcf-case-search"
-                        name="dcf_case_search"
-                        type="search"
-                        wire:model.live.debounce.350ms="search"
-                        placeholder="N° de caso, nombre, documento…"
-                        autocomplete="off"
-                        class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
-                    >
+                    <div class="relative">
+                        <x-ui.search-field-icon />
+                        <input
+                            id="dcf-case-search"
+                            name="dcf_case_search"
+                            type="text"
+                            inputmode="search"
+                            wire:model.live.debounce.350ms="search"
+                            placeholder="N° de caso, nombre, documento…"
+                            autocomplete="off"
+                            class="w-full rounded-md border-slate-300 pl-8 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                            aria-label="Buscar expedientes"
+                        >
+                    </div>
                 </div>
                 <div class="w-full sm:w-44">
                     <label for="dcf-case-status" class="sr-only">Estado</label>
@@ -222,15 +227,20 @@
     @else
         <div class="mb-2 shrink-0">
             <label for="dcf-case-search-min" class="sr-only">Buscador</label>
-            <input
-                id="dcf-case-search-min"
-                name="dcf_case_search_min"
-                type="search"
-                wire:model.live.debounce.350ms="search"
-                placeholder="N° de caso, nombre, documento…"
-                autocomplete="off"
-                class="w-full max-w-md rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
-            >
+            <div class="relative max-w-md">
+                <x-ui.search-field-icon />
+                <input
+                    id="dcf-case-search-min"
+                    name="dcf_case_search_min"
+                    type="text"
+                    inputmode="search"
+                    wire:model.live.debounce.350ms="search"
+                    placeholder="N° de caso, nombre, documento…"
+                    autocomplete="off"
+                    class="w-full rounded-md border-slate-300 pl-8 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                    aria-label="Buscar expedientes"
+                >
+            </div>
         </div>
     @endunless
 
@@ -317,7 +327,7 @@
                                             Programar
                                         @elseif ($isOperaciones)
                                             Ver
-                                        @elseif ($case->isInInformePool() && auth()->user()->hasRole('nivel5'))
+                                        @elseif ($case->isInInformePool() && auth()->user()->hasPlatformLevel(\App\Enums\PlatformLevel::Nivel5))
                                             Ver
                                         @else
                                             Gestionar

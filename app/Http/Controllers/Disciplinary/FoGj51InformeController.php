@@ -44,8 +44,7 @@ class FoGj51InformeController
                 'prefillWorkerName' => $request->string('nombre')->trim()->toString() ?: null,
                 'prefillWorkerDocument' => $request->string('cedula')->trim()->toString() ?: null,
                 'openPdfUploadModal' => $request->boolean('cargar_pdf'),
-                'operacionesReviewers' => User::query()
-                    ->role('nivel2')
+                'operacionesReviewers' => User::queryByPlatformLevels(\App\Enums\PlatformLevel::Nivel2)
                     ->where('is_active', true)
                     ->orderBy('name')
                     ->get(['id', 'name']),

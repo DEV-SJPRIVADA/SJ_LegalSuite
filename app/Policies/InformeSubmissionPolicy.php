@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Disciplinary\InformeSubmissionStatus;
+use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\User;
@@ -12,7 +13,7 @@ class InformeSubmissionPolicy
 {
     public function viewAny(User $user): bool
     {
-        if ($user->hasRole('nivel1')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return true;
         }
 
@@ -39,7 +40,7 @@ class InformeSubmissionPolicy
 
     public function review(User $user, InformeSubmission $informeSubmission): bool
     {
-        if ($user->hasRole('nivel1')) {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1)) {
             return true;
         }
 
