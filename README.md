@@ -42,7 +42,7 @@ Además del catálogo jurídico, existen en el sidebar:
 - **Empleados** (`employees.view` / `employees.manage`): **Empleados SJ** — cockpit con KPIs clicables, tabla compacta sin scroll de página, filas expandibles (chevron), modal de alta/edición por secciones con indicador de **perfil completo** en tiempo real, y carga masiva Excel con progreso por lotes (`EmployeeBulkImportService`, `bulk-import-progress.js`).
 - **Usuarios** (`users.view` / `users.manage`): **cockpit** alineado con Empleados — KPIs clicables (Total, Activos, Inactivos, Solo lectura, Admins), tabla expandible, modal por secciones con rol efectivo y búsqueda de ciudades autorizadas; alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
 
-Quienes tengan **`settings.manage-territory`**, **`settings.manage-citation-articles`** y/o **`settings.manage-diligence-questions`** ven **Ajustes** en el sidebar (sub-nav compartido `components/settings/nav`): **Territorio** (`/settings/territorio`) — cockpit DIVIPOLA; **Artículos** (`/settings/citacion-articulos`) — plantillas FO-GJ-03; **Preguntas** (`/settings/preguntas-diligencia`) — catálogo del cuestionario FO-GJ-04.
+Quienes tengan **`settings.manage-territory`**, **`settings.manage-citation-articles`**, **`settings.manage-diligence-questions`** y/o **`settings.manage-supervision-zones`** ven **Ajustes** en el sidebar (sub-nav compartido `components/settings/nav`): **Territorio** (`/settings/territorio`) — cockpit DIVIPOLA; **Artículos** (`/settings/citacion-articulos`) — plantillas FO-GJ-03; **Preguntas** (`/settings/preguntas-diligencia`) — catálogo del cuestionario FO-GJ-04; **Zonas** (`/settings/zonas-supervision`) — catálogo de zonas de supervisión de campo (`SupervisionZonesIndex`).
 
 ## ✨ Características principales (módulo Disciplinario)
 
@@ -99,7 +99,7 @@ Muchas vistas usan **`wire:navigate`**. Eso evita recargar la página completa, 
 
 ### Vista de Inicio (Command center)
 
-**Acceso:** solo rol **`admin`** (`User::canViewHomeCommandCenter()`). El resto de perfiles, al abrir `GET /dashboard`, se redirige a su destino operativo (`User::suiteLandingUrl()`: abogado → dashboard disciplinario, supervisor → evidencias pendientes, etc.). El ítem **Inicio** del sidebar y el logo apuntan a esa URL de aterrizaje.
+**Acceso:** solo rol **`admin`** (`User::canViewHomeCommandCenter()`). El resto de perfiles, al abrir `GET /dashboard`, se redirige a su destino operativo (`User::suiteLandingUrl()`: abogado → dashboard disciplinario, supervisor → **portal Supervisión** `/disciplinary/evidences-pending`, etc.). El ítem **Inicio** del sidebar y el logo apuntan a esa URL de aterrizaje.
 
 Vista **sin scroll de página** (`h-[calc(100dvh-…)]`): agregación en **`HomeDashboardService`** (`AlertsService` + `DisciplinaryDashboardService`).
 
@@ -118,13 +118,13 @@ Frontend: **`resources/js/home-command-center.js`** (ApexCharts) monta gráficas
 
 ### Módulo Disciplinario
 
-Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Disciplinarios | (Revisión informes) | Formatos | Historial**. **Rol `admin`:** **Inicio** → command center (`GET /dashboard`); el módulo **Disciplinarios** en el sidebar → `User::disciplinaryPortalUrl()` (dashboard disciplinario). El enlace *Revisión informes* aparece quienes tienen **`disciplinary.review-inform`** (`InformeSubmissionPolicy::viewAny`). **Rol `abogado`:** `GET /disciplinary` y el ítem **Dashboard** llevan al tablero disciplinario; el ítem **Disciplinarios** del **sub-nav** usa `User::disciplinaryCasesNavUrl()` → **listado** `GET /disciplinary/cases` (el sidebar del módulo también entra por `disciplinaryPortalUrl()` → dashboard). **Rol `planeacion`:** en el sub-nav disciplinario solo **Coordinaciones** (`GET /disciplinary/coordinations`). **Rol `supervisor`:** en el sub-nav disciplinario entra a **Evidencias pendientes** (`GET /disciplinary/evidences-pending`); si llega por URL «intended» al dashboard o listado de casos, se redirige al portal (`disciplinaryPortalUrl`). Planeación y supervisor quedan sin acceso al listado/detalle general de expedientes.
+Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Disciplinarios | (Revisión informes) | Formatos | Historial**. **Rol `admin`:** **Inicio** → command center (`GET /dashboard`); el módulo **Disciplinarios** en el sidebar → `User::disciplinaryPortalUrl()` (dashboard disciplinario). El enlace *Revisión informes* aparece quienes tienen **`disciplinary.review-inform`** (`InformeSubmissionPolicy::viewAny`). **Rol `abogado`:** `GET /disciplinary` y el ítem **Dashboard** llevan al tablero disciplinario; el ítem **Disciplinarios** del **sub-nav** usa `User::disciplinaryCasesNavUrl()` → **listado** `GET /disciplinary/cases` (el sidebar del módulo también entra por `disciplinaryPortalUrl()` → dashboard). **Rol `planeacion`:** en el sub-nav disciplinario solo **Coordinaciones** (`GET /disciplinary/coordinations`). **Rol `supervisor`:** sidebar/sub-nav **Supervisión** → **portal de campo** (`GET /disciplinary/evidences-pending`, título «Mi trabajo»): CRUD **FO-GJ-51** + bandeja de notificaciones Citación/Decisión; si llega por URL «intended» al dashboard o listado de casos, se redirige al portal (`disciplinaryPortalUrl`). Planeación y supervisor quedan sin acceso al listado/detalle general de expedientes.
 
 | Vista | Contenido |
 |---|---|
 | **Dashboard** | Vista **cockpit** sin scroll: cabecera contextual por rol (admin global / abogado «Mi tablero» solo casos **asignados**). **7 donas** A–F (misma paleta neon). **Mapa Colombia** hero (~55% ancho) + panel derecho en **3 filas de altura fija**: **Top municipios**, **casos por tipo de falta** (catálogo activo completo con ceros, micro-barras HTML con scroll interno), **Mi carga** (abogado) o mini ranking de abogados (admin). Sin chips de alerta. `DisciplinaryDashboardService::usesAssignedOnlyScope()` para abogado. JS: `disciplinary-dashboard.js` + `disciplinary-colombia-map.js`. Tests: `DisciplinaryDashboardScopeTest.php`. |
 | **Disciplinarios** (listado) | Vista **cockpit** sin scroll: cabecera compacta, **rail A–F**, **Cerrados** / **Todos** (Operaciones no ve Cerrados), filtros y tabla con **Etapa**. Alcance `forDisciplinaryActor`. **Operaciones (`nivel2`):** solo casos **abiertos** que **autorizó** (`informeSubmission.reviewed_by`; con `review-inform-all` todos los abiertos); sin Formatos; trámite «En trámite · Etapa X». Tests: `DisciplinaryCasesIndexStageTest`, `DisciplinaryOperacionesCaseScopeTest`. **Coordinaciones** (`planeacion` / `nivel3`): cockpit full-height — bandeja + hilo chat (burbujas), KPIs abiertas/fechas/notif., búsqueda; candidatos a supervisor por `employee.municipality_code` (eager load completo). **Bandeja compartida (INFORME):** claim atómico del abogado. Botones FO-GJ-51 en modal. |
-| **Evidencias pendientes** (supervisor) | **Cockpit** sin scroll (`max-w-[1600px]`): cabecera compacta «Supervisión · Notificaciones», rail **Citación / Decisión / Todos** con conteos (`SupervisorEvidenceQueueService`), búsqueda por caso/trabajador/documento y **tabla unificada** (tipo, slot de notificación, documento, generado). Acciones por fila: **Cargar PDF** y **Notificación** (flujo escaneado → carta HTML → firma → vista previa, sin cambios de lógica). **FO-GJ-51** en modal a pantalla completa (`openFo51Modal`, mismo shell que listado). Sidebar/nav: **Evidencias**. Tests: `PendingEvidenceUploadTest`, `SupervisorEvidenceQueueTest`, `DecisionStageCompletionTest`. |
+| **Portal supervisor** (`evidences-pending`) | **Hub de campo** (no solo «evidencias»): cockpit sin scroll (`max-w-[1600px]`). Cabecera **Mi trabajo** + zona asignada; bloque **Informes disciplinarios FO-GJ-51** (Nuevo informe / Cargar PDF); KPIs Citación/Decisión/Zona en `lg+`; rail **Citación / Decisión / Todos**; búsqueda; **bandeja inbox** (tarjetas táctiles en móvil · filas densas en `lg+`, **sin tabla HTML**). Acciones por tarea: **Cargar PDF** y **Ver notificación** (escaneado → carta HTML → firma → preview; lógica Livewire/modales intacta). Empty state alineado al hub. Sidebar/nav: **Supervisión** (`User::minimalDisciplinarySidebarLabel`). Tests: `PendingEvidenceUploadTest`, `SupervisorEvidenceQueueTest`, `DecisionStageCompletionTest`. |
 | **Revisión informes** | Cockpit senior (`InformesPendientes`): KPI **Pendientes**, búsqueda densa, filas compactas con `displayName()`, aviso de stale ≥24 h, acciones **Ver** / **Autorizar** / **Rechazar** (modales propios). Cola `InformeSubmission` pendiente: vista previa PDF (`?inline=1`). Revisor asignado con `disciplinary.review-inform`; dirección con `disciplinary.review-inform-all`. Al autorizar se crea el expediente y el PDF entra al caso. Tests: `InformesPendientesUiTest.php`. |
 | **Detalle del caso** | **Encabezado compacto**: número de caso; **← Volver al listado**, badge de estado y acciones de Informe si aplican. Tabs: **Gestión** / Línea de tiempo / Documentos / Actuaciones (+ Historial por cédula según rol). **Operaciones (`nivel2`):** sin tabs jurídicos — seguimiento `operaciones-follow-up` («En trámite · Etapa X»). **Pestaña Gestión (jurídico):** ficha (`case-summary-strip`) + **tarjetas A–D** (`CaseStageCardState`). Modal de etapa: `case-stage-modal-shell` + body (`stage-a`…`stage-d`); shell `z-[68]`; modales FO-GJ / decisión en pie a **`z-[85+]`** para no quedar detrás. **FAB «Chat planeación»** → **drawer derecho** (`planning-chat-modal`) con burbujas L/R (`agenda-message` + perspective), composer y lightbox. **Etapa B · evidencia:** dropzone PDF, tipo en cards, **Ver** (preview modal) y **Descargar** por separado. Tests: `CaseDetailStageViewsTest`, `DisciplinaryCitationStageFlowTest`, `DecisionStageFlowTest`, `DisciplinaryOperacionesCaseScopeTest`. Echo `disciplinary.case.{id}`. |
 | **Formatos** | Catálogo FO-GJ por etapa A–F; **oculto** para **Operaciones (`nivel2`)** (`viewOfficialForms` denegado) y portales mínimos / nivel3. **Membrete** del acta de comité (PNG/JPEG) vía `OrganizationLetterheadService`. **Plantilla** / **Descarga** de PDFs en blanco (Browsershot Letter para códigos del catálogo HTML). Rutas: `GET …/formats`, `preview/{code}`, `descarga-en-blanco/{code}`, `membrete`. |
@@ -159,11 +159,11 @@ Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Dis
 
 **Disciplinario — Captura de firma (móvil y mesa digitalizadora):** lienzo **`worker-signature-pad.js`** con franja horizontal centrada (ancho `calc(100vw - margen)`, altura fija **17.5rem**). En móvil: dedo (`pointer`/`touch`). En PC: lápiz Wacom vía Pointer Events (mapear la mesa a **un solo monitor** y maximizar el navegador). **Livewire:** `<x-disciplinary.signature-capture-modal>` en FO-GJ-03, FO-GJ-45, FO-GJ-46 y FO-GJ-47 (supervisor: trabajador y testigos) y FO-GJ-04 (trabajador en acta). **Formularios POST (Alpine):** `<x-disciplinary.signature-capture-modal-alpine>` + `sjFo51PreparerSignature()` en **FO-GJ-51** (firma de quien elabora el informe). Validación backend: regla `PngSignatureDataUri`.
 
-**Disciplinario — coordinaciones con planeación:** `Coordinations\Index`: mismo **composer de chat** que el abogado; en citación, **Registrar/actualizar notificación y supervisor** al iniciar coordinación (`canPlanningManageNotification`; modal prellena si ya hay datos); **Proponer fechas de diligencia** solo tras notificación completa (`canPlanningProposeDiligenceSlots` → `postPlanningMessage` con `planningSlots`). En **etapa decisión**: **Programación / Reproponer opciones** (`DecisionCoordinationService` + `submitDecisionPlanningModal`) — varias filas (`decisionNotificationSlots`: fecha, hora, turno, zona, supervisor; en suspensión también inicio); el abogado **confirma una** en el chat del expediente o **solicita nuevas**; republicar limpia confirmación e invalida PDF de decisión si existía. **No** hay segundo modal «Registrar notificación de decisión» (`canPlanningRegisterNotification` = false). Badge **Fechas pendientes** si `awaitingPlanningDiligenceSlots()` o `awaitingDecisionPlanningSlots()`. `data-live-case-id` + `wire:poll`. Cierre del hilo al avanzar a **diligencia**; en expediente el abogado abre el chat con el **FAB «Chat planeación»** (`planning-chat-modal`). Políticas: `postAgendaPlanning`, `postNotificationCoordination`, `postDecisionNotificationCoordination`.
+**Disciplinario — coordinaciones con planeación:** `Coordinations\Index`: en citación, **Registrar/actualizar notificación** (`lugar` + **zona de supervisión** + turno/fecha); **Proponer fechas** tras notificación completa. En decisión: opciones con lugar + zona de supervisión; abogado confirma una. Tests: `DisciplinaryCoordinationsIndexTest`, `DecisionCoordinationTest`.
 
 **Disciplinario — composer y adjuntos de agenda (front):** `resources/js/disciplinary-agenda-composer.js` (clip, paste, drag-drop, `$uploadMultiple` Livewire); componentes Blade `agenda-chat-composer`, `agenda-attachment-lightbox-modal`; props Livewire `agendaLawyerUploads` / `agendaPlanningUploads`. Previews pendientes y mensajes publicados abren el mismo modal (imagen con zoom; PDF en iframe).
 
-**Disciplinario — evidencia de citación:** `canReceiveCitationEvidence()` exige FO-GJ-03 generado y documento asociado. Carga vía `uploadCitationEvidence` (PDF escaneado) o notificación firmada en pantalla: **Aceptar** genera vista previa del PDF (`acceptSignedNotificationPreview`); **Enviar** confirma y registra evidencia (`confirmSignedNotificationUpload`); **Descargar** desde `disciplinary.evidences-pending.signed-preview`. Matriz en `canUserUploadCitationEvidence()`: titular, `informeSubmission.reviewed_by`, `disciplinary.review-inform-all`, `notification_supervisor_user_id`, dirección jurídica; excluye planeación y supervisores no asignados. Cola `evidences-pending` sin `view`/`viewAny` de expediente; el supervisor ve la notificación FO-GJ-03 solo en modal (`viewFoGj03NotificationForSupervisor`). Tests: `DisciplinaryCitationNotificationTest.php`, `PendingEvidenceUploadTest.php`.
+**Disciplinario — evidencia de citación:** `canReceiveCitationEvidence()` exige FO-GJ-03 generado y documento asociado. Carga vía `uploadCitationEvidence` (PDF escaneado) o notificación firmada en pantalla. Matriz en `canUserUploadCitationEvidence()`: titular, revisor FO-GJ-51, `review-inform-all`, **miembros de la zona de supervisión** (`notification_supervision_zone_id`), dirección jurídica. Cola `evidences-pending` por membresía de zona. Tests: `DisciplinaryCitationNotificationTest.php`, `PendingEvidenceUploadTest.php`, `SupervisorEvidenceQueueTest.php`.
 
 **Disciplinario — evidencia de decisión:** `canReceiveDecisionEvidence()` exige comunicado generado (`decision_comunicado_generated_at` o documento FO-GJ-45 / FO-GJ-46 / FO-GJ-47 en expediente). Carga vía `uploadDecisionEvidence` (PDF) o notificación firmada (`PendingEvidenceIndex::buildSignedNotificationPackage` → FO-GJ-45, FO-GJ-46 o FO-GJ-47 según decisión). En **terminación**, el cierre exige el **paquete PDF del abogado** (no la cola RRHH). Matriz en `canUserUploadDecisionEvidence()`. Tests: `DecisionStageCompletionTest.php`, `PendingEvidenceUploadTest.php`.
 
@@ -186,7 +186,7 @@ Los expedientes disciplinarios referencian **`employee_id`**. Resolver: `App\Ser
 
 ### Módulo Ajustes
 
-Sub-nav (`components/settings/nav`): **Territorio** | **Artículos** | **Preguntas** (según permisos). Redirect `GET /settings` → territorio.
+Sub-nav (`components/settings/nav`): **Territorio** | **Artículos** | **Preguntas** | **Zonas** (según permisos). Redirect `GET /settings` → territorio.
 
 #### Territorio (DIVIPOLA)
 
@@ -223,6 +223,18 @@ Ruta: **`GET /settings/preguntas-diligencia`** · permiso `settings.manage-dilig
 
 Migración: `2026_08_12_100000_create_diligence_acta_questions_table.php` + permiso `2026_08_12_100100_add_manage_diligence_questions_permission.php`. Seed: `DiligenceActaQuestionsSeeder`. Tests: `DiligenceQuestionsIndexTest.php`.
 
+#### Zonas de supervisión (campo)
+
+Ruta: **`GET /settings/zonas-supervision`** · permiso `settings.manage-supervision-zones` · Livewire `SupervisionZonesIndex` + `SupervisionZoneService`.
+
+| Vista | Contenido |
+|---|---|
+| **Listado / CRUD** | Catálogo `supervision_zones` (nombre, código, email de notificación corporativa, activo, orden). Alta/edición/baja con validaciones (no borrar si hay casos o miembros). |
+| **Asignación** | Los supervisores (`nivel7`) se vinculan a **una zona** en **Usuarios → crear/editar** (pivot `supervision_zone_user`). La cola de notificaciones y las policies de evidencia usan **membresía de zona**, no un FK a persona. |
+| **Lugar vs zona** | **Zona de supervisión** = ámbito operativo del equipo. **Lugar** (`notification_zone` / `decision_notification_zone`) = texto del sitio físico del turno en la notificación. |
+
+Migración: `2026_08_13_100000_create_supervision_zones_and_reassign_notifications.php` (MySQL: quita FKs legacy a supervisor persona; SQLite en tests las conserva). Redirect legacy `/users/zonas-supervision` → settings. Seed demo: zona + supervisor en `DemoUsersSeeder`.
+
 ### Módulo Usuarios
 
 Sub-nav: **Inicio | Usuarios | Organización**
@@ -232,7 +244,7 @@ Ruta listado: **`GET /users`** · permisos `users.view` / `users.manage`
 | Vista | Contenido |
 |---|---|
 | **Usuarios** (cockpit) | Vista sin scroll (respeta sub-nav): header **Usuarios** + Organización + Nuevo usuario. **5 KPIs clicables** (Total, Activos, Inactivos, Solo lectura, Admins) con filtros en URL (`q`, `role`, `area`, `estado`, `acceso`, `pp`). Toolbar: búsqueda, pills `Todos\|Activos\|Inactivos`, filtro **nivel** y **área**, paginación **20/50/100**. Tabla compacta con chevron ▼ (una fila expandida): usuario (avatar `User::initials()`, email), área/cargo (`cargoDisplayLabel()`, badge *Admin plataforma*), acceso (activo + solo lectura). Detalle expandido: documento, casos asignados/reportados, ciudades autorizadas, enlace a ficha y acciones (editar, contraseña, activar, eliminar). Skeleton + `wire:loading` al filtrar. |
-| **Crear / Editar** | Modal por secciones: identidad, organización (área → cargo, admin plataforma), alcance territorial (nivel7/8 con búsqueda DIVIPOLA), permisos directos Operaciones, acceso (cambios / activo). Banner con **rol efectivo** y conteo de ciudades. Al editar se cargan correctamente `is_active` y `read_only`. |
+| **Crear / Editar** | Modal por secciones: identidad, organización (área → cargo, admin plataforma), **zona de supervisión** (obligatoria de negocio para `nivel7` / cargo supervisor), alcance territorial (nivel7/8 con búsqueda DIVIPOLA), permisos directos Operaciones, acceso (cambios / activo). Banner con **rol efectivo** y conteo de ciudades. Al editar se cargan correctamente `is_active` y `read_only`. Mapa legacy `supervisor` → `nivel7` al guardar roles Spatie. |
 | **Organización** | Catálogo de **áreas** activas y **cargos** por área; cada cargo define el **perfil de permisos (Spatie)** que recibirán los usuarios asignados a ese cargo (`permission_role_name`) |
 | **Detalle** | Datos del usuario, casos disciplinarios asignados, mismas acciones administrativas permitidas por política |
 | **Mi perfil** (`GET /profile`) | Datos de cuenta, contraseña y **firma digital** (imagen PNG/JPG/WebP; solo el usuario dueño; usada en FO-GJ-03 y documentos que requieran firma del titular) |
@@ -329,22 +341,23 @@ app/
   Models/
     User.php / Employee.php / EmployeeJobPosition.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
-    Disciplinary/              Models del agregado + InformeSubmission; plantillas citación: CitationStatuteArticle, CitationStatuteNumeral, FaultCitationTemplate, FaultCitationTemplateArticle
+    Disciplinary/              Models del agregado + InformeSubmission + **SupervisionZone**; plantillas citación: CitationStatuteArticle, CitationStatuteNumeral, FaultCitationTemplate, FaultCitationTemplateArticle
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
     HomeDashboardService.php   Agregación command center (alertas + KPIs + mapa + carga abogados)
-    UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
-    Disciplinary/              CaseService, WorkflowService, DashboardService, AgendaThreadService, CitationWorkflowService, CitationNotificationService, FoGj03CitationService, **FoGj03CitationArticleResolver**, FoGj03DraftService, FoGj04/44/54…, DiligenceAttendanceService, …
+    UserService.php            Alta/edición usuarios, reinicio provisional de contraseña, zona de supervisión
+    Disciplinary/              CaseService, WorkflowService, DashboardService, AgendaThreadService, CitationWorkflowService, CitationNotificationService, **SupervisionZoneService**, DecisionCoordinationService, FoGj03CitationService, **FoGj03CitationArticleResolver**, FoGj03DraftService, FoGj04/44/54…, DiligenceAttendanceService, …
     Employees/                 EmployeeBulkImportService, EmployeeTerritoryResolver, EmployeeResolver
     Settings/                  ColombianMunicipalityImportService, **CitationFaultTemplateService**
+  Support/Disciplinary/        FieldDisciplinaryScopeService, **SupervisorEvidenceQueueService** (cola por zona)
   Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, EmployeePolicy
   Livewire/
     Employees/                 EmployeesIndex (CRUD + carga masiva con progreso)
     Home.php                   Command center de inicio (solo admin)
     Auth/                      ForcePasswordChange, LogoutButton
     Users/                     UsersIndex, UserDetail, OrganizationCatalog (áreas + cargos + catálogo empleados)
-    Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
-    Settings/                  TerritoryImport, **CitationArticlesIndex**, **DiligenceQuestionsIndex**
+    Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; **Supervisor/PendingEvidenceIndex** (hub Mi trabajo); FO-GJ-51 parcial/modal
+    Settings/                  TerritoryImport, **CitationArticlesIndex**, **DiligenceQuestionsIndex**, **SupervisionZonesIndex**
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
     Middleware/                must-change-password, ShareUiTheme, ForceRequestRootUrl (URLs con host/puerto de la petición)
@@ -367,12 +380,13 @@ resources/views/
   components/home/             kpi-chip y piezas del tablero de inicio
   components/employees/        kpi-stat, table-skeleton, row-details, bulk-import-loader, form-field, employee-form-modal
   components/users/            table-skeleton, row-details, user-form-modal
-  components/settings/         nav (Territorio | Artículos | Preguntas), territory-dropzone, territory-format-help, territory-kpi
+  components/settings/         nav (Territorio | Artículos | Preguntas | Zonas), territory-dropzone, territory-format-help, territory-kpi
     disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
     users/                     Listado, detalle y catálogo de organización (áreas/cargos)
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (`btn` con variantes `sj-btn`, selector de tema)
-    settings/                  territory-import, citation-articles-index, diligence-questions-index
+    settings/                  territory-import, citation-articles-index, diligence-questions-index, supervision-zones-index
+    disciplinary/supervisor/   pending-evidence-index (hub responsive) + partials/pending-evidence-modals
   disciplinary/forms/        FO-GJ-51 (informe; parciales `fo-gj-51-informe-body`, `fo-gj-51-screen-mobile`);
                                FO-GJ-03/44/54/04: plantillas carta Letter en blanco
                                (`fo-gj-*-blank-download.blade.php` + parciales `fo-gj-*-body.blade.php`);
@@ -803,13 +817,13 @@ En `routes/web.php` existe **`POST /deploy/{token}`** con `DEPLOY_WEBHOOK_TOKEN`
 | `administrativa@sjlegalsuite.local` | administrativa | Crear informes y cargar evidencias |
 | `auditor@sjlegalsuite.local` | auditor | Consulta + exportación disciplinaria |
 | `operaciones@sjlegalsuite.local` | operaciones | Crear casos, revisar FO-GJ-51, **reasignar supervisor de notificación** en expedientes que aprobó |
-| `supervisor@sjlegalsuite.local` | supervisor | FO-GJ-51 + cola **Evidencias pendientes** (PDF escaneado o notificación firmada/rechazo con testigos; solo casos donde `notification_supervisor_user_id` coincide); sin listado ni detalle de expedientes |
+| `supervisor@sjlegalsuite.local` | supervisor | Portal **Supervisión** (`Mi trabajo`): FO-GJ-51 + bandeja de notificaciones por **zona de supervisión**; sin listado ni detalle de expedientes |
 | `operador@sjlegalsuite.local` | operador | Casos operativos en campo según políticas del módulo |
 | `programador@sjlegalsuite.local` | programador | Programación de fechas (planeación) |
 
 En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan). Los usuarios demo con rol **`admin`** se crean **sin** `organizational_area_id`; el resto lleva **área + `job_position_id`** acorde al catálogo sembrado en la migración de legalsuite.
 
-Si actualizas código y una BD ya tenía migraciones viejas aplicadas, ejecuta **`php artisan migrate`** (p. ej. campos Etapa B.2; borrador FO-GJ-03/firma; FO-GJ-04; asistencia/44/54; **`2026_08_11_100000_create_citation_statute_tables`** para plantillas de artículos). Tras seed de plantillas: `CitationFaultTemplatesSeeder` (incluido en `DatabaseSeeder`). En desarrollo suele bastar **`migrate:fresh --seed`**; en datos reales, no editar migraciones ya ejecutadas sin plan de alter explícito.
+Si actualizas código y una BD ya tenía migraciones viejas aplicadas, ejecuta **`php artisan migrate`** (p. ej. **`2026_08_13_100000_create_supervision_zones_and_reassign_notifications`** — zonas de supervisión y reasignación de notificaciones; plantillas de artículos; FO-GJ-54; preguntas diligencia). En desarrollo suele bastar **`migrate:fresh --seed`**; en datos reales, no editar migraciones ya ejecutadas sin plan de alter explícito.
 
 > Contraseña por defecto: **`SJseguridad2026`**. Cambiarla antes de cualquier deploy productivo.
 
@@ -878,7 +892,7 @@ La autorización se evalúa en 3 capas:
 
 **Planeación (`planeacion`):** no tiene `view` / `viewAny` sobre expedientes. Opera en **`GET /disciplinary/coordinations`**: chat con adjuntos; en citación registra/actualiza **notificación física** primero (`postNotificationCoordination` / `canPlanningManageNotification`) y luego **propone fechas** (`canPlanningProposeDiligenceSlots`). No puede `uploadCitationEvidence` ni `reassignNotificationSupervisor`. El abogado **oculta o muestra** el chat en expediente; el hilo se **cierra al avanzar a diligencia** (`closeCoordination` automático en `confirmAdvanceFromCitacion`).
 
-**Supervisor (`supervisor`):** sin `view` / `viewAny` ni dashboard disciplinario. Carga evidencia **FO-GJ-03** si figura como **`notification_supervisor_user_id`**, y evidencia de decisión (**FO-GJ-45** / **FO-GJ-46** / **FO-GJ-47**) si figura como **`decision_notification_supervisor_user_id`**, desde **`GET /disciplinary/evidences-pending`**. Políticas `viewFoGj03NotificationForSupervisor` y `viewDecisionComunicadoForSupervisor` habilitan los modales HTML carta (sin abrir el expediente). Front: `worker-signature-pad.js` (lienzo táctil); previsualización PDF temporal vía Livewire (`config/livewire.php` → `preview_mimes` incluye `pdf`).
+**Supervisor (`supervisor` / `nivel7`):** sin `view` / `viewAny` ni dashboard disciplinario. **Portal de campo** `GET /disciplinary/evidences-pending` (nav **Supervisión**, UI «Mi trabajo»): (1) crear/cargar **FO-GJ-51**; (2) bandeja Citación/Decisión (PDF escaneado o firma en pantalla). La asignación de notificación es a una **zona de supervisión** (`supervision_zones`), no a un usuario concreto; cualquier miembro activo de esa zona puede cargar evidencia/firma. Auditoría queda con el usuario logueado. Catálogo: **Ajustes → Zonas** (`SupervisionZonesIndex`); al crear/editar supervisor se elige la zona. Distinto del campo texto **Lugar** (`notification_zone` / `decision_notification_zone`). FO-GJ-51 acotado por **ciudades autorizadas** (`FieldDisciplinaryScopeService`). Sin zona o sin ciudades, avisos amber en el portal. Policies `viewFoGj03NotificationForSupervisor` / `viewDecisionComunicadoForSupervisor` por membresía de zona. Front: bandeja responsive (sin tabla); `worker-signature-pad.js`; preview PDF temporal Livewire.
 
 **Área administrativa (`administrativa`):** consulta amplia de expedientes (`disciplinary.view` / `viewAny`). Ya no gestiona anexos de terminación (el **abogado titular** carga el paquete PDF en Etapa D).
 
@@ -899,9 +913,10 @@ La autorización se evalúa en 3 capas:
 | `GET /settings/territorio` | **Ajustes · Territorio**: cockpit DIVIPOLA; permiso `settings.manage-territory` |
 | `GET /settings/citacion-articulos` | **Ajustes · Artículos**: plantillas artículo/numeral por falta para FO-GJ-03; permiso `settings.manage-citation-articles` |
 | `GET /settings/preguntas-diligencia` | **Ajustes · Preguntas**: catálogo cuestionario FO-GJ-04; permiso `settings.manage-diligence-questions` |
+| `GET /settings/zonas-supervision` | **Ajustes · Zonas**: CRUD zonas de supervisión de campo; permiso `settings.manage-supervision-zones` |
 | `GET /settings` | Redirect a `settings/territorio` |
 | `GET /disciplinary/cases` | Listado de casos con filtros (roles `planeacion` y `supervisor` → 403) |
-| `GET /disciplinary/evidences-pending` | Cola supervisor (`PendingEvidenceIndex`): citación FO-GJ-03 y decisión FO-GJ-45/46/47 — **Cargar evidencia PDF** (escaneado con vista previa inline) o **Notificación** (HTML carta + firma/rechazo con testigos → PDF Browsershot). Sin acceso al expediente. |
+| `GET /disciplinary/evidences-pending` | **Portal supervisor** (`PendingEvidenceIndex`): hub «Mi trabajo» — FO-GJ-51 + bandeja citación FO-GJ-03 / decisión FO-GJ-45/46/47 — **Cargar PDF** (escaneado + preview) o **Ver notificación** (HTML + firma/rechazo → PDF Browsershot). Cola por zona. Sin acceso al expediente. |
 | `GET /disciplinary/evidences-pending/scanned-preview` | Sirve temporal de Livewire como PDF **inline** (URL firmada; usado en evidencias pendientes y carga FO-GJ-04 firmado en Etapa C). |
 | `GET /disciplinary/coordinations` | Bandeja planeación: chat; en citación notificación física → fechas de diligencia; en decisión programación + notificación |
 | `GET /disciplinary/coordinations/{thread}/attachments/{attachment}` | Descarga de adjunto del hilo de coordinación |
@@ -1008,6 +1023,8 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - [x] Etapa C en detalle del caso (diligencia): FO-GJ-04 (reemplaza FO-GJ-42), asistencia, FO-GJ-44/54, justificación, comité disciplinario (acta + membrete + **ACTA-COMITE** en catálogo Formatos + **Siguiente etapa → DECISION** tras acta), plantilla multipágina Letter (`FoGj04PagePlanner`: cuerpo continuo, firmas atómicas), escala tipográfica unificada en PDF FO-GJ, acta comité con **SjPdfSerif** (Liberation; sustituto de Times New Roman), cargos desde FO-GJ-03, modal con cuestionario pregunta+respuesta y manifestación SI/NO, firma del trabajador en acta, Etapa B solo lectura en modal tramitado, encabezado compacto y botones `<x-ui.btn>`
 - [x] FO-GJ-04 PDF multipágina estable: mismo contrato que FO-GJ-03 (páginas explícitas, cargos/términos/respuestas troceables, cola intro en p.1 cuando cabe, solo firmas atómicas; hojas planificadas = Dompdf)
 - [x] Etapa D: FO-GJ-45/46/47 + coordinación multi-opción (`DecisionCoordinationService`) + artículos desde FO-GJ-03 (`DecisionStatuteArticles`) + evidencia/paquete + cierre con conclusión
+- [x] Zonas de supervisión: catálogo `supervision_zones`, cola/policies por membresía (`SupervisionZoneService`), Ajustes · Zonas, asignación en Usuarios (`nivel7`)
+- [x] Portal supervisor «Mi trabajo»: FO-GJ-51 + bandeja inbox responsive (móvil/PC, sin tabla HTML); nav **Supervisión**
 - [ ] Exportación PDF de actuaciones con plantillas FO-GJ restantes desde el caso
 - [ ] Vista Kanban "Mi pipeline" por abogado
 - [ ] Tests Pest ampliados (parcial: `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj03DocumentPaginatorTest`, `OfficialLetterPdfLayoutTest`, `FoGj04DraftTest`, `FoGj04PagePlannerTest`, `FoGj46DraftTest`, `FoGj47DraftTest`, `FoGj51PreparerSignatureTest`, `DiligenceAttendanceTest`, `DiligenceOperationalRescheduleTest`, `DecisionStageCompletionTest`, `DisciplinaryLawyerPoolClaimTest`, `CaseDetailStageViewsTest`, `OrganizationLetterheadTest`, `EmbeddedPdfFontTest`)

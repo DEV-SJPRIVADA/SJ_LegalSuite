@@ -62,7 +62,9 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
     {
         $planner = $this->makeUser('nivel3', 'planner-decision@test.local');
         $lawyer = $this->makeUser('nivel6', 'lawyer-decision@test.local');
-        $supervisor = $this->makeUser('nivel7', 'supervisor-decision@test.local');
+        $this->seedMunicipality('76001', 'Cali');
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
+        $supervisionZone = $supervisor->currentSupervisionZone();
         $case = $this->makeDecisionCaseWithOpenThread($lawyer, Decision::SUSPENSION);
         $thread = $case->agendaThread;
         $suspensionStart = now()->addDay()->toDateString();
@@ -80,7 +82,7 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
                 'time' => '09:00',
                 'notes' => 'Mañana',
                 'zone' => 'Zona Norte',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisionZone->id,
             ]])
             ->call('submitDecisionPlanningModal')
             ->assertHasNoErrors();
@@ -98,17 +100,17 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
         $this->assertSame('09:00', $slots[0]['time']);
         $this->assertSame('Mañana', $slots[0]['notes']);
         $this->assertSame('Zona Norte', $slots[0]['zone']);
-        $this->assertSame($supervisor->id, $slots[0]['supervisor_user_id']);
-        $this->assertSame($supervisor->name, $slots[0]['supervisor_name']);
+        $this->assertSame($supervisionZone->id, $slots[0]['supervision_zone_id']);
+        $this->assertSame($supervisionZone->name, $slots[0]['supervision_zone_name']);
     }
 
-    public function test_notification_modal_lists_supervisors_for_employee_municipality(): void
+    public function test_notification_modal_lists_active_supervision_zones(): void
     {
         $this->seedMunicipality('76001', 'Cali');
         $planner = $this->makeUser('nivel3', 'planner-sup-list@test.local');
         $lawyer = $this->makeUser('nivel6', 'lawyer-sup-list@test.local');
         $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
-        $supervisor->forceFill(['name' => 'Supervisor Lista Cali'])->save();
+        $supervisionZone = $supervisor->currentSupervisionZone();
 
         $employee = Employee::query()->create([
             'first_name' => 'Worker',
@@ -142,7 +144,7 @@ class DisciplinaryCoordinationsIndexTest extends TestCase
             ->test(\App\Livewire\Disciplinary\Coordinations\Index::class)
             ->assertOk()
             ->call('openNotificationModal')
-            ->assertSee('Supervisor Lista Cali');
+            ->assertSee($supervisionZone->name);
     }
 
     private function makeUser(string $role, string $email): User

@@ -47,6 +47,7 @@ use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
 use App\Livewire\Settings\CitationArticlesIndex;
 use App\Livewire\Settings\DiligenceQuestionsIndex;
+use App\Livewire\Settings\SupervisionZonesIndex;
 use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
@@ -90,6 +91,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
     Route::get('settings/territorio', TerritoryImport::class)->name('settings.territory-import');
     Route::get('settings/citacion-articulos', CitationArticlesIndex::class)->name('settings.citation-articles');
     Route::get('settings/preguntas-diligencia', DiligenceQuestionsIndex::class)->name('settings.diligence-questions');
+    Route::get('settings/zonas-supervision', SupervisionZonesIndex::class)->name('settings.supervision-zones');
 
     Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
         Route::get('/', DisciplinaryPortalController::class)->name('index');
@@ -189,6 +191,7 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', UsersIndex::class)->name('index');
         Route::get('/organizacion', OrganizationCatalog::class)->name('organization');
+        Route::redirect('/zonas-supervision', '/settings/zonas-supervision')->name('supervision-zones');
         Route::get('/{user}', UserDetail::class)->name('show');
     });
 

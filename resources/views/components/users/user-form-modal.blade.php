@@ -1,6 +1,7 @@
 @php
     $effectiveRole = $this->formEffectiveRoleLabel;
     $requiresCities = $this->requiresAuthorizedCities;
+    $requiresZone = $this->requiresSupervisionZone;
     $selectedCities = count($authorizedMunicipalityCodes);
 @endphp
 
@@ -27,13 +28,18 @@
             </button>
         </div>
 
-        @if ($effectiveRole || $requiresCities)
+        @if ($effectiveRole || $requiresCities || $requiresZone)
             <div class="mt-3 rounded-xl bg-slate-50 px-3 py-2.5 text-xs ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
                 @if ($effectiveRole)
                     <p class="font-semibold text-slate-800 dark:text-slate-100">Rol efectivo: {{ $effectiveRole }}</p>
                 @endif
-                @if ($requiresCities)
+                @if ($requiresZone)
                     <p @class(['text-slate-600 dark:text-slate-400', 'mt-1' => $effectiveRole])>
+                        Zona de supervisión requerida (bandeja compartida de notificaciones).
+                    </p>
+                @endif
+                @if ($requiresCities)
+                    <p @class(['text-slate-600 dark:text-slate-400', 'mt-1' => ($effectiveRole || $requiresZone)])>
                         Ciudades autorizadas: <span class="font-semibold tabular-nums">{{ $selectedCities }}</span> seleccionadas (requerido).
                     </p>
                 @endif
@@ -109,35 +115,51 @@
                 </div>
             </section>
 
-            @if ($requiresCities)
+            @if ($requiresCities || $requiresZone)
                 <section class="{{ $section }}">
                     <h3 class="{{ $sectionTitle }}">
                         <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">3</span>
                         Alcance territorial
                     </h3>
-                    <x-employees.form-field label="Ciudades autorizadas" required hint="Supervisor y operador: disciplinarios de guardas en estas ciudades.">
-                        <div class="relative mb-2">
-                            <x-ui.search-field-icon />
-                            <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.250ms="citySearch" class="{{ $field }} pl-8" placeholder="Buscar municipio o código DIVIPOLA…" aria-label="Buscar municipio">
-                        </div>
-                        <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 dark:border-white/15 dark:bg-dash-lift">
-                            @forelse ($this->filteredMunicipalitiesForForm as $department => $municipalities)
-                                <p class="mt-2 first:mt-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-dash-muted">{{ $department }}</p>
-                                <div class="mt-1 grid gap-1 sm:grid-cols-2">
-                                    @foreach ($municipalities as $mun)
-                                        <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.04]">
-                                            <input type="checkbox" wire:model="authorizedMunicipalityCodes" value="{{ $mun['code'] }}"
-                                                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
-                                            <span>{{ $mun['name'] }}</span>
-                                        </label>
+                    <div class="space-y-4">
+                        @if ($requiresZone)
+                            <x-employees.form-field label="Zona de supervisión" required hint="Las tareas de notificación se comparten con los supervisores de esta zona.">
+                                <select wire:model="supervisionZoneId" class="{{ $field }}">
+                                    <option value="">— Seleccionar —</option>
+                                    @foreach ($this->supervisionZonesOptions as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->displayLabel() }}</option>
                                     @endforeach
+                                </select>
+                                @error('supervisionZoneId')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                            </x-employees.form-field>
+                        @endif
+
+                        @if ($requiresCities)
+                            <x-employees.form-field label="Ciudades autorizadas" required hint="Supervisor y operador: disciplinarios de guardas en estas ciudades.">
+                                <div class="relative mb-2">
+                                    <x-ui.search-field-icon />
+                                    <input type="text" inputmode="search" autocomplete="off" wire:model.live.debounce.250ms="citySearch" class="{{ $field }} pl-8" placeholder="Buscar municipio o código DIVIPOLA…" aria-label="Buscar municipio">
                                 </div>
-                            @empty
-                                <p class="py-4 text-center text-xs text-slate-500">Sin municipios para «{{ $citySearch }}».</p>
-                            @endforelse
-                        </div>
-                        @error('authorizedMunicipalityCodes')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
-                    </x-employees.form-field>
+                                <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 dark:border-white/15 dark:bg-dash-lift">
+                                    @forelse ($this->filteredMunicipalitiesForForm as $department => $municipalities)
+                                        <p class="mt-2 first:mt-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-dash-muted">{{ $department }}</p>
+                                        <div class="mt-1 grid gap-1 sm:grid-cols-2">
+                                            @foreach ($municipalities as $mun)
+                                                <label class="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.04]">
+                                                    <input type="checkbox" wire:model="authorizedMunicipalityCodes" value="{{ $mun['code'] }}"
+                                                        class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
+                                                    <span>{{ $mun['name'] }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @empty
+                                        <p class="py-4 text-center text-xs text-slate-500">Sin municipios para «{{ $citySearch }}».</p>
+                                    @endforelse
+                                </div>
+                                @error('authorizedMunicipalityCodes')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                            </x-employees.form-field>
+                        @endif
+                    </div>
                 </section>
             @endif
 

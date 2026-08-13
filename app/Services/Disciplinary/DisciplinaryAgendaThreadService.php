@@ -12,6 +12,7 @@ use App\Models\Disciplinary\DisciplinaryAgendaAttachment;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Models\Disciplinary\SupervisionZone;
 use App\Models\User;
 use App\Notifications\DisciplinaryAgendaLawyerMessageNotification;
 use App\Notifications\DisciplinaryAgendaPlanningMessageNotification;
@@ -420,7 +421,7 @@ class DisciplinaryAgendaThreadService
     }
 
     /**
-     * @param  list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int|null, supervisor_name?: string|null}>  $proposedSlots
+     * @param  list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervision_zone_id?: int|null, supervisor_user_id?: int|null}>  $proposedSlots
      * @param  array{suspension_start?: string|null, suspension_end?: string|null, relief_notes?: string|null}  $decisionPayload
      * @param  list<UploadedFile>  $attachments
      */
@@ -500,29 +501,45 @@ class DisciplinaryAgendaThreadService
     }
 
     /**
-     * @param  list<array{date?: mixed, time?: mixed, notes?: mixed}>  $raw
-     * @return list<array{date: string, time?: string|null, notes?: string|null}>
-     */
-    /**
      * @param  list<array<string, mixed>>  $raw
-     * @return list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervisor_user_id?: int, supervisor_name?: string|null}>
+     * @return list<array{date: string, time?: string|null, notes?: string|null, zone?: string|null, supervision_zone_id?: int, supervision_zone_name?: string}>
      */
     private function normalizeSlots(array $raw, bool $includeNotificationContext = false): array
     {
-        $supervisorNames = [];
+        $supervisionZones = collect();
+        $legacySupervisorZones = collect();
         if ($includeNotificationContext) {
-            $ids = collect($raw)
-                ->filter(fn ($row) => is_array($row) && filled($row['supervisor_user_id'] ?? null))
+            $zoneIds = collect($raw)
+                ->filter(fn ($row) => is_array($row) && filled($row['supervision_zone_id'] ?? null))
+                ->map(fn (array $row) => (int) $row['supervision_zone_id'])
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($zoneIds !== []) {
+                $supervisionZones = SupervisionZone::query()
+                    ->whereIn('id', $zoneIds)
+                    ->get(['id', 'name'])
+                    ->keyBy('id');
+            }
+
+            $legacySupervisorIds = collect($raw)
+                ->filter(fn ($row) => is_array($row)
+                    && ! filled($row['supervision_zone_id'] ?? null)
+                    && filled($row['supervisor_user_id'] ?? null))
                 ->map(fn (array $row) => (int) $row['supervisor_user_id'])
                 ->unique()
                 ->values()
                 ->all();
 
-            if ($ids !== []) {
-                $supervisorNames = User::query()
-                    ->whereIn('id', $ids)
-                    ->pluck('name', 'id')
-                    ->all();
+            if ($legacySupervisorIds !== []) {
+                $legacySupervisorZones = User::query()
+                    ->with('supervisionZones:id,name')
+                    ->whereIn('id', $legacySupervisorIds)
+                    ->get(['id'])
+                    ->mapWithKeys(fn (User $user) => [
+                        $user->id => $user->currentSupervisionZone(),
+                    ]);
             }
         }
 
@@ -547,11 +564,13 @@ class DisciplinaryAgendaThreadService
                     $slot['zone'] = $zone;
                 }
 
-                $supervisorId = $row['supervisor_user_id'] ?? null;
-                if (filled($supervisorId)) {
-                    $supervisorId = (int) $supervisorId;
-                    $slot['supervisor_user_id'] = $supervisorId;
-                    $slot['supervisor_name'] = (string) ($supervisorNames[$supervisorId] ?? '');
+                $supervisionZone = filled($row['supervision_zone_id'] ?? null)
+                    ? $supervisionZones->get((int) $row['supervision_zone_id'])
+                    : $legacySupervisorZones->get((int) ($row['supervisor_user_id'] ?? 0));
+
+                if ($supervisionZone instanceof SupervisionZone) {
+                    $slot['supervision_zone_id'] = (int) $supervisionZone->id;
+                    $slot['supervision_zone_name'] = (string) $supervisionZone->name;
                 }
             }
 

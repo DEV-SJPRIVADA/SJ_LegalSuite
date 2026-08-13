@@ -13,10 +13,12 @@ use App\Support\Disciplinary\OfficialFormsCatalog;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class FoGj45DraftTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -104,7 +106,7 @@ class FoGj45DraftTest extends TestCase
             'decision' => $decision,
             'decision_coordination_started_at' => now()->subDay(),
             'decision_notification_completed_at' => now(),
-            'decision_notification_supervisor_user_id' => User::factory()->create(['is_active' => true])->id,
+            'decision_notification_supervision_zone_id' => $this->seedSupervisionZone()->id,
             'decision_notification_shift' => 'Mañana',
             'decision_notification_zone' => 'Norte',
         ])->save();

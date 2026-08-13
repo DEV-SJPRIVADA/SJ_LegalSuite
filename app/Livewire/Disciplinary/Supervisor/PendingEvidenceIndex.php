@@ -863,7 +863,8 @@ class PendingEvidenceIndex extends Component
         return DisciplinaryCase::query()
             ->with(['employee', 'assignedLawyer.jobPosition', 'informeSubmission', 'documents', 'stages'])
             ->whereKey($caseId)
-            ->where('notification_supervisor_user_id', auth()->id())
+            ->whereHas('notificationSupervisionZone.users', fn ($users) => $users
+                ->whereKey(auth()->id()))
             ->whereNotNull('fo_gj_03_generated_at')
             ->whereNull('citation_evidence_uploaded_at')
             ->firstOrFail();
@@ -874,7 +875,8 @@ class PendingEvidenceIndex extends Component
         return DisciplinaryCase::query()
             ->with(['employee', 'assignedLawyer.jobPosition', 'informeSubmission', 'documents', 'stages'])
             ->whereKey($caseId)
-            ->where('decision_notification_supervisor_user_id', auth()->id())
+            ->whereHas('decisionNotificationSupervisionZone.users', fn ($users) => $users
+                ->whereKey(auth()->id()))
             ->whereNotNull('decision_comunicado_generated_at')
             ->whereNull('decision_evidence_uploaded_at')
             ->firstOrFail();

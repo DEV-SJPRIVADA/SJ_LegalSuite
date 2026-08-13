@@ -568,7 +568,7 @@
     @include('livewire.disciplinary.cases.partials.case-stage-foot-modals', [
         'case' => $case,
         'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel,
-        'supervisorCandidates' => $supervisorCandidates,
+        'supervisionZones' => $supervisionZones,
         'citationReadOnly' => $citationReadOnly ?? false,
         'decisionBranch' => $decisionBranch ?? null,
         'diligenceAdvanceTargetLabel' => $diligenceAdvanceTargetLabel ?? null,

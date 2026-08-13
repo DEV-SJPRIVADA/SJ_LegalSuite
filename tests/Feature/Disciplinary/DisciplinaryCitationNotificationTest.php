@@ -41,6 +41,10 @@ class DisciplinaryCitationNotificationTest extends TestCase
         ['case' => $case, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
         $supervisorA = $this->makeSupervisor('supervisor-a@test.local');
         $supervisorB = $this->makeSupervisor('supervisor-b@test.local');
+        $zoneA = $this->seedSupervisionZone('Zona Supervisión A');
+        $zoneB = $this->seedSupervisionZone('Zona Supervisión B');
+        $this->assignUserToZone($supervisorA, $zoneA);
+        $this->assignUserToZone($supervisorB, $zoneB);
         $service = app(DisciplinaryCitationNotificationService::class);
 
         Notification::fake();
@@ -49,26 +53,28 @@ class DisciplinaryCitationNotificationTest extends TestCase
             'notification_date' => now()->addDay()->toDateString(),
             'notification_shift' => 'Mañana',
             'notification_zone' => 'Zona Norte',
-            'notification_supervisor_user_id' => $supervisorA->id,
+            'notification_supervision_zone_id' => $zoneA->id,
         ]);
 
         $service->completeNotificationInformation($case->fresh(['agendaThread', 'assignedLawyer']), $planner, [
             'notification_date' => now()->addDays(2)->toDateString(),
             'notification_shift' => 'Tarde',
             'notification_zone' => 'Zona Sur',
-            'notification_supervisor_user_id' => $supervisorB->id,
+            'notification_supervision_zone_id' => $zoneB->id,
         ]);
 
         $case->refresh();
         $this->assertSame('Tarde', $case->notification_shift);
         $this->assertSame('Zona Sur', $case->notification_zone);
-        $this->assertSame($supervisorB->id, $case->notification_supervisor_user_id);
+        $this->assertSame($zoneB->id, $case->notification_supervision_zone_id);
+        $this->assertSame($zoneB->name, $case->notification_supervision_zone_name);
     }
 
     public function test_planner_can_complete_notification_before_diligence_slots(): void
     {
         ['case' => $case, 'lawyer' => $lawyer, 'planner' => $planner] = $this->makeCitacionCaseWithCoordination();
         $supervisor = $this->makeSupervisor('supervisor-a@test.local');
+        $zone = $supervisor->currentSupervisionZone();
 
         $this->assertTrue(
             app(DisciplinaryCitationNotificationService::class)->canPlanningRegisterNotification($case->fresh())
@@ -81,13 +87,13 @@ class DisciplinaryCitationNotificationTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Mañana',
                 'notification_zone' => 'Zona Norte',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $zone->id,
                 'notification_notes' => 'Ingreso por puerta principal',
             ]);
 
         $case->refresh();
         $this->assertNotNull($case->notification_information_completed_at);
-        $this->assertSame($supervisor->id, $case->notification_supervisor_user_id);
+        $this->assertSame($zone->id, $case->notification_supervision_zone_id);
         $this->assertSame('Mañana', $case->notification_shift);
         $this->assertSame(AgendaMessageKind::NOTIFICATION_COORDINATION, $message->message_kind);
 
@@ -123,16 +129,18 @@ class DisciplinaryCitationNotificationTest extends TestCase
         $case = $context['case'];
         $reviewer = $context['reviewer'];
         $newSupervisor = $this->makeSupervisor('supervisor-b@test.local');
+        $newZone = $this->seedSupervisionZone('Zona Supervisión Nueva');
+        $this->assignUserToZone($newSupervisor, $newZone);
 
         $updated = app(DisciplinaryCitationNotificationService::class)
-            ->reassignNotificationSupervisor(
+            ->reassignNotificationSupervisionZone(
                 $case->fresh(),
                 $reviewer,
-                $newSupervisor->id,
+                $newZone->id,
                 'Vacaciones del supervisor anterior',
             );
 
-        $this->assertSame($newSupervisor->id, $updated->notification_supervisor_user_id);
+        $this->assertSame($newZone->id, $updated->notification_supervision_zone_id);
         $this->assertDatabaseHas('disciplinary_actions', [
             'disciplinary_case_id' => $case->id,
             'user_id' => $reviewer->id,
@@ -207,6 +215,10 @@ class DisciplinaryCitationNotificationTest extends TestCase
     {
         ['case' => $case] = $this->makeCaseReadyForEvidenceUpload();
         $otherSupervisor = $this->makeSupervisor('other-supervisor@test.local');
+        $this->assignUserToZone(
+            $otherSupervisor,
+            $this->seedSupervisionZone('Zona Supervisión Externa'),
+        );
 
         $this->assertFalse($case->canUserUploadCitationEvidence($otherSupervisor));
     }
@@ -254,6 +266,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
     {
         $context = $this->makeCitacionCaseWithCoordination();
         $supervisor = $this->makeSupervisor('assigned-supervisor@test.local');
+        $zone = $supervisor->currentSupervisionZone();
         $reviewer = $this->makeUserWithRole('nivel2', 'reviewer@test.local');
 
         InformeSubmission::query()->create([
@@ -272,7 +285,7 @@ class DisciplinaryCitationNotificationTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Tarde',
                 'notification_zone' => 'Centro',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $zone->id,
             ]);
 
         app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(

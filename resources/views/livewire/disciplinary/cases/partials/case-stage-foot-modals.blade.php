@@ -2,7 +2,7 @@
 @include('livewire.disciplinary.cases.partials.stage-b-citation-modals', [
     'case' => $case,
     'citationAdvanceTargetLabel' => $citationAdvanceTargetLabel ?? null,
-    'supervisorCandidates' => $supervisorCandidates ?? collect(),
+    'supervisionZones' => $supervisionZones ?? collect(),
     'citationReadOnly' => $citationReadOnly ?? false,
 ])
 

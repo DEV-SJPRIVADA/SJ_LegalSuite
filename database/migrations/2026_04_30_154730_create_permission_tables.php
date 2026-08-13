@@ -153,6 +153,7 @@ return new class extends Migration
             'settings.manage-territory',
             'settings.manage-citation-articles',
             'settings.manage-diligence-questions',
+            'settings.manage-supervision-zones',
         ];
     }
 

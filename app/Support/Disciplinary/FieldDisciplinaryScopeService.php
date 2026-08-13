@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Alcance territorial y por cargo para perfiles de campo (supervisor / operador).
+ * La bandeja de notificaciones usa SupervisionZone (catálogo aparte).
  */
 final class FieldDisciplinaryScopeService
 {
@@ -124,19 +125,5 @@ final class FieldDisciplinaryScopeService
         }
 
         throw new \InvalidArgumentException('El empleado no pertenece a una ciudad autorizada para su perfil.');
-    }
-
-    public function assertSupervisorCoversCase(User $supervisor, DisciplinaryCase $case): void
-    {
-        $case->loadMissing('employee');
-        $code = (string) ($case->employee?->municipality_code ?? '');
-
-        if ($code === '') {
-            throw new \InvalidArgumentException('El empleado del caso no tiene ciudad de labor registrada.');
-        }
-
-        if (! in_array($code, $this->authorizedMunicipalityCodes($supervisor), true)) {
-            throw new \InvalidArgumentException('El supervisor seleccionado no está autorizado para la ciudad de labor del empleado.');
-        }
     }
 }

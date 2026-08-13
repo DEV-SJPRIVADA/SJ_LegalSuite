@@ -146,7 +146,7 @@
                         </p>
                     </div>
                     <div class="min-w-0 space-y-0.5">
-                        <p class="text-sm font-bold text-slate-900 dark:text-white">Fecha y usuario para notificación</p>
+                        <p class="text-sm font-bold text-slate-900 dark:text-white">Programación de notificación</p>
                         <p class="text-sm font-bold text-slate-900 dark:text-white">
                             {{ $notificationSlotDisplay['date'] }}
                             <span class="font-normal text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
@@ -154,7 +154,7 @@
                             <span class="font-normal text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
                             {{ $notificationSlotDisplay['zone'] }}
                             <span class="font-normal text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
-                            {{ $notificationSlotDisplay['nivel7'] }}
+                            {{ $notificationSlotDisplay['supervision_zone'] }}
                         </p>
                     </div>
                 </div>
@@ -185,7 +185,7 @@
                             @if ($notificationSlotDisplay['completed'] ?? false)
                                 <button type="button" wire:click="openReassignSupervisorModal"
                                     class="inline-flex rounded-md bg-white px-3 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-400 hover:bg-amber-50 dark:bg-white/10 dark:text-amber-100">
-                                    Reasignar supervisor
+                                    Reasignar zona
                                 </button>
                             @endif
                         @endcan

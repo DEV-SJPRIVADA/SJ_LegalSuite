@@ -48,7 +48,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Mañana',
                 'notification_zone' => 'Norte',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ],
         );
 
@@ -141,7 +141,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Mañana',
                 'notification_zone' => 'Norte',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ],
         );
 
@@ -161,7 +161,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
             ->call('openPlanningChatModal')
             ->assertSee('Escriba un mensaje para Planeación')
             ->call('openStageCard', 'b')
-            ->assertSee('Fecha y usuario para notificación')
+            ->assertSee('Zona de supervisión')
             ->assertSee('Mañana')
             ->assertSee('Norte');
     }
@@ -181,7 +181,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Tarde',
                 'notification_zone' => 'Centro',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ],
         );
 

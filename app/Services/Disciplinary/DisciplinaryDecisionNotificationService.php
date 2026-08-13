@@ -4,11 +4,9 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
-use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Notifications\DisciplinaryDecisionCoordinatedNotification;
 use App\Notifications\DisciplinaryDecisionEvidenceEnabledNotification;
 use Illuminate\Support\Collection;
@@ -22,6 +20,7 @@ class DisciplinaryDecisionNotificationService
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
         private readonly DecisionDraftService $drafts,
+        private readonly SupervisionZoneService $supervisionZones,
     ) {}
 
     public function canPlanningRegisterNotification(DisciplinaryCase $case): bool
@@ -46,7 +45,7 @@ class DisciplinaryDecisionNotificationService
             'notification_completed' => $coordination->hasConfirmedNotification($case),
             'notification_shift' => filled($case->decision_notification_shift),
             'notification_zone' => filled($case->decision_notification_zone),
-            'notification_supervisor' => $case->decision_notification_supervisor_user_id !== null,
+            'notification_supervision_zone' => $case->decision_notification_supervision_zone_id !== null,
             'decision_draft' => $this->drafts->hasDraftCompleted($case),
             'lawyer_signature' => $case->assignedLawyer?->hasSignature() ?? false,
         ]);
@@ -71,10 +70,10 @@ class DisciplinaryDecisionNotificationService
             $missing[] = 'Turno del trabajador';
         }
         if (! $checklist['notification_zone']) {
-            $missing[] = 'Zona';
+            $missing[] = 'Lugar';
         }
-        if (! $checklist['notification_supervisor']) {
-            $missing[] = 'Supervisor asignado';
+        if (! $checklist['notification_supervision_zone']) {
+            $missing[] = 'Zona de supervisión';
         }
         if (! $checklist['decision_draft']) {
             $missing[] = 'Comunicado diligenciado';
@@ -91,7 +90,7 @@ class DisciplinaryDecisionNotificationService
      *     notification_date: string,
      *     notification_shift: string,
      *     notification_zone: string,
-     *     notification_supervisor_user_id: int,
+     *     notification_supervision_zone_id: int,
      *     notification_notes?: string|null,
      * }  $data
      */
@@ -104,17 +103,9 @@ class DisciplinaryDecisionNotificationService
             throw new \InvalidArgumentException('Planeación debe publicar la programación en el hilo antes de registrar la notificación.');
         }
 
-        $supervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
-            ->whereKey($data['notification_supervisor_user_id'])
-            ->where('is_active', true)
-            ->first();
-
-        if (! $supervisor instanceof User) {
-            throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
-        }
-
-        $case->loadMissing('employee');
-        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
+        $supervisionZone = $this->supervisionZones->assertActiveZone(
+            (int) $data['notification_supervision_zone_id'],
+        );
 
         $thread = $case->agendaThread;
         if ($thread === null) {
@@ -125,12 +116,12 @@ class DisciplinaryDecisionNotificationService
             'notification_date' => $data['notification_date'],
             'notification_shift' => $data['notification_shift'],
             'notification_zone' => $data['notification_zone'],
-            'notification_supervisor_user_id' => $supervisor->id,
-            'notification_supervisor_name' => $supervisor->name,
+            'notification_supervision_zone_id' => $supervisionZone->id,
+            'notification_supervision_zone_name' => $supervisionZone->name,
             'notification_notes' => $data['notification_notes'] ?? null,
         ];
 
-        return DB::transaction(function () use ($case, $planner, $thread, $payload, $supervisor) {
+        return DB::transaction(function () use ($case, $planner, $thread, $payload, $supervisionZone) {
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $planner->id,
@@ -145,8 +136,8 @@ class DisciplinaryDecisionNotificationService
                 'decision_notification_date' => $payload['notification_date'],
                 'decision_notification_shift' => $payload['notification_shift'],
                 'decision_notification_zone' => $payload['notification_zone'],
-                'decision_notification_supervisor_user_id' => $supervisor->id,
-                'decision_notification_supervisor_name' => $supervisor->name,
+                'decision_notification_supervision_zone_id' => $supervisionZone->id,
+                'decision_notification_supervision_zone_name' => $supervisionZone->name,
                 'decision_notification_notes' => $payload['notification_notes'],
                 'decision_notification_supervisor_assigned_at' => now(),
                 'decision_notification_supervisor_assigned_by' => $planner->id,
@@ -173,18 +164,13 @@ class DisciplinaryDecisionNotificationService
 
     public function notifyEvidenceUploadEnabled(DisciplinaryCase $case): void
     {
-        $case = $case->fresh(['employee', 'assignedLawyer']);
+        $case = $case->fresh(['employee', 'assignedLawyer', 'decisionNotificationSupervisionZone']);
         $recipients = collect();
 
-        if ($case->decision_notification_supervisor_user_id) {
-            $supervisor = User::query()
-                ->whereKey($case->decision_notification_supervisor_user_id)
-                ->where('is_active', true)
-                ->where('read_only', false)
-                ->first();
-            if ($supervisor instanceof User) {
-                $recipients->push($supervisor);
-            }
+        if ($case->decisionNotificationSupervisionZone !== null) {
+            $recipients = $recipients->merge(
+                $this->supervisionZones->activeMembers($case->decisionNotificationSupervisionZone),
+            );
         }
 
         $operationsDirectors = User::query()

@@ -142,8 +142,8 @@
                     <p class="text-sm text-slate-700 dark:text-slate-300">
                         Notificación: <strong>{{ $case->decision_notification_date->format('d/m/Y') }}</strong>
                         · Turno: <strong>{{ $case->decision_notification_shift }}</strong>
-                        · Zona: <strong>{{ $case->decision_notification_zone }}</strong>
-                        · Supervisor: <strong>{{ $case->decision_notification_supervisor_name }}</strong>
+                        · Lugar: <strong>{{ $case->decision_notification_zone }}</strong>
+                        · Zona de supervisión: <strong>{{ $case->decision_notification_supervision_zone_name }}</strong>
                     </p>
                 @endif
             </div>
@@ -238,7 +238,7 @@
 
             @if ($comunicadoGenerated && ! $evidenceUploaded && ! $decisionReadOnly && ! $isFoGj45)
                 <p class="text-sm text-amber-800 dark:text-amber-200">
-                    El supervisor asignado debe cargar la evidencia de notificación en <strong>Evidencias pendientes</strong>.
+                    El equipo de la zona de supervisión debe cargar la evidencia de notificación en <strong>Evidencias pendientes</strong>.
                     Luego use <strong>Finalizar proceso</strong> para escribir la conclusión y cerrar el caso.
                 </p>
             @endif

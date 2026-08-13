@@ -97,6 +97,28 @@ class SupervisorEvidenceQueueTest extends TestCase
         $this->assertSame('GJ-PD:IN-SCOPE', $tasks->first()['case']->case_number);
     }
 
+    public function test_citation_queue_is_shared_by_zone_and_hidden_from_other_zones(): void
+    {
+        $firstSupervisor = $this->supervisorUser(['76001']);
+        $sameZoneSupervisor = $this->supervisorUser(['76001']);
+        $otherZoneSupervisor = $this->supervisorUser(['76001']);
+        $otherZone = $this->seedSupervisionZone('Zona Distinta');
+        $this->assignUserToZone($otherZoneSupervisor, $otherZone);
+
+        $case = $this->seedCitationTask($firstSupervisor, 'GJ-PD:SHARED-ZONE');
+        $service = app(SupervisorEvidenceQueueService::class);
+
+        $this->assertTrue($service->tasks($firstSupervisor)->contains(
+            fn (array $task): bool => $task['case']->is($case),
+        ));
+        $this->assertTrue($service->tasks($sameZoneSupervisor)->contains(
+            fn (array $task): bool => $task['case']->is($case),
+        ));
+        $this->assertFalse($service->tasks($otherZoneSupervisor)->contains(
+            fn (array $task): bool => $task['case']->is($case),
+        ));
+    }
+
     /** @param list<string> $municipalityCodes */
     private function supervisorUser(array $municipalityCodes = ['76001']): User
     {
@@ -120,7 +142,7 @@ class SupervisorEvidenceQueueTest extends TestCase
             'employee_id' => $employee->id,
             'current_status' => CaseStatus::CITACION_PROGRAMADA,
             'opened_at' => now()->toDateString(),
-            'notification_supervisor_user_id' => $supervisor->id,
+            'notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             'notification_date' => now()->addDay()->toDateString(),
             'notification_shift' => 'Mañana',
             'notification_zone' => 'Norte',
@@ -154,7 +176,7 @@ class SupervisorEvidenceQueueTest extends TestCase
             'employee_id' => $employee->id,
             'current_status' => CaseStatus::DECISION,
             'opened_at' => now()->toDateString(),
-            'decision_notification_supervisor_user_id' => $supervisor->id,
+            'decision_notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             'decision_notification_date' => now()->addDays(2)->toDateString(),
             'decision_notification_shift' => 'Tarde',
             'decision_notification_zone' => 'Centro',

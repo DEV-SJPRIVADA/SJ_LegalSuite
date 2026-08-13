@@ -5,11 +5,9 @@ namespace App\Services\Disciplinary;
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
-use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Notifications\DisciplinaryFoGj03EvidenceEnabledNotification;
 use App\Notifications\DisciplinaryNotificationCoordinatedNotification;
@@ -24,10 +22,11 @@ class DisciplinaryCitationNotificationService
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
         private readonly FoGj03DraftService $foGj03Drafts,
+        private readonly SupervisionZoneService $supervisionZones,
     ) {}
 
     /**
-     * Planeación puede registrar o actualizar notificación (ingreso, turno, zona, supervisor).
+     * Planeación puede registrar o actualizar notificación (ingreso, turno, lugar y zona de supervisión).
      * Se habilita al iniciar coordinación en Etapa B.
      */
     public function canPlanningRegisterNotification(DisciplinaryCase $case): bool
@@ -72,7 +71,7 @@ class DisciplinaryCitationNotificationService
     public function hasNotificationInformationCompleted(DisciplinaryCase $case): bool
     {
         return $case->notification_information_completed_at !== null
-            && $case->notification_supervisor_user_id !== null;
+            && $case->notification_supervision_zone_id !== null;
     }
 
     /** @return Collection<string, bool> */
@@ -85,7 +84,7 @@ class DisciplinaryCitationNotificationService
             'notification_completed' => $case->notification_information_completed_at !== null,
             'notification_shift' => filled($case->notification_shift),
             'notification_zone' => filled($case->notification_zone),
-            'notification_supervisor' => $case->notification_supervisor_user_id !== null,
+            'notification_supervision_zone' => $case->notification_supervision_zone_id !== null,
             'employee_gender' => WorkerLegalPhrasing::fromEmployee($case->employee)->hasDefiniteGender(),
             'fo_gj_03_draft' => $this->foGj03Drafts->hasDraftCompleted($case),
             'lawyer_signature' => $case->assignedLawyer?->hasSignature() ?? false,
@@ -108,10 +107,10 @@ class DisciplinaryCitationNotificationService
             $missing[] = 'Turno del trabajador';
         }
         if (! $checklist['notification_zone']) {
-            $missing[] = 'Zona';
+            $missing[] = 'Lugar de notificación';
         }
-        if (! $checklist['notification_supervisor']) {
-            $missing[] = 'Supervisor asignado';
+        if (! $checklist['notification_supervision_zone']) {
+            $missing[] = 'Zona de supervisión';
         }
         if (! $checklist['employee_gender']) {
             $missing[] = 'Género del trabajador en catálogo de empleados';
@@ -148,8 +147,8 @@ class DisciplinaryCitationNotificationService
             'definitive_date' => 'Fecha de diligencia confirmada',
             'notification_completed' => 'Información de notificación completada',
             'notification_shift' => 'Turno del trabajador',
-            'notification_zone' => 'Zona',
-            'notification_supervisor' => 'Supervisor asignado',
+            'notification_zone' => 'Lugar de notificación',
+            'notification_supervision_zone' => 'Zona de supervisión',
             'employee_gender' => 'Género del trabajador (Masculino o Femenino)',
             'fo_gj_03_draft' => 'FO-GJ-03 diligenciado',
             'lawyer_signature' => 'Firma digital en Mi perfil',
@@ -180,7 +179,7 @@ class DisciplinaryCitationNotificationService
                 'thread_id' => $thread->id,
                 'user_id' => $lawyer->id,
                 'message_kind' => AgendaMessageKind::LAWYER_NOTIFICATION_REQUEST,
-                'body' => 'Solicitud de información para notificación física del trabajador (fecha de ingreso, turno, zona y supervisor).',
+                'body' => 'Solicitud de información para notificación física del trabajador (fecha de ingreso, turno, lugar y zona de supervisión).',
             ]);
 
             $case->forceFill([
@@ -193,7 +192,7 @@ class DisciplinaryCitationNotificationService
     }
 
     /**
-     * @param  array{notification_date: string, notification_shift: string, notification_zone: string, notification_supervisor_user_id: int, notification_notes?: string|null}  $data
+     * @param  array{notification_date: string, notification_shift: string, notification_zone: string, notification_supervision_zone_id: int, notification_notes?: string|null}  $data
      */
     public function completeNotificationInformation(
         DisciplinaryCase $case,
@@ -204,17 +203,9 @@ class DisciplinaryCitationNotificationService
             throw new \InvalidArgumentException('La coordinación no está disponible para registrar notificación.');
         }
 
-        $supervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
-            ->whereKey($data['notification_supervisor_user_id'])
-            ->where('is_active', true)
-            ->first();
-
-        if (! $supervisor instanceof User) {
-            throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
-        }
-
-        $case->loadMissing('employee');
-        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
+        $supervisionZone = $this->supervisionZones->assertActiveZone(
+            (int) $data['notification_supervision_zone_id'],
+        );
 
         $thread = $case->agendaThread;
         if ($thread === null) {
@@ -225,12 +216,12 @@ class DisciplinaryCitationNotificationService
             'notification_date' => $data['notification_date'],
             'notification_shift' => $data['notification_shift'],
             'notification_zone' => $data['notification_zone'],
-            'notification_supervisor_user_id' => $supervisor->id,
-            'notification_supervisor_name' => $supervisor->name,
+            'notification_supervision_zone_id' => $supervisionZone->id,
+            'notification_supervision_zone_name' => $supervisionZone->name,
             'notification_notes' => $data['notification_notes'] ?? null,
         ];
 
-        return DB::transaction(function () use ($case, $planner, $thread, $payload, $supervisor) {
+        return DB::transaction(function () use ($case, $planner, $thread, $payload, $supervisionZone) {
             $isUpdate = $this->hasNotificationInformationCompleted($case);
 
             $message = DisciplinaryAgendaMessage::create([
@@ -249,8 +240,8 @@ class DisciplinaryCitationNotificationService
                 'notification_date' => $payload['notification_date'],
                 'notification_shift' => $payload['notification_shift'],
                 'notification_zone' => $payload['notification_zone'],
-                'notification_supervisor_user_id' => $supervisor->id,
-                'notification_supervisor_name' => $supervisor->name,
+                'notification_supervision_zone_id' => $supervisionZone->id,
+                'notification_supervision_zone_name' => $supervisionZone->name,
                 'notification_notes' => $payload['notification_notes'],
                 'notification_supervisor_assigned_at' => now(),
                 'notification_supervisor_assigned_by' => $planner->id,
@@ -270,11 +261,11 @@ class DisciplinaryCitationNotificationService
                 $case->fresh(),
                 $planner,
                 ActionType::SUPERVISOR_NOTIFICADOR_ASIGNADO,
-                'Supervisor asignado para notificación física.',
+                'Zona de supervisión asignada para notificación física.',
                 [
-                    'supervisor_user_id' => $supervisor->id,
-                    'supervisor_name' => $supervisor->name,
-                    'zone' => $payload['notification_zone'],
+                    'supervision_zone_id' => $supervisionZone->id,
+                    'supervision_zone_name' => $supervisionZone->name,
+                    'notification_place' => $payload['notification_zone'],
                 ],
             );
 
@@ -289,44 +280,33 @@ class DisciplinaryCitationNotificationService
         });
     }
 
-    public function reassignNotificationSupervisor(
+    public function reassignNotificationSupervisionZone(
         DisciplinaryCase $case,
         User $actor,
-        int $newSupervisorUserId,
+        int $newZoneId,
         string $reason,
     ): DisciplinaryCase {
         if (! $this->hasNotificationInformationCompleted($case)) {
-            throw new \InvalidArgumentException('Aún no hay supervisor de notificación asignado.');
+            throw new \InvalidArgumentException('Aún no hay zona de supervisión asignada.');
         }
 
-        $newSupervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
-            ->whereKey($newSupervisorUserId)
-            ->where('is_active', true)
-            ->first();
-
-        if (! $newSupervisor instanceof User) {
-            throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
-        }
-
-        $case->loadMissing('employee');
-        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($newSupervisor, $case);
-
-        $previousId = (int) $case->notification_supervisor_user_id;
-        $previousName = (string) $case->notification_supervisor_name;
+        $newZone = $this->supervisionZones->assertActiveZone($newZoneId);
+        $previousId = (int) $case->notification_supervision_zone_id;
+        $previousName = (string) $case->notification_supervision_zone_name;
         $reason = trim($reason);
 
         if ($reason === '') {
             throw new \InvalidArgumentException('Indique el motivo de la reasignación.');
         }
 
-        if ($previousId === (int) $newSupervisor->id) {
-            throw new \InvalidArgumentException('Seleccione un supervisor distinto al actual.');
+        if ($previousId === (int) $newZone->id) {
+            throw new \InvalidArgumentException('Seleccione una zona de supervisión distinta a la actual.');
         }
 
-        return DB::transaction(function () use ($case, $actor, $newSupervisor, $previousId, $previousName, $reason) {
+        return DB::transaction(function () use ($case, $actor, $newZone, $previousId, $previousName, $reason) {
             $case->forceFill([
-                'notification_supervisor_user_id' => $newSupervisor->id,
-                'notification_supervisor_name' => $newSupervisor->name,
+                'notification_supervision_zone_id' => $newZone->id,
+                'notification_supervision_zone_name' => $newZone->name,
                 'notification_supervisor_assigned_at' => now(),
                 'notification_supervisor_assigned_by' => $actor->id,
             ])->save();
@@ -335,12 +315,12 @@ class DisciplinaryCitationNotificationService
                 $case->fresh(),
                 $actor,
                 ActionType::SUPERVISOR_NOTIFICADOR_REASIGNADO,
-                'Supervisor de notificación reasignado.',
+                'Zona de supervisión de notificación reasignada.',
                 [
-                    'previous_supervisor_user_id' => $previousId,
-                    'previous_supervisor_name' => $previousName,
-                    'new_supervisor_user_id' => $newSupervisor->id,
-                    'new_supervisor_name' => $newSupervisor->name,
+                    'previous_supervision_zone_id' => $previousId,
+                    'previous_supervision_zone_name' => $previousName,
+                    'new_supervision_zone_id' => $newZone->id,
+                    'new_supervision_zone_name' => $newZone->name,
                     'reason' => $reason,
                 ],
             );
@@ -351,18 +331,13 @@ class DisciplinaryCitationNotificationService
 
     public function notifyEvidenceUploadEnabled(DisciplinaryCase $case): void
     {
-        $case = $case->fresh(['employee', 'assignedLawyer', 'informeSubmission']);
+        $case = $case->fresh(['employee', 'assignedLawyer', 'informeSubmission', 'notificationSupervisionZone']);
         $recipients = collect();
 
-        if ($case->notification_supervisor_user_id) {
-            $supervisor = User::query()
-                ->whereKey($case->notification_supervisor_user_id)
-                ->where('is_active', true)
-                ->where('read_only', false)
-                ->first();
-            if ($supervisor instanceof User) {
-                $recipients->push($supervisor);
-            }
+        if ($case->notificationSupervisionZone !== null) {
+            $recipients = $recipients->merge(
+                $this->supervisionZones->activeMembers($case->notificationSupervisionZone),
+            );
         }
 
         $reviewerId = $case->informeSubmission?->reviewed_by;

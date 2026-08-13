@@ -5,12 +5,10 @@ namespace App\Services\Disciplinary;
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Enums\Disciplinary\CaseStatus;
-use App\Enums\PlatformLevel;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Support\Disciplinary\DecisionBranch;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -23,13 +21,13 @@ class DecisionCoordinationService
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
         private readonly DisciplinaryAgendaThreadService $agenda,
-        private readonly FieldDisciplinaryScopeService $fieldScope,
+        private readonly SupervisionZoneService $supervisionZones,
     ) {}
 
     public function hasConfirmedNotification(DisciplinaryCase $case): bool
     {
         return $case->decision_notification_completed_at !== null
-            && $case->decision_notification_supervisor_user_id !== null
+            && $case->decision_notification_supervision_zone_id !== null
             && $case->decision_notification_date !== null;
     }
 
@@ -179,37 +177,28 @@ class DecisionCoordinationService
         $slot = $slots[$slotIndex];
         $date = trim((string) ($slot['date'] ?? ''));
         $shift = trim((string) ($slot['notes'] ?? ''));
-        $zone = trim((string) ($slot['zone'] ?? ''));
-        $supervisorId = isset($slot['supervisor_user_id']) ? (int) $slot['supervisor_user_id'] : 0;
+        $place = trim((string) ($slot['zone'] ?? ''));
+        $supervisionZoneId = isset($slot['supervision_zone_id'])
+            ? (int) $slot['supervision_zone_id']
+            : $this->resolveLegacySupervisionZoneId($slot);
 
-        if ($date === '' || $shift === '' || $zone === '' || $supervisorId <= 0) {
+        if ($date === '' || $shift === '' || $place === '' || $supervisionZoneId <= 0) {
             throw ValidationException::withMessages([
-                'selectedDecisionSlotKey' => 'La opción debe incluir fecha, turno, zona y supervisor.',
-            ]);
-        }
-
-        $supervisor = User::queryByPlatformLevels(PlatformLevel::Nivel7)
-            ->whereKey($supervisorId)
-            ->where('is_active', true)
-            ->first();
-
-        if (! $supervisor instanceof User) {
-            throw ValidationException::withMessages([
-                'selectedDecisionSlotKey' => 'El supervisor de la opción no es válido.',
+                'selectedDecisionSlotKey' => 'La opción debe incluir fecha, turno, lugar y zona de supervisión.',
             ]);
         }
 
         try {
-            $this->fieldScope->assertSupervisorCoversCase($supervisor, $case);
-        } catch (\InvalidArgumentException $e) {
+            $supervisionZone = $this->supervisionZones->assertActiveZone($supervisionZoneId);
+        } catch (ValidationException) {
             throw ValidationException::withMessages([
-                'selectedDecisionSlotKey' => $e->getMessage(),
+                'selectedDecisionSlotKey' => 'La zona de supervisión de la opción no es válida.',
             ]);
         }
 
         $planningPayload = is_array($message->notification_payload) ? $message->notification_payload : [];
 
-        return DB::transaction(function () use ($case, $lawyer, $message, $slot, $date, $shift, $zone, $supervisor, $slotIndex, $planningPayload) {
+        return DB::transaction(function () use ($case, $lawyer, $message, $slot, $date, $shift, $place, $supervisionZone, $slotIndex, $planningPayload) {
             $this->invalidateGeneratedComunicadoIfNeeded($case, $lawyer);
 
             $case->forceFill([
@@ -217,9 +206,9 @@ class DecisionCoordinationService
                 'decision_notification_message_id' => $message->id,
                 'decision_notification_date' => $date,
                 'decision_notification_shift' => $shift,
-                'decision_notification_zone' => $zone,
-                'decision_notification_supervisor_user_id' => $supervisor->id,
-                'decision_notification_supervisor_name' => $supervisor->name,
+                'decision_notification_zone' => $place,
+                'decision_notification_supervision_zone_id' => $supervisionZone->id,
+                'decision_notification_supervision_zone_name' => $supervisionZone->name,
                 'decision_notification_notes' => isset($slot['time']) && $slot['time'] !== ''
                     ? 'Hora propuesta: '.(string) $slot['time']
                     : null,
@@ -265,7 +254,7 @@ class DecisionCoordinationService
 
             $body = trim((string) $note);
             if ($body === '') {
-                $body = 'Solicito nuevas opciones de fecha/turno/zona/supervisor para notificar la decisión.';
+                $body = 'Solicito nuevas opciones de fecha/turno/lugar/zona de supervisión para notificar la decisión.';
             }
 
             $this->agenda->postLawyerMessage(
@@ -305,8 +294,8 @@ class DecisionCoordinationService
             'decision_notification_date' => null,
             'decision_notification_shift' => null,
             'decision_notification_zone' => null,
-            'decision_notification_supervisor_user_id' => null,
-            'decision_notification_supervisor_name' => null,
+            'decision_notification_supervision_zone_id' => null,
+            'decision_notification_supervision_zone_name' => null,
             'decision_notification_notes' => null,
             'decision_notification_supervisor_assigned_at' => null,
             'decision_notification_supervisor_assigned_by' => null,
@@ -338,6 +327,22 @@ class DecisionCoordinationService
             ActionType::DECISION_COMUNICADO_GENERADO,
             'Comunicado de decisión invalidado por cambio de programación; debe regenerarse.',
         );
+    }
+
+    /** @param array<string, mixed> $slot */
+    private function resolveLegacySupervisionZoneId(array $slot): int
+    {
+        $legacySupervisorId = isset($slot['supervisor_user_id'])
+            ? (int) $slot['supervisor_user_id']
+            : 0;
+
+        if ($legacySupervisorId <= 0) {
+            return 0;
+        }
+
+        $legacySupervisor = User::query()->whereKey($legacySupervisorId)->first();
+
+        return (int) ($legacySupervisor?->currentSupervisionZone()?->id ?? 0);
     }
 
     /** @param  array<string, mixed>  $planningPayload */

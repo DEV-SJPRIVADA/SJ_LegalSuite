@@ -159,10 +159,10 @@
                                                 <span class="block text-xs {{ $slotMuted }}">Turno: {{ $slot['notes'] }}</span>
                                             @endif
                                             @if (! empty($slot['zone']))
-                                                <span class="block text-xs {{ $slotMuted }}">Zona: {{ $slot['zone'] }}</span>
+                                                <span class="block text-xs {{ $slotMuted }}">Lugar: {{ $slot['zone'] }}</span>
                                             @endif
-                                            @if (! empty($slot['supervisor_name']))
-                                                <span class="block text-xs {{ $slotMuted }}">Supervisor: {{ $slot['supervisor_name'] }}</span>
+                                            @if (! empty($slot['supervision_zone_name']))
+                                                <span class="block text-xs {{ $slotMuted }}">Zona de supervisión: {{ $slot['supervision_zone_name'] }}</span>
                                             @endif
                                         </span>
                                     </label>
@@ -175,10 +175,10 @@
                                                 <span class="block text-xs {{ $slotMuted }}">Turno: {{ $slot['notes'] }}</span>
                                             @endif
                                             @if (! empty($slot['zone']))
-                                                <span class="block text-xs {{ $slotMuted }}">Zona: {{ $slot['zone'] }}</span>
+                                                <span class="block text-xs {{ $slotMuted }}">Lugar: {{ $slot['zone'] }}</span>
                                             @endif
-                                            @if (! empty($slot['supervisor_name']))
-                                                <span class="block text-xs {{ $slotMuted }}">Supervisor: {{ $slot['supervisor_name'] }}</span>
+                                            @if (! empty($slot['supervision_zone_name']))
+                                                <span class="block text-xs {{ $slotMuted }}">Zona de supervisión: {{ $slot['supervision_zone_name'] }}</span>
                                             @endif
                                         </span>
                                     </span>
@@ -207,8 +207,8 @@
                 <dl class="{{ ($bodyForDisplay !== '' || $slots !== [] || $decisionMeasurePayload !== []) ? 'mt-2.5' : '' }} grid gap-1 {{ $notifBox }}">
                     <div><span class="font-semibold">Fecha ingreso trabajador:</span> {{ $payload['notification_date'] ?? '—' }}</div>
                     <div><span class="font-semibold">Turno:</span> {{ $payload['notification_shift'] ?? '—' }}</div>
-                    <div><span class="font-semibold">Zona:</span> {{ $payload['notification_zone'] ?? '—' }}</div>
-                    <div><span class="font-semibold">Supervisor:</span> {{ $payload['notification_supervisor_name'] ?? '—' }}</div>
+                    <div><span class="font-semibold">Lugar:</span> {{ $payload['notification_zone'] ?? '—' }}</div>
+                    <div><span class="font-semibold">Zona de supervisión:</span> {{ $payload['notification_supervision_zone_name'] ?? '—' }}</div>
                     @if (! empty($payload['notification_notes']))
                         <div><span class="font-semibold">Observaciones:</span> {{ $payload['notification_notes'] }}</div>
                     @endif

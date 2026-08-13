@@ -5,9 +5,11 @@ namespace Database\Seeders;
 use App\Enums\PlatformLevel;
 use App\Enums\UserArea;
 use App\Models\ColombianMunicipality;
+use App\Models\Disciplinary\SupervisionZone;
 use App\Models\JobPosition;
 use App\Models\OrganizationalArea;
 use App\Models\User;
+use App\Services\Disciplinary\SupervisionZoneService;
 use Illuminate\Database\Seeder;
 
 /**
@@ -17,6 +19,11 @@ class DemoUsersSeeder extends Seeder
 {
     public function run(): void
     {
+        $defaultSupervisionZone = SupervisionZone::query()->firstOrCreate(
+            ['name' => 'Zona de supervisión demo'],
+            ['code' => 'DEMO', 'is_active' => true],
+        );
+
         $defaults = [
             ['email' => 'admin@sjlegalsuite.local', 'name' => 'Administrador', 'level' => PlatformLevel::Nivel1, 'area' => UserArea::JURIDICA, 'read_only' => false],
             ['email' => 'admin.consulta@sjlegalsuite.local', 'name' => 'Admin solo lectura', 'level' => PlatformLevel::Nivel1, 'area' => UserArea::GERENCIA, 'read_only' => true],
@@ -56,6 +63,10 @@ class DemoUsersSeeder extends Seeder
                 ],
             );
             $user->syncRoles([$row['level']->value]);
+
+            if ($row['level'] === PlatformLevel::Nivel7) {
+                app(SupervisionZoneService::class)->assignUser($user, $defaultSupervisionZone);
+            }
 
             if ($row['email'] === 'operaciones@sjlegalsuite.local') {
                 $user->givePermissionTo('disciplinary.review-inform-all');

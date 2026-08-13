@@ -127,7 +127,7 @@ class DecisionStageCompletionTest extends TestCase
             ],
             'decision_draft_completed_at' => now(),
             'decision_comunicado_generated_at' => now(),
-            'decision_notification_supervisor_user_id' => $supervisor->id,
+            'decision_notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
         ]);
 
         DisciplinaryAgendaThread::query()->create([

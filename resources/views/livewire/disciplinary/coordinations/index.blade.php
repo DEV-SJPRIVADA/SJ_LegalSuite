@@ -270,15 +270,17 @@
                         <div class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl bg-white p-5 dark:bg-dash-ink dark:ring-1 dark:ring-white/10">
                             <h3 class="text-lg font-bold text-slate-900 dark:text-white">
                                 @if ($isDecisionCase ?? false)
-                                    Notificación de decisión y supervisor
+                                    Notificación de decisión
                                 @elseif ($citationNotificationCompleted ?? false)
                                     Actualizar notificación física
                                 @else
-                                    Notificación física y supervisor
+                                    Notificación física
                                 @endif
                             </h3>
                             <p class="text-xs text-slate-600 dark:text-slate-400">
-                                {{ ($isDecisionCase ?? false) ? 'Datos para notificar la decisión disciplinaria al trabajador.' : 'Datos para FO-GJ-03 y asignación al supervisor que notificará.' }}
+                                {{ ($isDecisionCase ?? false)
+                                    ? 'Datos para notificar la decisión disciplinaria al trabajador (lugar y zona de supervisión).'
+                                    : 'Datos para FO-GJ-03: lugar físico y zona de supervisión que recibirá la tarea.' }}
                             </p>
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div>
@@ -290,15 +292,15 @@
                                     <input type="text" wire:model="notificationShift" placeholder="Ej. Mañana" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Zona</label>
-                                    <input type="text" wire:model="notificationZone" placeholder="Zona operativa" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Lugar</label>
+                                    <input type="text" wire:model="notificationZone" placeholder="Lugar físico" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Supervisor asignado</label>
-                                    <select wire:model="notificationSupervisorUserId" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Zona de supervisión</label>
+                                    <select wire:model="notificationSupervisionZoneId" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                         <option value="">— Seleccione —</option>
-                                        @foreach ($supervisorCandidates as $supervisor)
-                                            <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                                        @foreach ($supervisionZones as $supervisionZone)
+                                            <option value="{{ $supervisionZone->id }}">{{ $supervisionZone->displayLabel() }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -316,7 +318,7 @@
                             @error('notificationZone')
                                 <p class="text-xs text-red-600">{{ $message }}</p>
                             @enderror
-                            @error('notificationSupervisorUserId')
+                            @error('notificationSupervisionZoneId')
                                 <p class="text-xs text-red-600">{{ $message }}</p>
                             @enderror
                             <div class="flex justify-end gap-2 pt-2">
@@ -363,7 +365,7 @@
                                 <div>
                                     <h4 class="text-sm font-bold text-slate-900 dark:text-white">Opciones para notificar al trabajador</h4>
                                     <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                                        Proponga una o más ventanas (fecha, hora, turno, zona y supervisor). El abogado confirmará una opción; no hace falta un segundo registro.
+                                        Proponga una o más ventanas (fecha, hora, turno, lugar y zona de supervisión). El abogado confirmará una opción; no hace falta un segundo registro.
                                     </p>
                                 </div>
                                 @foreach ($decisionNotificationSlots as $i => $slot)
@@ -384,15 +386,15 @@
                                                 <input type="text" wire:model="decisionNotificationSlots.{{ $i }}.notes" placeholder="Ej. Mañana" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                             </div>
                                             <div>
-                                                <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Zona</label>
-                                                <input type="text" wire:model="decisionNotificationSlots.{{ $i }}.zone" placeholder="Zona operativa" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                                <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Lugar</label>
+                                                <input type="text" wire:model="decisionNotificationSlots.{{ $i }}.zone" placeholder="Lugar físico" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                             </div>
                                             <div>
-                                                <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Supervisor de turno</label>
-                                                <select wire:model="decisionNotificationSlots.{{ $i }}.supervisor_user_id" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                                                <label class="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Zona de supervisión</label>
+                                                <select wire:model="decisionNotificationSlots.{{ $i }}.supervision_zone_id" class="mt-0.5 w-full rounded-md border-slate-300 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
                                                     <option value="">— Seleccione —</option>
-                                                    @foreach ($supervisorCandidates as $supervisor)
-                                                        <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                                                    @foreach ($supervisionZones as $supervisionZone)
+                                                        <option value="{{ $supervisionZone->id }}">{{ $supervisionZone->displayLabel() }}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -406,7 +408,7 @@
                                         @error('decisionNotificationSlots.'.$i.'.zone')
                                             <p class="text-xs text-red-600">{{ $message }}</p>
                                         @enderror
-                                        @error('decisionNotificationSlots.'.$i.'.supervisor_user_id')
+                                        @error('decisionNotificationSlots.'.$i.'.supervision_zone_id')
                                             <p class="text-xs text-red-600">{{ $message }}</p>
                                         @enderror
                                     </div>
