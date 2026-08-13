@@ -263,7 +263,8 @@ class User extends Authenticatable
 
     public function licitacionesPortalUrl(): string
     {
-        if ($this->can('viewDashboard', Licitacion::class)) {
+        if ($this->hasPlatformLevel(PlatformLevel::Nivel1, PlatformLevel::Nivel5, PlatformLevel::Nivel6)
+            || $this->can('viewDashboard', Licitacion::class)) {
             return route('licitaciones.dashboard');
         }
 
@@ -280,6 +281,14 @@ class User extends Authenticatable
 
     public function hasLicitacionesPortalAccess(): bool
     {
+        if ($this->hasPlatformLevel(
+            PlatformLevel::Nivel1,
+            PlatformLevel::Nivel5,
+            PlatformLevel::Nivel6,
+        )) {
+            return true;
+        }
+
         return $this->can('viewDashboard', Licitacion::class)
             || $this->can('viewAny', Licitacion::class)
             || $this->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class);

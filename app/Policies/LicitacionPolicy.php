@@ -20,7 +20,8 @@ class LicitacionPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->has($user, 'licitaciones.view');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel5, PlatformLevel::Nivel6)
+            || $this->has($user, 'licitaciones.view');
     }
 
     public function view(User $user, Licitacion $licitacion): bool
@@ -30,7 +31,8 @@ class LicitacionPolicy
 
     public function viewDashboard(User $user): bool
     {
-        return $this->has($user, 'licitaciones.view-dashboard');
+        return $user->hasPlatformLevel(PlatformLevel::Nivel5, PlatformLevel::Nivel6)
+            || $this->has($user, 'licitaciones.view-dashboard');
     }
 
     public function create(User $user): bool
