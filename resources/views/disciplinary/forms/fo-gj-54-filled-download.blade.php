@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <title>FO-GJ-54 · Reprogramación diligencia</title>
     <style>
-        @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
     </style>
 </head>
@@ -27,18 +26,18 @@
             'originalHearingMonth' => $originalHearingMonth ?? '',
             'originalHearingYear' => $originalHearingYear ?? '',
             'originalHearingTime' => $originalHearingTime ?? '',
-            'factsDay' => $factsDay ?? '',
-            'factsMonth' => $factsMonth ?? '',
-            'clientSite' => $clientSite ?? '',
-            'shiftStart' => $shiftStart ?? '',
-            'shiftEnd' => $shiftEnd ?? '',
+            'informeReportDateLong' => $informeReportDateLong ?? '',
+            'chargesDescription' => $chargesDescription ?? '',
+            'rescheduleCausePhrase' => $rescheduleCausePhrase ?? '',
             'newHearingDay' => $newHearingDay ?? '',
             'newHearingMonth' => $newHearingMonth ?? '',
             'newHearingYear' => $newHearingYear ?? '',
             'newHearingTime' => $newHearingTime ?? '',
-            'newHearingPlace' => $newHearingPlace ?? '',
+            'modality' => $modality ?? 'presencial',
+            'modalityLocationText' => $modalityLocationText ?? '',
             'employerName' => $employerName ?? '',
             'signatureDataUri' => $signatureDataUri ?? null,
+            'legalPhrasing' => $legalPhrasing ?? null,
         ])
     </x-disciplinary.forms.official-letter-pdf-shell>
 </body>

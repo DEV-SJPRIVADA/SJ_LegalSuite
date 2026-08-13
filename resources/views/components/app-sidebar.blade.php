@@ -8,25 +8,26 @@
     $u = auth()->user();
     $disciplinaryAvailable = $u->hasDisciplinaryPortalAccess();
     $disciplinaryRoute = $u->disciplinaryPortalUrl();
-    $disciplinaryCasesNavRoute = $u->disciplinaryCasesNavUrl();
     $licitacionesAvailable = $u->hasLicitacionesPortalAccess();
     $licitacionesRoute = $u->licitacionesPortalUrl();
 
     $fullAppSidebar = $u->canSeeFullAppSidebar();
 
-    $sidebarBrandHref = $fullAppSidebar ? route('dashboard') : ($disciplinaryAvailable ? $disciplinaryRoute : route('dashboard'));
+    $sidebarBrandHref = $u->suiteLandingUrl();
 
     if ($fullAppSidebar) {
         $modules = [];
 
-        $modules[] = [
-            'key' => 'home',
-            'label' => 'Inicio',
-            'route' => route('dashboard'),
-            'active' => request()->routeIs('dashboard'),
-            'icon' => 'home',
-            'available' => true,
-        ];
+        if ($u->canViewHomeCommandCenter()) {
+            $modules[] = [
+                'key' => 'home',
+                'label' => 'Inicio',
+                'route' => route('dashboard'),
+                'active' => request()->routeIs('dashboard'),
+                'icon' => 'home',
+                'available' => true,
+            ];
+        }
 
         $modules[] = [
             'key' => 'employees',
@@ -43,13 +44,15 @@
             'route' => route('settings.territory-import'),
             'active' => request()->routeIs('settings.*'),
             'icon' => 'adjustments',
-            'available' => $u->can('settings.manage-territory'),
+            'available' => $u->can('settings.manage-territory')
+                || $u->can('settings.manage-citation-articles')
+                || $u->can('settings.manage-diligence-questions'),
         ];
 
         $modules[] = [
             'key' => 'disciplinary',
             'label' => $u->isDisciplinaryProgramador() ? 'Mis solicitudes' : 'Disciplinarios',
-            'route' => $disciplinaryCasesNavRoute,
+            'route' => $disciplinaryRoute,
             'active' => request()->routeIs('disciplinary.*'),
             'icon' => 'scale',
             'available' => $disciplinaryAvailable,

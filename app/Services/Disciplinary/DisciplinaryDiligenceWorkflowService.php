@@ -36,11 +36,6 @@ class DisciplinaryDiligenceWorkflowService
             $missing[] = 'FO-GJ-04 generado y guardado en el expediente';
         }
 
-        $payload = $case->fo_gj_04_payload ?? [];
-        if (! filled($payload['worker_signature_data_uri'] ?? null)) {
-            $missing[] = 'Firma del trabajador en el acta FO-GJ-04';
-        }
-
         return $missing;
     }
 

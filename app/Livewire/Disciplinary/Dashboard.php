@@ -25,6 +25,17 @@ class Dashboard extends Component
             return;
         }
 
+        // Roles con portal propio (supervisor, planeación) que llegan aquí
+        // —p. ej. por una URL «intended» tras iniciar sesión— van a su portal
+        // en lugar de un 403 abrupto.
+        $user = auth()->user();
+
+        if ($user->hasDisciplinaryPortalAccess()) {
+            $this->redirect($user->disciplinaryPortalUrl(), navigate: true);
+
+            return;
+        }
+
         abort(403);
     }
 
@@ -32,12 +43,17 @@ class Dashboard extends Component
     {
         $dashboard = app(DisciplinaryDashboardService::class);
         $actor = auth()->user();
+        $data = $dashboard->build($actor);
 
         return view('livewire.disciplinary.dashboard', [
-            'workflowDonuts' => $dashboard->workflowStageDonuts($actor),
-            'byFault' => $dashboard->casesByFault(10, $actor),
-            'caseMapPins' => $dashboard->casesByMunicipalityMapPins($actor),
-            'lawyerWorkload' => $dashboard->lawyerWorkload($actor),
+            'assignedOnly' => $data['assignedOnly'],
+            'kpis' => $data['kpis'],
+            'workflowDonuts' => $data['workflowDonuts'],
+            'byFault' => $data['byFault'],
+            'caseMapPins' => $data['caseMapPins'],
+            'topMunicipalities' => $data['topMunicipalities'],
+            'myWorkload' => $data['myWorkload'],
+            'lawyerWorkloadTop' => $data['lawyerWorkloadTop'],
         ]);
     }
 }

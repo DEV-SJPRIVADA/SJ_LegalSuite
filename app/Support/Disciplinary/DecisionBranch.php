@@ -24,11 +24,7 @@ final class DecisionBranch
         return match ($decision) {
             Decision::SUSPENSION => self::SUSPENSION,
             Decision::TERMINACION_CONTRATO => self::TERMINATION,
-            Decision::AMONESTACION_VERBAL,
-            Decision::AMONESTACION_ESCRITA,
-            Decision::ABSUELTO,
-            Decision::ARCHIVADO => self::NOTICE,
-            default => null,
+            Decision::AMONESTACION_ESCRITA => self::NOTICE,
         };
     }
 
@@ -36,7 +32,7 @@ final class DecisionBranch
     {
         return match ($branch) {
             self::SUSPENSION => 'Suspensión',
-            self::NOTICE => 'Llamado de atención / recordatorio / archivo',
+            self::NOTICE => 'Llamado de atención',
             self::TERMINATION => 'Terminación de contrato',
             default => 'Decisión disciplinaria',
         };
@@ -44,12 +40,19 @@ final class DecisionBranch
 
     public static function requiresSuspensionDates(string $branch): bool
     {
-        return in_array($branch, [self::SUSPENSION, self::TERMINATION], true);
+        return $branch === self::SUSPENSION;
     }
 
-    public static function requiresHrReview(string $branch): bool
+    /** Terminación: el abogado carga un PDF único de anexos laborales firmados. */
+    public static function requiresLawyerTerminationPackage(string $branch): bool
     {
         return $branch === self::TERMINATION;
+    }
+
+    /** @deprecated Use requiresLawyerTerminationPackage — ya no hay cola RRHH. */
+    public static function requiresHrReview(string $branch): bool
+    {
+        return self::requiresLawyerTerminationPackage($branch);
     }
 
     /** @return list<Decision> */
@@ -58,12 +61,7 @@ final class DecisionBranch
         return match ($branch) {
             self::SUSPENSION => [Decision::SUSPENSION],
             self::TERMINATION => [Decision::TERMINACION_CONTRATO],
-            self::NOTICE => [
-                Decision::AMONESTACION_VERBAL,
-                Decision::AMONESTACION_ESCRITA,
-                Decision::ABSUELTO,
-                Decision::ARCHIVADO,
-            ],
+            self::NOTICE => [Decision::AMONESTACION_ESCRITA],
             default => [],
         };
     }

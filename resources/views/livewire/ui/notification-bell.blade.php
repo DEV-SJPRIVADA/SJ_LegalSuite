@@ -1,21 +1,19 @@
 <div class="relative" wire:poll.visible.5s="syncInbox">
-    @php
-        $bellAccent = $unreadCount > 0
-            ? 'ring-2 ring-offset-2 ring-indigo-400 dark:ring-cyan-500 ring-offset-white dark:ring-offset-dash-void'
-            : '';
-    @endphp
     <button type="button"
             wire:click="toggle"
-            class="relative inline-flex items-center justify-center rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-dash-muted dark:hover:bg-white/10 dark:hover:text-white {{ $bellAccent }}"
+            class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
             title="Notificaciones"
-            aria-label="Notificaciones">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
-             stroke="currentColor" class="h-6 w-6 shrink-0">
+            aria-label="Notificaciones{{ $unreadCount > 0 ? ' ('.$unreadCount.' sin leer)' : '' }}"
+            aria-expanded="{{ $open ? 'true' : 'false' }}">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75"
+             stroke="currentColor" class="h-5 w-5 shrink-0" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 01-5.714 0" />
         </svg>
         @if ($unreadCount > 0)
-            <span class="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-[5px] text-[11px] font-bold leading-none text-white shadow-sm">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+            <span class="absolute right-1 top-1 flex h-4 min-w-4 translate-x-0.5 -translate-y-0.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-dash-ink">
+                {{ $unreadCount > 99 ? '99+' : $unreadCount }}
+            </span>
         @endif
     </button>
 
@@ -33,7 +31,7 @@
                         </button>
                     @endunless
                     <button type="button" wire:click="close"
-                            class="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
+                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
                             aria-label="Cerrar">&times;</button>
                 </div>
             </div>
@@ -45,7 +43,6 @@
                     </div>
                 @else
                     @foreach ($recent as $n)
-                        {{-- @var \Illuminate\Notifications\DatabaseNotification $n --}}
                         @php
                             $d = is_array($n->data) ? $n->data : [];
                             $notifTitle = $d['title'] ?? 'Mensaje';
@@ -56,7 +53,7 @@
                         <article class="{{ $showUnreadDot ? 'bg-indigo-50/80 dark:bg-cyan-500/10' : '' }}">
                             @if (filled($actionUrl))
                                 <button type="button" wire:click="openAndMark('{{ $n->id }}')"
-                                        class="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5">
+                                        class="w-full px-4 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-white/5">
                                     <div class="flex items-start gap-3">
                                         <div class="min-w-0 flex-1">
                                             <p class="text-xs font-semibold text-slate-900 dark:text-white">{{ $notifTitle }}</p>

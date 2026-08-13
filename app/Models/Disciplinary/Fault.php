@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Fault extends Model
 {
@@ -37,6 +38,11 @@ class Fault extends Model
             DisciplinaryCase::class,
             'disciplinary_case_fault',
         )->withPivot('extra_info')->withTimestamps();
+    }
+
+    public function citationTemplate(): HasOne
+    {
+        return $this->hasOne(FaultCitationTemplate::class);
     }
 
     public function scopeActive(Builder $query): Builder

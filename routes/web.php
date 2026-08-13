@@ -24,6 +24,8 @@ use App\Http\Controllers\Disciplinary\InformeSubmissionEvidenceInlineController;
 use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
 use App\Http\Controllers\Disciplinary\OfficialFormBlankDownloadController;
 use App\Http\Controllers\Disciplinary\OfficialFormPreviewController;
+use App\Http\Controllers\Disciplinary\OrganizationLetterheadController;
+use App\Http\Controllers\Disciplinary\SupervisorEvidenceUploadPreviewController;
 use App\Http\Controllers\Disciplinary\SupervisorSignedNotificationPreviewController;
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
@@ -44,6 +46,8 @@ use App\Livewire\Disciplinary\Administrativa\PendingDecisionHrIndex;
 use App\Livewire\Disciplinary\Supervisor\PendingEvidenceIndex;
 use App\Livewire\Employees\EmployeesIndex;
 use App\Livewire\Home;
+use App\Livewire\Settings\CitationArticlesIndex;
+use App\Livewire\Settings\DiligenceQuestionsIndex;
 use App\Livewire\Settings\TerritoryImport;
 use App\Livewire\Users\OrganizationCatalog;
 use App\Livewire\Users\UserDetail;
@@ -82,7 +86,11 @@ Route::middleware(['auth', 'must-change-password'])->group(function () {
 Route::middleware(['auth', 'must-change-password', 'verified'])->group(function () {
     Route::get('dashboard', Home::class)->name('dashboard');
 
+    Route::redirect('settings', 'settings/territorio')->name('settings.index');
+
     Route::get('settings/territorio', TerritoryImport::class)->name('settings.territory-import');
+    Route::get('settings/citacion-articulos', CitationArticlesIndex::class)->name('settings.citation-articles');
+    Route::get('settings/preguntas-diligencia', DiligenceQuestionsIndex::class)->name('settings.diligence-questions');
 
     Route::prefix('disciplinary')->name('disciplinary.')->group(function () {
         Route::get('/', DisciplinaryPortalController::class)->name('index');
@@ -124,6 +132,8 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::get('evidences-pending', PendingEvidenceIndex::class)->name('evidences-pending.index');
         Route::get('evidences-pending/signed-preview/{token}', SupervisorSignedNotificationPreviewController::class)
             ->name('evidences-pending.signed-preview');
+        Route::get('evidences-pending/scanned-preview', SupervisorEvidenceUploadPreviewController::class)
+            ->name('evidences-pending.scanned-preview');
         Route::get('decision-hr-pending', PendingDecisionHrIndex::class)->name('decision-hr-pending.index');
         Route::get('coordinations', CoordinationsIndex::class)->name('coordinations.index');
         Route::get('coordinations/{thread}/attachments/{attachment}/inline', DisciplinaryAgendaThreadAttachmentInlineController::class)
@@ -138,6 +148,14 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
             ->name('cases.documents.file');
         Route::get('cases/{case}/fo-gj-03/pdf', [FoGj03CaseController::class, 'download'])
             ->name('cases.fo-gj-03.pdf');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}', [FoGj03CaseController::class, 'pdfQueueWait'])
+            ->name('cases.fo-gj-03.pdf-queue');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/status', [FoGj03CaseController::class, 'pdfQueueStatus'])
+            ->name('cases.fo-gj-03.pdf-queue.status');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/download', [FoGj03CaseController::class, 'pdfQueueDownload'])
+            ->name('cases.fo-gj-03.pdf-queue.download');
+        Route::get('cases/{case}/fo-gj-03/pdf-queue/{token}/complete', [FoGj03CaseController::class, 'pdfQueueComplete'])
+            ->name('cases.fo-gj-03.pdf-queue.complete');
         Route::post('cases/{case}/fo-gj-03/generate', [FoGj03CaseController::class, 'generate'])
             ->name('cases.fo-gj-03.generate');
         Route::get('cases/{case}/fo-gj-04/pdf', [FoGj04CaseController::class, 'download'])

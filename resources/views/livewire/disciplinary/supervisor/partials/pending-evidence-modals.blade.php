@@ -10,8 +10,9 @@
         <div class="absolute inset-0 bg-black/50 dark:bg-black/60" wire:click="cancelEvidenceUpload" aria-hidden="true"></div>
         <div class="relative flex h-[min(92dvh,calc(100dvh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
             <div class="shrink-0 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
-                <h2 id="evidence-preview-title" class="text-base font-bold text-slate-900 dark:text-white">Confirmar evidencia PDF</h2>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Revise el documento antes de cargarlo al expediente.</p>
+                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-fuchsia-400/90">Confirmación</p>
+                <h2 id="evidence-preview-title" class="text-sm font-semibold text-slate-900 dark:text-white">Evidencia PDF</h2>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Revise el documento antes de cargarlo al expediente.</p>
             </div>
 
             <div class="min-h-0 flex-1 bg-slate-100 dark:bg-black/40">
@@ -93,35 +94,11 @@
                 ">
                 <div class="ogj-letter-screen-scaler">
                     <div class="ogj-letter-screen-sheet" x-ref="letterSheet" :style="`transform: scale(${scale});`">
-                        @include('disciplinary.forms.partials.official-letter-pdf-styles')
-                        <div class="ogj-wrap">
-                            <div class="ogj-page ogj-page--screen-preview">
-                                <table class="ogj-tbl ogj-head-grid" role="presentation">
-                                    <colgroup>
-                                        <col style="width:102px">
-                                        <col>
-                                        <col style="width:114px">
-                                    </colgroup>
-                                    <tbody>
-                                        <tr>
-                                            <td class="ogj-logo-cell">
-                                                <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
-                                            </td>
-                                            <td class="ogj-title">Citación a diligencia disciplinaria</td>
-                                            <td class="ogj-meta">
-                                                <table class="ogj-meta-grid" role="presentation">
-                                                    <tr><td class="ogj-meta-code">FO-GJ-03</td></tr>
-                                                    <tr><td>Octubre de 2023</td></tr>
-                                                    <tr><td>Versión 03</td></tr>
-                                                    <tr><td>Página 1 de 1</td></tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                @include('disciplinary.forms.partials.fo-gj-03-body', array_merge($notificationViewData, ['blankForDownload' => false]))
-                            </div>
-                        </div>
+                        @include('disciplinary.forms.partials.fo-gj-03-pdf-styles')
+                        @include('disciplinary.forms.partials.fo-gj-03-body', array_merge($notificationViewData, [
+                            'blankForDownload' => false,
+                            'logoSrc' => \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri(),
+                        ]))
                     </div>
                 </div>
             </div>
@@ -235,8 +212,13 @@
     </div>
 @endif
 
-{{-- Fase B (decisión): comunicado FO-GJ-DECISION + firma del trabajador o testigos --}}
+{{-- Fase B (decisión): FO-GJ-45 / FO-GJ-46 / FO-GJ-47 + firma --}}
 @if (($decisionNotificationCaseId ?? null) !== null && ($decisionNotificationCase ?? null) && ($decisionNotificationViewData ?? null) && empty($signedNotificationPreviewToken))
+    @php
+        $decisionIsFo46 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::AMONESTACION_ESCRITA;
+        $decisionIsFo47 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::SUSPENSION;
+        $decisionIsFo45 = ($decisionNotificationCase->decision ?? null) === \App\Enums\Disciplinary\Decision::TERMINACION_CONTRATO;
+    @endphp
     <div class="fixed inset-0 z-[78] flex items-center justify-center p-2 sm:p-4"
         x-data="{ scale: 1 }"
         x-on:keydown.escape.window="$wire.closeDecisionNotificationModal()"
@@ -249,7 +231,16 @@
             <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
                 <div>
                     <h2 id="decision-notification-modal-title" class="text-base font-bold text-slate-900 dark:text-white">
-                        Comunicado de decisión · {{ $decisionNotificationCase->case_number }}
+                        @if ($decisionIsFo46)
+                            FO-GJ-46 · Llamado de atención
+                        @elseif ($decisionIsFo47)
+                            FO-GJ-47 · Suspensión
+                        @elseif ($decisionIsFo45)
+                            FO-GJ-45 · Acta de archivo
+                        @else
+                            Comunicado de decisión
+                        @endif
+                        · {{ $decisionNotificationCase->case_number }}
                     </h2>
                     <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {{ $decisionNotificationCase->employee?->first_name }} {{ $decisionNotificationCase->employee?->last_name }}
@@ -276,35 +267,58 @@
                 ">
                 <div class="ogj-letter-screen-scaler">
                     <div class="ogj-letter-screen-sheet" x-ref="decisionLetterSheet" :style="`transform: scale(${scale});`">
-                        @include('disciplinary.forms.partials.official-letter-pdf-styles')
-                        <div class="ogj-wrap">
-                            <div class="ogj-page ogj-page--screen-preview">
-                                <table class="ogj-tbl ogj-head-grid" role="presentation">
-                                    <colgroup>
-                                        <col style="width:102px">
-                                        <col>
-                                        <col style="width:114px">
-                                    </colgroup>
-                                    <tbody>
-                                        <tr>
-                                            <td class="ogj-logo-cell">
-                                                <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
-                                            </td>
-                                            <td class="ogj-title">Comunicado de decisión de sanción o cierre del proceso</td>
-                                            <td class="ogj-meta">
-                                                <table class="ogj-meta-grid" role="presentation">
-                                                    <tr><td class="ogj-meta-code">FO-GJ-DECISION</td></tr>
-                                                    <tr><td>{{ $decisionNotificationViewData['issuedDate'] ?? '' }}</td></tr>
-                                                    <tr><td>Versión 01</td></tr>
-                                                    <tr><td>Página 1 de 1</td></tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                @include('disciplinary.forms.partials.decision-comunicado-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                        @if ($decisionIsFo47)
+                            @include('disciplinary.forms.partials.fo-gj-47-body', array_merge($decisionNotificationViewData, [
+                                'blankForDownload' => false,
+                                'embeddedLogoSrc' => \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri(),
+                            ]))
+                        @else
+                            @include('disciplinary.forms.partials.official-letter-pdf-styles')
+                            <div class="ogj-wrap">
+                                <div class="ogj-page ogj-page--screen-preview">
+                                    <table class="ogj-tbl ogj-head-grid" role="presentation">
+                                        <colgroup>
+                                            <col style="width:102px">
+                                            <col>
+                                            <col style="width:114px">
+                                        </colgroup>
+                                        <tbody>
+                                            <tr>
+                                                <td class="ogj-logo-cell">
+                                                    <img src="{{ \App\Support\Pdf\EmbeddedPublicAsset::disciplinaryLogoDataUri() }}" alt="SJ Seguridad">
+                                                </td>
+                                                <td class="ogj-title">
+                                                    @if ($decisionIsFo46)
+                                                        Llamado de atención
+                                                    @elseif ($decisionIsFo45)
+                                                        ACTA DE ARCHIVO
+                                                    @elseif ($decisionIsFo47)
+                                                        Suspensión disciplinaria
+                                                    @else
+                                                        Documento de decisión
+                                                    @endif
+                                                </td>
+                                                <td class="ogj-meta">
+                                                    <table class="ogj-meta-grid" role="presentation">
+                                                        <tr><td class="ogj-meta-code">{{ $decisionIsFo46 ? 'FO-GJ-46' : ($decisionIsFo45 ? 'FO-GJ-45' : ($decisionIsFo47 ? 'FO-GJ-47' : 'FO-GJ')) }}</td></tr>
+                                                        <tr><td>Noviembre de 2023</td></tr>
+                                                        <tr><td>Versión 02</td></tr>
+                                                        <tr><td>Página 1 de 1</td></tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    @if ($decisionIsFo46)
+                                        @include('disciplinary.forms.partials.fo-gj-46-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @elseif ($decisionIsFo45)
+                                        @include('disciplinary.forms.partials.fo-gj-45-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @else
+                                        @include('disciplinary.forms.partials.fo-gj-46-body', array_merge($decisionNotificationViewData, ['blankForDownload' => false]))
+                                    @endif
+                                </div>
                             </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
             </div>

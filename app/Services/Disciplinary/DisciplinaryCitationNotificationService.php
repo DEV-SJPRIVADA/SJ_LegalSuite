@@ -4,9 +4,12 @@ namespace App\Services\Disciplinary;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\AgendaMessageKind;
+use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Notifications\DisciplinaryFoGj03EvidenceEnabledNotification;
 use App\Notifications\DisciplinaryNotificationCoordinatedNotification;
 use Illuminate\Support\Collection;
@@ -23,15 +26,16 @@ class DisciplinaryCitationNotificationService
     ) {}
 
     /**
-     * Planeación puede registrar notificación (ingreso, turno, zona, supervisor).
-     * Se habilita al publicar fechas de diligencia, sin solicitud manual del abogado.
+     * Planeación puede registrar o actualizar notificación (ingreso, turno, zona, supervisor).
+     * Se habilita al iniciar coordinación en Etapa B.
      */
     public function canPlanningRegisterNotification(DisciplinaryCase $case): bool
     {
-        if ($this->hasNotificationInformationCompleted($case)) {
-            return false;
-        }
+        return $this->canPlanningManageNotification($case);
+    }
 
+    public function canPlanningManageNotification(DisciplinaryCase $case): bool
+    {
         if (! $case->hasCoordinationStarted()) {
             return false;
         }
@@ -42,7 +46,13 @@ class DisciplinaryCitationNotificationService
             return false;
         }
 
-        return $case->hasPlanningProposedSlots();
+        return $case->current_status === CaseStatus::CITACION_PROGRAMADA;
+    }
+
+    public function canPlanningProposeDiligenceSlots(DisciplinaryCase $case): bool
+    {
+        return $this->canPlanningManageNotification($case)
+            && $this->hasNotificationInformationCompleted($case);
     }
 
     public function hasPendingNotificationRequest(DisciplinaryCase $case): bool
@@ -55,7 +65,7 @@ class DisciplinaryCitationNotificationService
             return true;
         }
 
-        return $this->canPlanningRegisterNotification($case);
+        return $this->canPlanningManageNotification($case);
     }
 
     public function hasNotificationInformationCompleted(DisciplinaryCase $case): bool
@@ -67,12 +77,15 @@ class DisciplinaryCitationNotificationService
     /** @return Collection<string, bool> */
     public function foGj03GenerationChecklist(DisciplinaryCase $case): Collection
     {
+        $case->loadMissing('employee', 'assignedLawyer');
+
         return collect([
             'definitive_date' => $case->citation_confirmed_date !== null,
             'notification_completed' => $case->notification_information_completed_at !== null,
             'notification_shift' => filled($case->notification_shift),
             'notification_zone' => filled($case->notification_zone),
             'notification_supervisor' => $case->notification_supervisor_user_id !== null,
+            'employee_gender' => WorkerLegalPhrasing::fromEmployee($case->employee)->hasDefiniteGender(),
             'fo_gj_03_draft' => $this->foGj03Drafts->hasDraftCompleted($case),
             'lawyer_signature' => $case->assignedLawyer?->hasSignature() ?? false,
         ]);
@@ -98,6 +111,9 @@ class DisciplinaryCitationNotificationService
         }
         if (! $checklist['notification_supervisor']) {
             $missing[] = 'Supervisor asignado';
+        }
+        if (! $checklist['employee_gender']) {
+            $missing[] = 'Género del trabajador en catálogo de empleados';
         }
         if (! $checklist['fo_gj_03_draft']) {
             $missing[] = 'Diligenciamiento del FO-GJ-03';
@@ -133,6 +149,7 @@ class DisciplinaryCitationNotificationService
             'notification_shift' => 'Turno del trabajador',
             'notification_zone' => 'Zona',
             'notification_supervisor' => 'Supervisor asignado',
+            'employee_gender' => 'Género del trabajador (Masculino o Femenino)',
             'fo_gj_03_draft' => 'FO-GJ-03 diligenciado',
             'lawyer_signature' => 'Firma digital en Mi perfil',
         ];
@@ -140,12 +157,8 @@ class DisciplinaryCitationNotificationService
 
     public function requestNotificationInformation(DisciplinaryCase $case, User $lawyer): DisciplinaryAgendaMessage
     {
-        if ($case->citation_confirmed_date === null) {
-            throw new \InvalidArgumentException('Confirme la fecha de diligencia antes de solicitar información de notificación.');
-        }
-
-        if ($this->canPlanningRegisterNotification($case)) {
-            throw new \InvalidArgumentException('Planeación ya puede registrar la notificación desde Coordinaciones (fechas de diligencia publicadas).');
+        if ($this->canPlanningManageNotification($case)) {
+            throw new \InvalidArgumentException('Planeación ya puede registrar la notificación desde Coordinaciones.');
         }
 
         if ($case->notification_requested_at !== null) {
@@ -186,19 +199,22 @@ class DisciplinaryCitationNotificationService
         User $planner,
         array $data,
     ): DisciplinaryAgendaMessage {
-        if (! $this->canPlanningRegisterNotification($case)) {
-            throw new \InvalidArgumentException('Planeación debe publicar fechas de diligencia en el hilo antes de registrar la notificación.');
+        if (! $this->canPlanningManageNotification($case)) {
+            throw new \InvalidArgumentException('La coordinación no está disponible para registrar notificación.');
         }
 
         $supervisor = User::query()
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
 
         $thread = $case->agendaThread;
         if ($thread === null) {
@@ -215,11 +231,15 @@ class DisciplinaryCitationNotificationService
         ];
 
         return DB::transaction(function () use ($case, $planner, $thread, $payload, $supervisor) {
+            $isUpdate = $this->hasNotificationInformationCompleted($case);
+
             $message = DisciplinaryAgendaMessage::create([
                 'thread_id' => $thread->id,
                 'user_id' => $planner->id,
                 'message_kind' => AgendaMessageKind::NOTIFICATION_COORDINATION,
-                'body' => 'Información de notificación física registrada por Planeación.',
+                'body' => $isUpdate
+                    ? 'Información de notificación física actualizada por Planeación.'
+                    : 'Información de notificación física registrada por Planeación.',
                 'notification_payload' => $payload,
             ]);
 
@@ -240,8 +260,10 @@ class DisciplinaryCitationNotificationService
                 $case->fresh(),
                 $planner,
                 ActionType::NOTIFICACION_COORDINADA,
-                'Planeación registró información para notificación física.',
-                ['message_id' => $message->id, 'payload' => $payload],
+                $isUpdate
+                    ? 'Planeación actualizó información para notificación física.'
+                    : 'Planeación registró información para notificación física.',
+                ['message_id' => $message->id, 'payload' => $payload, 'updated' => $isUpdate],
             );
 
             $this->audit->logCase(
@@ -280,12 +302,15 @@ class DisciplinaryCitationNotificationService
         $newSupervisor = User::query()
             ->whereKey($newSupervisorUserId)
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $newSupervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($newSupervisor, $case);
 
         $previousId = (int) $case->notification_supervisor_user_id;
         $previousName = (string) $case->notification_supervisor_name;

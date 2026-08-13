@@ -18,9 +18,15 @@ class ProcessFoGj51PdfJob implements ShouldQueue
 {
     use Queueable;
 
+    /** Cola dedicada: el cron la vacía antes que `default` (notificaciones). */
+    public const QUEUE = 'pdf';
+
     public int $timeout = 180;
 
-    public function __construct(public string $token) {}
+    public function __construct(public string $token)
+    {
+        $this->onQueue(self::QUEUE);
+    }
 
     public function handle(
         FoGj51PdfBuilder $builder,

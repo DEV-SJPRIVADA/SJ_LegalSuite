@@ -67,10 +67,24 @@ final class OfficialFormsCatalog
                 'pdf' => self::pdfIfExists('FO-GJ-04-acta-diligencia.pdf'),
             ],
             [
-                'code' => 'FO-GJ-DECISION',
-                'title' => 'Comunicado de decisión de sanción o cierre del proceso',
+                'code' => 'FO-GJ-45',
+                'title' => 'Acta de archivo',
                 'phase' => 'D · Decisión / cierre',
-                'summary' => 'Comunicación al trabajador de la decisión (sanción) o del cierre del proceso cuando aplique.',
+                'summary' => 'Acta de archivo en terminación de contrato (junto al paquete PDF de anexos firmados).',
+                'pdf' => null,
+            ],
+            [
+                'code' => 'FO-GJ-46',
+                'title' => 'Llamado de atención',
+                'phase' => 'D · Decisión / cierre',
+                'summary' => 'Comunicado de llamado de atención escrito (amonestación escrita) al cierre del proceso disciplinario.',
+                'pdf' => null,
+            ],
+            [
+                'code' => 'FO-GJ-47',
+                'title' => 'Suspensión disciplinaria',
+                'phase' => 'D · Decisión / cierre',
+                'summary' => 'Comunicado de suspensión de contrato laboral: días, fechas (inicio con planeación + cálculo de fin/retorno) y fundamento jurídico.',
                 'pdf' => null,
             ],
             [
@@ -145,10 +159,20 @@ final class OfficialFormsCatalog
                 'inline' => 'ACTA-COMITE-en-blanco.pdf',
                 'download' => 'ACTA-COMITE-en-blanco.pdf',
             ],
-            'FO-GJ-DECISION' => [
-                'view' => 'disciplinary.forms.decision-comunicado-blank-download',
-                'inline' => 'FO-GJ-DECISION-en-blanco.pdf',
-                'download' => 'FO-GJ-DECISION-en-blanco.pdf',
+            'FO-GJ-45' => [
+                'view' => 'disciplinary.forms.fo-gj-45-blank-download',
+                'inline' => 'FO-GJ-45-acta-archivo-en-blanco.pdf',
+                'download' => 'FO-GJ-45-acta-archivo-en-blanco.pdf',
+            ],
+            'FO-GJ-46' => [
+                'view' => 'disciplinary.forms.fo-gj-46-blank-download',
+                'inline' => 'FO-GJ-46-llamado-atencion-en-blanco.pdf',
+                'download' => 'FO-GJ-46-llamado-atencion-en-blanco.pdf',
+            ],
+            'FO-GJ-47' => [
+                'view' => 'disciplinary.forms.fo-gj-47-blank-download',
+                'inline' => 'FO-GJ-47-suspension-en-blanco.pdf',
+                'download' => 'FO-GJ-47-suspension-en-blanco.pdf',
             ],
         ];
     }
@@ -222,8 +246,18 @@ final class OfficialFormsCatalog
             }
         }
 
-        if (strtoupper($normalizedCode) === 'FO-GJ-DECISION') {
-            $bodyPath = resource_path('views/disciplinary/forms/partials/decision-comunicado-body.blade.php');
+        if (strtoupper($normalizedCode) === 'FO-GJ-45') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-45-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-46') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-46-body.blade.php');
+            $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
+        }
+
+        if (strtoupper($normalizedCode) === 'FO-GJ-47') {
+            $bodyPath = resource_path('views/disciplinary/forms/partials/fo-gj-47-body.blade.php');
             $mtime = max($mtime, (int) (@filemtime($bodyPath) ?: 0));
         }
 

@@ -12,7 +12,7 @@ class InformeSubmissionPolicy
 {
     public function viewAny(User $user): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return true;
         }
 
@@ -39,7 +39,7 @@ class InformeSubmissionPolicy
 
     public function review(User $user, InformeSubmission $informeSubmission): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return true;
         }
 

@@ -12,9 +12,11 @@ use App\Models\Disciplinary\DisciplinaryAction;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\DisciplinaryStage;
 use App\Models\User;
+use App\Support\Disciplinary\SpanishDateParts;
 use App\Workflow\Disciplinary\TransitionMap;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Único punto de entrada para mover un caso entre estados.
@@ -240,6 +242,147 @@ class DisciplinaryWorkflowService
         }
 
         return $case;
+    }
+
+    /**
+     * Reprogramación operativa desde diligencia (fuerza mayor / necesidad de la compañía).
+     * Conserva FO-GJ-03 y su evidencia (citación única). Queda en REPROGRAMADO hasta
+     * cargar evidencia de recibido del FO-GJ-54 y volver a diligencia.
+     *
+     * @param  array{
+     *     reason: string,
+     *     new_hearing_date?: string|null,
+     *     new_hearing_time?: string|null,
+     *     new_hearing_place?: string|null,
+     *     defer_date_to_planning?: bool,
+     * }  $payload
+     */
+    public function rescheduleDiligenceOperational(DisciplinaryCase $case, User $actor, array $payload, ?string $note = null): DisciplinaryCase
+    {
+        if ($case->current_status !== CaseStatus::DILIGENCIA
+            && ! ($case->current_status === CaseStatus::REPROGRAMADO && $this->isOperationalRescheduleCase($case))) {
+            throw new InvalidStateTransitionException('La reprogramación operativa solo aplica desde diligencia o reprogramación operativa en curso.');
+        }
+
+        if ($case->diligence_attendance !== null) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'No es posible reprogramar: la asistencia ya fue registrada.',
+            ]);
+        }
+
+        $reason = trim((string) ($payload['reason'] ?? ''));
+        if ($reason === '') {
+            throw ValidationException::withMessages([
+                'foGj54RescheduleReason' => 'Indique el motivo de la reprogramación.',
+            ]);
+        }
+
+        $deferToPlanning = (bool) ($payload['defer_date_to_planning'] ?? false);
+        $newHearingDate = trim((string) ($payload['new_hearing_date'] ?? ''));
+        $newHearingTime = trim((string) ($payload['new_hearing_time'] ?? ''));
+        $newHearingPlace = trim((string) ($payload['new_hearing_place'] ?? ''));
+
+        $this->logAction(
+            $case,
+            $actor,
+            ActionType::REPROGRAMADO,
+            $note ?? 'Reprogramación operativa de diligencia (FO-GJ-54).',
+            [
+                'reason' => $reason,
+                'defer_date_to_planning' => $deferToPlanning,
+                'new_hearing_date' => $newHearingDate,
+                'new_hearing_time' => $newHearingTime,
+                'new_hearing_place' => $newHearingPlace,
+                'preserves_fo_gj_03' => true,
+            ],
+        );
+
+        if ($case->current_status === CaseStatus::DILIGENCIA) {
+            $case = $this->transition(
+                $case,
+                CaseStatus::REPROGRAMADO,
+                $actor,
+                $note ?? 'Reprogramación operativa de diligencia.',
+                [
+                    'reason' => $reason,
+                    'operational' => true,
+                ],
+                StageType::REPROGRAMACION,
+            );
+        }
+
+        $case = $case->fresh();
+
+        $updates = [
+            'fo_gj_54_evidence_uploaded_at' => null,
+        ];
+
+        if ($deferToPlanning) {
+            $updates['citation_confirmed_date'] = null;
+            $updates['citation_confirmed_time'] = null;
+            $updates['citation_confirmed_by'] = null;
+            $updates['citation_selected_message_id'] = null;
+        } elseif ($newHearingDate !== '') {
+            $updates['citation_confirmed_date'] = $newHearingDate;
+            $updates['citation_confirmed_time'] = SpanishDateParts::normalizeTimeForStorage($newHearingTime);
+            $updates['citation_confirmed_by'] = $actor->id;
+        }
+
+        $case->forceFill($updates)->save();
+
+        return $case->fresh();
+    }
+
+    /**
+     * Tras evidencia de recibido del FO-GJ-54 operativo: vuelve a Etapa C (diligencia).
+     */
+    public function returnToDiligenceAfterFoGj54Evidence(DisciplinaryCase $case, User $actor, ?string $note = null): DisciplinaryCase
+    {
+        if ($case->current_status !== CaseStatus::REPROGRAMADO) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'El expediente debe estar en reprogramación para volver a diligencia.',
+            ]);
+        }
+
+        if (! $this->isOperationalRescheduleCase($case)) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'Solo aplica a reprogramación operativa con FO-GJ-54.',
+            ]);
+        }
+
+        if ($case->fo_gj_54_generated_at === null) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'Genere el FO-GJ-54 antes de cargar la evidencia y volver a diligencia.',
+            ]);
+        }
+
+        if ($case->fo_gj_54_evidence_uploaded_at === null) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'Cargue la evidencia de recibido del FO-GJ-54 firmado.',
+            ]);
+        }
+
+        if ($case->citation_confirmed_date === null) {
+            throw ValidationException::withMessages([
+                'fo_gj_54' => 'Confirme la nueva fecha de diligencia (abogado o planeación) antes de volver a Etapa C.',
+            ]);
+        }
+
+        return $this->transition(
+            $case,
+            CaseStatus::DILIGENCIA,
+            $actor,
+            $note ?? 'Retorno a diligencia tras reprogramación operativa (FO-GJ-54 notificado).',
+            ['operational_reschedule' => true],
+            StageType::DILIGENCIA,
+        );
+    }
+
+    private function isOperationalRescheduleCase(DisciplinaryCase $case): bool
+    {
+        $payload = $case->fo_gj_54_payload ?? [];
+
+        return ($payload['mode'] ?? null) === 'operational';
     }
 
     public function rejectJustification(DisciplinaryCase $case, User $actor, ?string $note = null): DisciplinaryCase

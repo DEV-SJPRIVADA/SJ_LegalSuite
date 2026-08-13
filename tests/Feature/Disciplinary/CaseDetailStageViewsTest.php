@@ -29,11 +29,12 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_citacion_stage_shows_active_b_without_c(): void
     {
-        $lawyer = $this->user('abogado', 'stage-b-active@test.local');
+        $lawyer = $this->user('nivel6', 'stage-b-active@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::CITACION_PROGRAMADA);
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case])
+            ->call('openStageCard', 'b')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
             ->assertDontSee('Completada · Solo lectura')
             ->assertDontSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)');
@@ -70,7 +71,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_diligencia_stage_shows_b_readonly_and_active_c(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-active@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-active@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
@@ -99,8 +100,10 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
+            ->call('openStageCard', 'b')
             ->assertSee('Completada · Solo lectura')
             ->assertSee('Etapa B · Citación a diligencia (FO-GJ-03)')
+            ->call('openStageCard', 'c')
             ->assertSee('Etapa C · Diligencia disciplinaria (FO-GJ-04)')
             ->assertSee('Diligenciar FO-GJ-04')
             ->assertDontSee('Plantilla FO-GJ-04')
@@ -114,20 +117,20 @@ class CaseDetailStageViewsTest extends TestCase
             ->test(CaseDetail::class, ['case' => $case->fresh(['agendaThread'])])
             ->html();
 
-        $posC = strpos($html, 'Etapa C · Diligencia disciplinaria (FO-GJ-04)');
-        $posB = strpos($html, 'Etapa B · Citación a diligencia (FO-GJ-03)');
-        $posA = strpos($html, 'data-stage-block="a"');
+        $posA = strpos($html, 'data-stage-card="a"');
+        $posB = strpos($html, 'data-stage-card="b"');
+        $posC = strpos($html, 'data-stage-card="c"');
 
-        $this->assertNotFalse($posC);
-        $this->assertNotFalse($posB);
         $this->assertNotFalse($posA);
-        $this->assertLessThan($posB, $posC, 'Etapa C debe aparecer antes que B en el HTML');
-        $this->assertLessThan($posA, $posB, 'Etapa B debe aparecer antes que A en el HTML');
+        $this->assertNotFalse($posB);
+        $this->assertNotFalse($posC);
+        $this->assertLessThan($posC, $posB, 'Tarjeta B debe aparecer antes que C en la rejilla');
+        $this->assertLessThan($posB, $posA, 'Tarjeta A debe aparecer antes que B en la rejilla');
     }
 
     public function test_diligence_advance_transitions_to_decision(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-advance@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-advance@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
@@ -142,6 +145,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->call('confirmAdvanceFromDiligencia')
             ->assertHasNoErrors();
@@ -151,7 +155,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_diligence_advance_blocked_without_requirements(): void
     {
-        $lawyer = $this->user('abogado', 'stage-c-blocked@test.local');
+        $lawyer = $this->user('nivel6', 'stage-c-blocked@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::DILIGENCIA);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDay()->toDateString(),
@@ -160,13 +164,14 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->assertHasErrors('diligenceAdvance');
     }
 
     public function test_comite_stage_shows_diligenciar_buttons_not_only_fo_gj_44(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),
@@ -198,6 +203,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Etapa C · Comité disciplinario')
             ->assertSee('Diligenciar comité')
             ->assertDontSee('Etapa B · Citación a diligencia (FO-GJ-03)');
@@ -205,7 +211,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_comite_advance_transitions_to_decision(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite-advance@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite-advance@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),
@@ -236,6 +242,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Siguiente etapa')
             ->call('requestAdvanceFromDiligencia')
             ->call('confirmAdvanceFromDiligencia')
@@ -246,7 +253,7 @@ class CaseDetailStageViewsTest extends TestCase
 
     public function test_comite_advance_blocked_without_acta(): void
     {
-        $lawyer = $this->user('abogado', 'stage-comite-blocked@test.local');
+        $lawyer = $this->user('nivel6', 'stage-comite-blocked@test.local');
         $case = $this->caseInStatus($lawyer, CaseStatus::COMITE_DISCIPLINARIO);
         $case->forceFill([
             'citation_confirmed_date' => now()->subDays(5)->toDateString(),
@@ -257,6 +264,7 @@ class CaseDetailStageViewsTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->call('requestAdvanceFromDiligencia')
             ->assertHasErrors('diligenceAdvance');
     }

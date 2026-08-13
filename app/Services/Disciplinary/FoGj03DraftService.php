@@ -12,10 +12,14 @@ class FoGj03DraftService
 {
     public const PRESENCIAL_LOCATION = 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente';
 
+    public function __construct(
+        private readonly FoGj03CitationArticleResolver $articles,
+    ) {}
+
     /** @return array<string, mixed> */
     public function defaultsForCase(DisciplinaryCase $case): array
     {
-        $case->loadMissing(['employee', 'assignedLawyer', 'informeSubmission']);
+        $case->loadMissing(['employee', 'assignedLawyer', 'informeSubmission', 'faults']);
 
         $hearingTime = '';
         if ($case->citation_confirmed_time) {
@@ -27,6 +31,11 @@ class FoGj03DraftService
         }
 
         $existing = $case->fo_gj_03_payload ?? [];
+        $hasSavedDraft = $case->fo_gj_03_draft_completed_at !== null && is_array($existing) && $existing !== [];
+
+        $statuteArticles = $hasSavedDraft
+            ? $this->articles->blocksFromPayload($existing)
+            : $this->articles->resolveForCase($case);
 
         return [
             'hearing_time' => (string) ($existing['hearing_time'] ?? $hearingTime),
@@ -34,9 +43,8 @@ class FoGj03DraftService
             'virtual_meeting_link' => (string) ($existing['virtual_meeting_link'] ?? ''),
             'breach_date' => (string) ($existing['breach_date'] ?? ''),
             'charges_description' => (string) ($existing['charges_description'] ?? ''),
-            'article_66_numerals' => (string) ($existing['article_66_numerals'] ?? ''),
-            'article_68_numerals' => (string) ($existing['article_68_numerals'] ?? ''),
-            'article_76_numerals' => (string) ($existing['article_76_numerals'] ?? ''),
+            'statute_articles' => $statuteArticles,
+            'evidence_items' => $this->normalizeEvidenceItems($existing['evidence_items'] ?? []),
             'informe_report_date' => $this->resolveInformeReportDate($case),
         ];
     }
@@ -149,14 +157,17 @@ class FoGj03DraftService
             }
         }
 
-        foreach ([
-            'article_66_numerals' => 'foGj03Article66Numerals',
-            'article_68_numerals' => 'foGj03Article68Numerals',
-            'article_76_numerals' => 'foGj03Article76Numerals',
-        ] as $key => $errorKey) {
-            if (trim((string) ($input[$key] ?? '')) === '') {
+        $statuteArticles = $this->normalizeInputStatuteArticles($input['statute_articles'] ?? []);
+        if ($statuteArticles === []) {
+            throw ValidationException::withMessages([
+                'foGj03StatuteArticles' => 'Agregue al menos un artículo con sus numerales.',
+            ]);
+        }
+
+        foreach ($statuteArticles as $index => $block) {
+            if (trim((string) ($block['numerals'] ?? '')) === '') {
                 throw ValidationException::withMessages([
-                    $errorKey => 'Los numerales del artículo son obligatorios.',
+                    "foGj03StatuteArticles.{$index}.numerals" => 'Los numerales del artículo '.($block['article_number'] ?? '').' son obligatorios.',
                 ]);
             }
         }
@@ -167,6 +178,8 @@ class FoGj03DraftService
                 'foGj03ChargesDescription' => 'Indique el texto obligatorio que continúa después de los dos puntos en la formulación de cargos.',
             ]);
         }
+
+        $evidenceItems = $this->normalizeEvidenceItems($input['evidence_items'] ?? []);
 
         if (! $actor->hasSignature()) {
             throw ValidationException::withMessages([
@@ -181,9 +194,8 @@ class FoGj03DraftService
             'breach_date' => $breachDate,
             'breach_date_display' => $breachFormatted,
             'charges_description' => $chargesDescription,
-            'article_66_numerals' => trim((string) $input['article_66_numerals']),
-            'article_68_numerals' => trim((string) $input['article_68_numerals']),
-            'article_76_numerals' => trim((string) $input['article_76_numerals']),
+            'statute_articles' => $statuteArticles,
+            'evidence_items' => $evidenceItems,
             'informe_report_date' => $this->resolveInformeReportDate($case),
         ];
 
@@ -206,5 +218,65 @@ class FoGj03DraftService
         }
 
         return $case->fo_gj_03_payload ?? [];
+    }
+
+    /**
+     * @param  mixed  $raw
+     * @return list<array{article_number: string, numerals: string}>
+     */
+    private function normalizeInputStatuteArticles(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $blocks = [];
+        foreach ($raw as $block) {
+            if (! is_array($block)) {
+                continue;
+            }
+
+            $articleNumber = trim((string) ($block['article_number'] ?? ''));
+            if ($articleNumber === '') {
+                continue;
+            }
+
+            $blocks[] = [
+                'article_number' => $articleNumber,
+                'numerals' => trim((string) ($block['numerals'] ?? '')),
+            ];
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * Elementos probatorios adicionales (además del informe disciplinario automático).
+     *
+     * @param  mixed  $raw
+     * @return list<string>
+     */
+    public function normalizeEvidenceItems(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($raw as $row) {
+            if (is_array($row)) {
+                $text = trim((string) ($row['text'] ?? ''));
+            } else {
+                $text = trim((string) $row);
+            }
+
+            if ($text === '') {
+                continue;
+            }
+
+            $items[] = $text;
+        }
+
+        return array_values($items);
     }
 }

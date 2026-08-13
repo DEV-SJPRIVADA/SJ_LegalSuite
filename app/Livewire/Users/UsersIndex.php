@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Users;
 
+use App\Enums\PlatformLevel;
+use App\Models\ColombianMunicipality;
 use App\Models\JobPosition;
 use App\Models\OrganizationalArea;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -48,7 +51,13 @@ class UsersIndex extends Component
     #[Url(as: 'estado')]
     public string $status = '';
 
-    public int $perPage = 15;
+    #[Url(as: 'acceso')]
+    public string $accessFilter = '';
+
+    #[Url(as: 'pp')]
+    public int $perPage = 20;
+
+    public string $citySearch = '';
 
     /* ---------- Modal de creación/edición ---------- */
     public bool $showForm = false;
@@ -78,6 +87,9 @@ class UsersIndex extends Component
     /** Permisos directos adicionales (solo UI para área Operaciones). */
     public array $directPermissionToggles = [];
 
+    /** @var list<string> */
+    public array $authorizedMunicipalityCodes = [];
+
     /** Contraseña provisional mostrada solo tras crear usuario */
     public bool $showCredentialModal = false;
 
@@ -100,9 +112,44 @@ class UsersIndex extends Component
 
     public function updating($prop): void
     {
-        if (in_array($prop, ['search', 'role', 'organizationalAreaFilter', 'status'], true)) {
+        if (in_array($prop, ['search', 'role', 'organizationalAreaFilter', 'status', 'accessFilter', 'perPage'], true)) {
             $this->resetPage();
         }
+    }
+
+    public function updatedPerPage(mixed $value): void
+    {
+        $allowed = [20, 50, 100];
+        $this->perPage = in_array((int) $value, $allowed, true) ? (int) $value : 20;
+    }
+
+    public function setStatusFilter(string $value): void
+    {
+        $this->status = $value;
+        if ($value !== '') {
+            $this->accessFilter = '';
+        }
+        $this->resetPage();
+    }
+
+    public function applyKpiFilter(string $type): void
+    {
+        match ($type) {
+            'total' => $this->reset(['status', 'role', 'organizationalAreaFilter', 'accessFilter']),
+            'activos' => $this->fill(['status' => 'activos', 'role' => '', 'organizationalAreaFilter' => '', 'accessFilter' => '']),
+            'inactivos' => $this->fill(['status' => 'inactivos', 'role' => '', 'organizationalAreaFilter' => '', 'accessFilter' => '']),
+            'solo_lectura' => $this->fill(['accessFilter' => 'solo_lectura', 'status' => '', 'role' => '', 'organizationalAreaFilter' => '']),
+            'admins' => $this->fill(['role' => PlatformLevel::Nivel1->value, 'status' => '', 'organizationalAreaFilter' => '', 'accessFilter' => '']),
+            default => null,
+        };
+
+        $this->resetPage();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->reset(['search', 'role', 'organizationalAreaFilter', 'status', 'accessFilter']);
+        $this->resetPage();
     }
 
     public function updatedOrganizationalAreaId(?int $value): void
@@ -122,10 +169,87 @@ class UsersIndex extends Component
         }
     }
 
-    public function clearFilters(): void
+    #[Computed]
+    public function kpiTotal(): int
     {
-        $this->reset(['search', 'role', 'organizationalAreaFilter', 'status']);
-        $this->resetPage();
+        return User::query()->count();
+    }
+
+    #[Computed]
+    public function kpiActive(): int
+    {
+        return User::query()->where('is_active', true)->count();
+    }
+
+    #[Computed]
+    public function kpiInactive(): int
+    {
+        return User::query()->where('is_active', false)->count();
+    }
+
+    #[Computed]
+    public function kpiReadOnly(): int
+    {
+        return User::query()->where('read_only', true)->count();
+    }
+
+    #[Computed]
+    public function kpiAdmins(): int
+    {
+        return User::query()->role(PlatformLevel::Nivel1->value)->count();
+    }
+
+    #[Computed]
+    public function filteredMunicipalitiesForForm(): array
+    {
+        $grouped = ColombianMunicipality::groupedByDepartmentForSelect();
+        $term = mb_strtolower(trim($this->citySearch));
+
+        if ($term === '') {
+            return $grouped
+                ->map(fn ($rows) => $rows instanceof Collection ? $rows->all() : (array) $rows)
+                ->all();
+        }
+
+        $filtered = [];
+        foreach ($grouped as $department => $municipalities) {
+            $list = $municipalities instanceof Collection ? $municipalities->all() : (array) $municipalities;
+            $rows = array_values(array_filter(
+                $list,
+                fn (array $mun): bool => str_contains(mb_strtolower($mun['name']), $term)
+                    || str_contains($mun['code'], $term)
+            ));
+
+            if ($rows !== []) {
+                $filtered[$department] = $rows;
+            }
+        }
+
+        return $filtered;
+    }
+
+    #[Computed]
+    public function formEffectiveRoleLabel(): ?string
+    {
+        if ($this->assignPlatformAdmin) {
+            return PlatformLevel::Nivel1->title().' — '.PlatformLevel::Nivel1->subtitle();
+        }
+
+        if (! $this->jobPositionId) {
+            return null;
+        }
+
+        $roleName = JobPosition::query()
+            ->whereKey($this->jobPositionId)
+            ->value('permission_level_name');
+
+        if (! $roleName) {
+            return null;
+        }
+
+        $level = PlatformLevel::tryFrom((string) $roleName);
+
+        return $level ? $level->title().' — '.$level->subtitle() : (string) $roleName;
     }
 
     #[Computed]
@@ -150,7 +274,7 @@ class UsersIndex extends Component
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'permission_role_name']);
+            ->get(['id', 'name', 'permission_level_name']);
     }
 
     #[Computed]
@@ -164,9 +288,27 @@ class UsersIndex extends Component
     }
 
     #[Computed]
+    public function municipalitiesGrouped()
+    {
+        return ColombianMunicipality::groupedByDepartmentForSelect();
+    }
+
+    #[Computed]
+    public function requiresAuthorizedCities(): bool
+    {
+        if ($this->assignPlatformAdmin) {
+            return false;
+        }
+
+        $role = $this->resolvedSpatieRolesForSave()[0] ?? null;
+
+        return in_array($role, [PlatformLevel::Nivel7->value, PlatformLevel::Nivel8->value], true);
+    }
+
+    #[Computed]
     public function rolesListForFilter()
     {
-        return Role::where('guard_name', 'web')->orderBy('name')->pluck('name')->all();
+        return PlatformLevel::options();
     }
 
     public function openCreate(): void
@@ -188,9 +330,14 @@ class UsersIndex extends Component
         $this->email = $user->email;
         $this->documentNumber = (string) ($user->document_number ?? '');
         $this->phone = (string) ($user->phone ?? '');
-        $this->assignPlatformAdmin = $user->hasRole('admin');
+        $this->assignPlatformAdmin = $user->hasRole(PlatformLevel::Nivel1->value);
         $this->organizationalAreaId = $this->assignPlatformAdmin ? null : $user->organizational_area_id;
         $this->jobPositionId = $this->assignPlatformAdmin ? null : $user->job_position_id;
+        $this->authorizedMunicipalityCodes = $user->authorizedMunicipalities()
+            ->pluck('colombian_municipalities.municipality_code')
+            ->all();
+        $this->isActive = (bool) $user->is_active;
+        $this->allowChanges = ! $user->read_only;
 
         foreach (self::OPERATIONS_TOGGLE_KEYS as $key => $perm) {
             $this->directPermissionToggles[$key] = $user->hasDirectPermission($perm);
@@ -239,6 +386,16 @@ class UsersIndex extends Component
             ],
             'isActive' => ['boolean'],
             'allowChanges' => ['boolean'],
+            'authorizedMunicipalityCodes' => [
+                Rule::requiredIf(fn () => $this->requiresAuthorizedCities),
+                'array',
+                'min:1',
+            ],
+            'authorizedMunicipalityCodes.*' => [
+                'string',
+                'size:5',
+                Rule::exists('colombian_municipalities', 'municipality_code'),
+            ],
         ];
 
         $this->validate($rules);
@@ -284,9 +441,13 @@ class UsersIndex extends Component
             }
         }
 
+        $municipalityCodes = $this->requiresAuthorizedCities
+            ? array_values($this->authorizedMunicipalityCodes)
+            : [];
+
         if ($this->editingId === null) {
             Gate::authorize('create', User::class);
-            $result = $service->create($payload, $rolesToSync, $directSnapshotCreate);
+            $result = $service->create($payload, $rolesToSync, $directSnapshotCreate, $municipalityCodes);
             $this->showForm = false;
             $this->resetUserFormFields();
             $this->generatedPlainPassword = $result['plain_password'];
@@ -298,7 +459,7 @@ class UsersIndex extends Component
         } else {
             $user = User::findOrFail($this->editingId);
             Gate::authorize('update', $user);
-            $service->update($user, $payload, $rolesToSync, $directSnapshotUpdate);
+            $service->update($user, $payload, $rolesToSync, $directSnapshotUpdate, $municipalityCodes);
             session()->flash('success', 'Usuario actualizado correctamente.');
             $this->showForm = false;
             $this->resetFormState();
@@ -327,7 +488,7 @@ class UsersIndex extends Component
     {
         $this->reset([
             'editingId', 'name', 'email', 'documentNumber', 'phone',
-            'organizationalAreaId', 'jobPositionId',
+            'organizationalAreaId', 'jobPositionId', 'authorizedMunicipalityCodes', 'citySearch',
         ]);
         $this->assignPlatformAdmin = false;
         $this->isActive = true;
@@ -365,7 +526,7 @@ class UsersIndex extends Component
     private function resolvedSpatieRolesForSave(): array
     {
         if ($this->assignPlatformAdmin) {
-            return ['admin'];
+            return [PlatformLevel::Nivel1->value];
         }
 
         if (! $this->jobPositionId) {
@@ -373,7 +534,7 @@ class UsersIndex extends Component
         }
 
         $job = JobPosition::find($this->jobPositionId);
-        $roleName = $job?->permission_role_name;
+        $roleName = $job?->permission_level_name;
 
         if (! $roleName || ! Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
             return [];
@@ -450,8 +611,8 @@ class UsersIndex extends Component
     public function render()
     {
         $users = User::query()
-            ->with(['roles:id,name', 'organizationalArea:id,name', 'jobPosition:id,name,permission_role_name'])
-            ->withCount(['assignedCases', 'reportedCases'])
+            ->with(['roles:id,name', 'organizationalArea:id,name', 'jobPosition:id,name,permission_level_name'])
+            ->withCount(['assignedCases', 'reportedCases', 'authorizedMunicipalities'])
             ->when($this->search !== '', function ($q) {
                 $term = '%'.str_replace(' ', '%', $this->search).'%';
                 $q->where(function ($w) use ($term) {
@@ -464,6 +625,7 @@ class UsersIndex extends Component
             ->when($this->organizationalAreaFilter !== '', fn ($q) => $q->where('organizational_area_id', (int) $this->organizationalAreaFilter))
             ->when($this->status === 'activos', fn ($q) => $q->where('is_active', true))
             ->when($this->status === 'inactivos', fn ($q) => $q->where('is_active', false))
+            ->when($this->accessFilter === 'solo_lectura', fn ($q) => $q->where('read_only', true))
             ->orderBy('name')
             ->paginate($this->perPage);
 
@@ -471,6 +633,11 @@ class UsersIndex extends Component
             'users' => $users,
             'showOperationsToggles' => $this->shouldShowOperationsPermissionToggles(),
             'operationsPermissionLabels' => $this->operationsPermissionLabels,
+            'kpiTotal' => $this->kpiTotal,
+            'kpiActive' => $this->kpiActive,
+            'kpiInactive' => $this->kpiInactive,
+            'kpiReadOnly' => $this->kpiReadOnly,
+            'kpiAdmins' => $this->kpiAdmins,
         ]);
     }
 }

@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\View;
 use Spatie\Browsershot\Browsershot;
 
 /**
- * Convierte HTML a PDF tamaño carta (Letter) usando Chrome headless (Spatie Browsershot).
- * Todas las plantillas disciplinarias que generemos desde HTML deben usar este generador para mantener el mismo tamaño de página.
+ * Fachada HTML → PDF Letter. Motor según `services.pdf.driver` (browsershot|dompdf).
+ * Los servicios/controladores solo llaman aquí; no eligen driver.
  */
 final class HtmlLetterPdfGenerator
 {
@@ -18,7 +18,11 @@ final class HtmlLetterPdfGenerator
 
     public static function fromHtml(string $html, bool $zeroPageMargins = false): string
     {
-        if (config('services.pdf.via_artisan_cli') && ! app()->runningInConsole()) {
+        if (LetterPdfDriver::usesDompdf()) {
+            return DompdfLetterPdfDriver::render($html, $zeroPageMargins);
+        }
+
+        if (self::shouldDelegateToArtisanCli()) {
             return HtmlLetterPdfArtisanCliRenderer::render($html, $zeroPageMargins);
         }
 
@@ -26,7 +30,26 @@ final class HtmlLetterPdfGenerator
     }
 
     /**
-     * Generación directa vía Browsershot (CLI local o comando render-pdf en hosting).
+     * Solo con PDF_VIA_ARTISAN_CLI=true y driver browsershot.
+     * En LiteSpeed el hijo artisan suele fallar igual; preferir Dompdf o cola+cron.
+     *
+     * @param  bool|null  $runningInConsole  Override para tests.
+     */
+    public static function shouldDelegateToArtisanCli(?bool $runningInConsole = null): bool
+    {
+        if (! LetterPdfDriver::usesBrowsershot()) {
+            return false;
+        }
+
+        if ($runningInConsole ?? app()->runningInConsole()) {
+            return false;
+        }
+
+        return (bool) config('services.pdf.via_artisan_cli');
+    }
+
+    /**
+     * Generación directa vía Browsershot (CLI local o comando render-pdf).
      */
     public static function renderDirect(string $html, bool $zeroPageMargins = false): string
     {

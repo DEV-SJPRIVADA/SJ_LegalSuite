@@ -3,11 +3,13 @@
 namespace App\Support\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\Decision;
 use App\Models\Disciplinary\DisciplinaryCase;
+use App\Services\Disciplinary\DecisionCoordinationService;
 use Illuminate\Support\Collection;
 
 /**
- * Progreso guiado de Etapa D (comunicado de decisión / cierre).
+ * Progreso guiado de Etapa D (5 pasos): tipo → programación → documento → entrega → cierre.
  */
 final class DecisionStageProgress
 {
@@ -22,67 +24,68 @@ final class DecisionStageProgress
     {
         $case = $case->fresh(['documents']);
         $branch = DecisionBranch::forDecision($case->decision);
-        $needsHr = $branch !== null && DecisionBranch::requiresHrReview($branch);
+        $needsPackage = $branch !== null && DecisionBranch::requiresLawyerTerminationPackage($branch);
+        $coordination = app(DecisionCoordinationService::class);
 
         $typeDone = $case->decision !== null && $case->decision_coordination_started_at !== null;
-        $coordinationDone = $case->decision_notification_completed_at !== null
-            && $case->hasDecisionPlanningReply();
+        $coordinationDone = $coordination->hasConfirmedNotification($case);
         $draftDone = $case->decision_draft_completed_at !== null;
         $comunicadoDone = $case->decision_comunicado_generated_at !== null
             || $case->latestDecisionComunicadoDocument() !== null;
-        $notificationDone = $case->decision_notification_completed_at !== null
-            && $case->decision_notification_supervisor_user_id !== null;
         $evidenceDone = $case->decision_evidence_uploaded_at !== null;
-        $hrDone = ! $needsHr || $case->decision_hr_review_completed_at !== null;
+        $packageDone = ! $needsPackage || $case->decision_hr_review_completed_at !== null || $case->hasDecisionHrAnnex();
         $closed = $case->current_status !== CaseStatus::DECISION;
+
+        $coordinationHint = match (true) {
+            ! $typeDone => 'Coordine con planeación fechas, turnos y supervisor para la notificación.',
+            ! $coordination->hasOpenOptions($case) => 'Espere opciones de planeación (fecha, turno, zona y supervisor).',
+            ! $coordinationDone => 'Seleccione una opción en el chat y confírmela.',
+            default => 'Programación confirmada.',
+        };
 
         $defs = [
             [
                 'key' => 'type',
                 'label' => 'Tipo de decisión',
                 'done' => $typeDone,
-                'hint' => 'Seleccione la sanción o cierre aplicable al trabajador.',
+                'hint' => 'Seleccione la sanción aplicable al trabajador.',
             ],
             [
                 'key' => 'coordination',
                 'label' => 'Programación',
                 'done' => $coordinationDone,
-                'hint' => 'Coordine con planeación fechas, turnos y supervisor para la notificación.',
+                'hint' => $coordinationHint,
             ],
             [
                 'key' => 'draft',
-                'label' => 'Comunicado',
+                'label' => match ($case->decision) {
+                    Decision::AMONESTACION_ESCRITA => 'FO-GJ-46',
+                    Decision::SUSPENSION => 'FO-GJ-47',
+                    Decision::TERMINACION_CONTRATO => 'FO-GJ-45',
+                    default => 'Documento',
+                },
                 'done' => $draftDone && $comunicadoDone,
-                'hint' => 'Diligencie el comunicado de decisión y genere el PDF en el expediente.',
+                'hint' => match ($case->decision) {
+                    Decision::AMONESTACION_ESCRITA => 'Diligencie el FO-GJ-46 y genere el PDF en el expediente.',
+                    Decision::SUSPENSION => 'Diligencie el FO-GJ-47 y genere el PDF en el expediente.',
+                    Decision::TERMINACION_CONTRATO => 'Diligencie el FO-GJ-45 y genere el PDF en el expediente.',
+                    default => 'Diligencie el documento de decisión y genere el PDF.',
+                },
             ],
             [
-                'key' => 'notification',
-                'label' => 'Notificación',
-                'done' => $notificationDone && $comunicadoDone,
-                'hint' => 'Supervisor asignado; operaciones puede hacer seguimiento.',
+                'key' => 'delivery',
+                'label' => $needsPackage ? 'Paquete terminación' : 'Firma trabajador',
+                'done' => $needsPackage ? $packageDone : $evidenceDone,
+                'hint' => $needsPackage
+                    ? 'Cargue un solo PDF con los anexos firmados de terminación.'
+                    : 'El supervisor registra la firma del trabajador o evidencia con testigos.',
             ],
             [
-                'key' => 'evidence',
-                'label' => 'Firma trabajador',
-                'done' => $evidenceDone,
-                'hint' => 'El supervisor registra la firma del trabajador o evidencia con testigos.',
+                'key' => 'close',
+                'label' => 'Cierre',
+                'done' => $closed,
+                'hint' => 'Escriba una breve conclusión y finalice el proceso.',
             ],
-        ];
-
-        if ($needsHr) {
-            $defs[] = [
-                'key' => 'hr',
-                'label' => 'Gestión humana',
-                'done' => $hrDone,
-                'hint' => 'Área administrativa carga anexos laborales antes de notificar al trabajador.',
-            ];
-        }
-
-        $defs[] = [
-            'key' => 'close',
-            'label' => 'Cierre',
-            'done' => $closed,
-            'hint' => 'Finalice el proceso disciplinario cuando la notificación esté completa.',
         ];
 
         $currentAssigned = false;
@@ -138,20 +141,17 @@ final class DecisionStageProgress
 
     public function totalSteps(DisciplinaryCase $case): int
     {
-        $branch = DecisionBranch::forDecision($case->decision);
-
-        return $branch !== null && DecisionBranch::requiresHrReview($branch) ? 7 : 6;
+        return 5;
     }
 
     public function actionBarTitle(string $stepKey): string
     {
         return match ($stepKey) {
             'type' => 'Tipo de decisión',
-            'coordination' => 'Coordinación con programación',
+            'coordination' => 'Programación con planeación',
             'draft' => 'Comunicado de decisión',
-            'notification' => 'Notificación al supervisor',
-            'evidence' => 'Evidencia de notificación',
-            'hr' => 'Gestión humana',
+            'delivery' => 'Entrega / evidencia',
+            'evidence' => 'Entrega / evidencia',
             'close' => 'Cierre del proceso',
             default => 'Decisión disciplinaria',
         };

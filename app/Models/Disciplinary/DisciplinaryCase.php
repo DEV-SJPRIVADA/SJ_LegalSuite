@@ -13,6 +13,7 @@ use App\Enums\Disciplinary\StageType;
 use App\Models\ColombianMunicipality;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Disciplinary\WorkflowStageBuckets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -86,6 +87,7 @@ class DisciplinaryCase extends Model
         'fo_gj_54_draft_completed_by',
         'fo_gj_54_generated_at',
         'fo_gj_54_generated_by',
+        'fo_gj_54_evidence_uploaded_at',
         'diligence_justification_received_at',
         'diligence_justification_received_by',
         'diligence_justification_notes',
@@ -158,6 +160,7 @@ class DisciplinaryCase extends Model
             'fo_gj_54_payload' => 'array',
             'fo_gj_54_draft_completed_at' => 'datetime',
             'fo_gj_54_generated_at' => 'datetime',
+            'fo_gj_54_evidence_uploaded_at' => 'datetime',
             'diligence_justification_received_at' => 'datetime',
             'comite_payload' => 'array',
             'comite_draft_completed_at' => 'datetime',
@@ -314,6 +317,25 @@ class DisciplinaryCase extends Model
     }
 
     /**
+     * Etapa D visible en solo lectura tras finalizar o archivar el proceso.
+     */
+    public function showsDecisionStageReadOnly(): bool
+    {
+        if ($this->showsDecisionStagePanel()) {
+            return false;
+        }
+
+        if (in_array($this->current_status, [CaseStatus::FINALIZADO, CaseStatus::ARCHIVADO], true)) {
+            return $this->decision !== null
+                || $this->decision_comunicado_generated_at !== null
+                || $this->latestDecisionComunicadoDocument() !== null;
+        }
+
+        return $this->decision_comunicado_generated_at !== null
+            || $this->latestDecisionComunicadoDocument() !== null;
+    }
+
+    /**
      * Etapa C visible en solo lectura tras avanzar a decisión.
      */
     public function showsDiligenceStageReadOnly(): bool
@@ -342,8 +364,28 @@ class DisciplinaryCase extends Model
             return true;
         }
 
+        if ($this->isOperationalReschedulePending()) {
+            return true;
+        }
+
         return $this->current_status === CaseStatus::JUSTIFICACION_PENDIENTE
             && $this->diligence_attendance === DiligenceAttendance::ABSENT;
+    }
+
+    /** Reprogramación operativa FO-GJ-54 en curso (conserva FO-GJ-03). */
+    public function isOperationalReschedulePending(): bool
+    {
+        if ($this->current_status !== CaseStatus::REPROGRAMADO) {
+            return false;
+        }
+
+        if ($this->diligence_attendance !== null) {
+            return false;
+        }
+
+        $payload = $this->fo_gj_54_payload ?? [];
+
+        return ($payload['mode'] ?? null) === 'operational';
     }
 
     /**
@@ -466,30 +508,59 @@ class DisciplinaryCase extends Model
 
     public function awaitingPlanningDiligenceSlots(): bool
     {
-        return $this->hasCoordinationStarted()
+        return $this->canPlanningManageCitationCoordination()
+            && $this->hasCitationNotificationInformationCompleted()
             && $this->citation_confirmed_date === null
             && ! $this->hasPlanningProposedSlots();
     }
 
-    /** Planeación publicó programación de decisión en el hilo. */
+    public function awaitingCitationNotificationInformation(): bool
+    {
+        return $this->canPlanningManageCitationCoordination()
+            && ! $this->hasCitationNotificationInformationCompleted();
+    }
+
+    public function canPlanningManageCitationCoordination(): bool
+    {
+        return $this->current_status === CaseStatus::CITACION_PROGRAMADA
+            && $this->hasCoordinationStarted()
+            && ($this->agendaThread?->isOpen() ?? false);
+    }
+
+    public function hasCitationNotificationInformationCompleted(): bool
+    {
+        return $this->notification_information_completed_at !== null
+            && $this->notification_supervisor_user_id !== null;
+    }
+
+    /** Planeación publicó opciones de notificación de decisión en el hilo. */
     public function hasDecisionPlanningReply(): bool
     {
-        $this->loadMissing('agendaThread.messages');
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->hasOpenOptions($this);
+    }
 
-        foreach ($this->agendaThread?->messages ?? [] as $message) {
-            if ($message->message_kind === AgendaMessageKind::DECISION_PLANNING_RESPONSE) {
-                return true;
-            }
-        }
-
-        return false;
+    public function hasDecisionNotificationConfirmed(): bool
+    {
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->hasConfirmedNotification($this);
     }
 
     public function awaitingDecisionPlanningSlots(): bool
     {
-        return $this->current_status === CaseStatus::DECISION
-            && $this->decision_coordination_started_at !== null
-            && ! $this->hasDecisionPlanningReply();
+        if ($this->current_status !== CaseStatus::DECISION || $this->decision_coordination_started_at === null) {
+            return false;
+        }
+
+        if ($this->hasDecisionNotificationConfirmed()) {
+            return false;
+        }
+
+        return ! $this->hasDecisionPlanningReply();
+    }
+
+    /** Planeación puede reproponer aunque ya haya opciones (antes de entrega). */
+    public function canPlanningRepublishDecisionOptions(): bool
+    {
+        return app(\App\Services\Disciplinary\DecisionCoordinationService::class)->canPlanningPublishOptions($this);
     }
 
     public function currentStage(): HasMany
@@ -514,6 +585,33 @@ class DisciplinaryCase extends Model
             ->all();
 
         return $query->whereIn('current_status', $statuses);
+    }
+
+    /** Casos cerrados (finalizado / archivado). */
+    public function scopeClosed(Builder $query): Builder
+    {
+        return $query->whereIn('current_status', WorkflowStageBuckets::closedStatusValues());
+    }
+
+    /** Casos activos (excluye finalizado / archivado). */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereNotIn('current_status', WorkflowStageBuckets::closedStatusValues());
+    }
+
+    /** Filtra por letra de etapa del flujo (A–F) sobre current_stage_type. */
+    public function scopeWorkflowStageLetter(Builder $query, string $letter): Builder
+    {
+        $types = WorkflowStageBuckets::typesForLetter($letter);
+
+        if ($types === []) {
+            return $query->whereRaw('1=0');
+        }
+
+        return $query->whereIn(
+            'current_stage_type',
+            array_map(static fn (StageType $t) => $t->value, $types)
+        );
     }
 
     public function scopeAssignedTo(Builder $query, int $userId): Builder
@@ -595,34 +693,34 @@ class DisciplinaryCase extends Model
      */
     public function scopeForDisciplinaryActor(Builder $query, User $user): Builder
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return $query;
         }
 
-        if ($user->hasRole('abogado')) {
+        if ($user->hasRole('nivel6')) {
             return $query->where(function (Builder $q) use ($user) {
                 $q->where('assigned_lawyer_id', $user->id)
                     ->orWhere(fn (Builder $pool) => $pool->inInformePool());
             });
         }
 
-        if ($user->hasRole('operador')) {
+        if ($user->hasRole('nivel8')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
-        if ($user->hasRole('supervisor')) {
+        if ($user->hasRole('nivel7')) {
             return $query->whereRaw('1=0');
         }
 
-        if ($user->hasRole('programador')) {
+        if ($user->hasRole('nivel9')) {
             return $query->where('current_status', '!=', CaseStatus::BORRADOR->value);
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return $query->whereRaw('1=0');
         }
 
-        if ($user->hasRole('operaciones')) {
+        if ($user->hasRole('nivel2')) {
             return $query->visibleToOperacionesReviewer($user);
         }
 
@@ -630,35 +728,59 @@ class DisciplinaryCase extends Model
     }
 
     /**
-     * Operaciones (GAP A2): solo expedientes con revisor asignado en FO-GJ-51 (`assigned_reviewer_id`),
-     * los que reportó o todos si tiene dirección (`review-inform-all`). La columna Abogado no aplica aquí.
+     * Operaciones (nivel2): solo casos abiertos que autorizó (`reviewed_by` en FO-GJ-51).
+     * Con `review-inform-all` ve todos los abiertos (sin cerrados/archivados).
      */
     public function scopeVisibleToOperacionesReviewer(Builder $query, User $user): Builder
     {
+        $query->whereNotIn('current_status', WorkflowStageBuckets::closedStatusValues());
+
         if (self::userCanReviewAllInformes($user)) {
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($user) {
-            $q->where('reporter_id', $user->id)
-                ->orWhereHas('informeSubmission', fn (Builder $sub) => $sub->where('assigned_reviewer_id', $user->id));
-        });
+        return $query->whereHas(
+            'informeSubmission',
+            fn (Builder $sub) => $sub->where('reviewed_by', $user->id)
+        );
     }
 
     public function isVisibleToOperacionesReviewer(User $user): bool
     {
-        if (self::userCanReviewAllInformes($user)) {
-            return true;
+        if ($this->isFinalized()) {
+            return false;
         }
 
-        if ((int) $this->reporter_id === (int) $user->id) {
+        if (self::userCanReviewAllInformes($user)) {
             return true;
         }
 
         $this->loadMissing('informeSubmission');
 
         return $this->informeSubmission !== null
-            && (int) $this->informeSubmission->assigned_reviewer_id === (int) $user->id;
+            && (int) $this->informeSubmission->reviewed_by === (int) $user->id;
+    }
+
+    /**
+     * Resumen legible para seguimiento de Operaciones (sin detalle jurídico).
+     *
+     * @return array{headline: string, stage_letter: ?string, stage_title: string, status_label: string}
+     */
+    public function operacionesFollowUpSummary(): array
+    {
+        $letter = WorkflowStageBuckets::letterForStageType($this->current_stage_type);
+        $stageTitle = $letter !== null
+            ? (WorkflowStageBuckets::titleForLetter($letter) ?? $this->current_status->label())
+            : $this->current_status->label();
+
+        return [
+            'headline' => $letter !== null
+                ? "En trámite · Etapa {$letter}"
+                : 'En trámite',
+            'stage_letter' => $letter,
+            'stage_title' => $stageTitle,
+            'status_label' => $this->current_status->label(),
+        ];
     }
 
     public static function userCanReviewAllInformes(User $user): bool
@@ -764,6 +886,8 @@ class DisciplinaryCase extends Model
 
     public const NOTE_FO_GJ_04_GENERATED = 'FO-GJ-04 generado desde expediente';
 
+    public const NOTE_FO_GJ_04_UPLOADED = 'FO-GJ-04 acta firmada cargada desde expediente';
+
     public const NOTE_FO_GJ_44_GENERATED = 'FO-GJ-44 generado desde expediente';
 
     public const NOTE_FO_GJ_54_GENERATED = 'FO-GJ-54 generado desde expediente';
@@ -774,9 +898,17 @@ class DisciplinaryCase extends Model
 
     public const NOTE_DECISION_COMUNICADO_GENERATED = 'Comunicado de decisión generado desde expediente';
 
+    public const NOTE_FO_GJ_46_GENERATED = 'FO-GJ-46 llamado de atención generado desde expediente';
+
+    public const NOTE_FO_GJ_47_GENERATED = 'FO-GJ-47 suspensión disciplinaria generada desde expediente';
+
+    public const NOTE_FO_GJ_45_GENERATED = 'FO-GJ-45 acta de archivo generada desde expediente';
+
     public const NOTE_DECISION_EVIDENCE_PREFIX = 'Evidencia notificación decisión';
 
     public const NOTE_DECISION_HR_ANEXO_PREFIX = 'Anexo laboral gestión humana';
+
+    public const NOTE_DECISION_TERMINATION_PACKAGE_PREFIX = 'Paquete terminación contrato';
 
     /**
      * PDF de citación FO-GJ-03 generado desde el expediente (no evidencia de notificación).
@@ -846,7 +978,12 @@ class DisciplinaryCase extends Model
 
         $match = $docs->first(
             fn (DisciplinaryDocument $d) => $d->document_type === DocumentType::DECISION
-                && str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+                && (
+                    str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_COMUNICADO_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_45_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_46_GENERATED)
+                    || str_contains((string) ($d->notes ?? ''), self::NOTE_FO_GJ_47_GENERATED)
+                )
         );
 
         return $match instanceof DisciplinaryDocument ? $match : null;
@@ -866,6 +1003,7 @@ class DisciplinaryCase extends Model
 
         return $docs->contains(
             fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+                || str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_TERMINATION_PACKAGE_PREFIX)
         );
     }
 
@@ -878,6 +1016,7 @@ class DisciplinaryCase extends Model
 
         return $docs->filter(
             fn (DisciplinaryDocument $d) => str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_HR_ANEXO_PREFIX)
+                || str_contains((string) ($d->notes ?? ''), self::NOTE_DECISION_TERMINATION_PACKAGE_PREFIX)
         )->values();
     }
 
@@ -894,7 +1033,7 @@ class DisciplinaryCase extends Model
             return false;
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return false;
         }
 
@@ -902,7 +1041,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+        if ($user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign')) {
             return true;
         }
 
@@ -970,7 +1109,7 @@ class DisciplinaryCase extends Model
             return false;
         }
 
-        if ($user->hasRole('planeacion')) {
+        if ($user->hasRole('nivel3')) {
             return false;
         }
 
@@ -978,7 +1117,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ($user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign')) {
+        if ($user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign')) {
             return true;
         }
 

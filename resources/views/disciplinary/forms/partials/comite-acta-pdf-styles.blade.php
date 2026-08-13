@@ -1,13 +1,15 @@
 @include('disciplinary.forms.partials.official-letter-pdf-styles')
+{{-- Serif embebida (métricas tipo Times) para acta de comité en Hostinger. --}}
 <style>
+{!! \App\Support\Pdf\EmbeddedPdfFont::serifFontFaceCss() !!}
     html, body {
         margin: 0;
         padding: 0;
         background: #fff;
-        font-family: "Times New Roman", Times, serif;
+        font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SERIF }}', 'Times New Roman', Times, serif;
     }
     .comite-body {
-        font-family: "Times New Roman", Times, serif;
+        font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SERIF }}', 'Times New Roman', Times, serif;
         font-size: 12pt;
         line-height: 1;
         color: #111;

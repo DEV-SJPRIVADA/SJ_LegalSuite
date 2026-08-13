@@ -83,20 +83,87 @@
                     @error('foGj03ChargesDescription')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Art. 66 — numerales</label>
-                    <input type="text" wire:model="foGj03Article66Numerals" placeholder="Ej. 1, 3, 4, 6" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                    @error('foGj03Article66Numerals')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                <div class="sm:col-span-2 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Artículos y numerales (Reglamento Interno de Trabajo)</label>
+                        <button type="button" wire:click="addFoGj03StatuteArticleRow"
+                            class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200">
+                            + Agregar artículo
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        Con una sola falta en el informe se precargan según Ajustes; con varias faltas se muestran los artículos y usted diligencia los numerales.
+                    </p>
+
+                    @forelse ($foGj03StatuteArticles as $index => $articleRow)
+                        <div wire:key="fo-gj-03-article-{{ $index }}" class="grid gap-2 rounded-lg border border-slate-200 p-3 dark:border-white/10 sm:grid-cols-12">
+                            <div class="sm:col-span-3">
+                                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">Artículo</label>
+                                <input type="text" wire:model="foGj03StatuteArticles.{{ $index }}.article_number" placeholder="Ej. 74"
+                                    class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                @error('foGj03StatuteArticles.'.$index.'.article_number')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="sm:col-span-8">
+                                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">Numerales</label>
+                                <input type="text" wire:model="foGj03StatuteArticles.{{ $index }}.numerals" placeholder="Ej. 1, 3, 6.1, 32"
+                                    class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                @error('foGj03StatuteArticles.'.$index.'.numerals')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="flex items-end justify-end sm:col-span-1">
+                                <button type="button" wire:click="removeFoGj03StatuteArticleRow({{ $index }})"
+                                    class="rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40">
+                                    Quitar
+                                </button>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-sm text-slate-500 dark:border-white/15 dark:text-slate-400">
+                            Sin artículos. Use «Agregar artículo» para diligenciar la citación.
+                        </div>
+                    @endforelse
+
+                    @error('foGj03StatuteArticles')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Art. 68 — numerales</label>
-                    <input type="text" wire:model="foGj03Article68Numerals" placeholder="Ej. 10, 34" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                    @error('foGj03Article68Numerals')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Art. 76 — numerales</label>
-                    <input type="text" wire:model="foGj03Article76Numerals" placeholder="Ej. 3, 12, 15, 22" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
-                    @error('foGj03Article76Numerals')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+
+                <div class="sm:col-span-2 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Elementos probatorios</label>
+                        <button type="button" wire:click="addFoGj03EvidenceItemRow"
+                            class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200">
+                            + Agregar elemento
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        El informe disciplinario se incluye automáticamente. Agregue debajo otros elementos con viñeta (videos, testimonios, actas, etc.).
+                    </p>
+
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+                        <span class="font-medium text-slate-800 dark:text-slate-100">• Informes Disciplinarios</span>
+                        @if (filled($foGj03InformeReportDate))
+                            <span class="text-slate-600 dark:text-slate-300"> del {{ $foGj03InformeReportDate }}</span>
+                        @endif
+                        <span class="ml-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">(automático)</span>
+                    </div>
+
+                    @foreach ($foGj03EvidenceItems as $index => $evidenceRow)
+                        <div wire:key="fo-gj-03-evidence-{{ $index }}" class="flex gap-2">
+                            <div class="min-w-0 flex-1">
+                                <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">Elemento adicional #{{ $index + 1 }}</label>
+                                <input type="text" wire:model="foGj03EvidenceItems.{{ $index }}.text"
+                                    placeholder="Ej. Video de cámara del puesto X"
+                                    class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                                @error('foGj03EvidenceItems.'.$index.'.text')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" wire:click="removeFoGj03EvidenceItemRow({{ $index }})"
+                                    class="rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40">
+                                    Quitar
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+
+                    @error('foGj03EvidenceItems')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
 
                 @unless (auth()->user()->hasSignature())

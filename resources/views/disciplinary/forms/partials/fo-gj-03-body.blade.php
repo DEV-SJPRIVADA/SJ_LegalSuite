@@ -1,5 +1,6 @@
 @props([
     'blankForDownload' => true,
+    'logoSrc' => '',
     'fecha' => '',
     'caseNumber' => '',
     'expedienteGj' => '',
@@ -13,21 +14,21 @@
     'informeReportDate' => '',
     'breachDate' => '',
     'chargesDescription' => '',
-    'article66Numerals' => '',
-    'article68Numerals' => '',
-    'article76Numerals' => '',
+    'statuteArticles' => [],
+    'additionalEvidenceItems' => [],
     'signerName' => '',
     'signerRole' => '',
     'signatureDataUri' => null,
     'workerSignatureDataUri' => null,
     'evidenceType' => 'signed',
     'witnesses' => [],
-    'conductMonth' => '',
-    'conductDays' => '',
+    'documentPages' => null,
+    'legalPhrasing' => null,
 ])
 
 @php
-    $displayCaseNumber = filled($caseNumber) ? $caseNumber : (filled($expedienteGj) ? 'GJ-PD:'.$expedienteGj : '');
+    use App\Support\Disciplinary\FoGj03DocumentPaginator;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
 
     $guidePattern = static fn (string $size): string => match ($size) {
         'sm' => '_ _ _ _ _ _',
@@ -40,195 +41,111 @@
             return e($value);
         }
 
-        $pattern = $guidePattern($size);
-
-        return '<span class="ogj-03-guide ogj-03-guide-'.$size.'" aria-hidden="true">'.$pattern.'</span>';
+        return '<span class="ogj-03-guide ogj-03-guide-'.$size.'" aria-hidden="true">'.$guidePattern($size).'</span>';
     };
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+    $additionalEvidenceItems = is_array($additionalEvidenceItems) ? $additionalEvidenceItems : [];
+
+    $pages = $documentPages ?? app(FoGj03DocumentPaginator::class)->plan([
+        'chargesDescription' => (string) $chargesDescription,
+        'statuteArticles' => is_array($statuteArticles) ? $statuteArticles : [],
+        'additionalEvidenceItems' => $additionalEvidenceItems,
+        'locationText' => (string) $locationText,
+        'blankForDownload' => (bool) $blankForDownload,
+        'evidenceType' => (string) $evidenceType,
+        'witnesses' => is_array($witnesses) ? $witnesses : [],
+        'legalPhrasing' => $legalPhrasing,
+    ]);
+
+    $sharedHelpers = ['guidePattern' => $guidePattern, 'blank' => $blank];
+
+    $openingProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
+        'fecha',
+        'caseNumber',
+        'expedienteGj',
+        'workerName',
+        'workerDocument',
+        'workerPosition',
+        'hearingDay',
+        'hearingTime',
+        'locationText',
+        'legalPhrasing',
+    ));
+
+    $chargesBaseProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
+        'informeReportDate',
+        'breachDate',
+        'chargesDescription',
+    ));
+
+    $articlesProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
+        'statuteArticles',
+    ));
+
+    $evidenceProps = array_merge($sharedHelpers, compact(
+        'blankForDownload',
+        'informeReportDate',
+        'legalPhrasing',
+        'additionalEvidenceItems',
+    ));
+
+    $closingProps = compact(
+        'blankForDownload',
+        'signerName',
+        'signerRole',
+        'signatureDataUri',
+        'workerSignatureDataUri',
+        'workerName',
+        'workerDocument',
+        'workerPosition',
+        'evidenceType',
+        'witnesses',
+    );
 @endphp
 
-<div class="ogj-03-body">
-    <div class="ogj-03-ref">
-        <p>Fecha: {!! $blank($fecha, 'lg') !!}</p>
-        <p>{!! $blank($displayCaseNumber, 'lg') !!}</p>
-    </div>
+{{-- Páginas Letter explícitas: encabezado HTML en cada hoja (estable en Dompdf). --}}
+<div class="ogj-wrap ogj-03-doc">
+    @foreach ($pages as $page)
+        <div @class(['ogj-page', 'ogj-03-page', 'ogj-page-break' => ! $loop->first])>
+            @include('disciplinary.forms.partials.fo-gj-03-header', [
+                'logoSrc' => $logoSrc,
+                'pageLine' => $page['pageLine'],
+            ])
 
-    <div class="ogj-03-recipient">
-        <p>NOMBRE. {!! $blank($workerName, 'lg') !!}</p>
-        <p>CÉDULA. {!! $blank($workerDocument, 'md') !!}</p>
-        <p>CARGO. {!! $blank($workerPosition, 'md') !!}</p>
-    </div>
-
-    <p>Respetado trabajador;</p>
-
-    <p>
-        Dando cumplimiento al debido proceso, me permito citarlo el día
-        {!! $blank($hearingDay, 'lg') !!}
-        a las
-        {!! $blank($hearingTime, 'sm') !!}
-        horas,
-        @if ($blankForDownload)
-            en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali en la dirección Av. 4 Nte. #26N - 39 B/ San Vicente
-        @else
-            {{ filled($locationText) ? e($locationText) : '—' }}
-        @endif
-        con el fin de ejercer su derecho a la defensa para ser escuchado en razón a la apertura del proceso disciplinario.
-    </p>
-
-    <p class="ogj-03-section-title">Formulación de cargos</p>
-
-    <p class="ogj-03-justify">
-        <span class="ogj-03-underline">Conductas posibles de sanción:</span>
-        El presunto incumplimiento de sus obligaciones laborales. Según el informe disciplinario del
-        {!! $blank($informeReportDate, 'sm') !!}
-        se reporta que el día
-        {!! $blank($breachDate, 'sm') !!}:
-        @if ($blankForDownload)
-            <span class="ogj-03-guide ogj-03-guide-lg" aria-hidden="true">{{ $guidePattern('lg') }}</span>.
-        @elseif (filled($chargesDescription))
-            {{ $chargesDescription }}.
-        @else
-            —.
-        @endif
-        Estos hechos de comprobarse podrían constituir faltas graves y grave incumplimiento de las obligaciones contractuales, legales y reglamentarias, vulnerando lo dispuesto en el Reglamento de Trabajo y contrato laboral.
-    </p>
-
-    <p class="ogj-03-underline">Faltas disciplinarias:</p>
-
-    <ul class="ogj-03-list">
-        <li>
-            Artículo 66, numeral
-            @if ($blankForDownload)
-                1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42
-            @else
-                {{ filled($article66Numerals) ? e($article66Numerals) : '—' }}
-            @endif
-            , del Reglamento Interno de Trabajo, referente a las obligaciones especiales de los trabajadores
-        </li>
-        <li>
-            Artículo 68, numerales
-            @if ($blankForDownload)
-                10, 34
-            @else
-                {{ filled($article68Numerals) ? e($article68Numerals) : '—' }}
-            @endif
-            , del Reglamento Interno de Trabajo, referente a las prohibiciones de los trabajadores.
-        </li>
-        <li>
-            Artículo 76, numerales
-            @if ($blankForDownload)
-                3, 12, 15, 22, 25, 36, 64, 98, 103, 112
-            @else
-                {{ filled($article76Numerals) ? e($article76Numerals) : '—' }}
-            @endif
-            , del Reglamento Interno de Trabajo, referente a las faltas graves
-        </li>
-    </ul>
-
-    <p>Los elementos probatorios que dan lugar al inicio del proceso disciplinario radican en:</p>
-
-    <ul class="ogj-03-list">
-        <li>
-            Informes Disciplinarios
-            @if ($blankForDownload)
-                del {!! $blank($informeReportDate, 'sm') !!}
-            @elseif (filled($informeReportDate))
-                del {{ $informeReportDate }}
-            @endif
-        </li>
-    </ul>
-
-    <p>
-        Se corre traslado al trabajador de todas y cada una de las pruebas que fundamentan los cargos formulados. Se le hace saber que, el llamamiento a la diligencia de descargos no es propia de sanción disciplinaria, por el contrario, con ella buscamos garantizar el debido proceso, el derecho a la contradicción y a la defensa, conforme lo cual, podrá usted asistir con dos (02) testigos, controvertir las pruebas en su contra y allegar las pruebas que considere pertinentes informando por escrito al correo relacioneslaborales@sjsp.com.co con mínimo dos (02) horas de anticipación a la diligencia. En caso de tener alguna situación que imposibilite su presencia, deberá remitir dentro de los dos (2) días hábiles siguientes, la debida excusa para fijar nueva fecha, de lo contrario se entiende su renuncia al derecho a la defensa y se tendrán por cierto los hechos que motivaron la apertura del presente proceso disciplinario.
-    </p>
-
-    <table class="ogj-03-signatures" role="presentation">
-        <tr>
-            <td><p>Cordialmente;</p></td>
-            <td><p>Recibido por;</p></td>
-        </tr>
-        <tr class="ogj-03-signatures-capture-row">
-            <td>
-                <div class="ogj-03-signature-block">
-                    <div class="ogj-03-signature-slot-area">
-                        @if (! $blankForDownload && filled($signatureDataUri))
-                            <img src="{{ $signatureDataUri }}" alt="Firma" class="ogj-03-signature-img">
-                        @endif
-                    </div>
-                    <div class="ogj-03-sign-line"></div>
-                </div>
-            </td>
-            <td>
-                <div class="ogj-03-signature-block">
-                    <div class="ogj-03-signature-slot-area">
-                        @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
-                            <p class="ogj-03-refusal-text">Se niega a firmar</p>
-                        @elseif (! $blankForDownload && filled($workerSignatureDataUri))
-                            <img src="{{ $workerSignatureDataUri }}" alt="Firma del trabajador" class="ogj-03-signature-img">
-                        @endif
-                    </div>
-                    <div class="ogj-03-sign-line"></div>
-                </div>
-            </td>
-        </tr>
-        <tr>
-            <td><p>Nombre:@if (filled($signerName)) {{ e($signerName) }}@endif</p></td>
-            <td>
-                <p>Nombre:
-                    @if (! $blankForDownload && filled($workerName) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
-                        {{ e($workerName) }}
-                    @endif
-                </p>
-                @if (! $blankForDownload && $evidenceType === 'signed' && filled($workerDocument))
-                    <p>C.C. {{ e($workerDocument) }}</p>
+            <div class="ogj-03-flow">
+                @if ($page['showOpening'])
+                    @include('disciplinary.forms.partials.fo-gj-03-opening', $openingProps)
                 @endif
-            </td>
-        </tr>
-        <tr>
-            <td><p>{{ filled($signerRole) ? e($signerRole) : 'Analista de Relaciones Laborales' }}</p></td>
-            <td>
-                <p>Cargo:
-                    @if (! $blankForDownload && filled($workerPosition) && in_array($evidenceType, ['signed', 'refused_witnesses'], true))
-                        {{ e($workerPosition) }}
-                    @endif
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td><p>SJ Seguridad Privada Ltda</p></td>
-            <td></td>
-        </tr>
-    </table>
 
-    @if (! $blankForDownload && $evidenceType === 'refused_witnesses')
-        <table class="ogj-03-signatures ogj-03-witnesses" role="presentation">
-            <tr>
-                @foreach (array_slice($witnesses, 0, 2) as $witness)
-                    <td>
-                        <p>Testigo</p>
-                        <div class="ogj-03-signature-block">
-                            <div class="ogj-03-signature-slot-area">
-                                @if (filled($witness['signatureDataUri'] ?? null))
-                                    <img src="{{ $witness['signatureDataUri'] }}" alt="Firma testigo" class="ogj-03-signature-img">
-                                @endif
-                            </div>
-                            <div class="ogj-03-sign-line"></div>
-                        </div>
-                        <p>Nombre:@if (filled($witness['name'] ?? null)) {{ e($witness['name']) }}@endif</p>
-                        <p>Cédula:@if (filled($witness['document'] ?? null)) {{ e($witness['document']) }}@endif</p>
-                    </td>
-                @endforeach
-                @for ($i = count($witnesses); $i < 2; $i++)
-                    <td>
-                        <p>Testigo</p>
-                        <div class="ogj-03-signature-block">
-                            <div class="ogj-03-signature-slot-area"></div>
-                            <div class="ogj-03-sign-line"></div>
-                        </div>
-                        <p>Nombre:</p>
-                        <p>Cédula:</p>
-                    </td>
-                @endfor
-            </tr>
-        </table>
-    @endif
+                @if ($page['showCharges'])
+                    @include('disciplinary.forms.partials.fo-gj-03-charges', array_merge($chargesBaseProps, [
+                        'chargesShowLead' => $page['chargesShowLead'],
+                        'chargesIsContinuation' => $page['chargesIsContinuation'],
+                        'chargesChunk' => $page['chargesChunk'],
+                        'chargesShowTail' => $page['chargesShowTail'],
+                    ]))
+                @endif
+
+                @if ($page['showArticles'])
+                    @include('disciplinary.forms.partials.fo-gj-03-articles', $articlesProps)
+                @endif
+
+                @if ($page['showEvidence'])
+                    @include('disciplinary.forms.partials.fo-gj-03-evidence', array_merge($evidenceProps, [
+                        'evidenceShowLead' => $page['evidenceShowLead'],
+                        'evidenceIsContinuation' => $page['evidenceIsContinuation'],
+                        'evidenceChunk' => $page['evidenceChunk'],
+                    ]))
+                @endif
+
+                @if ($page['showClosing'])
+                    @include('disciplinary.forms.partials.fo-gj-03-closing-signatures', $closingProps)
+                @endif
+            </div>
+        </div>
+    @endforeach
 </div>

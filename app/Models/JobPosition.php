@@ -11,7 +11,7 @@ class JobPosition extends Model
     protected $fillable = [
         'organizational_area_id',
         'name',
-        'permission_role_name',
+        'permission_level_name',
         'sort_order',
         'is_active',
     ];

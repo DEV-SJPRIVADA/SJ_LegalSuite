@@ -3,15 +3,20 @@
 namespace Tests\Feature\Disciplinary;
 
 use App\Enums\Disciplinary\CaseStatus;
+use App\Enums\Disciplinary\DocumentType;
+use App\Livewire\Disciplinary\Cases\CaseDetail;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\Disciplinary\DisciplinaryDiligenceWorkflowService;
 use App\Services\Disciplinary\FoGj04DiligenceActaService;
 use App\Services\Disciplinary\FoGj04DraftService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class FoGj04DraftTest extends TestCase
@@ -23,6 +28,40 @@ class FoGj04DraftTest extends TestCase
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
         Storage::fake('local');
+    }
+
+    public function test_fo_gj_04_catalog_question_text_survives_catalog_deletion(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->attachSignature($lawyer);
+
+        $catalogQuestion = \App\Models\Disciplinary\DiligenceActaQuestion::query()->create([
+            'text' => 'Tenía conocimiento de sus obligaciones laborales',
+            'sort_order' => 1,
+        ]);
+
+        app(FoGj04DraftService::class)->saveDraft($case->fresh(), $lawyer, [
+            'worker_manifestation' => FoGj04DraftService::MANIFESTATION_WANTS_TO_RESPOND,
+            'opening_time' => '10:00 AM',
+            'closing_time' => '11:30 AM',
+            'questions' => [
+                [
+                    'question' => $catalogQuestion->text,
+                    'answer' => 'Sí, las conocía.',
+                    'source' => 'catalog',
+                    'catalog_question_id' => $catalogQuestion->id,
+                ],
+            ],
+        ]);
+
+        $catalogQuestion->delete();
+
+        $payload = $case->fresh()->fo_gj_04_payload;
+        $this->assertSame('catalog', $payload['questions'][0]['source'] ?? null);
+        $this->assertStringContainsString('obligaciones laborales', $payload['questions'][0]['question'] ?? '');
+
+        $data = app(FoGj04DiligenceActaService::class)->buildViewData($case->fresh());
+        $this->assertStringContainsString('obligaciones laborales', $data['questions'][0]['question'] ?? '');
     }
 
     public function test_fo_gj_04_defaults_start_with_empty_questions(): void
@@ -131,6 +170,63 @@ class FoGj04DraftTest extends TestCase
         }
     }
 
+    public function test_fo_gj_04_can_upload_signed_without_digital_signature(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->completeDraft($case, $lawyer);
+
+        $service = app(FoGj04DiligenceActaService::class);
+        $this->assertTrue($service->canUploadSigned($case->fresh()));
+        $this->assertFalse($service->canGenerate($case->fresh()));
+    }
+
+    public function test_fo_gj_04_upload_signed_stores_document_and_marks_generated(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->completeDraft($case, $lawyer);
+
+        $file = UploadedFile::fake()->create('fo-gj-04-firmado.pdf', 120, 'application/pdf');
+        $case = app(FoGj04DiligenceActaService::class)->uploadSignedAndStore($case->fresh(), $file, $lawyer);
+
+        $this->assertNotNull($case->fo_gj_04_generated_at);
+        $this->assertDatabaseHas('disciplinary_documents', [
+            'disciplinary_case_id' => $case->id,
+            'document_type' => DocumentType::ACTA_DILIGENCIA->value,
+            'notes' => DisciplinaryCase::NOTE_FO_GJ_04_UPLOADED,
+        ]);
+    }
+
+    public function test_fo_gj_04_upload_signed_allows_advance_without_digital_signature(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->completeDraft($case, $lawyer);
+
+        $file = UploadedFile::fake()->create('fo-gj-04-firmado.pdf', 120, 'application/pdf');
+        app(FoGj04DiligenceActaService::class)->uploadSignedAndStore($case->fresh(), $file, $lawyer);
+
+        $missing = app(DisciplinaryDiligenceWorkflowService::class)
+            ->missingAdvanceToDecisionRequirements($case->fresh());
+
+        $this->assertSame([], $missing);
+    }
+
+    public function test_lawyer_can_confirm_uploaded_signed_acta_via_livewire(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeDiligenceCase();
+        $this->completeDraft($case, $lawyer);
+        $file = UploadedFile::fake()->create('fo-gj-04-firmado.pdf', 120, 'application/pdf');
+
+        Livewire::actingAs($lawyer)
+            ->test(CaseDetail::class, ['case' => $case->fresh()])
+            ->set('foGj04SignedUploadFile', $file)
+            ->assertSet('showFoGj04SignedUploadPreview', true)
+            ->call('confirmFoGj04SignedUpload')
+            ->assertHasNoErrors();
+
+        $case->refresh();
+        $this->assertNotNull($case->fo_gj_04_generated_at);
+    }
+
     /** @return array{case: DisciplinaryCase, lawyer: User} */
     private function makeDiligenceCase(): array
     {
@@ -213,7 +309,7 @@ class FoGj04DraftTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

@@ -28,11 +28,16 @@ class UserService
      * @param  array<string,mixed>  $attributes
      * @param  list<string>  $roles
      * @param  array<string,bool>  $directOperationalPermissions  nombre permiso => activo
+     * @param  list<string>  $authorizedMunicipalityCodes
      * @return array{user: User, plain_password: string}
      */
-    public function create(array $attributes, array $roles = [], array $directOperationalPermissions = []): array
-    {
-        return DB::transaction(function () use ($attributes, $roles, $directOperationalPermissions) {
+    public function create(
+        array $attributes,
+        array $roles = [],
+        array $directOperationalPermissions = [],
+        array $authorizedMunicipalityCodes = [],
+    ): array {
+        return DB::transaction(function () use ($attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes) {
             $plainPassword = Str::password(14, true, true, true, false);
 
             $user = new User;
@@ -55,9 +60,10 @@ class UserService
             }
 
             $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
+            $this->syncAuthorizedMunicipalities($user, $authorizedMunicipalityCodes);
 
             return [
-                'user' => $user->fresh(['roles', 'organizationalArea', 'jobPosition']),
+                'user' => $user->fresh(['roles', 'organizationalArea', 'jobPosition', 'authorizedMunicipalities']),
                 'plain_password' => $plainPassword,
             ];
         });
@@ -68,9 +74,9 @@ class UserService
      * @param  list<string>|null  $roles  null = no tocar roles
      * @param  array<string,bool>|null  $directOperationalPermissions  null = no tocar permisos directos de esta lista
      */
-    public function update(User $user, array $attributes, ?array $roles = null, ?array $directOperationalPermissions = null): User
+    public function update(User $user, array $attributes, ?array $roles = null, ?array $directOperationalPermissions = null, ?array $authorizedMunicipalityCodes = null): User
     {
-        return DB::transaction(function () use ($user, $attributes, $roles, $directOperationalPermissions) {
+        return DB::transaction(function () use ($user, $attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes) {
             $user->fill([
                 'name' => $attributes['name'] ?? $user->name,
                 'email' => $attributes['email'] ?? $user->email,
@@ -100,7 +106,11 @@ class UserService
                 $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
             }
 
-            return $user->fresh(['roles', 'organizationalArea', 'jobPosition']);
+            if ($authorizedMunicipalityCodes !== null) {
+                $this->syncAuthorizedMunicipalities($user, $authorizedMunicipalityCodes);
+            }
+
+            return $user->fresh(['roles', 'organizationalArea', 'jobPosition', 'authorizedMunicipalities']);
         });
     }
 
@@ -138,6 +148,21 @@ class UserService
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * @param  list<string>  $codes
+     */
+    private function syncAuthorizedMunicipalities(User $user, array $codes): void
+    {
+        $normalized = collect($codes)
+            ->map(fn ($code) => preg_replace('/\D/', '', (string) $code))
+            ->filter(fn ($code) => is_string($code) && strlen($code) === 5)
+            ->unique()
+            ->values()
+            ->all();
+
+        $user->authorizedMunicipalities()->sync($normalized);
     }
 
     public function changePassword(User $user, string $newPassword): User

@@ -27,6 +27,7 @@
         'questions' => $questions ?? [],
         'questionPages' => $questionPages ?? null,
         'signatureDataUri' => $signatureDataUri ?? null,
+        'legalPhrasing' => $legalPhrasing ?? null,
     ])
 </body>
 </html>

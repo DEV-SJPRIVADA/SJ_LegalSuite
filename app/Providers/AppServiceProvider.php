@@ -34,7 +34,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        //
+        // Hostinger: document root = public_html (no carpeta public ni symlink).
+        // Laragon local sigue usando public/ por defecto.
+        $hostingerWebRoot = base_path('public_html');
+        if (is_dir($hostingerWebRoot)) {
+            $this->app->usePublicPath($hostingerWebRoot);
+        }
     }
 
     public function boot(): void

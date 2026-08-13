@@ -7,6 +7,7 @@ use App\Enums\Disciplinary\AgendaMessageKind;
 use App\Models\Disciplinary\DisciplinaryAgendaMessage;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
+use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Notifications\DisciplinaryDecisionCoordinatedNotification;
 use App\Notifications\DisciplinaryDecisionEvidenceEnabledNotification;
 use Illuminate\Support\Collection;
@@ -24,40 +25,24 @@ class DisciplinaryDecisionNotificationService
 
     public function canPlanningRegisterNotification(DisciplinaryCase $case): bool
     {
-        if ($this->hasNotificationInformationCompleted($case)) {
-            return false;
-        }
-
-        if ($case->current_status !== \App\Enums\Disciplinary\CaseStatus::DECISION) {
-            return false;
-        }
-
-        if ($case->decision_coordination_started_at === null) {
-            return false;
-        }
-
-        $case->loadMissing('agendaThread');
-
-        if ($case->agendaThread?->isClosed()) {
-            return false;
-        }
-
-        return $case->hasDecisionPlanningReply();
+        // Etapa D ya no usa un segundo modal de notificación: el abogado confirma una opción.
+        return false;
     }
 
     public function hasNotificationInformationCompleted(DisciplinaryCase $case): bool
     {
-        return $case->decision_notification_completed_at !== null
-            && $case->decision_notification_supervisor_user_id !== null;
+        return app(DecisionCoordinationService::class)->hasConfirmedNotification($case);
     }
 
     /** @return Collection<string, bool> */
     public function generationChecklist(DisciplinaryCase $case): Collection
     {
+        $coordination = app(DecisionCoordinationService::class);
+
         return collect([
             'decision_type' => $case->decision !== null,
-            'coordination_completed' => $case->hasDecisionPlanningReply(),
-            'notification_completed' => $this->hasNotificationInformationCompleted($case),
+            'coordination_completed' => $coordination->hasOpenOptions($case),
+            'notification_completed' => $coordination->hasConfirmedNotification($case),
             'notification_shift' => filled($case->decision_notification_shift),
             'notification_zone' => filled($case->decision_notification_zone),
             'notification_supervisor' => $case->decision_notification_supervisor_user_id !== null,
@@ -121,12 +106,15 @@ class DisciplinaryDecisionNotificationService
         $supervisor = User::query()
             ->whereKey($data['notification_supervisor_user_id'])
             ->where('is_active', true)
-            ->role('supervisor')
+            ->role('nivel7')
             ->first();
 
         if (! $supervisor instanceof User) {
             throw new \InvalidArgumentException('Seleccione un supervisor activo válido.');
         }
+
+        $case->loadMissing('employee');
+        app(FieldDisciplinaryScopeService::class)->assertSupervisorCoversCase($supervisor, $case);
 
         $thread = $case->agendaThread;
         if ($thread === null) {

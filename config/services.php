@@ -36,14 +36,13 @@ return [
     ],
 
     /*
-    | PDF desde HTML (Spatie Browsershot). Siempre tamaño Letter desde HtmlLetterPdfGenerator.
-    | Sin NODE_BINARY: en Windows se intenta Laragon (carpeta bin/nodejs, carpetas node-vXX) y PATH.
-    | Sin PDF_CHROME_PATH: se intenta Chrome de sistema en Windows; si no, Puppeteer usa su Chromium.
-    | PDF_NO_SANDBOX=true: hosting Linux compartido (p. ej. Hostinger) — desactiva sandbox y /dev/shm pequeño.
-    | PDF_VIA_ARTISAN_CLI=true: PHP web delega a `php artisan disciplinary:render-pdf` (LiteSpeed no lanza Chrome; CLI sí).
-    | PDF_USE_QUEUE=true: la web encola FO-GJ-51 y un worker CLI/cron genera el PDF (Hostinger compartido).
+    | PDF desde HTML (HtmlLetterPdfGenerator → Letter).
+    | PDF_DRIVER=browsershot (Chrome) | dompdf (PHP puro, inmediato en Hostinger).
+    | PDF_USE_QUEUE=true: solo aplica con browsershot (FO-GJ-51/03 en cola pdf + cron).
+    | Con PDF_DRIVER=dompdf la cola no se usa: generación síncrona en la petición web.
     */
     'pdf' => [
+        'driver' => env('PDF_DRIVER', 'browsershot'),
         'chrome_path' => env('PDF_CHROME_PATH'),
         'node_binary' => env('NODE_BINARY'),
         'npm_binary' => env('NPM_BINARY'),

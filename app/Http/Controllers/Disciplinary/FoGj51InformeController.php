@@ -13,6 +13,7 @@ use App\Services\Disciplinary\DisciplinaryInformeSubmissionService;
 use App\Services\Disciplinary\FoGj51PdfBuilder;
 use App\Services\Employees\EmployeeResolver;
 use App\Support\Pdf\FoGj51PdfQueueStore;
+use App\Support\Pdf\LetterPdfDriver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,7 +45,7 @@ class FoGj51InformeController
                 'prefillWorkerDocument' => $request->string('cedula')->trim()->toString() ?: null,
                 'openPdfUploadModal' => $request->boolean('cargar_pdf'),
                 'operacionesReviewers' => User::query()
-                    ->role('operaciones')
+                    ->role('nivel2')
                     ->where('is_active', true)
                     ->orderBy('name')
                     ->get(['id', 'name']),
@@ -186,7 +187,7 @@ class FoGj51InformeController
 
     private function shouldQueuePdf(): bool
     {
-        return (bool) config('services.pdf.use_queue') && ! app()->runningInConsole();
+        return LetterPdfDriver::shouldUseQueue();
     }
 
     private function dispatchQueuedPdf(FoGj51ProcessRequest $request, string $intent): RedirectResponse
@@ -195,7 +196,8 @@ class FoGj51InformeController
 
         if ($intent === 'enviar') {
             try {
-                app(EmployeeResolver::class)->resolveById(
+                app(EmployeeResolver::class)->resolveForDisciplinaryActor(
+                    $request->user(),
                     isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
                     (string) ($validated['fo51_worker_document'] ?? ''),
                 );
@@ -251,7 +253,8 @@ class FoGj51InformeController
         $validated = $request->validated();
         $resolver = app(EmployeeResolver::class);
         try {
-            $employee = $resolver->resolveById(
+            $employee = $resolver->resolveForDisciplinaryActor(
+                $request->user(),
                 isset($validated['fo51_employee_id']) ? (int) $validated['fo51_employee_id'] : null,
                 (string) ($validated['fo51_worker_document'] ?? ''),
             );
@@ -321,7 +324,11 @@ class FoGj51InformeController
         $validated = $request->validated();
         $resolver = app(EmployeeResolver::class);
         try {
-            $employee = $resolver->resolveByDocument((string) ($validated['informe_worker_document'] ?? ''));
+            $employee = $resolver->resolveForDisciplinaryActor(
+                $request->user(),
+                null,
+                (string) ($validated['informe_worker_document'] ?? ''),
+            );
         } catch (\InvalidArgumentException $e) {
             if (! Gate::allows('viewAny', DisciplinaryCase::class)) {
                 return redirect()

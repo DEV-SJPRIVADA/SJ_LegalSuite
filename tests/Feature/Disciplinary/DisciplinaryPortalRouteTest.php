@@ -23,7 +23,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         $this->actingAs($user)
             ->get('/disciplinary')
@@ -36,9 +36,29 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         $this->assertSame(route('disciplinary.cases.index'), $user->disciplinaryCasesNavUrl());
+    }
+
+    public function test_app_sidebar_disciplinarios_links_to_portal_url(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('nivel6');
+
+        $this->actingAs($user);
+
+        $html = view('components.app-sidebar', ['variant' => 'light'])->render();
+        $portal = $user->disciplinaryPortalUrl();
+
+        $this->assertMatchesRegularExpression(
+            '#<a[^>]*href="'.preg_quote($portal, '#').'"[^>]*>.*?Disciplinarios.*?</a>#s',
+            $html
+        );
+        $this->assertSame(route('disciplinary.dashboard'), $portal);
     }
 
     public function test_disciplinary_index_redirects_planeacion_to_coordinations(): void
@@ -47,7 +67,7 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('planeacion');
+        $user->assignRole('nivel3');
 
         $this->actingAs($user)
             ->get('/disciplinary')
@@ -60,10 +80,49 @@ class DisciplinaryPortalRouteTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('supervisor');
+        $user->assignRole('nivel7');
 
         $this->actingAs($user)
             ->get('/disciplinary')
             ->assertRedirect(route('disciplinary.evidences-pending.index'));
+    }
+
+    public function test_dashboard_redirects_supervisor_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('nivel7');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/dashboard')
+            ->assertRedirect(route('disciplinary.evidences-pending.index'));
+    }
+
+    public function test_cases_index_redirects_supervisor_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('nivel7');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/cases')
+            ->assertRedirect(route('disciplinary.evidences-pending.index'));
+    }
+
+    public function test_cases_index_redirects_planeacion_to_portal_instead_of_403(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'must_change_password' => false,
+        ]);
+        $user->assignRole('nivel3');
+
+        $this->actingAs($user)
+            ->get('/disciplinary/cases')
+            ->assertRedirect(route('disciplinary.coordinations.index'));
     }
 }

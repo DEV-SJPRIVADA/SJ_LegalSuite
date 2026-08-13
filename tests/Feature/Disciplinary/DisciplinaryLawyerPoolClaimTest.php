@@ -85,7 +85,7 @@ class DisciplinaryLawyerPoolClaimTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $auditor->assignRole('auditor');
+        $auditor->assignRole('nivel5');
 
         $case = $this->makePoolCase();
 
@@ -100,7 +100,7 @@ class DisciplinaryLawyerPoolClaimTest extends TestCase
             'email_verified_at' => now(),
             'must_change_password' => false,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

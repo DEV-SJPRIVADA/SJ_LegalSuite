@@ -9,6 +9,7 @@ use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
 use App\Services\Users\UserSignatureService;
 use App\Support\Disciplinary\FoGj03Modality;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +24,7 @@ class FoGj03CitationService
         private readonly DisciplinaryDocumentService $documents,
         private readonly DisciplinaryCitationNotificationService $notification,
         private readonly FoGj03DraftService $drafts,
+        private readonly FoGj03CitationArticleResolver $articles,
         private readonly UserSignatureService $signatures,
     ) {}
 
@@ -56,12 +58,15 @@ class FoGj03CitationService
             : FoGj03DraftService::PRESENCIAL_LOCATION;
 
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
+
         return [
             'fecha' => now()->timezone('America/Bogota')->format('d/m/Y'),
             'caseNumber' => (string) $case->case_number,
             'workerName' => $workerName,
             'workerDocument' => (string) ($case->employee?->document_number ?? ''),
             'workerPosition' => (string) ($case->employee?->job_title ?? ''),
+            'legalPhrasing' => $legalPhrasing,
             'hearingDay' => $hearingDate,
             'hearingTime' => $hearingTime,
             'modality' => $modality->value,
@@ -69,9 +74,10 @@ class FoGj03CitationService
             'informeReportDate' => (string) ($payload['informe_report_date'] ?? $this->drafts->resolveInformeReportDate($case)),
             'breachDate' => (string) ($payload['breach_date_display'] ?? ''),
             'chargesDescription' => (string) ($payload['charges_description'] ?? ''),
-            'article66Numerals' => (string) ($payload['article_66_numerals'] ?? ''),
-            'article68Numerals' => (string) ($payload['article_68_numerals'] ?? ''),
-            'article76Numerals' => (string) ($payload['article_76_numerals'] ?? ''),
+            'statuteArticles' => $this->articles->normalizeSavedBlocks(
+                $this->articles->blocksFromPayload($payload),
+            ),
+            'additionalEvidenceItems' => $this->drafts->normalizeEvidenceItems($payload['evidence_items'] ?? []),
             'signerName' => $lawyer?->name ?? '',
             'signerRole' => $lawyer?->displayJobTitle() ?? 'Analista de Relaciones Laborales',
             'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,

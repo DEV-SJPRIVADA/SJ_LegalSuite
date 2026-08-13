@@ -127,6 +127,7 @@ export async function mountDisciplinaryColombiaMap(el) {
     el.dataset.colombiaMapMounting = '1';
 
     const dark = el.getAttribute('data-chart-dark') === '1';
+    const compact = el.getAttribute('data-compact') === '1';
     const deptGeoUrl = resolveFetchUrl(el.getAttribute('data-geo-dept'));
     const munGeoUrl = resolveFetchUrl(el.getAttribute('data-geo-mun'));
     let pins = [];
@@ -139,12 +140,16 @@ export async function mountDisciplinaryColombiaMap(el) {
     let map;
     try {
         map = L.map(el, {
-            zoomControl: true,
-            attributionControl: true,
-            scrollWheelZoom: true,
+            zoomControl: false,
+            attributionControl: !compact,
+            scrollWheelZoom: !compact,
             minZoom: 5,
             maxZoom: 12,
         });
+
+        L.control.zoom({
+            position: compact ? 'topright' : 'topleft',
+        }).addTo(map);
 
         const tileUrl = dark
             ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -172,6 +177,8 @@ export async function mountDisciplinaryColombiaMap(el) {
         let munGeoCache = null;
 
         const markers = [];
+        /** @type {Record<string, L.Marker>} */
+        const markersByCode = {};
         for (const p of pins) {
             const lat = p.lat;
             const lon = p.lon;
@@ -189,6 +196,9 @@ export async function mountDisciplinaryColombiaMap(el) {
             });
             m.addTo(map);
             markers.push(m);
+            if (p.code) {
+                markersByCode[String(p.code)] = m;
+            }
         }
 
         if (markers.length) {
@@ -245,6 +255,7 @@ export async function mountDisciplinaryColombiaMap(el) {
 
         el.dataset.colombiaMapMounted = '1';
         el.__disciplinaryColombiaLeafletMap = map;
+        el.__disciplinaryColombiaMapMarkersByCode = markersByCode;
 
         const teardown = () => {
             try {
@@ -255,9 +266,14 @@ export async function mountDisciplinaryColombiaMap(el) {
             el.dataset.colombiaMapMounted = '0';
             delete el.dataset.colombiaMapMounting;
             delete el.__disciplinaryColombiaLeafletMap;
+            delete el.__disciplinaryColombiaMapMarkersByCode;
+            delete el.__disciplinaryColombiaMapTeardown;
         };
 
-        window.__disciplinaryColombiaMapTeardown = teardown;
+        el.__disciplinaryColombiaMapTeardown = teardown;
+        if (!compact) {
+            window.__disciplinaryColombiaMapTeardown = teardown;
+        }
     } catch (err) {
         console.error('[disciplinary-colombia-map]', err);
         try {
@@ -266,6 +282,7 @@ export async function mountDisciplinaryColombiaMap(el) {
             //
         }
         delete el.__disciplinaryColombiaLeafletMap;
+        delete el.__disciplinaryColombiaMapMarkersByCode;
         el.innerHTML =
             '<p class="p-4 text-sm text-amber-100/95 dark:text-amber-200/90">No se pudo cargar el mapa. En el servidor ejecute <code class="rounded bg-black/30 px-1 font-mono text-xs">php artisan geo:download-colombia-gadm</code> y recargue. Los datos se sirven por la ruta <code class="rounded bg-black/30 px-1">disciplinary/map-geo/…</code> (requiere sesión iniciada).</p>';
     } finally {

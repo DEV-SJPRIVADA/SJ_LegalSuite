@@ -26,16 +26,16 @@ class DisciplinaryAgendaThreadAttachmentInlineController
             abort(404);
         }
 
-        $canView = $user->hasRole('planeacion')
+        $canView = $user->hasRole('nivel3')
             || (int) $case->assigned_lawyer_id === (int) $user->id
-            || $user->hasRole('admin')
+            || $user->hasRole('nivel1')
             || $user->hasPermissionTo('disciplinary.assign');
 
         if (! $canView) {
             abort(403);
         }
 
-        if ($user->hasRole('planeacion') && ! $thread->isOpen()) {
+        if ($user->hasRole('nivel3') && ! $thread->isOpen()) {
             abort(403);
         }
 

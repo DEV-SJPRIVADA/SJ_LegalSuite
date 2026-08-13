@@ -67,8 +67,10 @@ class DiligenceAttendanceTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh()])
+            ->call('openStageCard', 'c')
             ->assertSee('Asistió')
             ->assertSee('No asistió')
+            ->assertSee('Reprogramar diligencia')
             ->assertSee('Primer paso obligatorio');
     }
 
@@ -81,7 +83,7 @@ class DiligenceAttendanceTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $lawyer->assignRole('abogado');
+        $lawyer->assignRole('nivel6');
 
         $employee = Employee::query()->create([
             'first_name' => 'Worker',

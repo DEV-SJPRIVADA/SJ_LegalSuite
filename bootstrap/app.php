@@ -23,6 +23,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->everyMinute()
                 ->withoutOverlapping();
         }
+
+        // Cola PDF solo con Browsershot + PDF_USE_QUEUE (Dompdf no la necesita).
+        if (config('services.pdf.use_queue')
+            && strtolower((string) config('services.pdf.driver', 'browsershot')) === 'browsershot') {
+            $schedule->command('disciplinary:process-pdf-queue')
+                ->everyMinute()
+                ->withoutOverlapping(2)
+                ->name('disciplinary-process-pdf-queue');
+        }
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([

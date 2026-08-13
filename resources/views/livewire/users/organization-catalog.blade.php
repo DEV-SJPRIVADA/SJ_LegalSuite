@@ -12,7 +12,7 @@
             <div>
                 <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Organización</p>
                 <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Áreas y cargos</h1>
-                <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">Las áreas son el ámbito organizacional. Cada cargo define el nombre del puesto y el perfil de permisos que tendrá quien lo ocupe (por ejemplo Supervisor u Operador dentro de Operaciones).</p>
+                <p class="text-sm text-slate-600 mt-1 dark:text-slate-300">Áreas y cargos de <strong class="font-semibold text-slate-800 dark:text-slate-200">usuarios</strong> del sistema, y catálogo de <strong class="font-semibold text-slate-800 dark:text-slate-200">cargos de empleados</strong> (RRHH) usados en disciplinarios y carga masiva.</p>
             </div>
             <a href="{{ route('users.index') }}" wire:navigate class="text-sm font-semibold text-indigo-700 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">
                 ← Volver a usuarios
@@ -127,7 +127,10 @@
                                         @forelse ($positions as $p)
                                             <tr>
                                                 <td class="px-3 py-2 text-slate-900 dark:text-white">{{ $p->name }}</td>
-                                                <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{{ $p->permission_role_name ?? '—' }}</td>
+                                                <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">
+                                                    @php $level = \App\Enums\PlatformLevel::tryFromSlug($p->permission_level_name); @endphp
+                                                    {{ $level ? $level->title().' — '.$level->subtitle() : ($p->permission_level_name ?? '—') }}
+                                                </td>
                                                 <td class="px-3 py-2 text-slate-600 dark:text-slate-300">{{ $p->sort_order }}</td>
                                                 <td class="px-3 py-2">
                                                     @if ($p->is_active)
@@ -161,11 +164,11 @@
                                         @error('positionName') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                                     </div>
                                     <div>
-                                        <label class="{{ $usersLabel }}">Perfil de permisos (técnico)</label>
+                                        <label class="{{ $usersLabel }}">Nivel</label>
                                         <select wire:model="positionPermissionRole" class="{{ $usersField }}">
                                             <option value="">— Elija —</option>
-                                            @foreach ($this->permissionRoleNameOptions as $rn)
-                                                <option value="{{ $rn }}">{{ ucfirst($rn) }}</option>
+                                            @foreach ($this->permissionRoleNameOptions as $slug => $label)
+                                                <option value="{{ $slug }}">{{ $label }}</option>
                                             @endforeach
                                         </select>
                                         @error('positionPermissionRole') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
@@ -194,6 +197,113 @@
                             Cree un área para definir cargos.
                         </div>
                     @endif
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Cargos de empleados (RRHH)</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Catálogo para registro individual y carga masiva. Marque <strong class="text-slate-700 dark:text-slate-300">Es guarda</strong> en los cargos que los supervisores pueden gestionar en disciplinarios.</p>
+                    </div>
+                    <button type="button" wire:click="startCreateEmployeePosition"
+                        class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 dark:text-cyan-400 dark:hover:text-cyan-300">
+                        + Nuevo cargo empleado
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10 text-sm">
+                        <thead class="bg-slate-50 dark:bg-white/[0.06]">
+                            <tr class="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                <th class="px-3 py-2 font-semibold">Cargo</th>
+                                <th class="px-3 py-2 font-semibold">Slug</th>
+                                <th class="px-3 py-2 font-semibold">Rol empleado</th>
+                                <th class="px-3 py-2 font-semibold">Guarda</th>
+                                <th class="px-3 py-2 font-semibold">Orden</th>
+                                <th class="px-3 py-2 font-semibold">Estado</th>
+                                <th class="px-3 py-2 font-semibold text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+                            @forelse ($employeePositions as $ep)
+                                <tr>
+                                    <td class="px-3 py-2 text-slate-900 dark:text-white">{{ $ep->name }}</td>
+                                    <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-slate-400">{{ $ep->slug }}</td>
+                                    <td class="px-3 py-2 text-slate-600 dark:text-slate-300">{{ $ep->employee_scope?->label() ?? '—' }}</td>
+                                    <td class="px-3 py-2">
+                                        @if ($ep->is_guarda)
+                                            <span class="inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-800 ring-1 ring-orange-200 dark:bg-orange-500/15 dark:text-orange-200 dark:ring-orange-500/30">Guarda</span>
+                                        @else
+                                            <span class="text-xs text-slate-500 dark:text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-slate-600 dark:text-slate-300">{{ $ep->sort_order }}</td>
+                                    <td class="px-3 py-2">
+                                        @if ($ep->is_active)
+                                            <span class="text-xs font-medium text-emerald-700 dark:text-emerald-400">Activo</span>
+                                        @else
+                                            <span class="text-xs font-medium text-slate-500">Inactivo</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-right whitespace-nowrap">
+                                        <button type="button" wire:click="editEmployeePosition({{ $ep->id }})" class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold dark:text-cyan-400">Editar</button>
+                                        <button type="button" wire:click="deleteEmployeePosition({{ $ep->id }})"
+                                            wire:confirm="¿Eliminar este cargo de empleado?"
+                                            class="ml-3 text-rose-600 hover:text-rose-800 text-xs font-semibold">Eliminar</button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-3 py-8 text-center text-slate-500 dark:text-slate-400">No hay cargos de empleado definidos.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-200 dark:border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2 space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-dash-muted">{{ $editingEmployeePositionId ? 'Editar cargo de empleado' : 'Nuevo cargo de empleado' }}</h3>
+                        <div>
+                            <label class="{{ $usersLabel }}">Nombre</label>
+                            <input type="text" wire:model.live="employeePositionName" class="{{ $usersField }}" maxlength="120">
+                            @error('employeePositionName') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="{{ $usersLabel }}">Slug (importación / sistema)</label>
+                            <input type="text" wire:model="employeePositionSlug" class="{{ $usersField }} font-mono text-xs" maxlength="80">
+                            @error('employeePositionSlug') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="{{ $usersLabel }}">Rol empleado</label>
+                            <select wire:model="employeePositionScope" class="{{ $usersField }}">
+                                @foreach (\App\Enums\EmployeeScope::options() as $val => $lbl)
+                                    <option value="{{ $val }}">{{ $lbl }}</option>
+                                @endforeach
+                            </select>
+                            @error('employeePositionScope') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="{{ $usersLabel }}">Orden</label>
+                            <input type="number" wire:model="employeePositionSortOrder" class="{{ $usersField }}" min="0" max="65535">
+                            @error('employeePositionSortOrder') <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="employeePositionIsGuarda" class="rounded border-slate-300 text-indigo-600 dark:border-white/25 dark:bg-transparent">
+                            <span class="text-sm text-slate-700 dark:text-slate-300">Es guarda (alcance disciplinario de campo)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="employeePositionIsActive" class="rounded border-slate-300 text-indigo-600 dark:border-white/25 dark:bg-transparent">
+                            <span class="text-sm text-slate-700 dark:text-slate-300">Cargo activo</span>
+                        </label>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" wire:click="saveEmployeePosition"
+                            class="w-full inline-flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                            Guardar cargo empleado
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

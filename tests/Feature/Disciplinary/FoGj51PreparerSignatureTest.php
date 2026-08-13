@@ -2,30 +2,34 @@
 
 namespace Tests\Feature\Disciplinary;
 
-use App\Models\ColombianMunicipality;
 use App\Models\Employee;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class FoGj51PreparerSignatureTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RolesAndPermissionsSeeder::class);
+    }
 
     private function makeEmployee(): Employee
     {
-        return Employee::query()->create([
-            'first_name' => 'Trabajador',
-            'last_name' => 'Prueba',
-            'document_number' => '9500'.random_int(100000, 999999),
-        ]);
+        return $this->seedGuardaEmployee('9500'.random_int(100000, 999999), '76001');
     }
 
     public function test_pdf_action_requires_captured_preparer_signature(): void
     {
         $supervisor = $this->makeSupervisor();
         $employee = $this->makeEmployee();
-        $this->seedMunicipality();
+        $this->seedMunicipality('76001', 'Cali');
 
         $response = $this->actingAs($supervisor)->post(route('disciplinary.forms.informe.process'), [
             'fo51_action' => 'pdf',
@@ -43,7 +47,7 @@ class FoGj51PreparerSignatureTest extends TestCase
     {
         $supervisor = $this->makeSupervisor();
         $employee = $this->makeEmployee();
-        $this->seedMunicipality();
+        $this->seedMunicipality('76001', 'Cali');
 
         $response = $this->actingAs($supervisor)->post(route('disciplinary.forms.informe.process'), [
             'fo51_action' => 'pdf',
@@ -85,7 +89,7 @@ class FoGj51PreparerSignatureTest extends TestCase
             'faultOtherDetail' => '',
             'observations' => 'Observaciones.',
             'preparerName' => 'Supervisor campo',
-            'preparerRole' => 'supervisor',
+            'preparerRole' => 'nivel7',
             'preparerSignature' => $signature,
             'reportDay' => '16',
             'reportMonth' => '06',
@@ -113,7 +117,8 @@ class FoGj51PreparerSignatureTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('fo51-interactive', false);
+        $response->assertSee('class="fo51-interactive"', false);
+        $response->assertSee('class="ogj-letter-screen-sheet"', false);
         $response->assertSee('fo51-block-personal', false);
         $response->assertSee('fo51-personal-inner', false);
         $response->assertSee('fo51-inline-lbl', false);
@@ -140,7 +145,7 @@ class FoGj51PreparerSignatureTest extends TestCase
             'faultOtherDetail' => '',
             'observations' => 'Observaciones.',
             'preparerName' => 'Supervisor campo',
-            'preparerRole' => 'supervisor',
+            'preparerRole' => 'nivel7',
             'preparerSignature' => $signature,
             'reportDay' => '16',
             'reportMonth' => '06',
@@ -155,8 +160,14 @@ class FoGj51PreparerSignatureTest extends TestCase
             'jurYyyy' => '',
         ])->render();
 
-        $this->assertStringNotContainsString('fo51-interactive', $html);
+        $this->assertDoesNotMatchRegularExpression('/<div[^>]*class="[^"]*fo51-interactive/', $html);
+        $this->assertStringNotContainsString('class="ogj-letter-screen-sheet"', $html);
+        $this->assertStringNotContainsString('x-ref="fo51LetterSheet"', $html);
         $this->assertStringNotContainsString('@media (max-width: 767px)', $html);
+        $this->assertStringContainsString('fo51-pdf', $html);
+        $this->assertStringContainsString('fo51-fault-line-tbl', $html);
+        $this->assertStringContainsString('fo51-obs-pdf', $html);
+        $this->assertStringNotContainsString('<textarea', $html);
         $this->assertStringContainsString('fo51-personal-inner', $html);
         $this->assertStringNotContainsString('.fo51-personal-cell {
         display: flex', $html);
@@ -165,28 +176,50 @@ class FoGj51PreparerSignatureTest extends TestCase
         $this->assertSame(6, substr_count($html, 'class="fo51-personal-cell"'));
     }
 
-    private function makeSupervisor(): User
+    public function test_filled_pdf_dompdf_fits_one_physical_page(): void
     {
-        $user = User::factory()->create([
-            'email' => 'supervisor-fo51-'.random_int(1000, 9999).'@test.local',
-            'email_verified_at' => now(),
-            'must_change_password' => false,
-            'is_active' => true,
-            'position' => 'supervisor',
-        ]);
-        $user->assignRole('supervisor');
+        config(['services.pdf.driver' => 'dompdf']);
 
-        return $user;
+        $signature = $this->sampleSignatureDataUri();
+
+        $html = view('disciplinary.forms.fo-gj-51-filled-download', [
+            'embeddedLogoSrc' => 'data:image/png;base64,AA==',
+            'workerName' => 'TEGUE LASPRILLA ABRAHAM',
+            'workerDocument' => '76269756',
+            'workerCargo' => 'GUARDA DE SEGURIDAD',
+            'city' => 'Cali',
+            'shift' => 'Mañana',
+            'position' => 'Puesto 1',
+            'faultOtherDetail' => '',
+            'observations' => 'estoy realizando pruebas para probar la creación de PDF',
+            'preparerName' => 'Supervisor campo',
+            'preparerRole' => 'nivel2',
+            'preparerSignature' => $signature,
+            'reportDay' => '21',
+            'reportMonth' => '07',
+            'reportYear' => '2026',
+            'faultLeftChecked' => ['Retardo al Servicio'],
+            'faultRightChecked' => ['Incumplimiento de consignas'],
+            'faultOtherChecked' => false,
+            'jurPd' => '',
+            'entregaGh' => '',
+            'jurDd' => '',
+            'jurMm' => '',
+            'jurYyyy' => '',
+        ])->render();
+
+        $binary = \App\Support\Pdf\HtmlLetterPdfGenerator::fromHtml($html);
+        $physical = preg_match_all('/\/Type\s*\/Page\b/', $binary);
+
+        $this->assertSame(1, $physical, 'FO-GJ-51 canónico debe caber en 1 hoja Letter Dompdf');
+        $this->assertSame(1, preg_match_all('/<td class="ogj-meta-code">FO-GJ-51<\/td>/', $html));
     }
 
-    private function seedMunicipality(): void
+    private function makeSupervisor(): User
     {
-        ColombianMunicipality::query()->create([
-            'department_code' => '76',
-            'department_name' => 'Valle del Cauca',
-            'municipality_code' => '76001',
-            'municipality_name' => 'Cali',
-        ]);
+        $this->seedMunicipality('76001', 'Cali');
+
+        return $this->seedFieldUserWithCities('nivel7', ['76001']);
     }
 
     private function sampleSignatureDataUri(): string

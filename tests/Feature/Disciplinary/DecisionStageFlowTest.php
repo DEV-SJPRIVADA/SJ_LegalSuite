@@ -29,7 +29,7 @@ class DecisionStageFlowTest extends TestCase
 
     public function test_decision_stage_panel_appears_after_advance(): void
     {
-        $lawyer = $this->user('abogado', 'decision-panel@test.local');
+        $lawyer = $this->user('nivel6', 'decision-panel@test.local');
         $case = $this->caseInDecision($lawyer);
 
         $stack = app(CaseOverviewStageStack::class);
@@ -37,13 +37,14 @@ class DecisionStageFlowTest extends TestCase
 
         Livewire::actingAs($lawyer)
             ->test(CaseDetail::class, ['case' => $case])
+            ->call('openStageCard', 'd')
             ->assertSee('Etapa D · Comunicado de decisión')
             ->assertSee('Registrar tipo de decisión');
     }
 
     public function test_select_decision_type_starts_coordination(): void
     {
-        $lawyer = $this->user('abogado', 'decision-type@test.local');
+        $lawyer = $this->user('nivel6', 'decision-type@test.local');
         $case = $this->caseInDecision($lawyer);
 
         Livewire::actingAs($lawyer)
@@ -62,10 +63,10 @@ class DecisionStageFlowTest extends TestCase
 
     public function test_generate_comunicado_blocked_without_draft(): void
     {
-        $lawyer = $this->user('abogado', 'decision-gen@test.local');
+        $lawyer = $this->user('nivel6', 'decision-gen@test.local');
         $case = $this->caseInDecision($lawyer);
         $case->forceFill([
-            'decision' => Decision::AMONESTACION_VERBAL,
+            'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_coordination_started_at' => now(),
             'decision_notification_completed_at' => now(),
             'decision_notification_supervisor_user_id' => User::factory()->create(['is_active' => true])->id,
@@ -81,10 +82,10 @@ class DecisionStageFlowTest extends TestCase
 
     public function test_finalize_button_not_shown_without_requirements(): void
     {
-        $lawyer = $this->user('abogado', 'decision-finalize-blocked@test.local');
+        $lawyer = $this->user('nivel6', 'decision-finalize-blocked@test.local');
         $case = $this->caseInDecision($lawyer);
         $case->forceFill([
-            'decision' => Decision::ARCHIVADO,
+            'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_coordination_started_at' => now(),
             'decision_comunicado_generated_at' => now(),
         ])->save();

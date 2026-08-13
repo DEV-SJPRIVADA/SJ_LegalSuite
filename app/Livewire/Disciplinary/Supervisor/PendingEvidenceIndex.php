@@ -4,6 +4,7 @@ namespace App\Livewire\Disciplinary\Supervisor;
 
 use App\Enums\Disciplinary\ActionType;
 use App\Enums\Disciplinary\CitationEvidenceType;
+use App\Enums\Disciplinary\Decision;
 use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
@@ -16,11 +17,14 @@ use App\Services\Disciplinary\DisciplinaryDecisionWorkflowService;
 use App\Services\Disciplinary\DisciplinaryDocumentService;
 use App\Services\Disciplinary\FoGj03CitationService;
 use App\Support\Disciplinary\DecisionWorkflowSchema;
+use App\Support\Disciplinary\SupervisorEvidenceQueueService;
 use App\Support\Disciplinary\SupervisorSignedNotificationPreviewStore;
+use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -72,9 +76,64 @@ class PendingEvidenceIndex extends Component
 
     public ?string $signedNotificationPreviewFilename = null;
 
+    /** Filtro de cola: citation | decision | '' (todos). */
+    public string $activeQueue = '';
+
+    public string $search = '';
+
+    public bool $showFo51Modal = false;
+
+    public bool $fo51OpenPdfFirst = false;
+
+    public ?string $fo51PrefillName = null;
+
+    public ?string $fo51PrefillDocument = null;
+
     public function mount(): void
     {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        abort_unless(auth()->user()->hasRole('nivel7'), 403);
+
+        if (request()->boolean('informe_modal')) {
+            Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
+            $this->showFo51Modal = true;
+            $this->fo51OpenPdfFirst = request()->boolean('cargar_pdf');
+            $n = trim((string) request()->query('nombre', ''));
+            $c = trim((string) request()->query('cedula', ''));
+            $this->fo51PrefillName = $n !== '' ? $n : null;
+            $this->fo51PrefillDocument = $c !== '' ? $c : null;
+        }
+    }
+
+    public function setQueue(string $queue): void
+    {
+        $allowed = [
+            '',
+            SupervisorEvidenceQueueService::QUEUE_CITATION,
+            SupervisorEvidenceQueueService::QUEUE_DECISION,
+        ];
+
+        $this->activeQueue = in_array($queue, $allowed, true) ? $queue : '';
+    }
+
+    public function clearQueueFilters(): void
+    {
+        $this->activeQueue = '';
+        $this->search = '';
+    }
+
+    public function openFo51Modal(bool $openPdfFirst = false): void
+    {
+        Gate::authorize('generateFo51Inform', DisciplinaryCase::class);
+        $this->fo51PrefillName = null;
+        $this->fo51PrefillDocument = null;
+        $this->fo51OpenPdfFirst = $openPdfFirst;
+        $this->showFo51Modal = true;
+    }
+
+    public function closeFo51Modal(): void
+    {
+        $this->showFo51Modal = false;
+        $this->fo51OpenPdfFirst = false;
     }
 
     public function updatedCitationEvidenceFileByCase(mixed $value, string $key): void
@@ -153,7 +212,7 @@ class PendingEvidenceIndex extends Component
         DisciplinaryCitationWorkflowService $citationWorkflow,
         DisciplinaryAuditService $audit,
     ): void {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        abort_unless(auth()->user()->hasRole('nivel7'), 403);
 
         $case = $this->resolveSupervisorPendingCase($caseId);
         Gate::authorize('uploadCitationEvidence', $case);
@@ -207,7 +266,7 @@ class PendingEvidenceIndex extends Component
         DisciplinaryDecisionWorkflowService $decisionWorkflow,
         DisciplinaryAuditService $audit,
     ): void {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        abort_unless(auth()->user()->hasRole('nivel7'), 403);
 
         $case = $this->resolveDecisionPendingCase($caseId);
         Gate::authorize('uploadDecisionEvidence', $case);
@@ -577,7 +636,7 @@ class PendingEvidenceIndex extends Component
 
     public function render(FoGj03CitationService $foGj03, DecisionComunicadoService $decisionComunicado)
     {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        abort_unless(auth()->user()->hasRole('nivel7'), 403);
 
         $notificationCase = null;
         $notificationViewData = null;
@@ -606,32 +665,23 @@ class PendingEvidenceIndex extends Component
         if ($this->evidencePreviewCaseId !== null) {
             $previewFile = $this->citationEvidenceFileByCase[$this->evidencePreviewCaseId] ?? null;
             if ($previewFile) {
-                $evidencePreviewUrl = $previewFile->temporaryUrl();
+                // Se sirve mediante un controlador propio con «Content-Disposition:
+                // inline» para que el PDF se previsualice en el iframe; la URL
+                // temporal nativa de Livewire lo entrega como descarga.
+                $evidencePreviewUrl = URL::temporarySignedRoute(
+                    'disciplinary.evidences-pending.scanned-preview',
+                    now()->addMinutes(30),
+                    ['filename' => $previewFile->getFilename()],
+                );
             } else {
                 $this->evidencePreviewCaseId = null;
             }
         }
 
-        $tasks = DisciplinaryCase::query()
-            ->where('notification_supervisor_user_id', auth()->id())
-            ->whereNotNull('fo_gj_03_generated_at')
-            ->whereNull('citation_evidence_uploaded_at')
-            ->whereHas('documents', fn ($q) => $q
-                ->where('document_type', DocumentType::CITACION)
-                ->where('notes', 'like', '%'.DisciplinaryCase::NOTE_FO_GJ_03_GENERATED.'%'))
-            ->with(['employee:id,first_name,last_name'])
-            ->orderByDesc('fo_gj_03_generated_at')
-            ->get();
-
-        $decisionTasks = DecisionWorkflowSchema::isReady()
-            ? DisciplinaryCase::query()
-                ->where('decision_notification_supervisor_user_id', auth()->id())
-                ->whereNotNull('decision_comunicado_generated_at')
-                ->whereNull('decision_evidence_uploaded_at')
-                ->with(['employee:id,first_name,last_name'])
-                ->orderByDesc('decision_comunicado_generated_at')
-                ->get()
-            : collect();
+        $queue = app(SupervisorEvidenceQueueService::class);
+        $supervisor = auth()->user();
+        $queueCounts = $queue->counts($supervisor);
+        $queueTasks = $queue->tasks($supervisor, $this->activeQueue, $this->search);
 
         $signedNotificationPreviewUrl = null;
         $signedNotificationDownloadUrl = null;
@@ -646,8 +696,8 @@ class PendingEvidenceIndex extends Component
         }
 
         return view('livewire.disciplinary.supervisor.pending-evidence-index', [
-            'tasks' => $tasks,
-            'decisionTasks' => $decisionTasks,
+            'queueCounts' => $queueCounts,
+            'queueTasks' => $queueTasks,
             'notificationCase' => $notificationCase,
             'notificationViewData' => $notificationViewData,
             'decisionNotificationCase' => $decisionNotificationCase,
@@ -658,6 +708,11 @@ class PendingEvidenceIndex extends Component
             'signedNotificationPreviewUrl' => $signedNotificationPreviewUrl,
             'signedNotificationDownloadUrl' => $signedNotificationDownloadUrl,
             'signedNotificationPreviewFilename' => $this->signedNotificationPreviewFilename,
+            'operacionesReviewers' => User::query()
+                ->role('nivel2')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -755,9 +810,19 @@ class PendingEvidenceIndex extends Component
             $payload = $decisionSigning->validateNotificationPayload($inputPayload);
             $binary = $decisionSigning->renderNotificationPdf($case, $payload);
             $type = CitationEvidenceType::from($payload['evidence_type']);
-            $filename = $type === CitationEvidenceType::SIGNED
-                ? 'FO-GJ-DECISION-firmado-'.$case->case_number.'.pdf'
-                : 'FO-GJ-DECISION-rechazo-testigos-'.$case->case_number.'.pdf';
+            $filename = match (true) {
+                $type === CitationEvidenceType::SIGNED && $case->decision === Decision::AMONESTACION_ESCRITA
+                    => 'FO-GJ-46-firmado-'.$case->case_number.'.pdf',
+                $type === CitationEvidenceType::SIGNED && $case->decision === Decision::SUSPENSION
+                    => 'FO-GJ-47-firmado-'.$case->case_number.'.pdf',
+                $type === CitationEvidenceType::SIGNED
+                    => 'FO-GJ-45-firmado-'.$case->case_number.'.pdf',
+                $case->decision === Decision::AMONESTACION_ESCRITA
+                    => 'FO-GJ-46-rechazo-testigos-'.$case->case_number.'.pdf',
+                $case->decision === Decision::SUSPENSION
+                    => 'FO-GJ-47-rechazo-testigos-'.$case->case_number.'.pdf',
+                default => 'FO-GJ-45-rechazo-testigos-'.$case->case_number.'.pdf',
+            };
 
             return [
                 'context' => 'decision',

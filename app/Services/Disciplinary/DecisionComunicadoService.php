@@ -8,7 +8,10 @@ use App\Enums\Disciplinary\DocumentType;
 use App\Enums\Disciplinary\StageType;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\User;
-use App\Support\Disciplinary\DecisionBranch;
+use App\Services\Users\UserSignatureService;
+use App\Support\Disciplinary\DecisionStatuteArticles;
+use App\Support\Disciplinary\FoGj46HearingLead;
+use App\Support\Disciplinary\WorkerLegalPhrasing;
 use App\Support\Pdf\EmbeddedPublicAsset;
 use App\Support\Pdf\HtmlLetterPdfGenerator;
 use Illuminate\Http\UploadedFile;
@@ -21,6 +24,10 @@ class DecisionComunicadoService
         private readonly DisciplinaryAuditService $audit,
         private readonly DisciplinaryDocumentService $documents,
         private readonly DecisionDraftService $drafts,
+        private readonly FoGj45DraftService $foGj45Drafts,
+        private readonly FoGj46DraftService $foGj46Drafts,
+        private readonly FoGj47DraftService $foGj47Drafts,
+        private readonly UserSignatureService $signatures,
     ) {}
 
     public function canGenerate(DisciplinaryCase $case): bool
@@ -34,37 +41,140 @@ class DecisionComunicadoService
     /** @return array<string, mixed> */
     public function buildViewData(DisciplinaryCase $case): array
     {
-        $case->loadMissing(['employee', 'assignedLawyer', 'notificationSupervisor']);
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return $this->buildFoGj46ViewData($case);
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return $this->buildFoGj47ViewData($case);
+        }
+
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return $this->buildFoGj45ViewData($case);
+        }
+
+        throw ValidationException::withMessages([
+            'decisionBodyNarrative' => 'No hay formato FO-GJ-45/46/47 aplicable a este expediente.',
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function buildFoGj46ViewData(DisciplinaryCase $case): array
+    {
+        $case->loadMissing(['employee', 'assignedLawyer']);
         $payload = $case->decision_comunicado_generated_at !== null
             ? ($case->decision_payload ?? [])
-            : $this->drafts->payloadForPdf($case);
-        $issuedAt = now()->timezone('America/Bogota');
-        $branch = DecisionBranch::forDecision($case->decision);
+            : $this->foGj46Drafts->payloadForPdf($case);
 
+        $defaults = $this->foGj46Drafts->defaultsForCase($case);
+        $issuedAt = now()->timezone('America/Bogota');
+        $lead = FoGj46HearingLead::tryFrom((string) ($payload['hearing_lead'] ?? ''));
         $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $lawyer = $case->assignedLawyer;
+        $modality = (string) ($payload['modality'] ?? $defaults['modality'] ?? 'presencial');
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
 
         return [
-            'caseNumber' => $case->case_number,
-            'decisionLabel' => $case->decision?->label() ?? 'Decisión disciplinaria',
-            'subject' => (string) ($payload['subject'] ?? ''),
-            'bodyNarrative' => (string) ($payload['body_narrative'] ?? ''),
-            'companyLegalName' => 'SJ SEGURIDAD PRIVADA LTDA',
+            'issuedDateLong' => $issuedAt->translatedFormat('j \d\e F \d\e\l Y'),
+            'caseNumber' => (string) $case->case_number,
             'workerName' => $workerName,
             'workerDocument' => (string) ($case->employee?->document_number ?? ''),
             'workerPosition' => (string) ($case->employee?->job_title ?? ''),
-            'lawyerName' => $case->assignedLawyer?->name ?? '',
-            'issuedDate' => $issuedAt->format('d/m/Y'),
-            'issuedDateLong' => $issuedAt->translatedFormat('j \d\e F \d\e Y'),
-            'placeLine' => 'Santiago de Cali, '.$issuedAt->translatedFormat('j \d\e F \d\e Y'),
-            'suspensionStart' => (string) ($payload['suspension_start'] ?? ''),
-            'suspensionEnd' => (string) ($payload['suspension_end'] ?? ''),
-            'reliefNotes' => (string) ($payload['relief_notes'] ?? ''),
-            'showSuspensionDates' => $branch !== null && DecisionBranch::requiresSuspensionDates($branch),
-            'showRelief' => $branch === DecisionBranch::TERMINATION,
-            'notificationDate' => $case->decision_notification_date?->format('d/m/Y') ?? '',
-            'notificationShift' => (string) ($case->decision_notification_shift ?? ''),
-            'notificationZone' => (string) ($case->decision_notification_zone ?? ''),
-            'supervisorName' => (string) ($case->decision_notification_supervisor_name ?? ''),
+            'hearingLeadPhrase' => $lead !== null ? $legalPhrasing->foGj46HearingLeadPhrase($lead) : '',
+            'postHearingBridge' => $legalPhrasing->foGj46PostHearingBridge($lead),
+            'legalPhrasing' => $legalPhrasing,
+            'hearingLead' => $lead?->value ?? '',
+            'modalityLabel' => $modality === 'virtual' ? 'virtual' : 'presencial',
+            'hearingDay' => (string) ($payload['hearing_day'] ?? $defaults['hearing_day']),
+            'hearingMonth' => (string) ($payload['hearing_month'] ?? $defaults['hearing_month']),
+            'hearingYear' => (string) ($payload['hearing_year'] ?? $defaults['hearing_year']),
+            'factsNarrative' => (string) ($payload['facts_narrative'] ?? ''),
+            'breachDay' => (string) ($payload['breach_day'] ?? $defaults['breach_day']),
+            'breachMonth' => (string) ($payload['breach_month'] ?? $defaults['breach_month']),
+            'breachYear' => (string) ($payload['breach_year'] ?? $defaults['breach_year']),
+            'statuteArticles' => $statuteArticles = DecisionStatuteArticles::resolve(
+                $case->fo_gj_03_payload ?? [],
+                is_array($payload) ? $payload : [],
+            ),
+            'articles55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+            'articles57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+            'articles60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
+            'signerName' => (string) ($payload['signer_name'] ?? ''),
+            'signerTitle' => (string) ($payload['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA'),
+            'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function buildFoGj47ViewData(DisciplinaryCase $case): array
+    {
+        $case->loadMissing(['employee', 'assignedLawyer']);
+        $payload = $case->decision_comunicado_generated_at !== null
+            ? ($case->decision_payload ?? [])
+            : $this->foGj47Drafts->payloadForPdf($case);
+
+        $defaults = $this->foGj47Drafts->defaultsForCase($case);
+        $issuedAt = now()->timezone('America/Bogota');
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
+        $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $lawyer = $case->assignedLawyer;
+        $statuteArticles = DecisionStatuteArticles::resolve(
+            $case->fo_gj_03_payload ?? [],
+            is_array($payload) ? $payload : [],
+        );
+
+        return [
+            'issuedDateLong' => $issuedAt->translatedFormat('j \d\e F \d\e\l Y'),
+            'caseNumber' => (string) $case->case_number,
+            'workerName' => $workerName,
+            'workerDocument' => (string) ($case->employee?->document_number ?? ''),
+            'workerPosition' => (string) ($case->employee?->job_title ?? ''),
+            'openingSalutation' => $legalPhrasing->foGj47OpeningSalutation(),
+            'openingNarrative' => (string) ($payload['opening_narrative'] ?? ''),
+            'daysPhrase' => (string) ($payload['days_phrase'] ?? $defaults['days_phrase'] ?? ''),
+            'notifyWorkerPhrase' => $legalPhrasing->foGj47NotifyWorkerPhrase(),
+            'startLong' => (string) ($payload['start_long'] ?? $defaults['start_long'] ?? ''),
+            'endLong' => (string) ($payload['end_long'] ?? $defaults['end_long'] ?? ''),
+            'returnLong' => (string) ($payload['return_long'] ?? $defaults['return_long'] ?? ''),
+            'statuteArticles' => $statuteArticles,
+            'articles55' => DecisionStatuteArticles::numeralsFor($statuteArticles, '55'),
+            'articles57' => DecisionStatuteArticles::numeralsFor($statuteArticles, '57'),
+            'articles60' => DecisionStatuteArticles::numeralsFor($statuteArticles, '60'),
+            'signerName' => (string) ($payload['signer_name'] ?? ''),
+            'signerTitle' => (string) ($payload['signer_title'] ?? 'DIRECTORA DE GESTIÓN HUMANA'),
+            'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
+            'legalPhrasing' => $legalPhrasing,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function buildFoGj45ViewData(DisciplinaryCase $case): array
+    {
+        $case->loadMissing(['employee', 'assignedLawyer']);
+        $payload = $case->decision_comunicado_generated_at !== null
+            ? ($case->decision_payload ?? [])
+            : $this->foGj45Drafts->payloadForPdf($case);
+
+        $issuedAt = now()->timezone('America/Bogota');
+        $legalPhrasing = WorkerLegalPhrasing::fromEmployee($case->employee);
+        $workerName = trim(($case->employee?->first_name ?? '').' '.($case->employee?->last_name ?? ''));
+        $lawyer = $case->assignedLawyer;
+
+        return [
+            'issuedDateLong' => $issuedAt->translatedFormat('j \d\e F \d\e\l Y'),
+            'caseNumber' => (string) $case->case_number,
+            'workerName' => $workerName,
+            'workerDocument' => (string) ($case->employee?->document_number ?? ''),
+            'workerPosition' => (string) ($case->employee?->job_title ?? ''),
+            'openingSalutation' => $legalPhrasing->foGj45OpeningSalutation(),
+            'bodyParagraph' => (string) ($payload['body_paragraph'] ?? ''),
+            'resolutiveFirst' => (string) ($payload['resolutive_first'] ?? ''),
+            'resolutiveSecond' => (string) ($payload['resolutive_second'] ?? ''),
+            'signerName' => (string) ($payload['signer_name'] ?? ''),
+            'signerTitle' => (string) ($payload['signer_title'] ?? FoGj45DraftService::DEFAULT_SIGNER_TITLE),
+            'signatureDataUri' => $lawyer ? $this->signatures->dataUriForPdf($lawyer) : null,
+            'legalPhrasing' => $legalPhrasing,
+            'workerSignatureLead' => $legalPhrasing->foGj45WorkerSignatureLead(),
         ];
     }
 
@@ -72,35 +182,84 @@ class DecisionComunicadoService
     {
         $this->drafts->payloadForPdf($case);
 
-        return HtmlLetterPdfGenerator::fromView(
-            'disciplinary.forms.decision-comunicado-filled-download',
-            array_merge(
-                $this->buildViewData($case),
-                ['embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri()],
-            ),
-        );
+        if ($this->foGj46Drafts->appliesTo($case)) {
+            return HtmlLetterPdfGenerator::fromView(
+                'disciplinary.forms.fo-gj-46-filled-download',
+                array_merge(
+                    $this->buildFoGj46ViewData($case),
+                    ['embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri()],
+                ),
+            );
+        }
+
+        if ($this->foGj47Drafts->appliesTo($case)) {
+            return HtmlLetterPdfGenerator::fromView(
+                'disciplinary.forms.fo-gj-47-filled-download',
+                array_merge(
+                    $this->buildFoGj47ViewData($case),
+                    ['embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri()],
+                ),
+            );
+        }
+
+        if ($this->foGj45Drafts->appliesTo($case)) {
+            return HtmlLetterPdfGenerator::fromView(
+                'disciplinary.forms.fo-gj-45-filled-download',
+                array_merge(
+                    $this->buildFoGj45ViewData($case),
+                    ['embeddedLogoSrc' => EmbeddedPublicAsset::disciplinaryLogoDataUri()],
+                ),
+            );
+        }
+
+        throw ValidationException::withMessages([
+            'decisionBodyNarrative' => 'No hay formato FO-GJ-45/46/47 aplicable a este expediente.',
+        ]);
     }
 
     public function generateAndStore(DisciplinaryCase $case, User $actor): DisciplinaryCase
     {
         if (! $this->canGenerate($case)) {
             $missing = $this->drafts->missingDraftRequirements($case);
+            $field = match (true) {
+                $this->foGj47Drafts->appliesTo($case) => 'foGj47OpeningNarrative',
+                $this->foGj46Drafts->appliesTo($case) => 'foGj46HearingLead',
+                $this->foGj45Drafts->appliesTo($case) => 'foGj45BodyParagraph',
+                default => 'foGj45BodyParagraph',
+            };
             throw ValidationException::withMessages([
-                'decisionBodyNarrative' => $missing !== []
-                    ? 'No es posible generar el comunicado. Falta: '.implode(', ', $missing)
-                    : 'Complete el diligenciamiento del comunicado antes de generar el documento.',
+                $field => $missing !== []
+                    ? 'No es posible generar el documento. Falta: '.implode(', ', $missing)
+                    : 'Complete el diligenciamiento antes de generar el documento.',
             ]);
         }
 
-        return DB::transaction(function () use ($case, $actor) {
+        $isFo45 = $this->foGj45Drafts->appliesTo($case);
+        $isFo46 = $this->foGj46Drafts->appliesTo($case);
+        $isFo47 = $this->foGj47Drafts->appliesTo($case);
+
+        return DB::transaction(function () use ($case, $actor, $isFo45, $isFo46, $isFo47) {
             $binary = $this->downloadPdf($case, $actor);
-            $path = tempnam(sys_get_temp_dir(), 'decision_');
+            $prefix = match (true) {
+                $isFo47 => 'fo47_',
+                $isFo46 => 'fo46_',
+                $isFo45 => 'fo45_',
+                default => 'fo_',
+            };
+            $path = tempnam(sys_get_temp_dir(), $prefix);
             file_put_contents($path, $binary);
 
             try {
+                $filename = match (true) {
+                    $isFo47 => 'FO-GJ-47-suspension-'.$case->case_number.'.pdf',
+                    $isFo46 => 'FO-GJ-46-llamado-atencion-'.$case->case_number.'.pdf',
+                    $isFo45 => 'FO-GJ-45-acta-archivo-'.$case->case_number.'.pdf',
+                    default => 'FO-GJ-decision-'.$case->case_number.'.pdf',
+                };
+
                 $uploaded = new UploadedFile(
                     $path,
-                    'Comunicado-decision-'.$case->case_number.'.pdf',
+                    $filename,
                     'application/pdf',
                     UPLOAD_ERR_OK,
                     true,
@@ -111,13 +270,20 @@ class DecisionComunicadoService
                     ->orderByDesc('sequence')
                     ->first();
 
+                $note = match (true) {
+                    $isFo47 => DisciplinaryCase::NOTE_FO_GJ_47_GENERATED,
+                    $isFo46 => DisciplinaryCase::NOTE_FO_GJ_46_GENERATED,
+                    $isFo45 => DisciplinaryCase::NOTE_FO_GJ_45_GENERATED,
+                    default => DisciplinaryCase::NOTE_FO_GJ_45_GENERATED,
+                };
+
                 $this->documents->upload(
                     $case,
                     $uploaded,
                     DocumentType::DECISION,
                     $actor,
                     $stage,
-                    DisciplinaryCase::NOTE_DECISION_COMUNICADO_GENERATED,
+                    $note,
                 );
             } finally {
                 if (is_file($path)) {
@@ -130,11 +296,18 @@ class DecisionComunicadoService
                 'decision_comunicado_generated_by' => $actor->id,
             ])->save();
 
+            $auditMessage = match (true) {
+                $isFo47 => 'FO-GJ-47 (Suspensión) generado y almacenado en el expediente.',
+                $isFo46 => 'FO-GJ-46 (Llamado de atención) generado y almacenado en el expediente.',
+                $isFo45 => 'FO-GJ-45 (Acta de archivo) generado y almacenado en el expediente.',
+                default => 'Documento de decisión generado y almacenado en el expediente.',
+            };
+
             $this->audit->logCase(
                 $case->fresh(),
                 $actor,
                 ActionType::DECISION_COMUNICADO_GENERADO,
-                'Comunicado de decisión generado y almacenado en el expediente.',
+                $auditMessage,
             );
 
             app(DisciplinaryDecisionNotificationService::class)

@@ -17,10 +17,12 @@ use App\Support\Disciplinary\CitationStageProgress;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class DisciplinaryCitationStageFlowTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -29,14 +31,26 @@ class DisciplinaryCitationStageFlowTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_full_b1_flow_chat_planning_slots_confirm(): void
+    public function test_full_b1_flow_notification_then_planning_slots_confirm(): void
     {
-        $lawyer = $this->user('abogado', 'flow-lawyer@test.local');
-        $planner = $this->user('planeacion', 'flow-planner@test.local');
+        $lawyer = $this->user('nivel6', 'flow-lawyer@test.local');
+        $planner = $this->user('nivel3', 'flow-planner@test.local');
         $case = $this->caseWithThread($lawyer);
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
 
         $agenda = app(DisciplinaryAgendaThreadService::class);
         $agenda->postLawyerMessage($case->fresh(['agendaThread']), $lawyer, 'Necesito fechas para diligencia');
+
+        app(DisciplinaryCitationNotificationService::class)->completeNotificationInformation(
+            $case->fresh(['agendaThread', 'assignedLawyer']),
+            $planner,
+            [
+                'notification_date' => now()->addDay()->toDateString(),
+                'notification_shift' => 'Mañana',
+                'notification_zone' => 'Norte',
+                'notification_supervisor_user_id' => $supervisor->id,
+            ],
+        );
 
         $case = $agenda->postPlanningMessage(
             $case->fresh(['agendaThread']),
@@ -56,13 +70,14 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_lawyer_can_post_chat_message_with_image_attachment(): void
     {
-        $lawyer = $this->user('abogado', 'lawyer-img@test.local');
+        $lawyer = $this->user('nivel6', 'lawyer-img@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $file = \Illuminate\Http\UploadedFile::fake()->image('evidencia-chat.jpg', 80, 80);
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
+            ->call('openPlanningChatModal')
             ->set('agendaLawyerBody', 'Adjunto foto')
             ->set('agendaLawyerUploads', [$file])
             ->call('postAgendaLawyer')
@@ -75,11 +90,12 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_lawyer_case_detail_shows_chat_composer(): void
     {
-        $lawyer = $this->user('abogado', 'lw-ui@test.local');
+        $lawyer = $this->user('nivel6', 'lw-ui@test.local');
         $case = $this->caseWithThread($lawyer);
 
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case])
+            ->call('openPlanningChatModal')
             ->assertSee('Escriba un mensaje para Planeación')
             ->assertSee('Adjuntar archivo')
             ->set('agendaLawyerBody', 'Hola planeación')
@@ -94,8 +110,8 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_planning_chat_without_slots_is_general(): void
     {
-        $lawyer = $this->user('abogado', 'chat-lawyer@test.local');
-        $planner = $this->user('planeacion', 'chat-planner@test.local');
+        $lawyer = $this->user('nivel6', 'chat-lawyer@test.local');
+        $planner = $this->user('nivel3', 'chat-planner@test.local');
         $case = $this->caseWithThread($lawyer);
 
         $msg = app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(
@@ -112,22 +128,11 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_chat_composer_remains_after_notification_registered_by_planning(): void
     {
-        $lawyer = $this->user('abogado', 'chat-after-notif@test.local');
-        $planner = $this->user('planeacion', 'planner-after-notif@test.local');
-        $supervisor = $this->user('supervisor', 'sup-after-notif@test.local');
+        $lawyer = $this->user('nivel6', 'chat-after-notif@test.local');
+        $planner = $this->user('nivel3', 'planner-after-notif@test.local');
         $case = $this->caseWithThread($lawyer);
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
         $agenda = app(DisciplinaryAgendaThreadService::class);
-
-        $agenda->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas',
-            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
-            [],
-        );
-
-        $message = $case->fresh()->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
-        $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
 
         app(DisciplinaryCitationNotificationService::class)->completeNotificationInformation(
             $case->fresh(['agendaThread', 'assignedLawyer']),
@@ -140,10 +145,22 @@ class DisciplinaryCitationStageFlowTest extends TestCase
             ],
         );
 
+        $agenda->postPlanningMessage(
+            $case->fresh(['agendaThread']),
+            $planner,
+            'Fechas',
+            [['date' => now()->addDays(4)->toDateString(), 'time' => '10:00', 'notes' => null]],
+            [],
+        );
+
+        $message = $case->fresh()->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
+        $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
+
         Livewire::actingAs($lawyer)
             ->test(\App\Livewire\Disciplinary\Cases\CaseDetail::class, ['case' => $case->fresh(['agendaThread.messages'])])
+            ->call('openPlanningChatModal')
             ->assertSee('Escriba un mensaje para Planeación')
-            ->assertSee('Ocultar chat')
+            ->call('openStageCard', 'b')
             ->assertSee('Fecha y usuario para notificación')
             ->assertSee('Mañana')
             ->assertSee('Norte');
@@ -151,21 +168,11 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_advancing_to_diligencia_closes_coordination_thread(): void
     {
-        $lawyer = $this->user('abogado', 'advance-close@test.local');
-        $planner = $this->user('planeacion', 'planner-advance@test.local');
-        $supervisor = $this->user('supervisor', 'sup-advance@test.local');
+        $lawyer = $this->user('nivel6', 'advance-close@test.local');
+        $planner = $this->user('nivel3', 'planner-advance@test.local');
         $case = $this->caseWithThread($lawyer);
+        $supervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
         $agenda = app(DisciplinaryAgendaThreadService::class);
-
-        $agenda->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas',
-            [['date' => now()->addDays(3)->toDateString(), 'time' => '09:00', 'notes' => null]],
-            [],
-        );
-        $message = $case->fresh()->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
-        $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
 
         app(DisciplinaryCitationNotificationService::class)->completeNotificationInformation(
             $case->fresh(['agendaThread', 'assignedLawyer']),
@@ -177,6 +184,16 @@ class DisciplinaryCitationStageFlowTest extends TestCase
                 'notification_supervisor_user_id' => $supervisor->id,
             ],
         );
+
+        $agenda->postPlanningMessage(
+            $case->fresh(['agendaThread']),
+            $planner,
+            'Fechas',
+            [['date' => now()->addDays(3)->toDateString(), 'time' => '09:00', 'notes' => null]],
+            [],
+        );
+        $message = $case->fresh()->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
+        $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
 
         $case->forceFill([
             'fo_gj_03_generated_at' => now(),
@@ -208,27 +225,17 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_close_coordination_blocked_with_pending_notification(): void
     {
-        $lawyer = $this->user('abogado', 'close@test.local');
+        $lawyer = $this->user('nivel6', 'close@test.local');
         $case = $this->caseWithThread($lawyer);
-        $agenda = app(DisciplinaryAgendaThreadService::class);
-        $planner = $this->user('planeacion', 'close-planner@test.local');
-        $agenda->postPlanningMessage(
-            $case->fresh(['agendaThread']),
-            $planner,
-            'Fechas',
-            [['date' => now()->addDays(3)->toDateString(), 'time' => '09:00', 'notes' => null]],
-            [],
-        );
-        $message = $case->fresh()->agendaThread->messages()->where('message_kind', AgendaMessageKind::PLANNING_RESPONSE)->first();
-        $case = $agenda->confirmCitationSlot($case->fresh(), $lawyer, $message->id, 0);
 
         $blockers = app(CitationStageProgress::class)->blockersBeforeClosingCoordination($case->fresh(['agendaThread.messages']));
         $this->assertNotEmpty($blockers);
+        $this->assertStringContainsString('notificación física', implode(' ', $blockers));
     }
 
     public function test_fo_gj_03_requires_full_b2_before_generate(): void
     {
-        $lawyer = $this->user('abogado', 'fo03@test.local');
+        $lawyer = $this->user('nivel6', 'fo03@test.local');
         $case = $this->caseWithThread($lawyer);
         $case->forceFill([
             'citation_confirmed_date' => now()->addDays(2)->toDateString(),
@@ -240,7 +247,7 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     public function test_abogado_disciplinarios_nav_url_points_to_cases_index(): void
     {
-        $lawyer = $this->user('abogado', 'nav-lawyer@test.local');
+        $lawyer = $this->user('nivel6', 'nav-lawyer@test.local');
 
         $this->assertSame(route('disciplinary.cases.index'), $lawyer->disciplinaryCasesNavUrl());
         $this->assertSame(route('disciplinary.dashboard'), $lawyer->disciplinaryPortalUrl());
@@ -261,16 +268,14 @@ class DisciplinaryCitationStageFlowTest extends TestCase
 
     private function caseWithThread(User $lawyer): DisciplinaryCase
     {
-        $employee = Employee::query()->create([
-            'first_name' => 'Flow',
-            'last_name' => 'Test',
-            'document_number' => '9300'.random_int(100000, 999999),
-        ]);
+        $employee = $this->seedGuardaEmployee('9300'.random_int(100000, 999999));
 
         $case = DisciplinaryCase::query()->create([
             'case_number' => 'DISC-FLOW-'.random_int(1000, 9999),
             'employee_id' => $employee->id,
             'assigned_lawyer_id' => $lawyer->id,
+            'municipality_code' => $employee->municipality_code,
+            'city' => 'SANTIAGO DE CALI',
             'current_status' => CaseStatus::CITACION_PROGRAMADA,
             'opened_at' => now()->toDateString(),
             'coordination_started_at' => now(),

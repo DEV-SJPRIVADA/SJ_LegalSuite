@@ -38,4 +38,32 @@ final class SpanishDateParts
 
         return $months[(int) $date->month] ?? $date->format('F');
     }
+
+    /**
+     * Normaliza hora libre (p. ej. "08:00 am", "8:00") a HH:MM:SS para columnas TIME de MySQL.
+     */
+    public static function normalizeTimeForStorage(?string $raw): ?string
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($raw)->format('H:i:s');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** Formato HH:MM para formularios / PDF. */
+    public static function normalizeTimeForForm(?string $raw): ?string
+    {
+        $stored = self::normalizeTimeForStorage($raw);
+        if ($stored === null) {
+            return null;
+        }
+
+        return substr($stored, 0, 5);
+    }
 }

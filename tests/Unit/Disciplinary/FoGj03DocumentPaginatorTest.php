@@ -1,0 +1,157 @@
+<?php
+
+namespace Tests\Unit\Disciplinary;
+
+use App\Support\Disciplinary\FoGj03DocumentPaginator;
+use Tests\TestCase;
+
+class FoGj03DocumentPaginatorTest extends TestCase
+{
+    private FoGj03DocumentPaginator $paginator;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->paginator = new FoGj03DocumentPaginator;
+    }
+
+    public function test_typical_citation_fits_one_planned_page(): void
+    {
+        $pages = $this->paginator->plan($this->typicalContext());
+
+        $this->assertCount(1, $pages);
+        $this->assertSame('Página 1 de 1', $pages[0]['pageLine']);
+        $this->assertTrue($pages[0]['showOpening']);
+        $this->assertTrue($pages[0]['showCharges']);
+        $this->assertTrue($pages[0]['chargesShowLead']);
+        $this->assertTrue($pages[0]['chargesShowTail']);
+        $this->assertTrue($pages[0]['showArticles']);
+        $this->assertTrue($pages[0]['showEvidence']);
+        $this->assertTrue($pages[0]['showClosing']);
+        $this->assertFalse($pages[0]['chargesIsContinuation']);
+    }
+
+    public function test_blank_form_fits_one_planned_page(): void
+    {
+        $pages = $this->paginator->plan([
+            'blankForDownload' => true,
+            'chargesDescription' => '',
+        ]);
+
+        $this->assertCount(1, $pages);
+        $this->assertTrue($pages[0]['showOpening']);
+        $this->assertTrue($pages[0]['showCharges']);
+        $this->assertTrue($pages[0]['showArticles']);
+        $this->assertTrue($pages[0]['showEvidence']);
+        $this->assertTrue($pages[0]['showClosing']);
+    }
+
+    public function test_long_charges_flow_continuously_then_closing_stays_atomic(): void
+    {
+        $pages = $this->paginator->plan([
+            ...$this->typicalContext(),
+            'chargesDescription' => str_repeat('Descripción extendida del cargo disciplinario. ', 80),
+        ]);
+
+        $this->assertGreaterThanOrEqual(2, count($pages));
+        $this->assertTrue($pages[0]['showOpening']);
+        $this->assertTrue($pages[0]['showCharges']);
+        $this->assertTrue($pages[0]['chargesShowLead']);
+
+        $continuation = collect($pages)->first(fn (array $page): bool => $page['chargesIsContinuation']);
+        $this->assertNotNull($continuation, 'El texto de cargos debe continuar en hoja siguiente');
+        $this->assertNotSame('', $continuation['chargesChunk']);
+
+        $closingPages = array_values(array_filter($pages, fn (array $p): bool => $p['showClosing']));
+        $this->assertCount(1, $closingPages, 'Firmas: un solo bloque en una sola hoja planificada');
+
+        $last = $pages[array_key_last($pages)];
+        $this->assertTrue($last['showClosing']);
+        $this->assertSame('Página '.count($pages).' de '.count($pages), $last['pageLine']);
+
+        $joined = collect($pages)->pluck('chargesChunk')->filter()->implode(' ');
+        $this->assertStringContainsString('Descripción extendida del cargo disciplinario.', $joined);
+    }
+
+    public function test_closing_moves_entire_to_own_page_when_body_is_full(): void
+    {
+        $pages = $this->paginator->plan([
+            ...$this->typicalContext(),
+            'chargesDescription' => str_repeat('Cargo. ', 200),
+            'evidenceType' => 'refused_witnesses',
+            'witnesses' => [['name' => 'A'], ['name' => 'B']],
+        ]);
+
+        $this->assertGreaterThanOrEqual(2, count($pages));
+
+        $closingPages = array_values(array_filter($pages, fn (array $p): bool => $p['showClosing']));
+        $this->assertCount(1, $closingPages);
+
+        $closing = $closingPages[0];
+        // Si las firmas van solas, no deben mezclarse a medias: es la hoja completa de cierre.
+        if (! $closing['showOpening'] && ! $closing['showCharges'] && ! $closing['showArticles'] && ! $closing['showEvidence']) {
+            $this->assertTrue($closing['showClosing']);
+        }
+    }
+
+    public function test_body_blocks_do_not_include_closing(): void
+    {
+        $types = array_column($this->paginator->buildBodyBlocks($this->typicalContext()), 'type');
+
+        $this->assertNotContains('closing', $types);
+        $this->assertContains('opening', $types);
+        $this->assertContains('evidence_lead', $types);
+        $this->assertContains('evidence_text', $types);
+    }
+
+    public function test_medium_charges_start_evidence_on_first_page_when_room_remains(): void
+    {
+        $pages = $this->paginator->plan([
+            ...$this->typicalContext(),
+            // Cargos que dejan hueco real tras artículos para meter evidencia en p.1.
+            'chargesDescription' => str_repeat('Descripción del cargo disciplinario reportado. ', 22),
+        ]);
+
+        $this->assertTrue($pages[0]['showArticles']);
+        $this->assertTrue(
+            $pages[0]['showEvidence'],
+            'La evidencia debe empezar a llenar el hueco inferior de p.1 (no saltar entera a p.2)',
+        );
+        $this->assertTrue($pages[0]['evidenceShowLead']);
+    }
+
+    public function test_additional_evidence_items_increase_evidence_lead_units(): void
+    {
+        $base = $this->paginator->buildBodyBlocks($this->typicalContext());
+        $withExtra = $this->paginator->buildBodyBlocks([
+            ...$this->typicalContext(),
+            'additionalEvidenceItems' => [
+                'Video de cámara del puesto Norte',
+                'Testimonio del supervisor de zona',
+            ],
+        ]);
+
+        $baseLead = collect($base)->firstWhere('type', 'evidence_lead')['units'] ?? 0;
+        $extraLead = collect($withExtra)->firstWhere('type', 'evidence_lead')['units'] ?? 0;
+
+        $this->assertGreaterThan($baseLead, $extraLead);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function typicalContext(): array
+    {
+        return [
+            'blankForDownload' => false,
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe; falta reiterada de presentación al puesto.',
+            'statuteArticles' => [
+                ['article_number' => '74', 'numerals' => '1, 3, 4, 6, 8, 9, 20, 29, 30, 39, 41, 42'],
+                ['article_number' => '76', 'numerals' => '10, 34'],
+                ['article_number' => '79', 'numerals' => '3, 12, 15, 22, 25, 36, 64, 98, 103, 112'],
+            ],
+            'locationText' => 'en las instalaciones de la empresa SJ Seguridad Privada Ltda. en Cali',
+            'evidenceType' => 'signed',
+        ];
+    }
+}

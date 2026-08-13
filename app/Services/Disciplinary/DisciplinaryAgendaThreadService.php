@@ -36,11 +36,11 @@ class DisciplinaryAgendaThreadService
             return false;
         }
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('nivel1')) {
             return true;
         }
 
-        return $user->hasRole('planeacion');
+        return $user->hasRole('nivel3');
     }
 
     public function userCanCloseCoordination(User $user, DisciplinaryCase $case): bool
@@ -53,7 +53,7 @@ class DisciplinaryAgendaThreadService
             return true;
         }
 
-        return $user->hasRole('admin') || $user->hasPermissionTo('disciplinary.assign');
+        return $user->hasRole('nivel1') || $user->hasPermissionTo('disciplinary.assign');
     }
 
     public function userIsCaseLawyer(User $user, DisciplinaryCase $case): bool
@@ -99,7 +99,7 @@ class DisciplinaryAgendaThreadService
             $recipients = User::query()
                 ->where('is_active', true)
                 ->where('read_only', false)
-                ->role('planeacion')
+                ->role('nivel3')
                 ->get();
 
             if ($recipients->isNotEmpty()) {
@@ -212,6 +212,10 @@ class DisciplinaryAgendaThreadService
         $hasStructuredSlots = $slots !== [];
 
         if ($hasStructuredSlots) {
+            if (! app(DisciplinaryCitationNotificationService::class)->canPlanningProposeDiligenceSlots($case)) {
+                throw new \InvalidArgumentException('Registre primero la información de notificación física antes de proponer fechas de diligencia.');
+            }
+
             $hasDate = false;
             foreach ($slots as $slot) {
                 if (filled($slot['date'] ?? null)) {
@@ -225,6 +229,15 @@ class DisciplinaryAgendaThreadService
         }
 
         return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots) {
+            if ($hasStructuredSlots && $case->citation_confirmed_date !== null) {
+                $case->forceFill([
+                    'citation_confirmed_date' => null,
+                    'citation_confirmed_time' => null,
+                    'citation_confirmed_by' => null,
+                    'citation_selected_message_id' => null,
+                ])->save();
+            }
+
             $messageKind = $hasStructuredSlots
                 ? AgendaMessageKind::PLANNING_RESPONSE
                 : AgendaMessageKind::GENERAL;
@@ -442,6 +455,10 @@ class DisciplinaryAgendaThreadService
         $hasStructuredSlots = $slots !== [];
 
         return DB::transaction(function () use ($case, $actor, $body, $slots, $attachments, $thread, $hasStructuredSlots, $decisionPayload) {
+            if ($hasStructuredSlots) {
+                app(DecisionCoordinationService::class)->clearConfirmationOnRepublish($case->fresh(), $actor);
+            }
+
             $displayBody = $body !== ''
                 ? $body
                 : ($hasStructuredSlots
@@ -553,7 +570,7 @@ class DisciplinaryAgendaThreadService
         $recipients = User::query()
             ->where('is_active', true)
             ->where('read_only', false)
-            ->role('planeacion')
+            ->role('nivel3')
             ->whereKeyNot($lawyer->id)
             ->get();
 

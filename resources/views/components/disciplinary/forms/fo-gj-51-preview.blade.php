@@ -105,6 +105,8 @@
     );
 
     $fo51Interactive = ! ($renderAsPdf ?? false) && ! ($blankForDownload ?? false);
+    $isPdfRender = (bool) ($renderAsPdf ?? false);
+    $useLetterScreen = ! $isPdfRender;
 @endphp
 
 @if ($fo51Interactive)
@@ -377,9 +379,128 @@
             min-height: 140px;
         }
     }
+    /* Dompdf: sin flexbox; grillas con tablas; cuerpo compacto en 1 hoja Letter. */
+    .fo51-pdf .fo51-block {
+        margin-bottom: 7px;
+    }
+    .fo51-pdf .fo51-date-wrap {
+        margin-bottom: 7px;
+    }
+    .fo51-pdf .fo51-personal-inner {
+        display: table;
+        width: 100%;
+    }
+    .fo51-pdf .fo51-inline-lbl {
+        display: table-cell;
+        width: 1%;
+        white-space: nowrap;
+        vertical-align: middle;
+        padding-right: 4px;
+    }
+    .fo51-pdf .fo51-personal-val {
+        display: table-cell;
+        vertical-align: middle;
+        width: auto;
+    }
+    .fo51-pdf .fo51-static {
+        display: inline;
+        min-height: 0;
+        padding: 1px 0;
+        line-height: 1.25;
+    }
+    .fo51-fault-line-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin: 0;
+    }
+    .fo51-fault-line-tbl td {
+        border: none;
+        padding: 3px 5px;
+        vertical-align: middle;
+        background: #fff;
+        color: #000;
+    }
+    .fo51-fault-text {
+        text-align: left;
+        line-height: 1.28;
+    }
+    .fo51-fault-chk {
+        text-align: right;
+        width: 18px;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .fo51-fault-chk-box {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        border: 1px solid #000;
+        text-align: center;
+        line-height: 10px;
+        font-size: 9px;
+        font-weight: bold;
+        vertical-align: middle;
+        box-sizing: border-box;
+    }
+    .fo51-fault-otros-detail {
+        border-bottom: 1px solid #000;
+        display: inline-block;
+        min-width: 6rem;
+        padding: 0 2px;
+        line-height: 1.25;
+    }
+    .fo51-obs-pdf {
+        padding: 5px 6px;
+        min-height: 72px;
+        text-align: justify;
+        line-height: 1.32;
+        white-space: pre-wrap;
+        color: #000;
+        box-sizing: border-box;
+    }
+    .fo51-pdf .fo51-sign-cell {
+        padding: 4px 5px !important;
+        height: auto !important;
+        vertical-align: middle;
+    }
+    .fo51-pdf .fo51-legal-cell {
+        padding: 4px 5px !important;
+        height: auto !important;
+        vertical-align: middle;
+    }
+    .fo51-pdf .fo51-legal-cell--center {
+        text-align: center;
+    }
+    .fo51-letter-screen-host {
+        width: 100%;
+    }
+    .fo51-interactive .ogj-letter-screen-scaler {
+        padding: 0.75rem 0 1.25rem;
+    }
 </style>
 
-<div @class(['fo51-interactive' => $fo51Interactive])>
+@if ($useLetterScreen)
+    <div
+        class="fo51-letter-screen-host"
+        x-data="{ scale: 1 }"
+        x-init="
+            const updateScale = () => {
+                const sheet = $refs.fo51LetterSheet;
+                if (! sheet) return;
+                const available = $el.clientWidth - 24;
+                const sheetWidth = sheet.offsetWidth;
+                scale = sheetWidth > available ? Math.max(available / sheetWidth, 0.45) : 1;
+            };
+            $nextTick(updateScale);
+            window.addEventListener('resize', updateScale);
+        "
+    >
+        <div class="ogj-letter-screen-scaler">
+            <div class="ogj-letter-screen-sheet" x-ref="fo51LetterSheet" :style="`transform: scale(${scale});`">
+@endif
+
+<div @class(['fo51-interactive' => $fo51Interactive, 'fo51-pdf' => $isPdfRender])>
 <x-disciplinary.forms.official-letter-pdf-shell
     code="FO-GJ-51"
     headline="Informe disciplinario"
@@ -602,30 +723,79 @@
                         <tr>
                             <td colspan="2" style="width:50%;padding:0!important">
                                 @if (isset($faultLeft[$r]))
-                                    <div class="fo51-fault-line">
-                                        <span>{{ $faultLeft[$r] }}</span>
-                                        <input type="checkbox" name="fo51_fault_left[]" value="{{ $faultLeft[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultLeft[$r] }}"
-                                            @checked(in_array($faultLeft[$r], $faultLeftChecked, true))>
-                                    </div>
+                                    @if ($isPdfRender)
+                                        <table class="fo51-fault-line-tbl" role="presentation">
+                                            <colgroup>
+                                                <col>
+                                                <col style="width:18px">
+                                            </colgroup>
+                                            <tr>
+                                                <td class="fo51-fault-text">{{ $faultLeft[$r] }}</td>
+                                                <td class="fo51-fault-chk">
+                                                    <span class="fo51-fault-chk-box">{!! in_array($faultLeft[$r], $faultLeftChecked, true) ? 'X' : '&nbsp;' !!}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    @else
+                                        <div class="fo51-fault-line">
+                                            <span>{{ $faultLeft[$r] }}</span>
+                                            <input type="checkbox" name="fo51_fault_left[]" value="{{ $faultLeft[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultLeft[$r] }}"
+                                                @checked(in_array($faultLeft[$r], $faultLeftChecked, true))>
+                                        </div>
+                                    @endif
                                 @endif
                             </td>
                             <td colspan="2" style="width:50%;padding:0!important">
                                 @if ($r < $faultRightCount)
-                                    <div class="fo51-fault-line">
-                                        <span>{{ $faultRight[$r] }}</span>
-                                        <input type="checkbox" name="fo51_fault_right[]" value="{{ $faultRight[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultRight[$r] }}"
-                                            @checked(in_array($faultRight[$r], $faultRightChecked, true))>
-                                    </div>
+                                    @if ($isPdfRender)
+                                        <table class="fo51-fault-line-tbl" role="presentation">
+                                            <colgroup>
+                                                <col>
+                                                <col style="width:18px">
+                                            </colgroup>
+                                            <tr>
+                                                <td class="fo51-fault-text">{{ $faultRight[$r] }}</td>
+                                                <td class="fo51-fault-chk">
+                                                    <span class="fo51-fault-chk-box">{!! in_array($faultRight[$r], $faultRightChecked, true) ? 'X' : '&nbsp;' !!}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    @else
+                                        <div class="fo51-fault-line">
+                                            <span>{{ $faultRight[$r] }}</span>
+                                            <input type="checkbox" name="fo51_fault_right[]" value="{{ $faultRight[$r] }}" class="fo51-chk" title="Marcar falta" aria-label="Marcar: {{ $faultRight[$r] }}"
+                                                @checked(in_array($faultRight[$r], $faultRightChecked, true))>
+                                        </div>
+                                    @endif
                                 @elseif ($r === $faultRightCount)
-                                    <div class="fo51-fault-line">
-                                        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1">
-                                            <strong>Otros</strong>
-                                            <input type="checkbox" name="fo51_fault_other_chk" value="1" class="fo51-chk" title="Otros" aria-label="Otros"
-                                                @checked($faultOtherChecked)>
-                                            <span>¿Cuál?</span>
-                                            <input type="text" name="fo51_fault_other_detail" value="{{ $faultOtherDetail }}" class="fo51-in" style="flex:1;min-width:8rem;border-bottom:1px solid #000!important;padding:2px 4px!important">
-                                        </span>
-                                    </div>
+                                    @if ($isPdfRender)
+                                        <table class="fo51-fault-line-tbl" role="presentation">
+                                            <colgroup>
+                                                <col>
+                                                <col style="width:18px">
+                                            </colgroup>
+                                            <tr>
+                                                <td class="fo51-fault-text">
+                                                    <strong>Otros</strong>
+                                                    <span> ¿Cuál?</span>
+                                                    <span class="fo51-fault-otros-detail">{{ $faultOtherDetail !== '' ? $faultOtherDetail : ' ' }}</span>
+                                                </td>
+                                                <td class="fo51-fault-chk">
+                                                    <span class="fo51-fault-chk-box">{!! $faultOtherChecked ? 'X' : '&nbsp;' !!}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    @else
+                                        <div class="fo51-fault-line">
+                                            <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1">
+                                                <strong>Otros</strong>
+                                                <input type="checkbox" name="fo51_fault_other_chk" value="1" class="fo51-chk" title="Otros" aria-label="Otros"
+                                                    @checked($faultOtherChecked)>
+                                                <span>¿Cuál?</span>
+                                                <input type="text" name="fo51_fault_other_detail" value="{{ $faultOtherDetail }}" class="fo51-in" style="flex:1;min-width:8rem;border-bottom:1px solid #000!important;padding:2px 4px!important">
+                                            </span>
+                                        </div>
+                                    @endif
                                 @endif
                             </td>
                         </tr>
@@ -644,7 +814,11 @@
                 </tr>
                 <tr>
                     <td style="padding:0!important;vertical-align:top">
-                        <textarea name="fo51_observations" class="fo51-in" rows="10">{{ $observationsText }}</textarea>
+                        @if ($isPdfRender)
+                            <div class="fo51-obs-pdf">{{ $observationsText !== '' ? $observationsText : ' ' }}</div>
+                        @else
+                            <textarea name="fo51_observations" class="fo51-in" rows="10">{{ $observationsText }}</textarea>
+                        @endif
                     </td>
                 </tr>
             </table>
@@ -662,6 +836,19 @@
                 </thead>
                 <tbody>
                     <tr>
+                        @if ($isPdfRender)
+                            <td class="fo51-sign-cell" style="width:34%">
+                                <span class="fo51-static">{{ $resolvedPreparerName }}</span>
+                            </td>
+                            <td class="fo51-sign-cell" style="width:33%">
+                                <span class="fo51-static">{{ $resolvedPreparerRole }}</span>
+                            </td>
+                            <td class="fo51-sign-cell" style="width:33%;vertical-align:middle;text-align:center">
+                                @if ($preparerSignatureIsImage)
+                                    <img src="{{ $resolvedPreparerSignature }}" alt="Firma elaborador" class="fo51-signature-img">
+                                @endif
+                            </td>
+                        @else
                         <td style="padding:0!important;height:38px">
                             <input type="text" name="fo51_preparer_name" class="fo51-in" @if ($preparerFieldsReadonly) readonly @endif value="{{ $resolvedPreparerName }}" style="height:36px">
                         </td>
@@ -669,11 +856,7 @@
                             <input type="text" name="fo51_preparer_role" class="fo51-in" @if ($preparerFieldsReadonly) readonly @endif value="{{ $resolvedPreparerRole }}" style="height:36px">
                         </td>
                         <td style="padding:0!important;vertical-align:middle">
-                            @if ($renderAsPdf ?? false)
-                                @if ($preparerSignatureIsImage)
-                                    <img src="{{ $resolvedPreparerSignature }}" alt="Firma elaborador" class="fo51-signature-img">
-                                @endif
-                            @elseif ($blankForDownload ?? false)
+                            @if ($blankForDownload ?? false)
                                 <div style="height:36px"></div>
                             @else
                                 <div
@@ -702,6 +885,7 @@
                                 </div>
                             @endif
                         </td>
+                        @endif
                     </tr>
                     <tr class="fo51-sign-note-row">
                         <td colspan="3" class="fo51-sign-note">Nombre, cargo y firma de quien elaboró el informe</td>
@@ -727,11 +911,19 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding:0!important;height:36px"><input type="text" name="fo51_jur_pd" class="fo51-in" style="height:34px" value="{{ $jurPd }}"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_entrega_gh" class="fo51-in" style="height:34px" value="{{ $entregaGh }}"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_dd" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurDd }}"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_mm" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurMm }}"></td>
-                        <td style="padding:0!important"><input type="text" name="fo51_jur_yyyy" maxlength="4" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurYyyy }}"></td>
+                        @if ($isPdfRender)
+                            <td class="fo51-legal-cell" style="width:28%"><span class="fo51-static">{{ $jurPd !== '' ? $jurPd : ' ' }}</span></td>
+                            <td class="fo51-legal-cell" style="width:32%"><span class="fo51-static">{{ $entregaGh !== '' ? $entregaGh : ' ' }}</span></td>
+                            <td class="fo51-legal-cell fo51-legal-cell--center" style="width:13%"><span class="fo51-static">{{ $jurDd !== '' ? $jurDd : ' ' }}</span></td>
+                            <td class="fo51-legal-cell fo51-legal-cell--center" style="width:13%"><span class="fo51-static">{{ $jurMm !== '' ? $jurMm : ' ' }}</span></td>
+                            <td class="fo51-legal-cell fo51-legal-cell--center" style="width:14%"><span class="fo51-static">{{ $jurYyyy !== '' ? $jurYyyy : ' ' }}</span></td>
+                        @else
+                            <td style="padding:0!important;height:36px"><input type="text" name="fo51_jur_pd" class="fo51-in" style="height:34px" value="{{ $jurPd }}"></td>
+                            <td style="padding:0!important"><input type="text" name="fo51_entrega_gh" class="fo51-in" style="height:34px" value="{{ $entregaGh }}"></td>
+                            <td style="padding:0!important"><input type="text" name="fo51_jur_dd" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurDd }}"></td>
+                            <td style="padding:0!important"><input type="text" name="fo51_jur_mm" maxlength="2" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurMm }}"></td>
+                            <td style="padding:0!important"><input type="text" name="fo51_jur_yyyy" maxlength="4" class="fo51-in" style="height:34px;text-align:center" value="{{ $jurYyyy }}"></td>
+                        @endif
                     </tr>
                 </tbody>
             </table>
@@ -743,6 +935,12 @@
     </div>
 </x-disciplinary.forms.official-letter-pdf-shell>
 </div>
+
+@if ($useLetterScreen)
+            </div>
+        </div>
+    </div>
+@endif
 
 @if ($useAuthPreparer && $user && ! $blankForDownload)
     <p class="fo51-helper-note" style="font-size:var(--ogj-font-body);color:#64748b;text-align:center;max-width:8.5in;margin:12px auto 0;padding:0 8px">

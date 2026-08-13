@@ -21,10 +21,17 @@
 
             <p id="fo51-queue-message" class="mt-6 text-base text-slate-700 dark:text-slate-200">
                 @if ($intent === 'enviar')
-                    Estamos generando su informe y enviándolo a revisión. Esto puede tardar unos segundos en el servidor.
+                    Estamos generando su informe y enviándolo a revisión. Suele tardar menos de un minuto.
                 @else
-                    Estamos generando su PDF. Esto puede tardar unos segundos en el servidor.
+                    Estamos generando su PDF. Suele tardar menos de un minuto.
                 @endif
+            </p>
+
+            <p id="fo51-queue-hint" class="mt-4 hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                Sigue pendiente. En Hostinger hace falta el cron CLI.
+                SSH: <code class="font-mono">php artisan disciplinary:process-pdf-queue</code>.
+                Si el mutex del scheduler quedó trabado:
+                <code class="font-mono">php artisan schedule:clear-cache</code>.
             </p>
 
             <p id="fo51-queue-error" class="mt-4 hidden text-sm text-red-700 dark:text-red-300"></p>
@@ -42,10 +49,16 @@
                 const statusUrl = @json($statusUrl);
                 const downloadUrl = @json($downloadUrl);
                 const messageEl = document.getElementById('fo51-queue-message');
+                const hintEl = document.getElementById('fo51-queue-hint');
                 const errorEl = document.getElementById('fo51-queue-error');
                 const backEl = document.getElementById('fo51-queue-back');
+                const started = Date.now();
 
                 const poll = () => {
+                    if (Date.now() - started > 45000) {
+                        hintEl.classList.remove('hidden');
+                    }
+
                     fetch(statusUrl, {
                         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                         credentials: 'same-origin',
@@ -70,6 +83,7 @@
 
                             if (data.status === 'failed') {
                                 messageEl.classList.add('hidden');
+                                hintEl.classList.add('hidden');
                                 errorEl.textContent = data.error || 'No se pudo generar el PDF.';
                                 errorEl.classList.remove('hidden');
                                 backEl.classList.remove('hidden');

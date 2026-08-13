@@ -24,12 +24,17 @@
 | B7 | FO-GJ-03 desde expediente autocompletado | Solo plantilla en blanco | `FoGj03CitationService` + rutas |
 | B8 | Evidencia PDF (firmada / testigos) | Sin flujo | Upload con `CitationEvidenceType` |
 | B9 | No avanzar desde B sin requisitos | Sin validación UI | `DisciplinaryCitationWorkflowService` en `WorkflowService::transition` |
+| B10 | Notificación física **antes** de proponer fechas | Fechas primero, luego notificación | `canPlanningManageNotification` → `canPlanningProposeDiligenceSlots`; stepper `CitationStageProgress` |
+| B11 | Plantillas artículo/numeral por falta | Numerales fijos 66/68/76 en blanco | Catálogo `citation_statute_*` + Ajustes · Artículos + `FoGj03CitationArticleResolver` |
+| B12 | Redacción FO-GJ por género del trabajador | Texto masculino genérico | `WorkerLegalPhrasing` + checklist `employee_gender` |
 
 ## Archivos principales tocados
 
-- Migración: `2026_05_21_120000_disciplinary_workflow_target_state.php`
-- Servicios: `DisciplinaryInformeSubmissionService`, `DisciplinaryAgendaThreadService`, `FoGj03CitationService`, `DisciplinaryCitationWorkflowService`, `DisciplinaryAuditService`
+- Migración: `2026_05_21_120000_disciplinary_workflow_target_state.php`, `2026_08_11_100000_create_citation_statute_tables.php`
+- Servicios: `DisciplinaryInformeSubmissionService`, `DisciplinaryAgendaThreadService`, `FoGj03CitationService`, `FoGj03DraftService`, `FoGj03CitationArticleResolver`, `DisciplinaryCitationNotificationService`, `DisciplinaryCitationWorkflowService`, `CitationFaultTemplateService`, `DisciplinaryAuditService`
+- Support: `CitationStageProgress`, `WorkerLegalPhrasing`
 - Políticas: `InformeSubmissionPolicy`, `DisciplinaryCasePolicy`
-- Livewire: `CasesIndex`, `CaseDetail`, `InformesPendientes`
-- Vistas: `fo-gj-51-informe-body`, `stage-b-citation` partial
-- Permisos: `disciplinary.review-inform-all`
+- Livewire: `CasesIndex`, `CaseDetail`, `InformesPendientes`, `Coordinations\Index`, `Settings\CitationArticlesIndex`
+- Vistas: `fo-gj-51-informe-body`, `stage-b-citation` partial, `fo-gj-03-*`, `settings/citation-articles-index`
+- Permisos: `disciplinary.review-inform-all`, `settings.manage-citation-articles`
+- Seed: `CitationFaultTemplatesSeeder`

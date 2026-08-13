@@ -1,117 +1,196 @@
-<div>
+@php
+    use App\Support\Disciplinary\WorkflowStageBuckets;
+
+    $isMinimal = auth()->user()->isMinimalDisciplinaryPortalUser();
+    $isOperaciones = auth()->user()->isDisciplinaryOperacionesReviewer();
+    $rail = $this->stageRail;
+    $stageActive = $stage;
+    $letterColors = $stageColors;
+@endphp
+
+<div class="disciplinary-cases-index mx-auto flex h-[calc(100dvh-3.25rem)] max-h-[calc(100dvh-3.25rem)] w-full max-w-[1600px] flex-col overflow-hidden px-3 py-2 sm:px-5 sm:py-3 lg:px-6">
     @push('module-nav')
         <x-disciplinary.nav />
     @endpush
 
-    <div class="bg-white border-b border-slate-200 dark:bg-dash-ink/60 dark:border-white/10">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-                @if (auth()->user()->isDisciplinaryProgramador())
-                    <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Planeación · Solicitudes</p>
-                    <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Citaciones y agendas asignadas</h1>
-                @elseif (auth()->user()->isDisciplinaryFieldOperator())
-                    <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Disciplinarios · Campo</p>
-                    <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Notificaciones asignadas</h1>
-                @else
-                    <p class="text-xs uppercase tracking-widest text-slate-500 font-semibold dark:text-dash-muted">Disciplinarios · Listado</p>
-                    <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Procesos disciplinarios</h1>
-                @endif
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
-                    <x-ui.btn type="button" wire:click="openFo51Modal(false)" class="shadow-sm">
-                        <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Nuevo informe disciplinario (FO-GJ-51)
-                    </x-ui.btn>
-                    <x-ui.btn type="button" variant="ghost" wire:click="openFo51Modal(true)" class="shadow-sm">
-                        Cargar informe en PDF
-                    </x-ui.btn>
-                @endcan
-                @unless(auth()->user()->isMinimalDisciplinaryPortalUser())
-                    @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
-                        <a href="{{ route('disciplinary.dashboard') }}" wire:navigate
-                           class="text-sm text-slate-600 hover:text-slate-900 dark:text-dash-muted dark:hover:text-white">← Dashboard</a>
-                    @else
-                        <a href="{{ route('dashboard') }}" wire:navigate
-                           class="text-sm text-slate-600 hover:text-slate-900 dark:text-dash-muted dark:hover:text-white">← Inicio</a>
-                    @endcan
-                @endunless
-            </div>
+    <header class="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2 dark:border-white/10">
+        <div class="min-w-0">
+            @if (auth()->user()->isDisciplinaryProgramador())
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Planeación · Solicitudes</p>
+                <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Citaciones y agendas asignadas</h1>
+            @elseif (auth()->user()->isDisciplinaryFieldOperator())
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Campo</p>
+                <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Notificaciones asignadas</h1>
+            @elseif ($isOperaciones)
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Operaciones</p>
+                <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Casos abiertos que autorizó</h1>
+            @else
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">Disciplinarios · Listado</p>
+                <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white">Procesos disciplinarios</h1>
+            @endif
         </div>
-    </div>
+        <div class="flex shrink-0 flex-wrap items-center gap-2">
+            @can('generateFo51Inform', \App\Models\Disciplinary\DisciplinaryCase::class)
+                <x-ui.btn type="button" wire:click="openFo51Modal(false)" class="!h-8 text-xs">
+                    Nuevo informe (FO-GJ-51)
+                </x-ui.btn>
+                <x-ui.btn type="button" variant="ghost" wire:click="openFo51Modal(true)" class="!h-8 text-xs">
+                    Cargar PDF
+                </x-ui.btn>
+            @endcan
+            @unless ($isMinimal || $isOperaciones)
+                @can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
+                    <x-dashboard.button href="{{ route('disciplinary.dashboard') }}" variant="ghost" class="!h-8 text-xs">
+                        ← Dashboard
+                    </x-dashboard.button>
+                @else
+                    <x-dashboard.button href="{{ route('dashboard') }}" variant="ghost" class="!h-8 text-xs">
+                        ← Inicio
+                    </x-dashboard.button>
+                @endcan
+            @endunless
+        </div>
+    </header>
 
-    <div class="py-6 sm:py-8">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            @if (session('error'))
-                <div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-900 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-100 dark:ring-red-500/30">
-                    {{ session('error') }}
+    @if (session('error'))
+        <div class="mb-2 shrink-0 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-900 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-100 dark:ring-red-500/30">
+            {{ session('error') }}
+        </div>
+    @endif
+    @if (session('success'))
+        <div class="mb-2 shrink-0 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/30">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @unless ($isMinimal)
+        {{-- Rail de etapas A–F (una línea) --}}
+        <nav
+            class="mb-2 flex shrink-0 flex-wrap items-center gap-0.5 overflow-x-auto rounded-lg border border-slate-200 bg-white px-1 py-1 shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5 sm:gap-1 sm:px-1.5"
+            aria-label="Filtrar por etapa del proceso"
+        >
+            @foreach ($rail['stages'] as $st)
+                @php
+                    $isActive = $stageActive === $st['letter'];
+                    $color = $letterColors[$st['letter']] ?? 'text-slate-400';
+                @endphp
+                <button
+                    type="button"
+                    wire:click="setStage('{{ $st['letter'] }}')"
+                    title="{{ $st['title'] }}"
+                    @class([
+                        'inline-flex min-w-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition',
+                        'bg-slate-100 ring-1 ring-slate-300 dark:bg-white/10 dark:ring-white/20' => $isActive,
+                        'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06]' => ! $isActive,
+                    ])
+                >
+                    <span class="{{ $color }}">{{ $st['letter'] }}</span>
+                    <span class="text-slate-700 dark:text-slate-200">{{ number_format($st['count']) }}</span>
+                </button>
+            @endforeach
+
+            @unless ($isOperaciones)
+                <span class="mx-0.5 hidden h-5 w-px shrink-0 bg-slate-200 dark:bg-white/15 sm:block" aria-hidden="true"></span>
+
+                <button
+                    type="button"
+                    wire:click="setStage('cerrados')"
+                    title="Casos finalizados o archivados"
+                    @class([
+                        'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition',
+                        'bg-slate-100 ring-1 ring-slate-300 dark:bg-white/10 dark:ring-white/20' => $stageActive === WorkflowStageBuckets::CLOSED_KEY,
+                        'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06]' => $stageActive !== WorkflowStageBuckets::CLOSED_KEY,
+                    ])
+                >
+                    <span class="text-emerald-500 dark:text-emerald-400">Cerrados</span>
+                    <span class="text-slate-700 dark:text-slate-200">{{ number_format($rail['closed']) }}</span>
+                </button>
+            @endunless
+
+            <button
+                type="button"
+                wire:click="setStage('')"
+                title="Todos los casos en su alcance"
+                @class([
+                    'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold transition',
+                    'bg-slate-100 ring-1 ring-slate-300 dark:bg-white/10 dark:ring-white/20' => $stageActive === '',
+                    'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06]' => $stageActive !== '',
+                ])
+            >
+                Todos
+                <span class="tabular-nums text-slate-700 dark:text-slate-200">{{ number_format($rail['total']) }}</span>
+            </button>
+        </nav>
+
+        {{-- Filtros compactos --}}
+        <div class="mb-2 shrink-0 space-y-2">
+            <div class="flex flex-wrap items-end gap-2">
+                <div class="min-w-[12rem] flex-1">
+                    <label for="dcf-case-search" class="sr-only">Buscador</label>
+                    <input
+                        id="dcf-case-search"
+                        name="dcf_case_search"
+                        type="search"
+                        wire:model.live.debounce.350ms="search"
+                        placeholder="N° de caso, nombre, documento…"
+                        autocomplete="off"
+                        class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                    >
                 </div>
-            @endif
-            @if (session('success'))
-                <div class="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/30">
-                    {{ session('success') }}
+                <div class="w-full sm:w-44">
+                    <label for="dcf-case-status" class="sr-only">Estado</label>
+                    <select
+                        id="dcf-case-status"
+                        name="dcf_case_status"
+                        wire:model.live="status"
+                        class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                    >
+                        <option value="">Estado — todos</option>
+                        @foreach ($statuses as $s)
+                            @continue($isOperaciones && $s->isTerminal())
+                            <option value="{{ $s->value }}">{{ $s->label() }}</option>
+                        @endforeach
+                    </select>
                 </div>
-            @endif
-
-            {{-- Tarjetas vistas rápidas --}}
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button wire:click="setBucket('pendiente')"
-                    class="text-left bg-white shadow-sm rounded-lg p-5 ring-1 transition dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-none
-                        {{ $bucket === 'pendiente' ? 'ring-amber-400 dark:ring-amber-400/70' : 'ring-slate-200 hover:ring-amber-200 dark:ring-white/10 dark:hover:ring-amber-400/40' }}">
-                    <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted">Pendientes</p>
-                    <p class="mt-2 text-3xl font-bold text-amber-600">{{ number_format($this->quickStats['pendientes']) }}</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Borrador / Informe inicial</p>
-                </button>
-                <button wire:click="setBucket('en_proceso')"
-                    class="text-left bg-white shadow-sm rounded-lg p-5 ring-1 transition dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-none
-                        {{ $bucket === 'en_proceso' ? 'ring-blue-400 dark:ring-sky-400/70' : 'ring-slate-200 hover:ring-blue-200 dark:ring-white/10 dark:hover:ring-sky-400/40' }}">
-                    <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted">En proceso</p>
-                    <p class="mt-2 text-3xl font-bold text-blue-600">{{ number_format($this->quickStats['en_proceso']) }}</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Citación / Diligencia / Decisión</p>
-                </button>
-                <button wire:click="setBucket('finalizado')"
-                    class="text-left bg-white shadow-sm rounded-lg p-5 ring-1 transition dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-none
-                        {{ $bucket === 'finalizado' ? 'ring-emerald-400 dark:ring-emerald-400/70' : 'ring-slate-200 hover:ring-emerald-200 dark:ring-white/10 dark:hover:ring-emerald-400/40' }}">
-                    <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted">Finalizados</p>
-                    <p class="mt-2 text-3xl font-bold text-emerald-600">{{ number_format($this->quickStats['finalizados']) }}</p>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Cerrados / Archivados</p>
-                </button>
-            </div>
-
-            {{-- Filtros --}}
-            @unless (auth()->user()->isMinimalDisciplinaryPortalUser())
-                <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
-                    <div class="lg:col-span-2 xl:col-span-2">
-                        <label for="dcf-case-search" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Buscador</label>
-                        <input id="dcf-case-search" name="dcf_case_search" type="search" wire:model.live.debounce.350ms="search"
-                            placeholder="N° de caso, nombre, documento..."
-                            autocomplete="off"
-                            class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                    </div>
-                    <div>
-                        <label for="dcf-case-status" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Estado</label>
-                        <select id="dcf-case-status" name="dcf_case_status" wire:model.live="status" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                            <option value="">— Todos —</option>
-                            @foreach ($statuses as $s)
-                                <option value="{{ $s->value }}">{{ $s->label() }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label for="dcf-case-lawyer" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Abogado</label>
-                        <select id="dcf-case-lawyer" name="dcf_case_lawyer" wire:model.live="lawyerId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                            <option value="">— Todos —</option>
+                @unless ($isMinimal || $isOperaciones)
+                    <div class="w-full sm:w-40">
+                        <label for="dcf-case-lawyer" class="sr-only">Abogado</label>
+                        <select
+                            id="dcf-case-lawyer"
+                            name="dcf_case_lawyer"
+                            wire:model.live="lawyerId"
+                            class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+                        >
+                            <option value="">Abogado — todos</option>
                             @foreach ($this->lawyers as $u)
                                 <option value="{{ $u->id }}">{{ $u->name }}</option>
                             @endforeach
                         </select>
                     </div>
+                @endunless
+                <button
+                    type="button"
+                    wire:click="toggleAdvancedFilters"
+                    class="inline-flex h-9 items-center rounded-md px-3 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:ring-white/15 dark:hover:bg-white/[0.06]"
+                >
+                    {{ $showAdvancedFilters ? 'Menos filtros' : 'Más filtros' }}
+                </button>
+                @if ($search !== '' || $stage !== '' || $this->hasSecondaryFilters)
+                    <button
+                        type="button"
+                        wire:click="clearFilters"
+                        class="inline-flex h-9 items-center rounded-md px-3 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:ring-white/15 dark:hover:bg-white/[0.06]"
+                    >
+                        Limpiar
+                    </button>
+                @endif
+            </div>
+
+            @if ($showAdvancedFilters)
+                <div class="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.03] dark:ring-white/5 sm:grid-cols-3">
                     <div>
-                        <label for="dcf-case-city" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Municipio / ciudad</label>
-                        <select id="dcf-case-city" name="dcf_case_city" wire:model.live="city" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                        <label for="dcf-case-city" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-dash-muted">Municipio / ciudad</label>
+                        <select id="dcf-case-city" name="dcf_case_city" wire:model.live="city" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todas —</option>
                             @foreach ($this->cities as $opt)
                                 <option value="{{ $opt['value'] }}">{{ $opt['label'] }}</option>
@@ -119,121 +198,167 @@
                         </select>
                     </div>
                     <div>
-                        <label for="dcf-case-fault" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Falta</label>
-                        <select id="dcf-case-fault" name="dcf_case_fault" wire:model.live="faultId" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                        <label for="dcf-case-fault" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-dash-muted">Falta</label>
+                        <select id="dcf-case-fault" name="dcf_case_fault" wire:model.live="faultId" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white">
                             <option value="">— Todas —</option>
                             @foreach ($this->faults as $f)
                                 <option value="{{ $f->id }}">{{ $f->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label for="dcf-case-from" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Desde</label>
-                        <input id="dcf-case-from" name="dcf_case_from" type="date" wire:model.live="from" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                    </div>
-                    <div>
-                        <label for="dcf-case-to" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Hasta</label>
-                        <input id="dcf-case-to" name="dcf_case_to" type="date" wire:model.live="to" class="w-full rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                    </div>
-                    <div class="flex items-end">
-                        <button type="button" wire:click="clearFilters"
-                            class="w-full inline-flex items-center justify-center px-4 py-2 bg-slate-100 text-slate-700 rounded-md text-sm hover:bg-slate-200">
-                            Limpiar
-                        </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label for="dcf-case-from" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-dash-muted">Desde</label>
+                            <input id="dcf-case-from" name="dcf_case_from" type="date" wire:model.live="from" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                        </div>
+                        <div>
+                            <label for="dcf-case-to" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-dash-muted">Hasta</label>
+                            <input id="dcf-case-to" name="dcf_case_to" type="date" wire:model.live="to" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white">
+                        </div>
                     </div>
                 </div>
-                </div>
-            @else
-                <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
-                    <label for="dcf-case-search-min" class="block text-xs font-semibold text-slate-600 mb-1 dark:text-slate-400">Buscador</label>
-                    <input id="dcf-case-search-min" name="dcf_case_search_min" type="search" wire:model.live.debounce.350ms="search"
-                        placeholder="N° de caso, nombre, documento..."
-                        autocomplete="off"
-                        class="w-full max-w-md rounded-md border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm dark:border-white/15 dark:bg-dash-lift dark:text-white">
-                </div>
-            @endunless
-            <div class="bg-white shadow-sm rounded-lg ring-1 ring-slate-200 overflow-hidden dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10">
-                        <thead class="bg-slate-50 dark:bg-white/[0.06]">
-                            <tr class="text-xs uppercase tracking-wider text-slate-500 dark:text-dash-muted">
-                                <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">N° Caso</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Disciplinado</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Ciudad</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Estado</th>
-                                @unless (auth()->user()->isMinimalDisciplinaryPortalUser())
-                                    <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Abogado</th>
-                                @endunless
-                                <th class="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200">Faltas</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200">Apertura</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-slate-200 text-sm dark:bg-transparent dark:divide-white/10">
-                            @forelse ($cases as $case)
-                                <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.04]">
-                                    <td class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{{ $case->case_number }}</td>
-                                    <td class="px-4 py-3">
-                                        <div class="font-medium text-slate-900 dark:text-slate-100">
-                                            {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
-                                        </div>
-                                        <div class="text-xs text-slate-500 dark:text-slate-400">CC {{ $case->employee?->document_number }}</div>
-                                    </td>
-                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $case->city ?? '—' }}</td>
-                                    <td class="px-4 py-3">
-                                        <x-disciplinary.status-badge :status="$case->current_status" />
-                                    </td>
-                                    @unless (auth()->user()->isMinimalDisciplinaryPortalUser())
-                                        <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                            @if ($case->isInInformePool())
-                                                <span class="text-amber-700 dark:text-amber-300 font-medium">Bandeja compartida</span>
-                                            @else
-                                                {{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}
-                                            @endif
-                                        </td>
-                                    @endunless
-                                    <td class="px-4 py-3 text-center text-slate-700 dark:text-slate-300">{{ $case->faults_count }}</td>
-                                    <td class="px-4 py-3 text-slate-700 dark:text-slate-300">{{ $case->opened_at?->format('Y-m-d') }}</td>
-                                    <td class="px-4 py-3 text-right">
-                                        @can('claim', $case)
-                                            <button type="button" wire:click="openClaimConfirm({{ $case->id }})"
-                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
-                                                Gestionar
-                                            </button>
-                                        @else
-                                            <a href="{{ route('disciplinary.cases.show', $case) }}" wire:navigate
-                                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
-                                                @if (auth()->user()->isDisciplinaryProgramador())
-                                                    Programar
-                                                @elseif ($case->isInInformePool() && auth()->user()->hasRole('auditor'))
-                                                    Ver
-                                                @else
-                                                    Gestionar
-                                                @endif
-                                            </a>
-                                        @endcan
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="{{ auth()->user()->isMinimalDisciplinaryPortalUser() ? 7 : 8 }}" class="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
-                                        No se encontraron casos con los filtros actuales.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="p-4 border-t border-slate-200 dark:border-white/10">
-                    {{ $cases->links() }}
-                </div>
-            </div>
+            @endif
         </div>
+    @else
+        <div class="mb-2 shrink-0">
+            <label for="dcf-case-search-min" class="sr-only">Buscador</label>
+            <input
+                id="dcf-case-search-min"
+                name="dcf_case_search_min"
+                type="search"
+                wire:model.live.debounce.350ms="search"
+                placeholder="N° de caso, nombre, documento…"
+                autocomplete="off"
+                class="w-full max-w-md rounded-md border-slate-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-white/15 dark:bg-dash-lift dark:text-white"
+            >
+        </div>
+    @endunless
+
+    {{-- Tabla --}}
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-200 dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5">
+        <div class="min-h-0 flex-1 overflow-auto">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-white/10">
+                <thead class="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 dark:bg-dash-ink/95 dark:text-dash-muted">
+                    <tr>
+                        <th class="px-3 py-2 text-left font-semibold">Etapa</th>
+                        <th class="px-3 py-2 text-left font-semibold">N° caso</th>
+                        <th class="px-3 py-2 text-left font-semibold">Disciplinado</th>
+                        <th class="px-3 py-2 text-left font-semibold">Ciudad</th>
+                        <th class="px-3 py-2 text-left font-semibold">{{ $isOperaciones ? 'Trámite' : 'Estado' }}</th>
+                        @unless ($isMinimal || $isOperaciones)
+                            <th class="px-3 py-2 text-left font-semibold">Abogado</th>
+                        @endunless
+                        @unless ($isOperaciones)
+                            <th class="px-3 py-2 text-center font-semibold">Faltas</th>
+                        @endunless
+                        <th class="px-3 py-2 text-left font-semibold">Apertura</th>
+                        <th class="px-3 py-2 text-right font-semibold">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white text-sm dark:divide-white/10 dark:bg-transparent">
+                    @forelse ($cases as $case)
+                        @php
+                            $letter = WorkflowStageBuckets::letterForStageType($case->current_stage_type);
+                            $letterClass = $letter ? ($letterColors[$letter] ?? 'text-slate-400') : 'text-slate-400';
+                            $followUp = $isOperaciones ? $case->operacionesFollowUpSummary() : null;
+                        @endphp
+                        <tr wire:key="case-row-{{ $case->id }}" class="group hover:bg-slate-50 dark:hover:bg-white/[0.04]">
+                            <td class="px-3 py-2.5">
+                                @if ($letter)
+                                    <span
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold ring-1 ring-slate-200 dark:bg-white/[0.06] dark:ring-white/10 {{ $letterClass }}"
+                                        title="{{ WorkflowStageBuckets::titleForLetter($letter) }}"
+                                    >{{ $letter }}</span>
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-3 py-2.5 font-mono text-xs text-slate-700 dark:text-slate-300">{{ $case->case_number }}</td>
+                            <td class="px-3 py-2.5">
+                                <div class="font-medium text-slate-900 dark:text-slate-100">
+                                    {{ $case->employee?->first_name }} {{ $case->employee?->last_name }}
+                                </div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400">CC {{ $case->employee?->document_number }}</div>
+                            </td>
+                            <td class="px-3 py-2.5 text-slate-700 dark:text-slate-300">{{ $case->city ?? '—' }}</td>
+                            <td class="px-3 py-2.5 max-w-[14rem]">
+                                @if ($isOperaciones && $followUp)
+                                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-100">{{ $followUp['headline'] }}</div>
+                                    <div class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400" title="{{ $followUp['stage_title'] }}">
+                                        {{ $followUp['stage_title'] }}
+                                    </div>
+                                @else
+                                    <x-disciplinary.status-badge :status="$case->current_status" class="max-w-full truncate" title="{{ $case->current_status->label() }}" />
+                                @endif
+                            </td>
+                            @unless ($isMinimal || $isOperaciones)
+                                <td class="px-3 py-2.5 text-slate-700 dark:text-slate-300">
+                                    @if ($case->isInInformePool())
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200 dark:text-amber-300 dark:ring-amber-500/40">Bandeja compartida</span>
+                                    @else
+                                        {{ $case->assignedLawyer?->name ?? '— Sin asignar —' }}
+                                    @endif
+                                </td>
+                            @endunless
+                            @unless ($isOperaciones)
+                                <td class="px-3 py-2.5 text-center tabular-nums text-slate-700 dark:text-slate-300">{{ $case->faults_count }}</td>
+                            @endunless
+                            <td class="px-3 py-2.5 whitespace-nowrap text-slate-700 dark:text-slate-300">{{ $case->opened_at?->format('Y-m-d') }}</td>
+                            <td class="px-3 py-2.5 text-right">
+                                @can('claim', $case)
+                                    <button type="button" wire:click="openClaimConfirm({{ $case->id }})"
+                                        class="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">
+                                        Gestionar
+                                    </button>
+                                @else
+                                    <a href="{{ route('disciplinary.cases.show', $case) }}" wire:navigate
+                                        class="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700">
+                                        @if (auth()->user()->isDisciplinaryProgramador())
+                                            Programar
+                                        @elseif ($isOperaciones)
+                                            Ver
+                                        @elseif ($case->isInInformePool() && auth()->user()->hasRole('nivel5'))
+                                            Ver
+                                        @else
+                                            Gestionar
+                                        @endif
+                                    </a>
+                                @endcan
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ $isOperaciones ? 7 : ($isMinimal ? 8 : 9) }}" class="px-4 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+                                @if ($stage !== '' || $search !== '' || $this->hasSecondaryFilters)
+                                    No se encontraron casos con los filtros actuales.
+                                    <button type="button" wire:click="clearFilters" class="mt-2 block w-full text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">Limpiar filtros</button>
+                                @elseif ($isOperaciones)
+                                    No hay casos abiertos que haya autorizado.
+                                @else
+                                    No hay casos en su alcance.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if ($cases->hasPages() || $cases->total() > 0)
+            <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 text-xs text-slate-500 dark:border-white/10 dark:text-dash-muted">
+                <p>
+                    Mostrando
+                    <span class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ number_format($cases->firstItem() ?? 0) }}</span>–<span class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ number_format($cases->lastItem() ?? 0) }}</span>
+                    de
+                    <span class="font-semibold tabular-nums text-slate-700 dark:text-slate-200">{{ number_format($cases->total()) }}</span>
+                </p>
+                <div>{{ $cases->links() }}</div>
+            </div>
+        @endif
     </div>
 
     @if ($showClaimConfirm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" wire:key="claim-confirm-{{ $claimCaseId }}">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" wire:key="claim-confirm-{{ $claimCaseId }}">
             <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10"
                 role="dialog" aria-modal="true" aria-labelledby="claim-confirm-title">
                 <h2 id="claim-confirm-title" class="text-lg font-bold text-slate-900 dark:text-white">
@@ -241,16 +366,16 @@
                 </h2>
                 <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">
                     ¿Confirma que tomará la gestión del expediente
-                    <strong class="text-slate-900 dark:text-white font-mono">{{ $claimCaseNumber }}</strong>?
+                    <strong class="font-mono text-slate-900 dark:text-white">{{ $claimCaseNumber }}</strong>?
                     Se le asignará como abogado titular y dejará de estar disponible en la bandeja compartida para otros abogados.
                 </p>
                 <div class="mt-6 flex flex-wrap justify-end gap-2">
                     <button type="button" wire:click="cancelClaimConfirm"
-                        class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/10">
+                        class="rounded-md px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/10">
                         Cancelar
                     </button>
                     <button type="button" wire:click="confirmClaimCase" wire:loading.attr="disabled"
-                        class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-60">
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
                         <span wire:loading.remove wire:target="confirmClaimCase">Sí, gestionar caso</span>
                         <span wire:loading wire:target="confirmClaimCase">Asignando…</span>
                     </button>

@@ -24,7 +24,7 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 
 | # | Módulo | Estado |
 |---|---|---|
-| 1 | 🏠 **Inicio** (Dashboard global con alertas) | ✅ Disponible |
+| 1 | 🏠 **Inicio** (Command center · solo `admin`) | ✅ Disponible |
 | 2 | ⚖️ **Disciplinarios** | ✅ Disponible |
 | 3 | 💼 Licitaciones | 🚧 Próximamente |
 | 4 | 🛡️ Acciones de tutela | 🚧 Próximamente |
@@ -39,21 +39,21 @@ aparecen en el sidebar como placeholders ("Próx.") hasta que se desarrollen.
 
 Además del catálogo jurídico, existen en el sidebar:
 
-- **Empleados** (`employees.view` / `employees.manage`): **BD DE EMPLEADOS SJ** — alta/edición, carga masiva Excel (`.xlsx`) con plantilla descargable, loader con icono de mazo (`public/images/Mazo_juez.jpg`) y contador de tiempo. Tabla `employees` (sustituye el antiguo `personnel`).
-- **Usuarios** (`users.view` / `users.manage`): listado con filtros, alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
+- **Empleados** (`employees.view` / `employees.manage`): **Empleados SJ** — cockpit con KPIs clicables, tabla compacta sin scroll de página, filas expandibles (chevron), modal de alta/edición por secciones con indicador de **perfil completo** en tiempo real, y carga masiva Excel con progreso por lotes (`EmployeeBulkImportService`, `bulk-import-progress.js`).
+- **Usuarios** (`users.view` / `users.manage`): **cockpit** alineado con Empleados — KPIs clicables (Total, Activos, Inactivos, Solo lectura, Admins), tabla expandible, modal por secciones con rol efectivo y búsqueda de ciudades autorizadas; alta/edición, activación y reinicio de contraseña con contraseña provisional generada automáticamente.
 
-Quienes tengan **`settings.manage-territory`** ven **Ajustes** en el sidebar: pantalla **`/settings/territorio`** para importar el listado **DIVIPOLA** (municipios con código oficial y coordenadas). Ese catálogo alimenta los **pins del mapa** en el dashboard disciplinario y la vinculación por municipio en los expedientes.
+Quienes tengan **`settings.manage-territory`**, **`settings.manage-citation-articles`** y/o **`settings.manage-diligence-questions`** ven **Ajustes** en el sidebar (sub-nav compartido `components/settings/nav`): **Territorio** (`/settings/territorio`) — cockpit DIVIPOLA; **Artículos** (`/settings/citacion-articulos`) — plantillas FO-GJ-03; **Preguntas** (`/settings/preguntas-diligencia`) — catálogo del cuestionario FO-GJ-04.
 
 ## ✨ Características principales (módulo Disciplinario)
 
 - **Workflow estricto y validado**: 13 estados, transiciones controladas, plazo de **2 días calendario** para justificar inasistencia a citación (tras constancia).
 - **Trazabilidad legal completa**: cada cambio en un caso queda registrado en un audit log inmutable.
 - **Roles y permisos granulares** (Spatie Permission v6): paquetes de permisos técnicos (`admin`, `abogado`, `planeacion`, etc.). En negocio, el **área** es el ámbito organizacional (Jurídica, Operaciones…); **dentro del área** el usuario tiene un **cargo** (supervisor, operador, programador…). Cada cargo enlaza a un rol Spatie vía **`job_positions.permission_role_name`** (configurable en **Usuarios → Organización**). El perfil **`admin`** es aparte: «Administrador de la plataforma» en el formulario de usuario. Más el flag **solo lectura** por usuario.
-- **Dashboard analítico**: donas por **etapa del flujo** (total + **A–F** según `current_stage_type`, vía `DisciplinaryDashboardService::workflowStageDonuts`), más distribución por **tipo de falta**, **mapa Leaflet de Colombia** (límites GADM por departamento y, al acercar zoom, municipios; pins con total de casos por municipio según DIVIPOLA en catálogo) y **carga por abogado** (consultas agregadas eficientes).
-- **Listado de casos** con 7 filtros combinables y paginación, optimizado para alto volumen.
+- **Dashboard analítico (cockpit):** vista sin scroll con **7 donas** por etapa A–F (`DisciplinaryDashboardService::build`). **Admin:** alcance global. **Abogado:** solo casos **asignados** (`assigned_lawyer_id`). Mapa Leaflet hero + panel derecho (Top municipios, **catálogo completo de faltas** con micro-barras y ceros, Mi carga / ranking abogados). Sidebar **Disciplinarios** → `disciplinaryPortalUrl()` (dashboard); sub-nav **Disciplinarios** → listado. JS: `disciplinary-dashboard.js`, `disciplinary-colombia-map.js`. Tests: `DisciplinaryDashboardScopeTest.php`.
+- **Listado de casos (cockpit operativo):** vista sin scroll de página, **rail de etapas** A–F en una línea (+ **Cerrados** + **Todos**; query `?stage=D` / `cerrados`), filtros compactos y tabla con columna **Etapa**; misma taxonomía que el dashboard (`WorkflowStageBuckets`, `DisciplinaryDashboardService::workflowStageRailCounts`). Alcance `forDisciplinaryActor`. Tests: `DisciplinaryCasesIndexStageTest.php`.
 - **Documentos por etapa** con verificación de integridad (SHA-256) y vinculación a formatos oficiales (FO-GJ-XX).
-- **Etapa C (diligencia):** registro obligatorio e irreversible **Asistió / No asistió** (`DiligenceAttendance`, `DiligenceAttendanceService`). **Si asistió:** FO-GJ-04 (modal, vista previa, generación), **firma del trabajador** en pantalla y PDF (`captureFoGj04WorkerSignature`), **Siguiente etapa →** a decisión sin acta + firma (`DisciplinaryDiligenceWorkflowService`). **Si no asistió:** FO-GJ-44 diligenciable y generable (`FoGj44DraftService`, `FoGj44ConstanciaService`) → ventana **2 días** en `JUSTIFICACION_PENDIENTE` → FO-GJ-54 + reprogramación o **acta de comité** (`ComiteActaService`, membrete PNG en Formatos) → **Siguiente etapa →** etapa D tras acta generada. Stepper de 4–6 pasos (`DiligenceStageProgress`). **Captura de firma unificada:** componente `<x-disciplinary.signature-capture-modal>` + `worker-signature-pad.js` (franja horizontal ancho completo, altura fija 17.5rem; móvil táctil, PC mesa digitalizadora Wacom).
-- **Etapas A y B (informe + citación):** revisor de operaciones obligatorio al enviar FO-GJ-51; **número de expediente** `GJ-PD:NNNNNN` (consecutivo global en casos nuevos); coordinación explícita con planeación en citación; selección visual de fecha definitiva; **coordinación de notificación física (B.2)** — al publicar fechas de diligencia, planeación registra ingreso/turno/zona/supervisor sin solicitud manual del abogado (`canPlanningRegisterNotification`); barra compacta en expediente con **fecha de diligencia** y **datos de notificación**; chat con adjuntos (clip, pegar, arrastrar) y lightbox con zoom; **diligenciamiento FO-GJ-03** en modal (`FoGj03DraftService`: hora editable, presencial/virtual + enlace, fecha de incumplimiento, numerales art. 66/68/76, descripción de hechos; fecha del informe y datos del trabajador automáticos); **firma digital** del abogado en **Mi perfil** (`UserSignatureService`) incrustada en el PDF; vista previa y generación bloqueadas hasta completar borrador + firma; avance a diligencia desde la UI con checklist de requisitos (`docs/GAP_DISCIPLINARIO_ETAPAS_A_B.md`). **Evidencia de citación:** habilitada solo tras generar FO-GJ-03; tipos `signed` (citación firmada) o `refused_witnesses` (rechazo con dos testigos). Pueden cargarla el abogado titular, el **supervisor asignado para notificación** (`notification_supervisor_user_id`), el usuario de operaciones que autorizó el FO-GJ-51 (`reviewed_by`), dirección de operaciones (`disciplinary.review-inform-all`) y dirección jurídica (`admin` / `disciplinary.assign`). El supervisor opera desde **Evidencias pendientes** sin acceso al expediente: **PDF escaneado** (vista previa + confirmación) o **notificación en pantalla** (HTML carta + firma táctil del trabajador o rechazo con testigos).
+- **Etapa C (diligencia):** registro obligatorio e irreversible **Asistió / No asistió** (`DiligenceAttendance`, `DiligenceAttendanceService`). **Antes de registrar asistencia:** **Reprogramar diligencia** (FO-GJ-54 operativo / fuerza mayor; no marca inasistencia; fechas las fija el abogado o se difieren a planeación; sin límite de veces). **Si asistió:** FO-GJ-04 (modal, vista previa, generación), **firma del trabajador** en pantalla y PDF (`captureFoGj04WorkerSignature`), **Siguiente etapa →** a decisión sin acta + firma (`DisciplinaryDiligenceWorkflowService`). **Si no asistió:** FO-GJ-44 diligenciable y generable (`FoGj44DraftService`, `FoGj44ConstanciaService`) → ventana **2 días** en `JUSTIFICACION_PENDIENTE` → FO-GJ-54 + reprogramación o **acta de comité** (`ComiteActaService`, membrete PNG en Formatos) → **Siguiente etapa →** etapa D tras acta generada. Stepper de 4–6 pasos (`DiligenceStageProgress`). **Captura de firma unificada:** componente `<x-disciplinary.signature-capture-modal>` + `worker-signature-pad.js` (franja horizontal ancho completo, altura fija 17.5rem; móvil táctil, PC mesa digitalizadora Wacom).
+- **Etapas A y B (informe + citación):** revisor de operaciones obligatorio al enviar FO-GJ-51; **número de expediente** `GJ-PD:NNNNNN` (consecutivo global en casos nuevos); coordinación explícita con planeación en citación; selección visual de fecha definitiva; **coordinación B (orden actual):** (1) iniciar chat, (2) planeación registra/actualiza **notificación física** (ingreso/turno/zona/supervisor — `canPlanningManageNotification` al abrir coordinación en `CITACION_PROGRAMADA`), (3) **proponer fechas** solo tras notificación completa (`canPlanningProposeDiligenceSlots`), (4) abogado confirma slot, (5) diligenciar FO-GJ-03, (6) evidencia. Barra compacta con **fecha de diligencia** y **datos de notificación**; chat con adjuntos y lightbox. **FO-GJ-03:** modal (`FoGj03DraftService`) con artículos/numerales prellenados desde plantillas por falta (`FoGj03CitationArticleResolver` + Ajustes · Artículos); redacción gramatical por género del empleado (`WorkerLegalPhrasing`); checklist exige género Masculino/Femenino en catálogo; firma del abogado en **Mi perfil**. Avance a diligencia con checklist (`docs/GAP_DISCIPLINARIO_ETAPAS_A_B.md`). **Evidencia de citación:** solo tras generar FO-GJ-03; tipos `signed` o `refused_witnesses`. Pueden cargarla el titular, el **supervisor de notificación**, el revisor del FO-GJ-51, dirección de operaciones y dirección jurídica. El supervisor opera desde **Evidencias pendientes**: PDF escaneado o notificación en pantalla (firma táctil / rechazo con testigos).
 
 ### Gestión de usuarios y contraseñas
 
@@ -92,71 +92,80 @@ Muchas vistas usan **`wire:navigate`**. Eso evita recargar la página completa, 
 |------|------------------------|
 | **Preload de CSS (avisos amarillos)** | Laravel **@vite** inserta `<link rel="preload" as="style">` además del `<link rel="stylesheet">`. Chrome a veces avisa *«preloaded but not used»* al navegar. En **`AppServiceProvider`** se omite el preload **solo para CSS** con `Vite::usePreloadTagAttributes` (los **modulepreload** de JS se mantienen). El callback debe tipar el primer argumento como **`?string $src`**: el framework puede pasar `null` en algunos chunks. |
 | **ApexCharts + SVG** | **`resources/js/apex-charts-lifecycle.js`** destruye instancias al salir de la vista (`livewire:navigating` y hook `morph.removing`) para que no queden SVG huérfanos que Livewire intente actualizar (errores de `radialGradient` / `path` en consola). |
-| **Mapa Colombia (Leaflet)** | **`resources/js/disciplinary-colombia-map.js`** comprueba que exista `bringToFront` antes de llamarlo (no todas las capas lo exponen en todos los contextos). |
+| **Mapa Colombia (Leaflet)** | **`resources/js/disciplinary-colombia-map.js`** comprueba que exista `bringToFront` antes de llamarlo (no todas las capas lo exponen en todos los contextos). Modo **`data-compact="1"`** en Inicio: sin scroll con rueda, zoom arriba-derecha; el montaje en **`home-command-center.js`** reutiliza el mismo script que el dashboard disciplinario. Donas del dashboard en **`disciplinary-dashboard.js`**. |
 | **Campanita de notificaciones** | Componente **`livewire:ui.notification-bell`**: **`wire:poll.visible.5s`** para no disparar tantas peticiones Livewire con la pestaña en segundo plano. |
 | **`APP_KEY` y 500 intermitente** | Si el log muestra `MissingAppKeyException`, **`public/index.php`** intenta cargar de nuevo el `.env` con **Dotenv** cuando `APP_KEY` no está en el entorno antes del bootstrap (útil si el fichero se guarda mientras Apache atiende). Sigue siendo obligatorio tener **`APP_KEY=`** en `.env` y no publicar sin clave. |
 | **Pestaña Issues (avisos “verdes”)** | Son sugerencias de **accesibilidad** de Chrome (p. ej. `label` sin `for`, campos sin `id`/`name`). En el **listado de casos disciplinarios**, los filtros enlazan etiqueta y controles con `for` + `id` + `name`. Otras pantallas se pueden alinear con el mismo criterio. |
 
-### Vista de Inicio (Dashboard global)
+### Vista de Inicio (Command center)
 
-Al iniciar sesión, el usuario ve un resumen de toda la operación:
+**Acceso:** solo rol **`admin`** (`User::canViewHomeCommandCenter()`). El resto de perfiles, al abrir `GET /dashboard`, se redirige a su destino operativo (`User::suiteLandingUrl()`: abogado → dashboard disciplinario, supervisor → evidencias pendientes, etc.). El ítem **Inicio** del sidebar y el logo apuntan a esa URL de aterrizaje.
 
-- **4 tarjetas de alertas** (cada una con sus 5 items críticos linkeados):
-  - 🔴 Plazos vencidos (etapas con deadline pasado)
-  - 🟡 Próximos a vencer (plazo en 3 días o menos)
-  - 🟦 Sin abogado asignado (incluye expedientes en **bandeja compartida** etapa INFORME, `assigned_lawyer_id` nulo)
-  - 🩵 Pendientes de decisión
-- **Gráfica de tendencia** mensual de casos abiertos (últimos 6 meses)
-- **Acceso rápido** a los módulos disponibles
+Vista **sin scroll de página** (`h-[calc(100dvh-…)]`): agregación en **`HomeDashboardService`** (`AlertsService` + `DisciplinaryDashboardService`).
 
-`AlertsService` es el agregador global y está preparado para sumar alertas de los demás módulos
-cuando se vayan creando.
+| Zona | Contenido |
+|---|---|
+| **Cabecera** | Saludo, totales de casos/en proceso/alertas, fecha |
+| **4 chips de alerta** | Plazos vencidos, próximos a vencer (≤3 días), sin abogado titular, pendientes de decisión — al pulsar, listado en el panel derecho |
+| **Columna izquierda** | Barras **casos por etapa** (A–F) + gráfica de **tendencia** (aperturas 6 meses) |
+| **Columna central** | **Mapa Colombia** compacto (~188px) con pins por municipio DIVIPOLA + ranking **Top municipios** (clic centra el mapa) + mini KPIs pendientes / en proceso / finalizados |
+| **Columna derecha** | Acceso rápido, detalle de alertas (scroll interno), roadmap de módulos |
+| **Fila inferior** | Barras **carga por abogado** (top 5) |
+
+Frontend: **`resources/js/home-command-center.js`** (ApexCharts) monta gráficas y el mapa vía import dinámico de **`disciplinary-colombia-map.js`**. Tests: `tests/Feature/HomeCommandCenterTest.php`.
+
+`AlertsService` sigue siendo el agregador global de alertas y está preparado para sumar módulos futuros.
 
 ### Módulo Disciplinario
 
-Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Disciplinarios | (Revisión informes) | (Gestión humana) | Formatos | Historial**. El enlace *Revisión informes* aparece quienes tienen **`disciplinary.review-inform`** (`InformeSubmissionPolicy::viewAny`). **Rol `administrativa` / `admin`:** ítem **Gestión humana** → `GET /disciplinary/decision-hr-pending` (terminaciones de contrato pendientes de anexos laborales). **Rol `abogado`:** `GET /disciplinary` y el ítem **Dashboard** llevan al tablero disciplinario; el ítem **Disciplinarios** (y el módulo en sidebar) usa `User::disciplinaryCasesNavUrl()` → **listado** `GET /disciplinary/cases`. **Rol `planeacion`:** en el sub-nav disciplinario solo **Coordinaciones** (`GET /disciplinary/coordinations`). **Rol `supervisor`:** en el sub-nav disciplinario entra a **Evidencias pendientes** (`GET /disciplinary/evidences-pending`). Planeación y supervisor quedan sin acceso al listado/detalle general de expedientes.
+Sub-nav superior (según permisos y rol): por defecto **Inicio | Dashboard | Disciplinarios | (Revisión informes) | Formatos | Historial**. **Rol `admin`:** **Inicio** → command center (`GET /dashboard`); el módulo **Disciplinarios** en el sidebar → `User::disciplinaryPortalUrl()` (dashboard disciplinario). El enlace *Revisión informes* aparece quienes tienen **`disciplinary.review-inform`** (`InformeSubmissionPolicy::viewAny`). **Rol `abogado`:** `GET /disciplinary` y el ítem **Dashboard** llevan al tablero disciplinario; el ítem **Disciplinarios** del **sub-nav** usa `User::disciplinaryCasesNavUrl()` → **listado** `GET /disciplinary/cases` (el sidebar del módulo también entra por `disciplinaryPortalUrl()` → dashboard). **Rol `planeacion`:** en el sub-nav disciplinario solo **Coordinaciones** (`GET /disciplinary/coordinations`). **Rol `supervisor`:** en el sub-nav disciplinario entra a **Evidencias pendientes** (`GET /disciplinary/evidences-pending`); si llega por URL «intended» al dashboard o listado de casos, se redirige al portal (`disciplinaryPortalUrl`). Planeación y supervisor quedan sin acceso al listado/detalle general de expedientes.
 
 | Vista | Contenido |
 |---|---|
-| **Dashboard** | Encabezado reducido: solo la rúbrica **«Disciplinarios · Dashboard»** y el botón al listado de casos (sin título largo ni descripción). **Casos por etapa**: 7 donas (ApexCharts) — total + **A–F** según `current_stage_type` (centro con % y cantidad; **B** y **C** con agrupaciones acordadas); contenedor y rejilla compactos (`items-start`, sin padding inferior en la caja, altura de canvas ajustada) para limitar el aire bajo las donas; etiqueta corta por columna. ApexCharts se expone desde **Vite** (`resources/js/app.js` → `window.ApexCharts`) para compatibilidad con **`wire:navigate`**; el montaje en Blade **espera ancho de contenedor** antes de `render()` para evitar errores SVG (`NaN`). Entre páginas, **`resources/js/apex-charts-lifecycle.js`** destruye/recicla las instancias al navegar para no duplicar morfos en el DOM. Debajo: barras por **tipo de falta**, **mapa por ciudad** (Leaflet + GeoJSON GADM, tiles Carto; datos vía `disciplinary.map-geo`) y tabla **carga por abogado**. |
-| **Disciplinarios** (listado) | 3 tarjetas de vistas rápidas + 7 filtros combinables + tabla paginada. **Rol `planeacion` y `supervisor`:** 403 en `CasesIndex` (no usan este listado). **Coordinaciones** (`planeacion`): bandeja de hilos **abiertos** con el abogado titular; el hilo sale de la bandeja al **avanzar el caso a diligencia** (cierre automático del hilo). **Bandeja compartida (etapa INFORME):** al autorizar un informe se crea el expediente con `assigned_lawyer_id = null`; todos los **abogados** y el **auditor** lo ven en el listado (columna **Bandeja compartida**). El abogado usa **Gestionar** → modal de confirmación → `DisciplinaryCaseService::claimByLawyer()` (asignación atómica + actuación **`CASO_ACEPTADO_ABOGADO`**); luego deja de estar en el pool para el resto de abogados. El auditor solo **Ver** (sin `claim`). **Etapa A (Informe):** el titular **no** chatea con planeación; tras revisar el caso pasa a citación o archiva. Botones **Nuevo informe (FO-GJ-51)** y **Cargar informe en PDF** abren un **modal** a pantalla completa con el formulario (no navegan a otra página). Enlaces desde catálogo o detalle de caso usan query `?informe_modal=1` (y `cedula` opcional). **FO-GJ-51:** campo obligatorio **Revisor de operaciones** (`fo51_assigned_reviewer_id`) en formulario y en modal de carga PDF; validación en `FoGj51ProcessRequest` y `DisciplinaryInformeSubmissionService`. Búsqueda de trabajador por **cédula** (solo dígitos) contra la BD de empleados (`resources/js/fo51-employee-combobox.js`); al elegir, se autocompletan **nombre** y **cargo** en pantalla. En el PDF generado (`enviar` / vista previa `pdf`), el campo **CARGO** del trabajador sale de **`employees.job_title`** vía `FoGj51InformeController::resolveWorkerCargoForPdf()` (empleado resuelto por id o documento) y la plantilla `fo-gj-51-filled-download` pasa `:worker-cargo` al componente; **turno** y **puesto** (`fo51_shift` / `fo51_position`) se diligencian manualmente y son distintos del cargo en BD. Grilla de **fecha** del informe: 4×2 (FECHA + DD/MM/AAAA). En **CIUDAD**, municipio DIVIPOLA con **búsqueda al escribir** (`fo51-municipality-combobox.js`); catálogo desde **Ajustes → Territorio**. Encabezado del PDF FO-GJ-51 alineado con cartas oficiales (`official-letter-pdf-shell`). **Firma del elaborador:** captura en lienzo (`sjFo51PreparerSignature` + **`<x-disciplinary.signature-capture-modal-alpine>`**); obligatoria al generar PDF o enviar a revisión (`PngSignatureDataUri`); nombre y cargo desde sesión; incrustada en `fo-gj-51-filled-download`. |
-| **Evidencias pendientes** (supervisor) | Cola mínima (`PendingEvidenceIndex`). **Citación (FO-GJ-03):** filas filtradas por `notification_supervisor_user_id` — N° caso, trabajador, estado **Evidencia de citación pendiente**, fecha FO-GJ-03; **Cargar evidencia PDF** (vista previa → tipo firmada/rechazo con testigos) o **Notificación** (modal carta HTML + firma del trabajador o testigos). Flujo unificado de notificación firmada: **Aceptar** (genera PDF en vista previa sin subir aún) → **Descargar** / **Enviar** (`SupervisorSignedNotificationPreviewStore`, `GET /disciplinary/evidences-pending/signed-preview/{token}`); `viewFoGj03NotificationForSupervisor`. **Decisión (FO-GJ-DECISION):** segunda tabla cuando hay comunicados pendientes (`decision_notification_supervisor_user_id`, `decision_comunicado_generated_at`, sin `decision_evidence_uploaded_at`); mismas acciones PDF / **Notificación** con `DecisionNotificationSigningService`, `viewDecisionComunicadoForSupervisor` y el mismo flujo Aceptar → vista previa → Enviar. Guard defensivo `DecisionWorkflowSchema::isReady()` si la migración Etapa D no está aplicada. Tests: `PendingEvidenceUploadTest.php`, `DecisionStageCompletionTest.php`. |
-| **Gestión humana · Decisiones** (`administrativa` / `admin`) | Cola `PendingDecisionHrIndex` en **`GET /disciplinary/decision-hr-pending`**: casos en **terminación de contrato** (`Decision::TERMINACION_CONTRATO`) con comunicado generado y sin `decision_hr_review_completed_at`. Debe **subir al menos un anexo laboral PDF** (`uploadDecisionHrAnnex` → `DocumentType::EVIDENCIA`, nota `Anexo laboral gestión humana`) antes de **Marcar gestión completada** (`completeDecisionHrReview`). Políticas: `uploadDecisionHrAnnex`, `completeDecisionHrReview`. |
-| **Revisión informes** | Cola `InformeSubmission` en estado pendiente de autorización: **vista previa del PDF** en modal (misma ruta con `?inline=1`), **confirmación de autorización** en modal de la aplicación (no diálogo nativo del navegador), acciones **Rechazar** y **Descargar**. El revisor asignado gestiona con `disciplinary.review-inform`; dirección ve todos con `disciplinary.review-inform-all`. Al autorizar se crea el expediente y el PDF pasa como documento del caso. |
-| **Detalle del caso** | **Encabezado en una línea:** número de caso a la izquierda; a la derecha **← Volver al listado**, badge de estado (`size="md"`) y acciones de etapa Informe si aplican (nombre/CC del trabajador solo en pestaña Información). 4 tabs (Información / Línea de tiempo / Documentos / Actuaciones) + modal de transición. Si el expediente está en **bandeja compartida** (`isInInformePool()`), el abogado ve aviso y **Gestionar caso** (mismo flujo de confirmación que en el listado); la **tarjeta verde Etapa A** solo aparece con titular asignado (en pool se prioriza el banner de gestión). **Reasignar / quitar titular:** solo `admin` o permiso `disciplinary.assign` (`DisciplinaryCasePolicy::assign`); el abogado no devuelve casos al pool. **Tarjeta «Etapa A»** (Información, estado **Informe** y titular asignado): fila 1 **Etapa A** + botón **Ver informe (PDF)**; fila 2 trazabilidad del envío a revisión e incorporación del PDF con **fecha/hora Colombia** (`America/Bogota`); fila 3 **Autorización y creación del caso** — cargo y nombre de quien **autoriza** el FO-GJ-51 y genera el expediente (`InformeSubmission` vía `DisciplinaryCase::informeSubmission()`); fila 4 **Revisión y asignación** — cargo y nombre de quien registra la asignación del titular (última actuación **`CASO_ASIGNADO`** o **`CASO_ACEPTADO_ABOGADO`** según origen), abogado asignado y fecha Colombia. Bloque **FO-GJ-51** (azul/teal) cuando el informe no está fusionado en la tarjeta verde. **Tarjeta «Etapa B · Citación»** (estado **citación programada**, activa): stepper 6 pasos (`CitationStageProgress`); **barra de acción** con **Fecha para diligencia** y **Fecha y usuario para notificación**; **Iniciar coordinación**; **chat** con composer (`agenda-chat-composer`); selección de slot + **Confirmar fecha**; FO-GJ-03 y evidencia PDF; **Siguiente etapa → Diligencia**. En estado **diligencia**, la misma tarjeta B queda **Completada · Solo lectura** (`showsCitationStageReadOnly()`): stepper completo, barra con fechas, botones **Consultar FO-GJ-03 (PDF)** y **Evidencia de citación (PDF)** e historial de coordinación (sin composer, sin paneles duplicados de FO-GJ-03/evidencia). **Hora en «Fecha para diligencia»:** `DisciplinaryCase::resolvedDiligenceHearingTimeLabel()` — prioridad `fo_gj_03_payload.hearing_time` (hora editada en el formato) → `citation_confirmed_time` → slot del hilo (`citation_selected_message_id`). **Tarjeta «Etapa C · Diligencia»** (estado **diligencia** o **justificación pendiente** tras inasistencia, activa): stepper **4 pasos** (`DiligenceStageProgress`: asistencia → diligencia programada → acta o constancia → decisión o justificación). **Paso 0 — Asistió / No asistió** (irreversible, confirmación). **Rama asistió:** FO-GJ-04 (diligenciar, **firma del trabajador**, vista previa, generar); bloqueo «Siguiente etapa → Decisión» sin acta + firma. **Rama no asistió:** FO-GJ-44 (modal testigos, generar → `JUSTIFICACION_PENDIENTE` 2 días); aceptar justificación + FO-GJ-54 o rechazar → Comité. Panel del acta/constancia si hay documento en expediente. Orden en Información: pila **más reciente primero, Etapa A al final** (`CaseOverviewStageStack`). Partials: `stage-c-diligence.blade.php`, `stage-c-diligence-modals.blade.php`, `signature-capture-modal.blade.php`. Tests: `CaseDetailStageViewsTest.php`, `FoGj04DraftTest.php`, `DiligenceAttendanceTest.php`, `DiligenceHearingTimeDisplayTest.php`. Refresco: `wire:poll` + Echo `disciplinary.case.{id}`. |
-| **Formatos** | Catálogo FO-GJ por etapa A–F; **Membrete** del acta de comité (PNG/JPEG, vista previa y reemplazo) en la parte superior de la pantalla (`OrganizationLetterheadService`, `manageOfficialLetterhead`). **Plantilla** abre modal con PDF en blanco (iframe `disciplinary.formats.preview`); **Descarga** fuerza descarga del mismo PDF que la vista previa. Para códigos registrados en `OfficialFormsCatalog::htmlBlankPdfRegistry()` (**FO-GJ-51**, **FO-GJ-03**, **FO-GJ-44**, **FO-GJ-54**, **FO-GJ-04**, **ACTA-COMITE**, **FO-GJ-DECISION**), el PDF se genera desde HTML con **Chrome headless** (Spatie Browsershot), **tamaño carta (Letter)**; esa fuente tiene **prioridad** sobre un PDF estático en `public/formatos/disciplinarios/`. Las cartas oficiales FO-GJ comparten encabezado grilla (`official-letter-pdf-shell`), estilos `official-letter-pdf-styles` con **escala tipográfica unificada** (`--ogj-font-body` 12px, `--ogj-font-meta` 11px, `--ogj-font-title` 13px, `--ogj-font-micro` 10px) y campos en blanco con guías grises. **ACTA-COMITE** (Comité disciplinario para decisión, etapa C) usa plantilla propia (`comite-acta-blank-download` / `comite-acta-filled-download`) con **Times New Roman 12 pt**, interlineado 1.0 y espaciado entre bloques calibrado; la plantilla en blanco del catálogo respeta el **membrete** cargado arriba. En el formulario FO-GJ-51, perfiles **supervisor / operador** no ven el enlace *Catálogo de formatos* en la barra de acciones. `GET /disciplinary/forms/informe-fo-gj-51` redirige al listado con modal salvo **`?vista_completa=1`** (pantalla dedicada). El envío del informe es `POST /disciplinary/forms/informe-fo-gj-51` (`disciplinary.forms.informe.process`: generar PDF, enviar a revisión o cargar PDF externo). Rutas de catálogo: `GET …/formats/preview/{code}`, `GET …/formats/descarga-en-blanco/{code}`, `GET …/formats/membrete`. |
+| **Dashboard** | Vista **cockpit** sin scroll: cabecera contextual por rol (admin global / abogado «Mi tablero» solo casos **asignados**). **7 donas** A–F (misma paleta neon). **Mapa Colombia** hero (~55% ancho) + panel derecho en **3 filas de altura fija**: **Top municipios**, **casos por tipo de falta** (catálogo activo completo con ceros, micro-barras HTML con scroll interno), **Mi carga** (abogado) o mini ranking de abogados (admin). Sin chips de alerta. `DisciplinaryDashboardService::usesAssignedOnlyScope()` para abogado. JS: `disciplinary-dashboard.js` + `disciplinary-colombia-map.js`. Tests: `DisciplinaryDashboardScopeTest.php`. |
+| **Disciplinarios** (listado) | Vista **cockpit** sin scroll: cabecera compacta, **rail A–F**, **Cerrados** / **Todos** (Operaciones no ve Cerrados), filtros y tabla con **Etapa**. Alcance `forDisciplinaryActor`. **Operaciones (`nivel2`):** solo casos **abiertos** que **autorizó** (`informeSubmission.reviewed_by`; con `review-inform-all` todos los abiertos); sin Formatos; trámite «En trámite · Etapa X». Tests: `DisciplinaryCasesIndexStageTest`, `DisciplinaryOperacionesCaseScopeTest`. **Coordinaciones** (`planeacion` / `nivel3`): cockpit full-height — bandeja + hilo chat (burbujas), KPIs abiertas/fechas/notif., búsqueda; candidatos a supervisor por `employee.municipality_code` (eager load completo). **Bandeja compartida (INFORME):** claim atómico del abogado. Botones FO-GJ-51 en modal. |
+| **Evidencias pendientes** (supervisor) | **Cockpit** sin scroll (`max-w-[1600px]`): cabecera compacta «Supervisión · Notificaciones», rail **Citación / Decisión / Todos** con conteos (`SupervisorEvidenceQueueService`), búsqueda por caso/trabajador/documento y **tabla unificada** (tipo, slot de notificación, documento, generado). Acciones por fila: **Cargar PDF** y **Notificación** (flujo escaneado → carta HTML → firma → vista previa, sin cambios de lógica). **FO-GJ-51** en modal a pantalla completa (`openFo51Modal`, mismo shell que listado). Sidebar/nav: **Evidencias**. Tests: `PendingEvidenceUploadTest`, `SupervisorEvidenceQueueTest`, `DecisionStageCompletionTest`. |
+| **Revisión informes** | Cockpit senior (`InformesPendientes`): KPI **Pendientes**, búsqueda densa, filas compactas con `displayName()`, aviso de stale ≥24 h, acciones **Ver** / **Autorizar** / **Rechazar** (modales propios). Cola `InformeSubmission` pendiente: vista previa PDF (`?inline=1`). Revisor asignado con `disciplinary.review-inform`; dirección con `disciplinary.review-inform-all`. Al autorizar se crea el expediente y el PDF entra al caso. Tests: `InformesPendientesUiTest.php`. |
+| **Detalle del caso** | **Encabezado compacto**: número de caso; **← Volver al listado**, badge de estado y acciones de Informe si aplican. Tabs: **Gestión** / Línea de tiempo / Documentos / Actuaciones (+ Historial por cédula según rol). **Operaciones (`nivel2`):** sin tabs jurídicos — seguimiento `operaciones-follow-up` («En trámite · Etapa X»). **Pestaña Gestión (jurídico):** ficha (`case-summary-strip`) + **tarjetas A–D** (`CaseStageCardState`). Modal de etapa: `case-stage-modal-shell` + body (`stage-a`…`stage-d`); shell `z-[68]`; modales FO-GJ / decisión en pie a **`z-[85+]`** para no quedar detrás. **FAB «Chat planeación»** → **drawer derecho** (`planning-chat-modal`) con burbujas L/R (`agenda-message` + perspective), composer y lightbox. **Etapa B · evidencia:** dropzone PDF, tipo en cards, **Ver** (preview modal) y **Descargar** por separado. Tests: `CaseDetailStageViewsTest`, `DisciplinaryCitationStageFlowTest`, `DecisionStageFlowTest`, `DisciplinaryOperacionesCaseScopeTest`. Echo `disciplinary.case.{id}`. |
+| **Formatos** | Catálogo FO-GJ por etapa A–F; **oculto** para **Operaciones (`nivel2`)** (`viewOfficialForms` denegado) y portales mínimos / nivel3. **Membrete** del acta de comité (PNG/JPEG) vía `OrganizationLetterheadService`. **Plantilla** / **Descarga** de PDFs en blanco (Browsershot Letter para códigos del catálogo HTML). Rutas: `GET …/formats`, `preview/{code}`, `descarga-en-blanco/{code}`, `membrete`. |
 
 **Disciplinario — agenda Etapa B:** `DisciplinaryCase::statusesAllowingAgendaCoordination()` limita el chat abogado ↔ planeación a **citación** y **reprogramación**; `DisciplinaryWorkflowService` no exige respuesta de planeación para pasar de **Informe** a **citación**. Políticas y `DisciplinaryAgendaThreadService` usan `allowsAgendaThread()`.
 
 **Disciplinario — bandeja de abogados (etapa INFORME):** `DisciplinaryCase::scopeInInformePool()` / `isInInformePool()` identifican expedientes en estado **informe** sin titular. El alcance de listados para **abogado** (`forDisciplinaryActor`) une casos propios y pool. Política `claim` autoriza tomar gestión; `view` permite consulta del pool; `update` / `transition` exigen titular asignado. Concurrencia: `claimByLawyer()` actualiza solo si `assigned_lawyer_id` sigue nulo; si falla, `CaseAlreadyClaimedException`. Tests: `tests/Feature/Disciplinary/DisciplinaryLawyerPoolClaimTest.php`.
 
-**Disciplinario — FO-GJ-51 (informe disciplinario):** formulario HTML (`fo-gj-51-informe-body` → `POST disciplinary.forms.informe.process`). Vista `fo-gj-51-preview` + PDF `fo-gj-51-filled-download`. **Grilla datos del trabajador** (tabla de 4 columnas, etiqueta inline en mayúsculas): fila 1 **CC:** (25%) + **NOMBRE:** (`colspan="3"`, 75%); fila 2 **CARGO:** | **CIUDAD:** | **TURNO:** | **PUESTO:** (25% c/u). El layout horizontal usa `fo51-personal-inner` (flex dentro del `<td>`, nunca en el `<td>`) para no romper la tabla en PC ni en PDF. En pantalla interactiva, `fo51-interactive` + `fo-gj-51-screen-mobile` apilan las celdas solo en móvil (`@media max-width: 767px`). Acciones: **Generar PDF**, **Enviar a revisión** (revisor operaciones obligatorio) o **Cargar PDF externo** (sin lienzo de firma en pantalla; no usa Browsershot). **Evidencias fotográficas** opcionales (hasta 10): botón **Agregar evidencias** / **Gestionar evidencias** abre modal; los `input[type=file]` usan `form="fo51-informe-form"` fuera del `<form>` para no tapar el envío en móvil; el modal se cierra al pulsar **Enviar a revisión**. **Supervisor:** `GET …/informe-fo-gj-51?vista_completa=1`; si falla validación sin permiso `viewAny` de casos, `FoGj51ProcessRequest` redirige al formulario completo (evita 403 en el listado). Nombre y cargo del elaborador desde sesión; columna **FIRMA** con captura gráfica (`fo51_preparer_signature` como `data:image/png;base64,…`). Modal Alpine **`signature-capture-modal-alpine`** + factory **`sjFo51PreparerSignature()`** (mismo `worker-signature-pad.js` que FO-GJ-03/04). Validación: `PngSignatureDataUri` en `StoreFoGj51InformePdfRequest`; obligatoria en `FoGj51ProcessRequest` para acciones `pdf` y `enviar`. **Hosting compartido (Hostinger):** con `PDF_USE_QUEUE=true`, **Generar PDF** y **Enviar a revisión** encolan `ProcessFoGj51PdfJob`; la web muestra pantalla *Generando PDF* (`fo-gj-51-pdf-queue-wait`) y un worker CLI/cron ejecuta Browsershot (ver sección PDF en Hostinger). Tras **Enviar a revisión**, el informe queda en **Revisión informes** (`InformeSubmission`, estado pendiente); no aparece aún en evidencias pendientes hasta que operaciones lo autorice. Tests: `FoGj51PreparerSignatureTest.php`.
+**Disciplinario — FO-GJ-51 (informe disciplinario):** formulario HTML (`fo-gj-51-informe-body` → `POST disciplinary.forms.informe.process`). Vista `fo-gj-51-preview` + PDF `fo-gj-51-filled-download`. **Pantalla:** el preview interactivo va dentro de `ogj-letter-screen-sheet` (hoja Letter 8.5×11″ centrada, escala Alpine en modales estrechos; ver `docs/PDF.md` §8). Clase `fo51-interactive` — flex en grilla personal y faltas (navegador). **PDF Dompdf:** `renderAsPdf` + clase `fo51-pdf` — sin flex (`display: table` en datos del trabajador), faltas con mini-tabla `fo51-fault-line-tbl` (casilla al final), observaciones en `div.fo51-obs-pdf` (no `textarea`); objetivo **1 hoja Letter**. **Grilla datos del trabajador** (tabla de 4 columnas, etiqueta inline en mayúsculas): fila 1 **CC:** (25%) + **NOMBRE:** (`colspan="3"`, 75%); fila 2 **CARGO:** | **CIUDAD:** | **TURNO:** | **PUESTO:** (25% c/u). En móvil, `fo-gj-51-screen-mobile` apila celdas (`@media max-width: 767px`). Acciones: **Generar PDF**, **Enviar a revisión** (revisor operaciones obligatorio) o **Cargar PDF externo** (sin lienzo de firma en pantalla; no usa Browsershot). **Evidencias fotográficas** opcionales (hasta 10): botón **Agregar evidencias** / **Gestionar evidencias** abre modal; los `input[type=file]` usan `form="fo51-informe-form"` fuera del `<form>` para no tapar el envío en móvil; el modal se cierra al pulsar **Enviar a revisión**. **Supervisor:** `GET …/informe-fo-gj-51?vista_completa=1`; si falla validación sin permiso `viewAny` de casos, `FoGj51ProcessRequest` redirige al formulario completo (evita 403 en el listado). Nombre y cargo del elaborador desde sesión; columna **FIRMA** con captura gráfica (`fo51_preparer_signature` como `data:image/png;base64,…`). Modal Alpine **`signature-capture-modal-alpine`** + factory **`sjFo51PreparerSignature()`** (mismo `worker-signature-pad.js` que FO-GJ-03/04). Validación: `PngSignatureDataUri` en `StoreFoGj51InformePdfRequest`; obligatoria en `FoGj51ProcessRequest` para acciones `pdf` y `enviar`. **Hosting compartido (Hostinger):** con `PDF_USE_QUEUE=true`, **Generar PDF** y **Enviar a revisión** encolan `ProcessFoGj51PdfJob`; la web muestra pantalla *Generando PDF* (`fo-gj-51-pdf-queue-wait`) y un worker CLI/cron ejecuta Browsershot (ver sección PDF en Hostinger). Tras **Enviar a revisión**, el informe queda en **Revisión informes** (`InformeSubmission`, estado pendiente); no aparece aún en evidencias pendientes hasta que operaciones lo autorice. Tests: `FoGj51PreparerSignatureTest.php`. Documentación técnica: `docs/PDF.md` §8.
 
-**Disciplinario — Etapa B (citación):** chat libre abogado ↔ planeación (`AgendaMessageKind::GENERAL`); adjuntos en mensajes (imágenes/PDF) con miniaturas en el hilo y lightbox (`agenda-attachment-lightbox.js`). Planeación publica fechas con **`proposed_slots`** (`PLANNING_RESPONSE`) — bloque **Fechas propuestas** en `agenda-message.blade.php`. Orden: (1) coordinación + chat, (2) modal **Proponer fechas de diligencia** en coordinaciones, (3) abogado confirma slot en el hilo, (4) al publicar slots se habilita **Registrar notificación y supervisor** (`canPlanningRegisterNotification`, sin botón del abogado), (5) datos de notificación en la barra del expediente, (6) **diligenciar FO-GJ-03** (`fo_gj_03_payload`, políticas `editFoGj03Draft` / `previewFoGj03` / `generateFoGj03`), (7) vista previa y generación PDF (`FoGj03CitationService`), (8) evidencia. El chat permanece visible durante FO-GJ-03/evidencia (no depende del paso del stepper). Migraciones: `2026_06_03_120000_reclassify_informal_agenda_messages_as_general.php`, `2026_06_04_100000_fo_gj_03_draft_and_user_signature.php`. Tests: `DisciplinaryCitationStageFlowTest.php`, `DisciplinaryCitationNotificationTest.php`, `FoGj03DraftTest.php`, `DisciplinaryCoordinationsIndexTest.php`, `DisciplinaryOperacionesCaseScopeTest.php`.
+**Disciplinario — Etapa B (citación):** chat libre abogado ↔ planeación (`AgendaMessageKind::GENERAL`) en **drawer derecho** «Chat planeación» (FAB). Adjuntos con lightbox. Stepper `CitationStageProgress`: coordinación → **notificación física** → fechas propuestas → fecha definitiva → FO-GJ-03 → evidencia. Orden operativo: (1) iniciar coordinación, (2) en Coordinaciones **Registrar/actualizar notificación y supervisor** (`canPlanningManageNotification` / `canPlanningManageCitationCoordination`), (3) **Proponer fechas** solo si la notificación está completa (`canPlanningProposeDiligenceSlots`), (4) abogado confirma slot, (5) diligenciar FO-GJ-03 (artículos desde plantilla de falta), (6) evidencia. Migraciones: `2026_06_03_120000_…`, `2026_06_04_100000_…`, `2026_08_11_100000_create_citation_statute_tables.php`. Tests: `DisciplinaryCitationStageFlowTest`, `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj03CitationArticleResolverTest`, `DisciplinaryCoordinationsIndexTest`, `DisciplinaryOperacionesCaseScopeTest`.
 
-**Disciplinario — FO-GJ-03 (citación por escrito):** plantilla `fo-gj-03-body.blade.php` + `FoGj03DraftService`. Campos automáticos: fecha del documento (hoy), trabajador (nombre/cédula/cargo), fecha de diligencia confirmada, fecha del informe (`InformeSubmission` / `form_snapshot`). Campos del abogado (modal antes de vista previa): hora (prellenada del slot, editable), modalidad **presencial** (dirección Cali) o **virtual** (URL), fecha del incumplimiento, descripción de hechos, numerales art. 66/68/76. Firma del abogado: imagen en `users.signature_path` vía **Mi perfil** (`GET /profile/signature`). Bloque de firmas: `.ogj-03-signature-block` + `.ogj-03-signature-slot-area` (hueco fijo 44px, líneas horizontales alineadas entre columnas) + línea; columna **Recibido por** con firma del trabajador y **nombre + C.C.** impresos bajo la línea cuando la notificación es firmada (`signed`), o texto **Se niega a firmar** + dos bloques **Testigo** (firma, nombre, cédula) cuando la evidencia es `refused_witnesses`. Lienzo de firma unificado: **`worker-signature-pad.js`** + **`<x-disciplinary.signature-capture-modal>`** (franja horizontal ~ancho de pantalla, altura fija 17.5rem; `setPointerCapture`, presión del lápiz, recorte al exportar). Supervisor FO-GJ-03 y Etapa C FO-GJ-04 comparten el mismo componente. PDF firmado en pantalla: `fo-gj-03-signed-notification-download` + `CitationNotificationSigningService` (Browsershot). Expedientes legacy conservan `DISC-…`; los nuevos usan **`GJ-PD:NNNNNN`** (`DisciplinaryCaseService::nextCaseNumber`).
+**Disciplinario — portal Operaciones (`nivel2`):** tras autorizar FO-GJ-51, listado y detalle reducidos: solo casos **abiertos** con `reviewed_by` = usuario (o todos abiertos con `review-inform-all`); sin Formatos; ficha `operaciones-follow-up` («En trámite · Etapa X»). Visibilidad: `scopeVisibleToOperacionesReviewer` / `isVisibleToOperacionesReviewer`. Tests: `DisciplinaryOperacionesCaseScopeTest.php`.
 
-**Disciplinario — FO-GJ-04 (acta de diligencia):** sustituye **FO-GJ-42** en catálogo y código (`OfficialFormsCatalog`, sin alias). Plantilla multipágina `fo-gj-04-body.blade.php` / `fo-gj-04-filled-download` con parciales `fo-gj-04-intro`, `fo-gj-04-question-item`, `fo-gj-04-closing-signatures` y textos legales fijos (citación previa, términos 1–5, manifestación, cierre antes del cuestionario). En el intro, las líneas de partes **EN REPRESENTACIÓN EL EMPLEADOR** y **EL TRABAJADOR** van sangradas con viñeta **•**; tras la del empleador hay salto de línea extra antes del párrafo «De otra parte…». **Fecha del incumplimiento** y **formulación de cargos** se leen del FO-GJ-03 diligenciado (`fo_gj_03_payload.breach_date`, `charges_description`); el modal no duplica esos campos. Diligenciamiento: `FoGj04DraftService` (`fo_gj_04_payload`, `fo_gj_04_draft_completed_at`); cada ítem del cuestionario es `{ question, answer }` con normalización `¿…?` y **respuesta obligatoria**; generación: `FoGj04DiligenceActaService` + `FoGj04PagePlanner` (paginación por unidades de línea, numeración «Página X de Y», cierre + firmas en la última hoja con espacio) → `DocumentType::ACTA_DILIGENCIA` + `fo_gj_04_generated_at`. Modal Etapa C: cabecera/pie fijos, cuerpo con scroll, hora inicio/fin, manifestación **SI QUIERO RESPONDER** / **NO DESEA RESPONDER**, cuestionario dinámico (vacío al abrir). En PDF, la respuesta se imprime en la misma línea que `R:` (`.ogj-04-answer-inline`). **Firma del trabajador** capturada en modal (`fo_gj_04_payload.worker_signature_data_uri`) e incrustada en `fo-gj-04-closing-signatures`. Firma del abogado desde perfil. Ruta vista previa: `GET /disciplinary/cases/{case}/fo-gj-04/pdf` (`FoGj04CaseController`). Políticas: `editFoGj04Draft`, `previewFoGj04`, `generateFoGj04`, `captureFoGj04WorkerSignature`, `registerDiligenceAttendance`. Migraciones: `2026_06_10_100000_fo_gj_04_diligence_acta_draft`, `2026_06_16_100000_diligence_attendance_and_fo_gj_44_54`. Tests: `FoGj04DraftTest.php`, `FoGj04PagePlannerTest.php`, `DiligenceAttendanceTest.php`.
+**Disciplinario — FO-GJ-03 (citación por escrito):** plantilla `fo-gj-03-body.blade.php` + parciales `fo-gj-03-opening` / `charges` / `articles` / `evidence` / `closing-signatures` + `FoGj03DraftService` + **`FoGj03DocumentPaginator`** (páginas Letter explícitas; cuerpo continuo; **único bloque atómico: firmas**). Forma canónica en **1** Letter; párrafos justificados. **Artículos/numerales:** catálogo `citation_statute_*` + plantillas por falta (`fault_citation_templates*`); resolución en `FoGj03CitationArticleResolver` — una falta → bloques con numerales de la plantilla; varias faltas → unión de artículos **sin** numerales (el abogado completa). Seed: `CitationFaultTemplatesSeeder` (F-001…F-010). UI de mantenimiento: **Ajustes · Artículos** (`CitationArticlesIndex`, `CitationFaultTemplateService`). **Redacción por género:** `WorkerLegalPhrasing` (saludo, verbos, traslado, FO-GJ-04/54); checklist de generación exige género definido en `employees.gender`. Campos automáticos: fecha del documento, trabajador, diligencia confirmada, fecha del informe. Modal: hora, presencial/virtual, incumplimiento, hechos, bloques artículo+numerales editables. Firma del abogado en **Mi perfil**. PDF firmado en pantalla: `fo-gj-03-signed-notification-download` + `CitationNotificationSigningService`. Tests: `FoGj03DocumentPaginatorTest`, `FoGj03CitationArticleResolverTest`, `WorkerLegalPhrasingTest`, `OfficialLetterPdfLayoutTest`, `CitationArticlesIndexTest`.
 
-**Disciplinario — Etapa C (Fases 1–3 implementadas):** al abrir la gestión el día de la diligencia, el **primer paso** es registrar **Asistió** o **No asistió** (`diligence_attendance`, decisión irreversible). **Si asistió:** FO-GJ-04 + firma del trabajador + **Siguiente etapa →** a `DECISION` (`DisciplinaryDiligenceWorkflowService`). **Si no asistió:** **FO-GJ-44** (`FoGj44DraftService`, `FoGj44ConstanciaService`, `DocumentType::CONSTANCIA_INASISTENCIA`) → transición automática a **JUSTIFICACION_PENDIENTE** (2 días) → **FO-GJ-54** + `acceptJustification` o `rejectJustification` → **Comité disciplinario** (`COMITE_DISCIPLINARIO`) → acta de comité + **Siguiente etapa →** a `DECISION`. Rutas PDF: `fo-gj-44/pdf`, `fo-gj-54/pdf`, `comite-acta/pdf`. **Fase 4 (futuro):** FO-GJ-55 + acta de ampliación.
+**Disciplinario — FO-GJ-04 (acta de diligencia):** sustituye **FO-GJ-42** en catálogo y código (`OfficialFormsCatalog`, sin alias). Plantilla multipágina `fo-gj-04-body.blade.php` / `fo-gj-04-filled-download` con parciales `fo-gj-04-intro`, `fo-gj-04-question-item`, `fo-gj-04-closing-signatures`. **Fecha del incumplimiento** y **formulación de cargos** desde FO-GJ-03. Diligenciamiento: `FoGj04DraftService`; cuestionario `{ question, answer, source, catalog_question_id }` — seleccionar del **catálogo** (texto bloqueado), **personalizada** (solo esa acta) y reorden ↑↓; texto **congelado** en payload. Catálogo: **Ajustes · Preguntas** (`DiligenceQuestionsIndex`, `settings.manage-diligence-questions`, `diligence_acta_questions`, seed `DiligenceActaQuestionsSeeder`). Generación: `FoGj04DiligenceActaService` + `FoGj04PagePlanner` → `DocumentType::ACTA_DILIGENCIA`. Vías de firma: generar en sistema o cargar PDF escaneado. Tests: `FoGj04DraftTest.php`, `DiligenceQuestionsIndexTest.php`.
 
-**Disciplinario — Comité disciplinario (acta):** estado `COMITE_DISCIPLINARIO` tras rechazo o vencimiento de justificación. En detalle del caso: panel **Etapa C · Comité** (stepper **6 pasos**: asistencia → diligencia → constancia → justificación → acta de comité → comunicado de decisión); pila de etapas **solo C + A** (sin Etapa B). Barra de acciones: **Diligenciar comité** → **Vista previa PDF** → **Generar y guardar** (+ **Consultar FO-GJ-44** opcional); tras acta en expediente, **Siguiente etapa →** con modal de confirmación → transición a **`DECISION`** (etapa D; `TransitionMap` + `DisciplinaryDiligenceWorkflowService::assertCanAdvanceToDecision`). Modal comité: decisión/acuerdo, integrantes (nombre, cargo, firma capturable). Servicios: `ComiteDraftService`, `ComiteActaService` → parciales `comite-acta-pdf-styles`, `comite-acta-pdf-document`, `comite-acta-body` + **Browsershot** (`DocumentType::ACTA_COMITE`). Maquetación: **Times New Roman 12 pt** (firmas 11 pt), interlineado **1.0**, espaciado entre bloques (fecha → empresa → ACTA/CASO/ASUNTO → **Decisión / acuerdo del comité:** → relato → integrantes). Con **membrete** cargado en Formatos: imagen PNG/JPEG a sangre (8.5×11″, `@page margin: 0`, padding superior ~1.35″, `HtmlLetterPdfGenerator` con márgenes cero), firmas en **2 columnas** (Firma / Nombre / Cargo). Sin membrete: encabezado estándar `official-letter-pdf-shell`. **Catálogo Formatos:** código **ACTA-COMITE** — plantilla en blanco (`comite-acta-blank-download`) con vista previa modal y descarga (`OfficialFormHtmlBlankPdfFactory` incluye membrete si está configurado). Migración `2026_06_18_100000_diligence_justification_and_comite` (`comite_payload`, `comite_generated_at`, etc.). Políticas: `editComiteDraft`, `previewComite`, `generateComite`. Tests: `CaseDetailStageViewsTest` (comité + avance a decisión), `OrganizationLetterheadTest` (membrete + ACTA-COMITE en catálogo).
+**Disciplinario — Etapa C (Fases 1–3 implementadas):** al abrir la gestión el día de la diligencia, el **primer paso** es registrar **Asistió** o **No asistió**, o bien **Reprogramar diligencia** (FO-GJ-54 operativo) si aún no hay asistencia. **Si asistió:** FO-GJ-04 + firma del trabajador + **Siguiente etapa →** a `DECISION` (`DisciplinaryDiligenceWorkflowService`). **Si no asistió:** **FO-GJ-44** (`FoGj44DraftService`, `FoGj44ConstanciaService`, `DocumentType::CONSTANCIA_INASISTENCIA`) → transición automática a **JUSTIFICACION_PENDIENTE** (2 días) → **FO-GJ-54** + `acceptJustification` o `rejectJustification` → **Comité disciplinario** (`COMITE_DISCIPLINARIO`) → acta de comité + **Siguiente etapa →** a `DECISION`. **Reprogramación operativa (fuerza mayor, antes de registrar asistencia):** FO-GJ-03 y su evidencia **se conservan** (citación única). Flujo: `FoGj54DraftService::MODE_OPERATIONAL` → generar FO-GJ-54 (`generateOperationalRescheduleAndStore`) → `DILIGENCIA` → `REPROGRAMADO` → cargar evidencia de recibido (`uploadReceiptEvidenceAndReturnToDiligence`) → `DILIGENCIA`. Fechas: abogado en el modal **o** diferir a planeación (`beginOperationalRescheduleWithPlanning`, limpia solo `citation_confirmed_*` y reabre chat). Rutas PDF: `fo-gj-44/pdf`, `fo-gj-54/pdf`, `comite-acta/pdf`. Tests: `DiligenceOperationalRescheduleTest.php`. **Fase 4 (futuro):** FO-GJ-55 + acta de ampliación.
+
+**Disciplinario — Comité disciplinario (acta):** estado `COMITE_DISCIPLINARIO` tras rechazo o vencimiento de justificación. En detalle del caso: **tarjeta C activa** → modal **Etapa C · Comité** (stepper **6 pasos**: asistencia → diligencia → constancia → justificación → acta de comité → comunicado de decisión); `CaseOverviewStageStack` legacy **solo C + A** (sin B en pila). Barra de acciones: **Diligenciar comité** → **Vista previa PDF** → **Generar y guardar** (+ **Consultar FO-GJ-44** opcional); tras acta en expediente, **Siguiente etapa →** con modal de confirmación → transición a **`DECISION`** (etapa D; `TransitionMap` + `DisciplinaryDiligenceWorkflowService::assertCanAdvanceToDecision`). Modal comité: decisión/acuerdo, integrantes (nombre, cargo, firma capturable). Servicios: `ComiteDraftService`, `ComiteActaService` → parciales `comite-acta-pdf-styles`, `comite-acta-pdf-document`, `comite-acta-body` + **Browsershot** (`DocumentType::ACTA_COMITE`). Maquetación: **Times New Roman 12 pt** (firmas 11 pt), interlineado **1.0**, espaciado entre bloques (fecha → empresa → ACTA/CASO/ASUNTO → **Decisión / acuerdo del comité:** → relato → integrantes). Con **membrete** cargado en Formatos: imagen PNG/JPEG a sangre (8.5×11″, `@page margin: 0`, padding superior ~1.35″, `HtmlLetterPdfGenerator` con márgenes cero), firmas en **2 columnas** (Firma / Nombre / Cargo). Sin membrete: encabezado estándar `official-letter-pdf-shell`. **Catálogo Formatos:** código **ACTA-COMITE** — plantilla en blanco (`comite-acta-blank-download`) con vista previa modal y descarga (`OfficialFormHtmlBlankPdfFactory` incluye membrete si está configurado). Migración `2026_06_18_100000_diligence_justification_and_comite` (`comite_payload`, `comite_generated_at`, etc.). Políticas: `editComiteDraft`, `previewComite`, `generateComite`. Tests: `CaseDetailStageViewsTest` (comité + avance a decisión), `OrganizationLetterheadTest` (membrete + ACTA-COMITE en catálogo).
 
 **Disciplinario — Membrete acta de comité (Formatos):** tarjeta **Membrete · Acta de comité disciplinario** en `GET /disciplinary/formats`. Carga **PNG/JPEG** (máx. 8 MB) vía `OrganizationLetterheadService` → `storage/app/disciplinary/letterhead/`. Vista previa: `GET /disciplinary/formats/membrete`. Permiso `manageOfficialLetterhead` (`admin` o `disciplinary.assign`). En desarrollo, `DISCIPLINARY_COMITE_BYPASS_DEADLINE=true` en `.env` omite los 2 días antes del botón Comité (`config/disciplinary.php`).
 
-**Disciplinario — Etapa D (comunicado de decisión):** panel **Etapa D · Comunicado de decisión** en detalle del caso (`stage-d-decision.blade.php`, `stage-d-decision-modals.blade.php`, pila **D→C→A** vía `CaseOverviewStageStack`). Stepper `DecisionStageProgress` (tipo de decisión → coordinación → borrador → comunicado → notificación → evidencia → [RRHH si terminación] → cierre). **Ramas** (`DecisionBranch`): suspensión, llamado/recordatorio/archivo (`AMONESTACION_*`, `ABSUELTO`, `ARCHIVADO`), terminación de contrato. Flujo: (1) titular registra tipo (`selectDecisionType`); (2) coordinación con planeación — modal **Programación de decisión** con **dos bloques separados**: (A) periodo de suspensión / relevo según rama (`notification_payload` del mensaje) y (B) **opciones para notificar al trabajador** — filas con fecha, hora, turno, zona y supervisor de turno (`decisionNotificationSlots` → `proposed_slots` en `DECISION_PLANNING_RESPONSE`); paso aparte **Registrar notificación de decisión** asigna definitivamente fecha/turno/zona/supervisor al expediente (`DECISION_NOTIFICATION_COORDINATION`); (3) borrador `decision_payload` (`DecisionDraftService`) + PDF **FO-GJ-DECISION** (`DecisionComunicadoService`, parcial `decision-comunicado-body`); (4) planeación registra notificación física (`DisciplinaryDecisionNotificationService`); (5) supervisor carga evidencia en **`GET /disciplinary/evidences-pending`** — PDF escaneado o firma en pantalla con flujo **Aceptar → vista previa → Enviar** (`DecisionNotificationSigningService` → `decision-comunicado-signed-notification-download`); política `viewDecisionComunicadoForSupervisor`; (6) si **terminación**: gestión humana en **`GET /disciplinary/decision-hr-pending`** — anexos laborales PDF obligatorios (`hasDecisionHrAnnex`) antes de `completeDecisionHrReview`; (7) titular **Finalizar proceso** → `FINALIZADO`, salvo decisión `archivado` → `ARCHIVADO` (`DisciplinaryDecisionWorkflowService::finalizeCase`, `TransitionMap`). Migración `2026_06_17_100000_add_decision_workflow_fields_to_disciplinary_cases` (**requerida en todos los entornos**: `php artisan migrate`). Ruta PDF: `GET /disciplinary/cases/{case}/decision-comunicado/pdf`. Políticas: `selectDecisionType`, `editDecisionDraft`, `previewDecisionComunicado`, `generateDecisionComunicado`, `postDecisionNotificationCoordination`, `uploadDecisionEvidence`, `finalizeDecisionCase`, `uploadDecisionHrAnnex`, `completeDecisionHrReview`. Tests: `DecisionStageFlowTest.php`, `DecisionStageCompletionTest.php`, `DisciplinaryCoordinationsIndexTest.php`.
+**Disciplinario — Etapa D (comunicado de decisión):** **tarjeta D** → modal **Etapa D · Comunicado de decisión**. Stepper `DecisionStageProgress` (5 pasos: tipo → programación → documento FO-GJ → entrega → cierre con conclusión). **Ramas** (`DecisionBranch`): **suspensión** (`SUSPENSION` → **FO-GJ-47**), **llamado de atención** (`AMONESTACION_ESCRITA` → **FO-GJ-46**), **terminación** (`TERMINACION_CONTRATO` → **FO-GJ-45**). **Programación (todas las ramas):** planeación publica **varias opciones** (fecha, hora, turno, zona, supervisor; en suspensión también `suspension_start`); el abogado **confirma una** (`DecisionCoordinationService::confirmOption`) o **solicita otras fechas**; republicar invalida la confirmación (y el PDF generado si existía, sin tocar evidencia/paquete ya cargados). Ya **no** hay segundo modal «Notificación de decisión». Flujo: (1) tipo; (2) opciones + confirmación; (3) borrador FO-GJ + PDF; (4) **46/47** evidencia supervisor / **45** paquete PDF abogado; (5) conclusión → `FINALIZADO`. Tests: `DecisionCoordinationTest.php`, `DecisionStageFlowTest.php`, `DecisionStageCompletionTest.php`, `FoGj45/46/47DraftTest.php`.
 
-**Disciplinario — FO-GJ-DECISION (comunicado de decisión):** plantilla `decision-comunicado-body.blade.php` + `decision-comunicado-filled-download` / `decision-comunicado-blank-download`. Diligenciamiento: asunto, narrativa, fechas de suspensión y relevo según rama (`DecisionDraftService`). Bloque de firmas del trabajador/testigos igual que FO-GJ-03 en notificación firmada (`decision-comunicado-signed-notification-download`). Catálogo Formatos: código **FO-GJ-DECISION** (etapa D).
+**Disciplinario — FO-GJ-45 (acta de archivo):** solo rama `TERMINATION` / `TERMINACION_CONTRATO`. Plantillas `fo-gj-45-body` + filled/blank/signed-notification. Abogado digita el **párrafo completo** (incluye fecha del informe, relato y *esta Dirección ha RESUELTO:*), resolutivos **PRIMERO** / **SEGUNDO** (precarga: terminar contrato / archivar) y firmante GH. Tras generar el PDF, el titular carga el **paquete PDF de anexos** (certificado laboral, egreso, SS, liquidación, etc.). Sistema: datos del trabajador, saludo por género (`foGj45OpeningSalutation`), cierres fijos y firmas (*Cordialmente,* + *El/La trabajador(a);* vía `foGj45WorkerSignatureLead`). Generación vía `DecisionComunicadoService`. Tests: `FoGj45DraftTest.php`. Catálogo Formatos: **FO-GJ-45**.
 
-**Disciplinario — Captura de firma (móvil y mesa digitalizadora):** lienzo **`worker-signature-pad.js`** con franja horizontal centrada (ancho `calc(100vw - margen)`, altura fija **17.5rem**). En móvil: dedo (`pointer`/`touch`). En PC: lápiz Wacom vía Pointer Events (mapear la mesa a **un solo monitor** y maximizar el navegador). **Livewire:** `<x-disciplinary.signature-capture-modal>` en FO-GJ-03 y FO-GJ-DECISION (supervisor: trabajador y testigos) y FO-GJ-04 (trabajador en acta). **Formularios POST (Alpine):** `<x-disciplinary.signature-capture-modal-alpine>` + `sjFo51PreparerSignature()` en **FO-GJ-51** (firma de quien elabora el informe). Validación backend: regla `PngSignatureDataUri`.
+**Disciplinario — FO-GJ-46 (llamado de atención):** solo rama `NOTICE` / `AMONESTACION_ESCRITA`. Plantillas `fo-gj-46-body` + filled/blank/signed-notification. Abogado elige apertura (`FoGj46HearingLead`: *surtida* / *citado*); si **citado**, puente de inasistencia antes del análisis; sistema completa modalidad y fechas desde FO-GJ-03/citación; libre: relato tras incumplimiento, **artículos/numerales del FO-GJ-03** (`DecisionStatuteArticles`: `statute_articles` / claves legacy `article_*_numerals`; UI dinámica, no fija 55/57/60), firmante. Concordancia de género (`WorkerLegalPhrasing`). Generación vía `DecisionComunicadoService`. Catálogo Formatos: **FO-GJ-46**.
 
-**Disciplinario — coordinaciones con planeación:** `Coordinations\Index`: mismo **composer de chat** que el abogado; botón **Proponer fechas de diligencia** (modal → `postPlanningMessage` con `planningSlots`: fecha, hora, notas); **Registrar notificación y supervisor** cuando `canPlanningRegisterNotification`. En **etapa decisión**, modales paralelos: **Programación de decisión** (`submitDecisionPlanningModal`) — bloque **Periodo de suspensión** / relevo (`decisionSuspensionStart`, `decisionReliefNotes` → `notification_payload`) y bloque **Opciones para notificar al trabajador** (`decisionNotificationSlots`: fecha, hora, turno, zona, supervisor por fila, hasta 5 opciones → `proposed_slots` con `zone`, `supervisor_user_id`, `supervisor_name`); chat en `agenda-message.blade.php` muestra suspensión y opciones de notificación por separado; **Registrar notificación de decisión** (`submitDecisionNotificationModal` → asignación definitiva al caso y bandeja del supervisor). Badge **Fechas pendientes** si `awaitingPlanningDiligenceSlots()` o `awaitingDecisionPlanningSlots()`. `data-live-case-id` + `wire:poll`. Cierre del hilo al avanzar a **diligencia**; en expediente el abogado **oculta/muestra** el panel sin cerrar el hilo. Políticas: `postAgendaPlanning`, `postNotificationCoordination`, `postDecisionNotificationCoordination`.
+**Disciplinario — FO-GJ-47 (suspensión):** solo rama `SUSPENSION`. Plantillas `fo-gj-47-body` (2 páginas: cuerpo + firmas) + filled/blank/signed. Abogado: párrafo introductorio, **días** (1–90), **artículos/numerales del FO-GJ-03** (`DecisionStatuteArticles`, misma precarga que FO-GJ-46), nombre/cargo firmante Gestión Humana. Planeación: **fecha de inicio** en la opción de coordinación (fin y retorno los calcula `SuspensionPeriodCalculator`, días calendario). Textos fijos oficiales: *RESOLVIÓ*, efectos de suspensión, análisis de hechos, cierre y recurso de apelación (2 días hábiles). Género en saludo y “trabajador/trabajadora”. Tests: `FoGj47DraftTest.php`, `DecisionStatuteArticlesTest.php`.
+
+**Disciplinario — Captura de firma (móvil y mesa digitalizadora):** lienzo **`worker-signature-pad.js`** con franja horizontal centrada (ancho `calc(100vw - margen)`, altura fija **17.5rem**). En móvil: dedo (`pointer`/`touch`). En PC: lápiz Wacom vía Pointer Events (mapear la mesa a **un solo monitor** y maximizar el navegador). **Livewire:** `<x-disciplinary.signature-capture-modal>` en FO-GJ-03, FO-GJ-45, FO-GJ-46 y FO-GJ-47 (supervisor: trabajador y testigos) y FO-GJ-04 (trabajador en acta). **Formularios POST (Alpine):** `<x-disciplinary.signature-capture-modal-alpine>` + `sjFo51PreparerSignature()` en **FO-GJ-51** (firma de quien elabora el informe). Validación backend: regla `PngSignatureDataUri`.
+
+**Disciplinario — coordinaciones con planeación:** `Coordinations\Index`: mismo **composer de chat** que el abogado; en citación, **Registrar/actualizar notificación y supervisor** al iniciar coordinación (`canPlanningManageNotification`; modal prellena si ya hay datos); **Proponer fechas de diligencia** solo tras notificación completa (`canPlanningProposeDiligenceSlots` → `postPlanningMessage` con `planningSlots`). En **etapa decisión**: **Programación / Reproponer opciones** (`DecisionCoordinationService` + `submitDecisionPlanningModal`) — varias filas (`decisionNotificationSlots`: fecha, hora, turno, zona, supervisor; en suspensión también inicio); el abogado **confirma una** en el chat del expediente o **solicita nuevas**; republicar limpia confirmación e invalida PDF de decisión si existía. **No** hay segundo modal «Registrar notificación de decisión» (`canPlanningRegisterNotification` = false). Badge **Fechas pendientes** si `awaitingPlanningDiligenceSlots()` o `awaitingDecisionPlanningSlots()`. `data-live-case-id` + `wire:poll`. Cierre del hilo al avanzar a **diligencia**; en expediente el abogado abre el chat con el **FAB «Chat planeación»** (`planning-chat-modal`). Políticas: `postAgendaPlanning`, `postNotificationCoordination`, `postDecisionNotificationCoordination`.
 
 **Disciplinario — composer y adjuntos de agenda (front):** `resources/js/disciplinary-agenda-composer.js` (clip, paste, drag-drop, `$uploadMultiple` Livewire); componentes Blade `agenda-chat-composer`, `agenda-attachment-lightbox-modal`; props Livewire `agendaLawyerUploads` / `agendaPlanningUploads`. Previews pendientes y mensajes publicados abren el mismo modal (imagen con zoom; PDF en iframe).
 
 **Disciplinario — evidencia de citación:** `canReceiveCitationEvidence()` exige FO-GJ-03 generado y documento asociado. Carga vía `uploadCitationEvidence` (PDF escaneado) o notificación firmada en pantalla: **Aceptar** genera vista previa del PDF (`acceptSignedNotificationPreview`); **Enviar** confirma y registra evidencia (`confirmSignedNotificationUpload`); **Descargar** desde `disciplinary.evidences-pending.signed-preview`. Matriz en `canUserUploadCitationEvidence()`: titular, `informeSubmission.reviewed_by`, `disciplinary.review-inform-all`, `notification_supervisor_user_id`, dirección jurídica; excluye planeación y supervisores no asignados. Cola `evidences-pending` sin `view`/`viewAny` de expediente; el supervisor ve la notificación FO-GJ-03 solo en modal (`viewFoGj03NotificationForSupervisor`). Tests: `DisciplinaryCitationNotificationTest.php`, `PendingEvidenceUploadTest.php`.
 
-**Disciplinario — evidencia de decisión:** `canReceiveDecisionEvidence()` exige comunicado generado (`decision_comunicado_generated_at` o documento FO-GJ-DECISION en expediente). Carga vía `uploadDecisionEvidence` (PDF) o notificación firmada con el mismo flujo **Aceptar → vista previa → Enviar** que citación (`PendingEvidenceIndex::buildSignedNotificationPackage`). Matriz en `canUserUploadDecisionEvidence()`: titular, revisor del informe, `disciplinary.review-inform-all`, `decision_notification_supervisor_user_id`, dirección jurídica. Modal FO-GJ-DECISION con `viewDecisionComunicadoForSupervisor`. Tests: `DecisionStageCompletionTest.php`, `PendingEvidenceUploadTest.php`.
+**Disciplinario — evidencia de decisión:** `canReceiveDecisionEvidence()` exige comunicado generado (`decision_comunicado_generated_at` o documento FO-GJ-45 / FO-GJ-46 / FO-GJ-47 en expediente). Carga vía `uploadDecisionEvidence` (PDF) o notificación firmada (`PendingEvidenceIndex::buildSignedNotificationPackage` → FO-GJ-45, FO-GJ-46 o FO-GJ-47 según decisión). En **terminación**, el cierre exige el **paquete PDF del abogado** (no la cola RRHH). Matriz en `canUserUploadDecisionEvidence()`. Tests: `DecisionStageCompletionTest.php`, `PendingEvidenceUploadTest.php`.
 
 ### Módulo Empleados
 
@@ -164,27 +173,73 @@ Ruta: **`GET /employees`** · permisos `employees.view` / `employees.manage`
 
 | Vista / acción | Contenido |
 |---|---|
-| **Listado** | Encabezado **BD DE EMPLEADOS SJ**; búsqueda y filtro activo/inactivo; tabla con documento, nombre, cargo, ciudad, estado |
-| **Crear / Editar** | Modal en 4 bloques: datos personales (**nombre completo**), contacto, laboral (fecha fin de contrato solo si tipo = término fijo), emergencias |
-| **Carga masiva** | Excel `.xlsx` fila 1 = encabezados; plantilla en **`GET /employees/plantilla`**. Columnas esperadas: nombre completo, tipo/número documento (solo dígitos), fechas, género, dirección, municipio (código DIVIPOLA o nombre), teléfono, correo, contrato, cargo, área, salario, terminación, contacto emergencia. Import vía `EmployeeBulkImportService` (PhpSpreadsheet). Overlay de carga con mazo + punto girando + **Cargando…** y tiempo (`bulk-import-elapsed-timer.js`) |
+| **Listado (cockpit)** | Vista sin scroll de página: header **Empleados SJ** + acciones compactas. **5 KPIs clicables** (Total, Activos, Incompletos, Operativos, Administrativos) con filtros en URL. Toolbar integrado: búsqueda, pills `Todos\|Activos\|Inactivos\|Incompletos`, filtros por **rol** y **contrato**, paginación **20/50/100**. Tabla compacta (~36px): chevron ▼ (solo el chevron expande; una fila a la vez) + empleado en una línea + **cargo** + estado; detalle expandido: territorio, contrato, rol, contacto, **Editar**. Vista móvil en tarjetas con la misma lógica. Nombres en formato legible (`Employee::displayName()`). Incompletos: borde ámbar izquierdo (`isProfileComplete()` exige cargo, contrato, ingreso y territorio residencia/labor; **no** pide fecha de terminación). |
+| **Crear / Editar** | Modal en 4 bloques con header/footer sticky: datos personales, contacto y territorio (DIVIPOLA), laboral (rol primero → cargo filtrado del catálogo, aviso guardas), emergencias. Banner **perfil completo / incompleto** en vivo (`Employee::profileCompletionIssues()`). Contactos `S/I`, `NN`, `NA`, `NO` se normalizan como en Excel (`EmployeeImportValueNormalizer`). Rol empleado = columna Excel «Área o departamento». |
+| **Carga masiva** | Excel `.xlsx` fila 1 = encabezados; plantilla **`GET /employees/plantilla`**. Columnas: nombre, documento, fechas, género, dirección, territorios (municipio o departamento), contactos (`S/I`, `NN`, `NA`, `NO`), contrato, cargo, rol, salario, contacto emergencia, **Empleado activo** (opcional). Import por lotes con progreso animado en UI (`EmployeeBulkImportStore`, polling Livewire, `bulk-import-progress.js`; `BATCH_SIZE=12`). |
 | **API búsqueda** | `GET /api/employees/search?q=` — autocompletado FO-GJ-51 y otros consumidores |
 
-Los expedientes disciplinarios referencian **`employee_id`** (antes `personnel_id`). Resolver: `App\Services\Employees\EmployeeResolver`.
+**Catálogo de cargos:** tabla `employee_job_positions` (57 cargos, flag `is_guarda`, `employee_scope` operativo/administrativo). Gestión en **Usuarios → Organización**. Roles de plataforma **`nivel1`–`nivel9`** (Spatie) sustituyen el modelo anterior de roles nominales en permisos de empleados/usuarios.
 
-> Tras cambios de esquema o permisos, en desarrollo conviene **`php artisan migrate:fresh --seed`** (destruye datos locales). Los permisos base se crean en la migración `create_permission_tables` y los roles en **`RolesAndPermissionsSeeder`**; tras actualizar permisos en producción: **`php artisan permission:cache-reset`**.
+Los expedientes disciplinarios referencian **`employee_id`**. Resolver: `App\Services\Employees\EmployeeResolver` · territorio en import: `EmployeeTerritoryResolver`.
+
+> Tras cambios de esquema o permisos, en desarrollo conviene **`php artisan migrate:fresh --seed`**. Tras actualizar permisos en producción: **`php artisan permission:cache-reset`**.
+
+### Módulo Ajustes
+
+Sub-nav (`components/settings/nav`): **Territorio** | **Artículos** | **Preguntas** (según permisos). Redirect `GET /settings` → territorio.
+
+#### Territorio (DIVIPOLA)
+
+Ruta: **`GET /settings/territorio`** · permiso `settings.manage-territory`
+
+| Vista / acción | Contenido |
+|---|---|
+| **Cockpit** | Layout sin scroll: **4 KPIs** (municipios, departamentos, con coordenadas, última actualización vía `max(updated_at)`). Grid 4+8: panel izquierdo importación, panel derecho explorador. |
+| **Importación** | Dropzone drag & drop (`.xlsx` / `.csv UTF-8`, máx. 15 MB). Hoja Excel **Municipios**, datos desde **fila 3**, columnas **A–H**. Upsert por código municipio 5 dígitos (`ColombianMunicipalityImportService`). Tarjeta de resultado inline (nuevos / actualizados). Acordeón con tabla de columnas. |
+| **Explorador** | Búsqueda live (municipio, departamento, código), filtro por departamento, paginación 50/100, tabla compacta con indicador de coordenadas. |
+
+Tests: `TerritoryImportTest.php` · modelo: `ColombianMunicipality` (`scopeSearch`, `hasCoordinates()`).
+
+#### Citación · Artículos (plantillas FO-GJ-03)
+
+Ruta: **`GET /settings/citacion-articulos`** · permiso `settings.manage-citation-articles`
+
+| Vista / acción | Contenido |
+|---|---|
+| **Listado** | Catálogo de faltas activas con resumen de artículos/numerales configurados (`CitationFaultTemplateService::faultsWithTemplateSummary`). |
+| **Gestionar** | Modal por falta: filas artículo + numerales (CSV). Persiste `fault_citation_templates` + pivotes a `citation_statute_articles` / `citation_statute_numerals`. Vaciar bloques = limpia plantilla. |
+| **Uso en FO-GJ-03** | `FoGj03CitationArticleResolver` prellena el modal de diligenciamiento según faltas del expediente. |
+
+Migración: `2026_08_11_100000_create_citation_statute_tables.php`. Seed: `CitationFaultTemplatesSeeder` (vía `DatabaseSeeder`). Tests: `CitationArticlesIndexTest.php`, `FoGj03CitationArticleResolverTest.php`.
+
+#### Preguntas · Acta FO-GJ-04
+
+Ruta: **`GET /settings/preguntas-diligencia`** · permiso `settings.manage-diligence-questions`
+
+| Vista / acción | Contenido |
+|---|---|
+| **Listado** | Catálogo activo/inactivo de preguntas del cuestionario FO-GJ-04 (`DiligenceActaQuestionCatalogService`). |
+| **Gestionar** | Alta/edición/reorden; texto usado al seleccionar en el modal de acta (se congela en el cuestionario del FO-GJ-04). |
+
+Migración: `2026_08_12_100000_create_diligence_acta_questions_table.php` + permiso `2026_08_12_100100_add_manage_diligence_questions_permission.php`. Seed: `DiligenceActaQuestionsSeeder`. Tests: `DiligenceQuestionsIndexTest.php`.
 
 ### Módulo Usuarios
 
 Sub-nav: **Inicio | Usuarios | Organización**
 
+Ruta listado: **`GET /users`** · permisos `users.view` / `users.manage`
+
 | Vista | Contenido |
 |---|---|
-| **Usuarios** (listado) | Búsqueda; filtros por **perfil de permisos (técnico)**, área y estado; tabla con **área** y **cargo** (los admins muestran etiqueta *Admin plataforma*). Acciones: editar, reinicio de contraseña, activar/desactivar, eliminar |
+| **Usuarios** (cockpit) | Vista sin scroll (respeta sub-nav): header **Usuarios** + Organización + Nuevo usuario. **5 KPIs clicables** (Total, Activos, Inactivos, Solo lectura, Admins) con filtros en URL (`q`, `role`, `area`, `estado`, `acceso`, `pp`). Toolbar: búsqueda, pills `Todos\|Activos\|Inactivos`, filtro **nivel** y **área**, paginación **20/50/100**. Tabla compacta con chevron ▼ (una fila expandida): usuario (avatar `User::initials()`, email), área/cargo (`cargoDisplayLabel()`, badge *Admin plataforma*), acceso (activo + solo lectura). Detalle expandido: documento, casos asignados/reportados, ciudades autorizadas, enlace a ficha y acciones (editar, contraseña, activar, eliminar). Skeleton + `wire:loading` al filtrar. |
+| **Crear / Editar** | Modal por secciones: identidad, organización (área → cargo, admin plataforma), alcance territorial (nivel7/8 con búsqueda DIVIPOLA), permisos directos Operaciones, acceso (cambios / activo). Banner con **rol efectivo** y conteo de ciudades. Al editar se cargan correctamente `is_active` y `read_only`. |
 | **Organización** | Catálogo de **áreas** activas y **cargos** por área; cada cargo define el **perfil de permisos (Spatie)** que recibirán los usuarios asignados a ese cargo (`permission_role_name`) |
 | **Detalle** | Datos del usuario, casos disciplinarios asignados, mismas acciones administrativas permitidas por política |
 | **Mi perfil** (`GET /profile`) | Datos de cuenta, contraseña y **firma digital** (imagen PNG/JPG/WebP; solo el usuario dueño; usada en FO-GJ-03 y documentos que requieran firma del titular) |
 
-En **crear/editar usuario**: **Área** + **Cargo** (obligatorios salvo «Administrador de la plataforma»); checkbox para **`admin`** desactiva área/cargo en pantalla. Los permisos directos extra para **Operaciones** (FO-GJ-51, notificaciones, PDF) siguen como toggles cuando el ámbito es Operaciones.
+En **crear/editar usuario**: **Área** + **Cargo** (obligatorios salvo «Administrador de la plataforma»); checkbox para **`admin`** (nivel1) desactiva área/cargo en pantalla. Los permisos directos extra para **Operaciones** (FO-GJ-51, notificaciones, PDF) siguen como toggles cuando el ámbito es Operaciones.
+
+Tests: `UsersIndexTest.php`, `EmployeesIndexFormTest.php`.
 
 ## 🏛️ Workflow del proceso disciplinario
 
@@ -255,39 +310,45 @@ app/
     Disciplinary/              Enums del dominio disciplinario
   Exceptions/Disciplinary/     InvalidStateTransitionException
   Workflow/Disciplinary/       TransitionMap (única fuente de verdad)
-  Support/
-    Disciplinary/              OfficialFormsCatalog, DisciplinaryAssets, FoGj51Catalog, FoGj04PagePlanner, …
+    Support/
+    Disciplinary/              OfficialFormsCatalog, WorkflowStageBuckets, FoGj03DocumentPaginator, FoGj04PagePlanner, **WorkerLegalPhrasing** (redacción por género FO-GJ-03/04/54), CitationStageProgress, …
+    Employees/                 EmployeeBulkImportStore (sesión progreso carga masiva)
     Broadcasting/              PusherBroadcasting (Echo solo si `BROADCAST_CONNECTION=pusher` y credenciales completas)
     Notifications/             Trait BroadcastsInAppDatabaseNotification (canal `broadcast` además de `database` cuando Pusher está activo)
     Pdf/
-      HtmlLetterPdfGenerator.php HTML → PDF tamaño Letter (Browsershot)
-      FoGj51PdfQueueStore.php     Cola en disco para FO-GJ-51 en hosting (PDF_USE_QUEUE)
-      BrowsershotBinaryResolver.php Detección Node/npm/Chrome (p. ej. Laragon)
-      EmbeddedPublicAsset.php    Data URI para assets en PDF (logo embebido)
-  Jobs/Disciplinary/             ProcessFoGj51PdfJob (worker CLI genera PDF encolado desde web)
+      HtmlLetterPdfGenerator.php Fachada HTML → Letter (`PDF_DRIVER`)
+      LetterPdfDriver.php         Selector browsershot|dompdf + shouldUseQueue()
+      DompdfLetterPdfDriver.php   Motor PHP puro (Hostinger inmediato)
+      FoGj51PdfQueueStore.php     Cola FO-GJ-51 (solo browsershot + USE_QUEUE)
+      FoGj03PdfQueueStore.php     Cola FO-GJ-03 (solo browsershot + USE_QUEUE)
+      BrowsershotBinaryResolver.php Detección Node/npm/Chrome
+      EmbeddedPublicAsset.php    Data URI logo PDF
+      EmbeddedPdfFont.php        Liberation Sans/Serif (`resources/fonts/pdf/`)
+  Jobs/Disciplinary/             ProcessFoGj51PdfJob + ProcessFoGj03PdfJob (cola `pdf`; worker CLI)
+  Jobs/Employees/                ProcessEmployeeBulkImportJob (opcional; flujo activo usa polling Livewire)
   Models/
-    User.php / Employee.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
+    User.php / Employee.php / EmployeeJobPosition.php / OrganizationalArea.php / JobPosition.php / Role.php (Spatie)
     ColombianMunicipality.php   Catálogo DIVIPOLA (código, nombre, lat/lon) para mapa y expedientes
-    Disciplinary/              Models del agregado disciplinario + InformeSubmission (cola pre-expediente FO-GJ-51); `DisciplinaryCase::informeSubmission()` enlaza el envío autorizado al expediente
+    Disciplinary/              Models del agregado + InformeSubmission; plantillas citación: CitationStatuteArticle, CitationStatuteNumeral, FaultCitationTemplate, FaultCitationTemplateArticle
   Services/
     AlertsService.php          Agregador global de alertas para Inicio
+    HomeDashboardService.php   Agregación command center (alertas + KPIs + mapa + carga abogados)
     UserService.php            Alta/edición usuarios, reinicio provisional de contraseña
-    Disciplinary/              CaseService, WorkflowService, DashboardService, DocumentService, InformeSubmissionService, AgendaThreadService, CitationWorkflowService, FoGj03CitationService, FoGj04DiligenceActaService, FoGj44DraftService, FoGj44ConstanciaService, FoGj54DraftService, FoGj54ReprogramacionService, DiligenceAttendanceService, DisciplinaryDiligenceWorkflowService, DisciplinaryAuditService
-    Settings/                  ColombianMunicipalityImportService (Excel/CSV DIVIPOLA)
-    Employees/                 EmployeeBulkImportService, EmployeeResolver
+    Disciplinary/              CaseService, WorkflowService, DashboardService, AgendaThreadService, CitationWorkflowService, CitationNotificationService, FoGj03CitationService, **FoGj03CitationArticleResolver**, FoGj03DraftService, FoGj04/44/54…, DiligenceAttendanceService, …
+    Employees/                 EmployeeBulkImportService, EmployeeTerritoryResolver, EmployeeResolver
+    Settings/                  ColombianMunicipalityImportService, **CitationFaultTemplateService**
   Policies/                    DisciplinaryCasePolicy, UserPolicy, InformeSubmissionPolicy, EmployeePolicy
   Livewire/
-    Employees/                 EmployeesIndex (CRUD + carga masiva)
-    Home.php                   Componente del dashboard global
+    Employees/                 EmployeesIndex (CRUD + carga masiva con progreso)
+    Home.php                   Command center de inicio (solo admin)
     Auth/                      ForcePasswordChange, LogoutButton
-    Users/                     UsersIndex, UserDetail, OrganizationCatalog
-    Employees/                 EmployeesIndex
+    Users/                     UsersIndex, UserDetail, OrganizationCatalog (áreas + cargos + catálogo empleados)
     Disciplinary/              Dashboard, CasesIndex, CaseDetail, FormatsCatalog, InformesPendientes; FO-GJ-51 parcial/modal
-    Settings/                  TerritoryImport (importación DIVIPOLA / municipios)
+    Settings/                  TerritoryImport, **CitationArticlesIndex**, **DiligenceQuestionsIndex**
     Ui/                        ThemeToggle (preferencia tema usuario)
   Http/
     Middleware/                must-change-password, ShareUiTheme, ForceRequestRootUrl (URLs con host/puerto de la petición)
-    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente), FO-GJ-03/04/44/54 por caso (`FoGj03CaseController`, `FoGj04CaseController`, `FoGj44CaseController`, `FoGj54CaseController`), GeoJSON mapa (`DisciplinaryGeoJsonController`)
+    Controllers/Disciplinary/     Casos (web + API), formatos (preview/descarga), FO-GJ-51 (show/process, PDF pendiente), FO-GJ-03/04/44/54 por caso (`FoGj03CaseController`, `FoGj04CaseController`, `FoGj44CaseController`, `FoGj54CaseController`), GeoJSON mapa (`DisciplinaryGeoJsonController`), vista previa PDF escaneado supervisor (`SupervisorEvidenceUploadPreviewController`)
     Requests/Disciplinary/     FormRequests (casos + FO-GJ-51: FoGj51ProcessRequest, StoreFoGj51InformePdfRequest)
   Rules/                       PngSignatureDataUri (data URI PNG de lienzo de firma)
     Requests/Users/            FormRequests del módulo usuarios
@@ -302,12 +363,16 @@ database/
 resources/views/
   layouts/app.blade.php        Layout principal con sidebar + topbar + sub-nav
   livewire/
-    home.blade.php             Vista del dashboard global
-    settings/                  Ajustes (importación territorio DIVIPOLA)
+    home.blade.php             Vista command center (admin)
+  components/home/             kpi-chip y piezas del tablero de inicio
+  components/employees/        kpi-stat, table-skeleton, row-details, bulk-import-loader, form-field, employee-form-modal
+  components/users/            table-skeleton, row-details, user-form-modal
+  components/settings/         nav (Territorio | Artículos | Preguntas), territory-dropzone, territory-format-help, territory-kpi
     disciplinary/              Vistas del módulo + catálogo de formatos (`formats-catalog`)
     users/                     Listado, detalle y catálogo de organización (áreas/cargos)
     auth/                      force-password-change (primer login)
     ui/                        Controles UI compartidos (`btn` con variantes `sj-btn`, selector de tema)
+    settings/                  territory-import, citation-articles-index, diligence-questions-index
   disciplinary/forms/        FO-GJ-51 (informe; parciales `fo-gj-51-informe-body`, `fo-gj-51-screen-mobile`);
                                FO-GJ-03/44/54/04: plantillas carta Letter en blanco
                                (`fo-gj-*-blank-download.blade.php` + parciales `fo-gj-*-body.blade.php`);
@@ -318,6 +383,8 @@ resources/views/
     disciplinary/              kpi-card, status-badge, nav (sub-nav); `forms/` (vista previa FO-GJ-51)
 docs/
   ARCHITECTURE.md              Documentación detallada de arquitectura
+  PDF.md                       Guía de construcción PDF Letter
+  GAP_DISCIPLINARIO_ETAPAS_A_B.md  Matriz Etapas A/B
 ```
 
 ## 🚀 Instalación
@@ -372,7 +439,15 @@ Canales privados: `routes/channels.php` (registro en `bootstrap/app.php`).
 
 ### PDF disciplinarios (HTML → tamaño carta / Letter)
 
+> **Documentación completa:** [`docs/PDF.md`](docs/PDF.md) — motor, paginadores FO-GJ-03/04, plantillas Blade, rutas, pruebas Dompdf y calibración.
+
 Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`** se convierten de HTML a PDF con **Spatie Browsershot** y **Puppeteer** (Chromium). La salida es siempre **Letter** (`HtmlLetterPdfGenerator` + `@page { size: Letter }` en las vistas).
+
+**Márgenes cartas FO-GJ:** Dompdf no respeta `box-sizing:border-box` (`width:100%` + padding = margen izquierdo y borde derecho cortado). Modelo: `@page { margin: 0 }` + `.ogj-page { width: 7.5in; margin: 0.5in; padding: 0 }` (Letter 8.5in). **FO-GJ-03** (`FoGj03DocumentPaginator`) y **FO-GJ-04** (`FoGj04PagePlanner`) usan el mismo modelo: páginas HTML explícitas + `ogj-page-break`, encabezado en cada hoja, cuerpo continuo, **solo firmas atómicas** (`page-break-inside: avoid`); meta **4 filas** (~76px) y “Página N de M” en el HTML (debe coincidir con hojas físicas Dompdf). Párrafos justificados. FO-GJ-03 canónico en **1** Letter; FO-GJ-04 suele ser **N** (intro denso + cuestionario). Encabezado **25% / 50% / 25%**. En blanco FO-GJ-03, numerales 66/68/76 son guías.
+
+**Motor PDF (`PDF_DRIVER`):** fachada única `HtmlLetterPdfGenerator` → `browsershot` (Chrome) o **`dompdf`** (PHP puro). En **Hostinger** se recomienda **`PDF_DRIVER=dompdf`**: vista previa/generación **inmediata** en la petición web, sin cola ni Chrome. Con `browsershot` + `PDF_USE_QUEUE` se mantiene el flujo por cron (legado).
+
+**Tipografías PDF (portables):** Liberation (`SjPdfSans` / `SjPdfSerif`) en `resources/fonts/pdf/` (`EmbeddedPdfFont`). Dompdf también registra esas TTF y usa DejaVu como respaldo. Verificación: `php artisan disciplinary:pdf-check` → `PDF_DRIVER` + `Fuentes PDF: OK`.
 
 | Código | Documento | Vista en blanco |
 |--------|-----------|-----------------|
@@ -380,11 +455,13 @@ Las plantillas registradas en **`OfficialFormsCatalog::htmlBlankPdfRegistry()`**
 | **FO-GJ-03** | Citación a diligencia disciplinaria | `fo-gj-03-blank-download` |
 | **FO-GJ-44** | Constancia de inasistencia a diligencia | `fo-gj-44-blank-download` + `fo-gj-44-filled-download` (Etapa C: inasistencia en diligencia) |
 | **FO-GJ-54** | Reprogramación a diligencia disciplinaria | `fo-gj-54-blank-download` + `fo-gj-54-filled-download` (Etapa C: tras justificación aceptada) |
-| **FO-GJ-04** | Acta de diligencia disciplinaria (2 páginas) | `fo-gj-04-blank-download` + `fo-gj-04-filled-download` (Etapa C: modal, cargos desde FO-GJ-03, firma trabajador) |
+| **FO-GJ-04** | Acta de diligencia disciplinaria (multipágina Letter) | `fo-gj-04-blank-download` + `fo-gj-04-filled-download` (Etapa C: modal, cargos desde FO-GJ-03, firma trabajador; `FoGj04PagePlanner`) |
 | **ACTA-COMITE** | Acta de comité disciplinario para decisión | `comite-acta-blank-download` + `comite-acta-filled-download` (Etapa C: membrete opcional, Times New Roman 12 pt, firmas en 2 columnas) |
-| **FO-GJ-DECISION** | Comunicado de decisión de sanción o cierre | `decision-comunicado-blank-download` + `decision-comunicado-filled-download` (Etapa D: borrador en expediente, notificación firmada vía supervisor) |
+| **FO-GJ-45** | Acta de archivo | `fo-gj-45-blank-download` + `fo-gj-45-filled-download` (Etapa D: `TERMINACION_CONTRATO` + paquete PDF de anexos) |
+| **FO-GJ-46** | Llamado de atención | `fo-gj-46-blank-download` + `fo-gj-46-filled-download` (Etapa D: `AMONESTACION_ESCRITA`) |
+| **FO-GJ-47** | Suspensión disciplinaria | `fo-gj-47-blank-download` + `fo-gj-47-filled-download` (Etapa D: `SUSPENSION`; días + inicio → fin/retorno) |
 
-Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático homónimo en `public/formatos/disciplinarios/`. El iframe de vista previa usa query `rev=` (mtime de la vista) para invalidar caché al editar plantillas. La tipografía de los formatos carta FO-GJ comparte variables CSS en `official-letter-pdf-styles.blade.php` (cuerpo 12px, meta 11px, título 13px, micro 10px); el planificador FO-GJ-04 (`FoGj04PagePlanner`) está calibrado para esa escala. **ACTA-COMITE** usa estilos propios en `comite-acta-pdf-styles.blade.php` (12 pt / 11 pt en puntos tipográficos).
+Para esos códigos, la **plantilla HTML tiene prioridad** sobre un PDF estático homónimo en `public/formatos/disciplinarios/`. El iframe de vista previa usa query `rev=` (mtime de la vista) para invalidar caché al editar plantillas. La tipografía de los formatos carta FO-GJ comparte variables CSS en `official-letter-pdf-styles.blade.php` (cuerpo 12px, meta 11px, título 13px, micro 10px); los paginadores **FO-GJ-03** (`FoGj03DocumentPaginator`) y **FO-GJ-04** (`FoGj04PagePlanner`) están calibrados para esa escala y generan `.ogj-page` explícitas con encabezado en cada hoja. **ACTA-COMITE** usa estilos propios en `comite-acta-pdf-styles.blade.php` (12 pt / 11 pt en puntos tipográficos).
 
 1. Después de `composer install`, ejecute **`npm install`** en la raíz del proyecto (trae la dependencia **puppeteer**).
 2. Verifique el entorno con **`php artisan disciplinary:pdf-check`** (Node/npm/Chrome y logo legible en disco).
@@ -405,7 +482,7 @@ El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/
 | Worker de cola | No necesario | **Cron** `schedule:run` cada minuto |
 | `PDF_NO_SANDBOX` | `false` | `true` |
 | `PDF_USE_QUEUE` | `false` | `true` |
-| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (obsoleto si usa cola) |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (opcional; `PDF_USE_QUEUE` ya cubre 03/04/…) |
 
 #### Variables `.env` (PDF)
 
@@ -417,7 +494,7 @@ El logo para interfaz y para incrustar en el PDF debe estar en **`public/images/
 | `PDF_NO_SANDBOX` | `false` | `true` | Flags `--no-sandbox`, `single-process`, etc. |
 | `PDF_USE_QUEUE` | `false` | `true` | FO-GJ-51 web encola job en tabla `jobs` |
 | `QUEUE_CONNECTION` | `database` | `database` | Driver de cola (requiere migración `jobs`) |
-| `PDF_VIA_ARTISAN_CLI` | `false` | `false` | Alternativa anterior; no usar con cola |
+| `PDF_VIA_ARTISAN_CLI` | `false` | `false` (opcional) | Con `PDF_USE_QUEUE=true` FO-GJ-03/04/… ya van por artisan CLI desde web; el flag fuerza lo mismo sin cola |
 | `PDF_CLI_PHP` | vacío | `/opt/alt/php83/usr/bin/php` | Solo relevante si `PDF_VIA_ARTISAN_CLI=true` |
 | `PDF_BROWSER_TIMEOUT` | `120` | `120` | Segundos de espera de Browsershot |
 
@@ -455,7 +532,7 @@ sequenceDiagram
 | Builder PDF | `App\Services\Disciplinary\FoGj51PdfBuilder` |
 | Estado en disco | `App\Support\Pdf\FoGj51PdfQueueStore` → `storage/app/fo-gj-51-pdf-queue/` |
 | Vista espera | `resources/views/disciplinary/forms/fo-gj-51-pdf-queue-wait.blade.php` |
-| Scheduler | `bootstrap/app.php` → cada minuto `queue:work database --stop-when-empty --max-time=55` |
+| Scheduler | `disciplinary:process-pdf-queue` cada minuto (`withoutOverlapping(2)`); cron extra directo recomendado en Hostinger |
 
 **Rutas web (autenticadas):**
 
@@ -474,7 +551,8 @@ php artisan disciplinary:pdf-check
 php artisan disciplinary:pdf-smoke
 
 # Procesar cola manualmente (pruebas; no dejar SSH abierto en producción)
-php artisan queue:work database --verbose
+# pdf primero (ProcessFoGj51PdfJob), luego default
+php artisan queue:work database --queue=pdf,default --verbose
 
 # Tras cambiar .env
 php artisan config:clear
@@ -482,13 +560,25 @@ php artisan config:clear
 
 #### Cron en producción (obligatorio con `PDF_USE_QUEUE=true`)
 
-**No** deje `queue:work` corriendo en una terminal SSH permanente. Configure en **hPanel → Cron Jobs**, cada minuto:
+En Hostinger el PDF **solo** se genera en PHP **CLI** (cron). No deje `queue:work` en una terminal SSH permanente.
+
+**Definitivo (dos crons, cada minuto)** — el segundo evita quedar bloqueado si el mutex de `schedule:run` se traba:
 
 ```bash
 * * * * * cd /home/u348559544/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /home/u348559544/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan disciplinary:process-pdf-queue >> /home/u348559544/domains/sjlegalsuite.sjregistrycat.com/storage/logs/pdf-queue-cron.log 2>&1
 ```
 
-`schedule:run` ejecuta el worker de cola definido en `bootstrap/app.php`. Latencia típica: unos segundos (máximo ~1 minuto si el cron acaba de pasar).
+Use siempre **`/opt/alt/php83/usr/bin/php`** (CLI), no un `wget`/`curl` a una URL web.
+
+Tras deploy o si la cola “se congela”:
+
+```bash
+php artisan schedule:clear-cache
+php artisan disciplinary:process-pdf-queue
+```
+
+El scheduler (`bootstrap/app.php`) también llama `disciplinary:process-pdf-queue` cada minuto con `withoutOverlapping(2)` (mutex de 2 minutos, no 24 h). Latencia típica: segundos a ~1 minuto.
 
 #### Ejemplo `.env` verificado (staging `sjlegalsuite.sjregistrycat.com`)
 
@@ -509,15 +599,15 @@ Salida esperada de `php artisan disciplinary:pdf-check`:
 ```text
 PDF_NO_SANDBOX: activo (flags Chrome para hosting compartido)
 PDF_VIA_ARTISAN_CLI: inactivo (Browsershot directo)
-PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
+PDF_USE_QUEUE: activo (FO-GJ-51 web → cola `pdf` → worker CLI/cron; prioridad sobre `default`)
 ```
 
 #### Limitaciones en hosting compartido
 
-- **FO-GJ-51** (generar / enviar desde web): resuelto con cola + cron.
-- **Cargar PDF externo** (modal): no usa Browsershot; funciona en web.
-- **Otros PDF desde web** (FO-GJ-03, FO-GJ-04, acta comité, etc.): siguen llamando Browsershot **síncrono** desde PHP web; pueden fallar en Hostinger igual que antes. Alternativas: VPS, o ampliar el patrón de cola a esos formatos.
-- Cambiar `PDF_NO_SANDBOX=false` **no** arregla el bloqueo de CageFS en PHP web.
+- **Recomendado:** `PDF_DRIVER=dompdf` — HTML→Letter inmediato en PHP web. En Hostinger el document root es **`public_html`** (`AppServiceProvider` → `usePublicPath`); **no** hace falta symlink `public` → `public_html`. Dompdf usa `storage/fonts/` (escribible).
+- **Legado Browsershot:** `PDF_DRIVER=browsershot` + `PDF_USE_QUEUE=true` + cron `disciplinary:process-pdf-queue` (Chrome solo en CLI).
+- **Cargar PDF externo** (modal FO-GJ-51): no usa motor HTML; funciona en web.
+- Dompdf puede diferir ligeramente en CSS complejo frente a Chrome; validar plantillas críticas tras cambiar de driver.
 
 #### Errores frecuentes y solución
 
@@ -525,10 +615,11 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
 |---------|-------|----------|
 | `node: command not found` | Node fuera del proyecto o sin `NODE_BINARY` | Copiar Node a `storage/app/node-v20`, definir rutas en `.env` |
 | `ptrace: Operation not permitted` | Chrome completo | Usar **chrome-headless-shell** |
-| `Failed to launch the browser process` en **web** | CageFS bloquea Chrome en LiteSpeed | `PDF_USE_QUEUE=true` + cron |
+| `Failed to launch the browser process` / `ProcessFailedException` / fallo `render-pdf` en **vista FO-GJ-03** | PHP web (y artisan hijo) no lanzan Chrome en LiteSpeed | Código con cola `ProcessFoGj03PdfJob` + `PDF_USE_QUEUE=true` + cron; `git pull`, `config:clear` |
 | `pdf-check` sin línea `PDF_USE_QUEUE` | Código desactualizado | `git pull origin main`, `config:clear` |
 | `queue:work` termina sin jobs | Cola vacía o flag desactivado | Confirmar `PDF_USE_QUEUE=true`; generar PDF **mientras** corre el worker (prueba) |
-| Pantalla *Generando PDF* infinita | Sin cron ni worker | Configurar cron o `queue:work --verbose` |
+| Pantalla *Generando PDF* infinita | Cron ausente, `wget` a URL web en vez de CLI, o mutex del schedule trabado (24 h) | Dos crons CLI; `schedule:clear-cache`; `disciplinary:process-pdf-queue`; log `storage/logs/pdf-queue-cron.log` |
+| PDF con cuadritos / texto ilegible | Sin Arial en Hostinger; tipografías no embebidas | Desplegar `resources/fonts/pdf` (Liberation) + código `EmbeddedPdfFont`; regenerar PDF; `pdf-check` → Fuentes PDF: OK |
 | Pegar historial de terminal en bash | Copiar prompts `[user@host]$` | Ejecutar **solo** el comando, una línea |
 | Informe enviado pero no en evidencias | Flujo normal | Va primero a **Revisión informes**; operaciones debe autorizar |
 
@@ -543,7 +634,7 @@ PDF_USE_QUEUE: activo (FO-GJ-51 web → cola → worker CLI/cron)
 
 2. El navegador **no** lee esos archivos solo por ruta estática en todos los despliegues: la aplicación los expone autenticada en **`GET /disciplinary/map-geo/{file}`** (`disciplinary.map-geo`), con lista blanca de los dos nombres anteriores y la misma autorización que ver el dashboard o el listado de casos.
 
-3. El bundle Vite incluye **`resources/js/disciplinary-colombia-map.js`** (Leaflet). El montaje evita inicializar el mapa dos veces en paralelo (p. ej. al refrescar la página). Tras tocar JS o estilos del mapa, ejecute **`npm run build`**.
+3. El bundle Vite incluye **`resources/js/disciplinary-colombia-map.js`** (Leaflet), **`resources/js/disciplinary-dashboard.js`** (donas del tablero disciplinario) y **`resources/js/home-command-center.js`** (gráficas Apex + mapa compacto en Inicio). El montaje evita inicializar el mapa dos veces en paralelo (p. ej. al refrescar la página). Al navegar con Livewire se destruyen todas las instancias Leaflet (`livewire:navigating` en `app.js`). Tras tocar JS o estilos del mapa, ejecute **`npm run build`**.
 
 4. Para **pins** en el mapa hace falta que los expedientes tengan código de municipio acorde al catálogo y que existan coordenadas en **`colombian_municipalities`**. Cargue el archivo oficial DIVIPOLA en **Ajustes → Territorio** (Excel/CSV); hasta entonces el select **CIUDAD** del FO-GJ-51 quedará sin opciones.
 
@@ -562,12 +653,12 @@ Entorno de staging recomendado **aislado** del sitio principal (p. ej. `sjlegals
 | Elemento | Valor típico |
 |----------|----------------|
 | **Código Git** | `~/domains/sjlegalsuite.sjregistrycat.com/` (raíz Laravel: `app`, `vendor`, `.env`) |
-| **Document root** | `~/domains/sjlegalsuite.sjregistrycat.com/public_html` (aquí está `index.php`; en Hostinger el web root es `public_html`, no `public`) |
-| **Assets Vite** | `public_html/build/` — **no** va en Git (`.gitignore`); compilar en PC con `npm run build` y subir la carpeta `build` junto a `index.php` |
-| **Enlace storage** | `public_html/storage` → `../storage/app/public` (`php artisan storage:link` o `ln -s` si `exec` está deshabilitado en PHP) |
+| **Document root** | `~/domains/sjlegalsuite.sjregistrycat.com/public_html` (`index.php`, `build/`). Laravel: `usePublicPath(public_html)` en `AppServiceProvider` — **no** crear symlink `public` → `public_html`. |
+| **Assets Vite** | `public_html/build/` — **no** va en Git; compilar en PC y subir `build` junto a `index.php` |
+| **Enlace storage** | `public_html/storage` → `../storage/app/public` (`ln -sfn ../storage/app/public public_html/storage`) |
 | **Node (PDF)** | NVM en el home del usuario + `npm install` en la raíz del repo (ver abajo) |
 
-**`.env` en hosting (resumen):**
+**`.env` en hosting (resumen — Dompdf recomendado):**
 
 ```env
 APP_ENV=production
@@ -584,15 +675,10 @@ SANCTUM_STATEFUL_DOMAINS=sjlegalsuite.sjregistrycat.com
 
 DEPLOY_WEBHOOK_TOKEN=token-largo-y-secreto
 
-# PDF digital (Browsershot) — obligatorio en hosting compartido para FO-GJ-51, citaciones, etc.
-NODE_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/node
-NPM_BINARY=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/app/node-v20/bin/npm
-PDF_CHROME_PATH=/home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/chrome-headless-shell/linux-XXX/chrome-headless-shell-linux64/chrome-headless-shell
-PDF_NO_SANDBOX=true
+# PDF inmediato en LiteSpeed (sin Chrome ni cola)
+PDF_DRIVER=dompdf
+PDF_USE_QUEUE=false
 PDF_VIA_ARTISAN_CLI=false
-PDF_USE_QUEUE=true
-PDF_CLI_PHP=/opt/alt/php83/usr/bin/php
-PDF_BROWSER_TIMEOUT=120
 QUEUE_CONNECTION=database
 ```
 
@@ -608,7 +694,8 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 2. `npm install` + `chrome-headless-shell` en la raíz del proyecto.
 3. `.env` con rutas absolutas, `PDF_NO_SANDBOX=true`, `PDF_USE_QUEUE=true`, `QUEUE_CONNECTION=database`.
 4. Cron cada minuto → `php artisan schedule:run`.
-5. `php artisan disciplinary:pdf-check` debe mostrar **`PDF_USE_QUEUE: activo`**.
+5. `php artisan disciplinary:pdf-check` debe mostrar **`PDF_USE_QUEUE: activo`** y **`Fuentes PDF: OK`**.
+6. Tras pull de tipografías nuevas: `php artisan view:clear` y **regenerar** PDFs ya guardados (los viejos con cuadritos no se corrigen solos).
 
 **Diagnóstico rápido:**
 
@@ -644,17 +731,15 @@ El **PHP de la web (LiteSpeed / CageFS)** **no puede lanzar Chrome**, aunque **P
 
    ```bash
    * * * * * cd /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
+   * * * * * cd /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com && /opt/alt/php83/usr/bin/php artisan disciplinary:process-pdf-queue >> /home/uXXXXX/domains/sjlegalsuite.sjregistrycat.com/storage/logs/pdf-queue-cron.log 2>&1
    ```
 
-   Para probar de inmediato por SSH (sin esperar al cron), en **otra terminal** deje corriendo mientras prueba desde el navegador:
+   (Detalle en sección **Cron en producción** más arriba.)
 
-   ```bash
-   php artisan queue:work database --verbose
-   ```
 8. Permisos de escritura para el runtime de Chrome:
 
    ```bash
-   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue
+   chmod -R 775 storage/app/browsershot storage/app/node-v20 chrome-headless-shell storage/app/fo-gj-51-pdf-queue storage/app/fo-gj-03-pdf-queue
    ```
 
 9. Verifique: `php artisan config:clear`, `php artisan disciplinary:pdf-check` y **`php artisan disciplinary:pdf-smoke`** (genera un PDF real).
@@ -714,7 +799,7 @@ En `routes/web.php` existe **`POST /deploy/{token}`** con `DEPLOY_WEBHOOK_TOKEN`
 | `admin@sjlegalsuite.local` | admin | Control total del sistema |
 | `admin.consulta@sjlegalsuite.local` | admin | Misma visión que admin pero **solo lectura** (consulta sin cambios) |
 | `abogado@sjlegalsuite.local` | abogado | Casos asignados + bandeja **INFORME** sin titular (botón **Gestionar** con confirmación) |
-| `planeacion@sjlegalsuite.local` | planeacion | **Coordinaciones** abiertas (B.1 fechas + B.2 notificación con asignación de supervisor); sin listado/detalle de expedientes; **assign-date**; sin dashboard, formatos ni carga de evidencia |
+| `planeacion@sjlegalsuite.local` | planeacion | **Coordinaciones** (B: notificación física → fechas; decisión: programación + notificación); sin listado/detalle; **assign-date**; sin dashboard, formatos ni evidencia |
 | `administrativa@sjlegalsuite.local` | administrativa | Crear informes y cargar evidencias |
 | `auditor@sjlegalsuite.local` | auditor | Consulta + exportación disciplinaria |
 | `operaciones@sjlegalsuite.local` | operaciones | Crear casos, revisar FO-GJ-51, **reasignar supervisor de notificación** en expedientes que aprobó |
@@ -724,7 +809,7 @@ En `routes/web.php` existe **`POST /deploy/{token}`** con `DEPLOY_WEBHOOK_TOKEN`
 
 En **Usuarios → crear/editar**, el interruptor **«Puede realizar cambios»** define si el usuario queda en modo solo lectura (`read_only`): no podrá mutar disciplinarios ni gestionar otros usuarios (los admin en solo lectura solo consultan). Los usuarios demo con rol **`admin`** se crean **sin** `organizational_area_id`; el resto lleva **área + `job_position_id`** acorde al catálogo sembrado en la migración de legalsuite.
 
-Si actualizas código y una BD ya tenía migraciones viejas aplicadas, ejecuta **`php artisan migrate`** (p. ej. `2026_06_03_100000_add_citation_notification_fields` para Etapa B.2; `2026_06_04_100000_fo_gj_03_draft_and_user_signature` para borrador FO-GJ-03 y firma en `users`; `2026_06_10_100000_fo_gj_04_diligence_acta_draft` para borrador/generación FO-GJ-04; `2026_06_16_100000_diligence_attendance_and_fo_gj_44_54` para asistencia en diligencia, FO-GJ-44/54 y firma del trabajador en FO-GJ-04). En desarrollo suele bastar **`migrate:fresh --seed`**; en datos reales, no editar migraciones ya ejecutadas sin plan de alter explícito.
+Si actualizas código y una BD ya tenía migraciones viejas aplicadas, ejecuta **`php artisan migrate`** (p. ej. campos Etapa B.2; borrador FO-GJ-03/firma; FO-GJ-04; asistencia/44/54; **`2026_08_11_100000_create_citation_statute_tables`** para plantillas de artículos). Tras seed de plantillas: `CitationFaultTemplatesSeeder` (incluido en `DatabaseSeeder`). En desarrollo suele bastar **`migrate:fresh --seed`**; en datos reales, no editar migraciones ya ejecutadas sin plan de alter explícito.
 
 > Contraseña por defecto: **`SJseguridad2026`**. Cambiarla antes de cualquier deploy productivo.
 
@@ -780,6 +865,8 @@ disciplinary.review-inform          disciplinary.review-inform-all
 disciplinary.generate-inform        disciplinary.assign-planner
 disciplinary.upload-notification    disciplinary.download-pdf
 settings.manage-territory
+settings.manage-citation-articles
+settings.manage-diligence-questions
 employees.view / .manage          users.view / .manage
 ```
 
@@ -789,11 +876,11 @@ La autorización se evalúa en 3 capas:
 2. **FormRequests** — `authorize()` delega al Policy.
 3. **Vistas** — `@can()` controla qué se renderiza (incluyendo enlaces del sidebar y del sub-nav disciplinario).
 
-**Planeación (`planeacion`):** no tiene `view` / `viewAny` sobre expedientes. Opera en **`GET /disciplinary/coordinations`**: chat con adjuntos, propone fechas de diligencia y completa la **notificación física** (`postNotificationCoordination` / `canPlanningRegisterNotification` tras slots en el hilo). No puede `uploadCitationEvidence` ni `reassignNotificationSupervisor`. El abogado **oculta o muestra** el chat en expediente; el hilo se **cierra al avanzar a diligencia** (`closeCoordination` automático en `confirmAdvanceFromCitacion`).
+**Planeación (`planeacion`):** no tiene `view` / `viewAny` sobre expedientes. Opera en **`GET /disciplinary/coordinations`**: chat con adjuntos; en citación registra/actualiza **notificación física** primero (`postNotificationCoordination` / `canPlanningManageNotification`) y luego **propone fechas** (`canPlanningProposeDiligenceSlots`). No puede `uploadCitationEvidence` ni `reassignNotificationSupervisor`. El abogado **oculta o muestra** el chat en expediente; el hilo se **cierra al avanzar a diligencia** (`closeCoordination` automático en `confirmAdvanceFromCitacion`).
 
-**Supervisor (`supervisor`):** sin `view` / `viewAny` ni dashboard disciplinario. Carga evidencia **FO-GJ-03** si figura como **`notification_supervisor_user_id`**, y evidencia **FO-GJ-DECISION** si figura como **`decision_notification_supervisor_user_id`**, desde **`GET /disciplinary/evidences-pending`**. Políticas `viewFoGj03NotificationForSupervisor` y `viewDecisionComunicadoForSupervisor` habilitan los modales HTML carta (sin abrir el expediente). Front: `worker-signature-pad.js` (lienzo táctil); previsualización PDF temporal vía Livewire (`config/livewire.php` → `preview_mimes` incluye `pdf`).
+**Supervisor (`supervisor`):** sin `view` / `viewAny` ni dashboard disciplinario. Carga evidencia **FO-GJ-03** si figura como **`notification_supervisor_user_id`**, y evidencia de decisión (**FO-GJ-45** / **FO-GJ-46** / **FO-GJ-47**) si figura como **`decision_notification_supervisor_user_id`**, desde **`GET /disciplinary/evidences-pending`**. Políticas `viewFoGj03NotificationForSupervisor` y `viewDecisionComunicadoForSupervisor` habilitan los modales HTML carta (sin abrir el expediente). Front: `worker-signature-pad.js` (lienzo táctil); previsualización PDF temporal vía Livewire (`config/livewire.php` → `preview_mimes` incluye `pdf`).
 
-**Área administrativa (`administrativa`):** consulta amplia de expedientes (`disciplinary.view` / `viewAny`). En **terminación de contrato** gestiona anexos laborales en **`GET /disciplinary/decision-hr-pending`** (`uploadDecisionHrAnnex`, `completeDecisionHrReview`); el abogado no puede finalizar hasta completar RRHH.
+**Área administrativa (`administrativa`):** consulta amplia de expedientes (`disciplinary.view` / `viewAny`). Ya no gestiona anexos de terminación (el **abogado titular** carga el paquete PDF en Etapa D).
 
 **Abogado (`abogado`):** `disciplinaryPortalUrl()` → dashboard; `disciplinaryCasesNavUrl()` → listado. Listado y detalle incluyen expedientes **asignados** y **bandeja INFORME** sin titular. Tomar un caso del pool: política `claim` + `claimByLawyer()` (no usa `disciplinary.assign`). Reasignación manual del titular: `assign` (admin o `disciplinary.assign`).
 
@@ -805,15 +892,18 @@ La autorización se evalúa en 3 capas:
 
 | Ruta | Descripción |
 |---|---|
-| `GET /dashboard` | **Inicio** (dashboard global con alertas) |
+| `GET /dashboard` | **Inicio** — command center (solo rol `admin`; resto redirige a `suiteLandingUrl()`) |
 | `GET /disciplinary` | Redirige al portal disciplinario según rol (`disciplinaryPortalUrl`: abogado → dashboard, planeación → coordinaciones, etc.) |
 | `GET /disciplinary/dashboard` | Dashboard del módulo disciplinario; Gate `viewDashboard` sobre `DisciplinaryCase` (roles **`planeacion`** y **`supervisor`** sin acceso). |
 | `GET /disciplinary/map-geo/{file}` | Sirve GeoJSON GADM (`gadm41_COL_1.json` \| `gadm41_COL_2.json`); sesión iniciada y (`viewDashboard` **o** `viewAny` sobre casos disciplinarios). |
-| `GET /settings/territorio` | **Ajustes · Territorio**: importación listado DIVIPOLA; permiso `settings.manage-territory` |
+| `GET /settings/territorio` | **Ajustes · Territorio**: cockpit DIVIPOLA; permiso `settings.manage-territory` |
+| `GET /settings/citacion-articulos` | **Ajustes · Artículos**: plantillas artículo/numeral por falta para FO-GJ-03; permiso `settings.manage-citation-articles` |
+| `GET /settings/preguntas-diligencia` | **Ajustes · Preguntas**: catálogo cuestionario FO-GJ-04; permiso `settings.manage-diligence-questions` |
+| `GET /settings` | Redirect a `settings/territorio` |
 | `GET /disciplinary/cases` | Listado de casos con filtros (roles `planeacion` y `supervisor` → 403) |
-| `GET /disciplinary/evidences-pending` | Cola supervisor (`PendingEvidenceIndex`): citación FO-GJ-03 y decisión FO-GJ-DECISION — **Cargar evidencia PDF** (escaneado con vista previa) o **Notificación** (HTML carta + firma/rechazo con testigos → PDF Browsershot). Sin acceso al expediente. |
-| `GET /disciplinary/decision-hr-pending` | Cola gestión humana (`PendingDecisionHrIndex`): terminaciones pendientes de anexos laborales PDF y cierre de revisión RRHH. Roles `administrativa` / `admin`. |
-| `GET /disciplinary/coordinations` | Bandeja planeación: chat con adjuntos (composer), modal fechas de diligencia (`proposed_slots`) y modal notificación/supervisor |
+| `GET /disciplinary/evidences-pending` | Cola supervisor (`PendingEvidenceIndex`): citación FO-GJ-03 y decisión FO-GJ-45/46/47 — **Cargar evidencia PDF** (escaneado con vista previa inline) o **Notificación** (HTML carta + firma/rechazo con testigos → PDF Browsershot). Sin acceso al expediente. |
+| `GET /disciplinary/evidences-pending/scanned-preview` | Sirve temporal de Livewire como PDF **inline** (URL firmada; usado en evidencias pendientes y carga FO-GJ-04 firmado en Etapa C). |
+| `GET /disciplinary/coordinations` | Bandeja planeación: chat; en citación notificación física → fechas de diligencia; en decisión programación + notificación |
 | `GET /disciplinary/coordinations/{thread}/attachments/{attachment}` | Descarga de adjunto del hilo de coordinación |
 | `GET /disciplinary/coordinations/{thread}/attachments/{attachment}/inline` | Vista inline del adjunto |
 | `GET /disciplinary/formats` | Catálogo de formatos oficiales (FO-GJ / etapas A–F) |
@@ -830,15 +920,15 @@ La autorización se evalúa en 3 capas:
 | `POST /disciplinary/cases/{case}/fo-gj-44/generate` | Genera FO-GJ-44 y transiciona a justificación pendiente (`generateFoGj44`). |
 | `GET /disciplinary/cases/{case}/fo-gj-54/pdf` | Vista previa FO-GJ-54 reprogramación (`previewFoGj54`). |
 | `GET /disciplinary/cases/{case}/comite-acta/pdf` | Vista previa acta de comité disciplinario (`previewComite`; HTML + membrete opcional + Browsershot). |
-| `GET /disciplinary/cases/{case}/decision-comunicado/pdf` | Vista previa comunicado de decisión FO-GJ-DECISION (`previewDecisionComunicado`). |
-| `POST /disciplinary/cases/{case}/decision-comunicado/generate` | Genera y almacena FO-GJ-DECISION (`generateDecisionComunicado`; borrador completo y notificación coordinada). |
+| `GET /disciplinary/cases/{case}/decision-comunicado/pdf` | Vista previa comunicado de decisión FO-GJ-45 / FO-GJ-46 / FO-GJ-47 (`previewDecisionComunicado`). |
+| `POST /disciplinary/cases/{case}/decision-comunicado/generate` | Genera y almacena FO-GJ-45, FO-GJ-46 o FO-GJ-47 (`generateDecisionComunicado`; borrador completo y notificación coordinada). |
 | `POST /disciplinary/cases/{case}/fo-gj-54/generate` | Genera FO-GJ-54 y reprograma diligencia (`generateFoGj54`). |
 | `GET /disciplinary/informes-pendientes` | **Revisión informes** — listado Livewire de `InformeSubmission` pendientes; `disciplinary.review-inform` (revisor asignado) o `disciplinary.review-inform-all` (dirección). |
 | `GET /disciplinary/informes-pendientes/{submission}/pdf` | Descarga el PDF almacenado o, con **`?inline=1`**, lo sirve **inline** para iframe (vista previa en modal). |
-| `GET /employees` | **BD de empleados** (Livewire); permiso `employees.view` |
+| `GET /employees` | **Empleados SJ** (Livewire cockpit: KPIs, tabla expandible, modal por secciones, filtros URL); permiso `employees.view` |
 | `GET /employees/plantilla` | Descarga plantilla Excel carga masiva; `employees.manage` |
 | `GET /api/employees/search` | Autocompletado por documento/nombre (JSON) |
-| `GET /users` | Listado de usuarios (Livewire) |
+| `GET /users` | **Usuarios** (Livewire cockpit: KPIs, tabla expandible, modal por secciones, filtros URL) |
 | `GET /users/organizacion` | Catálogo **Organización**: áreas y cargos (`permission_role_name`) |
 | `GET /users/{user}` | Detalle de usuario |
 | `GET /password/first-login` | Cambio obligatorio de contraseña (primer ingreso o tras reinicio admin) |
@@ -904,13 +994,23 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 - [ ] Subida de documentos desde la UI (`DocumentService` ya listo en backend)
 - [ ] Notificaciones por email cuando un plazo está próximo a vencer
 - [x] FO-GJ-03 diligenciado desde expediente (modal + PDF con firma)
+- [x] FO-GJ-03: plantillas de artículos/numerales por falta (Ajustes · Artículos) + `FoGj03CitationArticleResolver`
+- [x] FO-GJ-03/04/54: redacción gramatical por género (`WorkerLegalPhrasing`; checklist exige género en empleado)
+- [x] Etapa B: notificación física antes de proponer fechas (`canPlanningProposeDiligenceSlots`)
 - [x] FO-GJ-44 y FO-GJ-54 diligenciables desde expediente (Etapa C, rama inasistencia)
-- [x] Captura de firma unificada (`worker-signature-pad.js`: móvil táctil, Wacom en PC; Livewire `signature-capture-modal` en FO-GJ-03/04; Alpine `signature-capture-modal-alpine` en FO-GJ-51)
+- [x] FO-GJ-54 reprogramación operativa (fuerza mayor, conserva FO-GJ-03/evidencia; `DiligenceOperationalRescheduleTest`)
+- [x] Ajustes · Preguntas: catálogo cuestionario FO-GJ-04 (`DiligenceQuestionsIndex`)
+- [x] Captura de firma unificada (`worker-signature-pad.js`: móvil táctil, Wacom en PC; Livewire `signature-capture-modal` en FO-GJ-03/04/46/47; Alpine `signature-capture-modal-alpine` en FO-GJ-51)
 - [x] FO-GJ-51: firma del elaborador capturada en pantalla e incrustada en PDF (`FoGj51PreparerSignatureTest`)
-- [x] Etapa C en detalle del caso (diligencia): FO-GJ-04 (reemplaza FO-GJ-42), asistencia, FO-GJ-44/54, justificación, comité disciplinario (acta + membrete + **ACTA-COMITE** en catálogo Formatos + **Siguiente etapa → DECISION** tras acta), plantilla oficial multipágina con paginación híbrida, escala tipográfica unificada en PDF FO-GJ, acta comité Times New Roman 12 pt, cargos desde FO-GJ-03, modal con cuestionario pregunta+respuesta y manifestación SI/NO, firma del trabajador en acta, pila C→B→A (en comité: C→A sin B), Etapa B solo lectura compacta, encabezado compacto y botones `<x-ui.btn>`
+- [x] Detalle del caso — pestaña **Gestión**: tarjetas A–D (`CaseStageCardState`), modales de etapa, FAB chat planeación, ficha resumida, modales FO-GJ montados al pie (`case-stage-foot-modals`)
+- [x] Tipografías PDF portables: Liberation Sans/Serif embebidas (`EmbeddedPdfFont`, `resources/fonts/pdf/`) para Hostinger sin Arial/Times del SO
+- [x] FO-GJ-03 PDF multipágina estable: páginas Letter explícitas (`FoGj03DocumentPaginator`), cuerpo continuo, firmas atómicas, encabezado HTML en cada hoja, sin `position:fixed` Dompdf
+- [x] Etapa C en detalle del caso (diligencia): FO-GJ-04 (reemplaza FO-GJ-42), asistencia, FO-GJ-44/54, justificación, comité disciplinario (acta + membrete + **ACTA-COMITE** en catálogo Formatos + **Siguiente etapa → DECISION** tras acta), plantilla multipágina Letter (`FoGj04PagePlanner`: cuerpo continuo, firmas atómicas), escala tipográfica unificada en PDF FO-GJ, acta comité con **SjPdfSerif** (Liberation; sustituto de Times New Roman), cargos desde FO-GJ-03, modal con cuestionario pregunta+respuesta y manifestación SI/NO, firma del trabajador en acta, Etapa B solo lectura en modal tramitado, encabezado compacto y botones `<x-ui.btn>`
+- [x] FO-GJ-04 PDF multipágina estable: mismo contrato que FO-GJ-03 (páginas explícitas, cargos/términos/respuestas troceables, cola intro en p.1 cuando cabe, solo firmas atómicas; hojas planificadas = Dompdf)
+- [x] Etapa D: FO-GJ-45/46/47 + coordinación multi-opción (`DecisionCoordinationService`) + artículos desde FO-GJ-03 (`DecisionStatuteArticles`) + evidencia/paquete + cierre con conclusión
 - [ ] Exportación PDF de actuaciones con plantillas FO-GJ restantes desde el caso
 - [ ] Vista Kanban "Mi pipeline" por abogado
-- [ ] Tests Pest ampliados (parcial: `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj04DraftTest`, `FoGj51PreparerSignatureTest`, `DiligenceAttendanceTest`, `DisciplinaryLawyerPoolClaimTest`, `CaseDetailStageViewsTest`, `OrganizationLetterheadTest`)
+- [ ] Tests Pest ampliados (parcial: `DisciplinaryCitationNotificationTest`, `FoGj03DraftTest`, `FoGj03DocumentPaginatorTest`, `OfficialLetterPdfLayoutTest`, `FoGj04DraftTest`, `FoGj04PagePlannerTest`, `FoGj46DraftTest`, `FoGj47DraftTest`, `FoGj51PreparerSignatureTest`, `DiligenceAttendanceTest`, `DiligenceOperationalRescheduleTest`, `DecisionStageCompletionTest`, `DisciplinaryLawyerPoolClaimTest`, `CaseDetailStageViewsTest`, `OrganizationLetterheadTest`, `EmbeddedPdfFontTest`)
 
 ### Otros módulos del sistema
 

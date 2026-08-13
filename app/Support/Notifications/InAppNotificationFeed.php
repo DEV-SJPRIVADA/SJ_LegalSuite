@@ -11,7 +11,7 @@ final class InAppNotificationFeed
     /** Usuarios con rol «admin» consultan todas las filas dirigidas a usuarios de la aplicación. */
     public static function adminSeesEveryonesNotifications(User $viewer): bool
     {
-        return $viewer->hasRole('admin');
+        return $viewer->hasRole('nivel1');
     }
 
     /**

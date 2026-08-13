@@ -15,27 +15,135 @@ class FoGj04PagePlannerTest extends TestCase
         $this->planner = new FoGj04PagePlanner;
     }
 
-    public function test_single_short_question_fits_closing_on_first_page(): void
+    public function test_short_acta_keeps_signatures_atomic_on_last_page(): void
     {
         $pages = $this->planner->plan([
-            ['question' => '¿Reconoce los hechos?', 'answer' => 'Sí, los reconozco.'],
+            'chargesDescription' => 'Incumplimiento de obligaciones laborales según el informe.',
+            'questions' => [
+                ['question' => '¿esta es la primera pregunta?', 'answer' => 'si'],
+            ],
         ]);
 
-        $this->assertCount(1, $pages);
-        $this->assertTrue($pages[0]['showIntro']);
-        $this->assertTrue($pages[0]['showClosing']);
-        $this->assertSame('Página 1 de 1', $pages[0]['pageLine']);
-        $this->assertCount(1, $pages[0]['questions']);
+        $this->assertGreaterThanOrEqual(1, count($pages));
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+        $this->assertSame('Página 1 de '.count($pages), $pages[0]['pageLine']);
+
+        foreach ($pages as $index => $page) {
+            $isLast = $index === count($pages) - 1;
+            $this->assertSame($isLast, $page['showClosing']);
+        }
     }
 
-    public function test_blank_template_defaults_to_single_page(): void
+    public function test_long_charges_are_chunked_across_pages_with_header_meta(): void
     {
-        $pages = $this->planner->plan([], true);
+        $pages = $this->planner->plan([
+            'chargesDescription' => str_repeat(
+                'Falta grave por incumplimiento reiterado de turnos, protocolos y consignas operativas del puesto. ',
+                20,
+            ),
+            'questions' => [
+                ['question' => '¿Reconoce los hechos?', 'answer' => 'Sí'],
+            ],
+        ]);
 
-        $this->assertCount(1, $pages);
-        $this->assertTrue($pages[0]['showIntro']);
-        $this->assertTrue($pages[0]['showClosing']);
-        $this->assertSame('Página 1 de 1', $pages[0]['pageLine']);
+        $this->assertGreaterThan(1, count($pages));
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $this->assertTrue($pages[0]['showCharges']);
+
+        $chargesPages = array_values(array_filter(
+            $pages,
+            fn (array $page): bool => $page['showCharges'] && trim($page['chargesChunk']) !== '',
+        ));
+        $this->assertNotEmpty($chargesPages);
+
+        $joined = trim(implode(' ', array_map(
+            fn (array $page): string => $page['chargesChunk'],
+            $chargesPages,
+        )));
+        $this->assertStringContainsString('Falta grave', $joined);
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+    }
+
+    public function test_blank_template_places_signatures_without_orphan_middle_page(): void
+    {
+        $pages = $this->planner->plan([
+            'blankForDownload' => true,
+            'questions' => [],
+            'chargesDescription' => '',
+        ]);
+
+        $this->assertGreaterThanOrEqual(1, count($pages));
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
+
+        foreach ($pages as $page) {
+            $hasBody = $page['showIntroLead']
+                || $page['showCharges']
+                || $page['showTermsLead']
+                || $page['termChunks'] !== []
+                || $page['showIntroManifestation']
+                || $page['showIntroQuizLead']
+                || $page['showClosingText']
+                || $page['showClosing']
+                || $page['questions'] !== [];
+            $this->assertTrue($hasBody);
+        }
+    }
+
+    public function test_long_charges_fill_remaining_space_with_chunked_terms(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => str_repeat(
+                'Falta grave por incumplimiento reiterado de turnos, protocolos y consignas operativas del puesto. ',
+                12,
+            ),
+            'questions' => [
+                ['question' => '¿Reconoce los hechos?', 'answer' => 'Sí'],
+            ],
+        ]);
+
+        $this->assertGreaterThan(1, count($pages));
+        $this->assertTrue($pages[0]['showCharges']);
+
+        $termNumbers = [];
+        foreach ($pages as $page) {
+            foreach ($page['termChunks'] as $chunk) {
+                $termNumbers[(int) $chunk['number']] = true;
+            }
+        }
+        $nums = array_keys($termNumbers);
+        sort($nums);
+        $this->assertSame([1, 2, 3, 4, 5], $nums);
+
+        // Si tras el cierre de cargos queda hueco real, algún término lo llena; si la hoja se agotó, van a p.2.
+        $termsOnFirst = $pages[0]['termChunks'];
+        $termsOnSecond = $pages[1]['termChunks'] ?? [];
+        $this->assertTrue(
+            $termsOnFirst !== [] || $termsOnSecond !== [],
+            'Los términos deben aparecer en p.1 (llenando hueco) o continuar en p.2',
+        );
+    }
+
+    public function test_long_term_three_can_split_across_pages(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => str_repeat('Cargo operativo con detalle. ', 25),
+            'questions' => [],
+        ]);
+
+        $term3Chunks = [];
+        foreach ($pages as $page) {
+            foreach ($page['termChunks'] as $chunk) {
+                if ((int) $chunk['number'] === 3) {
+                    $term3Chunks[] = $chunk;
+                }
+            }
+        }
+
+        $this->assertNotEmpty($term3Chunks);
+        $joined = trim(implode(' ', array_column($term3Chunks, 'text')));
+        $this->assertStringContainsString('Si decide responder', $joined);
     }
 
     public function test_many_questions_create_additional_pages(): void
@@ -48,29 +156,134 @@ class FoGj04PagePlannerTest extends TestCase
             ];
         }
 
-        $pages = $this->planner->plan($questions);
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve.',
+            'questions' => $questions,
+        ]);
 
         $this->assertGreaterThan(1, count($pages));
-        $this->assertTrue($pages[0]['showIntro']);
+        $this->assertTrue($pages[0]['showIntroLead']);
         $this->assertFalse($pages[0]['showClosing']);
         $this->assertTrue($pages[array_key_last($pages)]['showClosing']);
 
-        $lastPage = $pages[array_key_last($pages)];
-        $this->assertSame('Página '.count($pages).' de '.count($pages), $lastPage['pageLine']);
-
-        $totalQuestions = array_sum(array_map(
-            fn (array $page): int => count($page['questions']),
-            $pages,
-        ));
-        $this->assertSame(8, $totalQuestions);
+        $titles = [];
+        foreach ($pages as $page) {
+            foreach ($page['questions'] as $item) {
+                if ($item['showTitle'] ?? false) {
+                    $titles[(int) $item['number']] = true;
+                }
+            }
+        }
+        $this->assertCount(8, $titles);
     }
 
-    public function test_closing_only_on_last_page(): void
+    public function test_short_charges_page_one_reaches_later_terms(): void
     {
         $pages = $this->planner->plan([
-            ['question' => '¿Una?', 'answer' => 'Una respuesta.'],
-            ['question' => '¿Dos?', 'answer' => 'Dos respuestas.'],
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'si'],
+            ],
         ]);
+
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $termNumsOnFirst = array_values(array_unique(array_map(
+            static fn (array $chunk): int => (int) $chunk['number'],
+            $pages[0]['termChunks'],
+        )));
+        $this->assertNotEmpty($termNumsOnFirst);
+        // Con INTRO_LEAD densificado, la p.1 debe llegar al menos al término 3.
+        $this->assertGreaterThanOrEqual(3, max($termNumsOnFirst));
+    }
+
+    public function test_short_charges_page_one_keeps_intro_tail_when_room(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'si'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'si'],
+            ],
+        ]);
+
+        $this->assertTrue($pages[0]['showIntroLead']);
+        $this->assertNotEmpty($pages[0]['termChunks']);
+
+        // Tras bajar sobrecoste de intro, la cola debe caber en p.1 (anti-hueco ~30%).
+        $this->assertTrue(
+            $pages[0]['showIntroManifestation']
+            || $pages[0]['showIntroQuizLead']
+            || $pages[0]['questions'] !== [],
+            'La p.1 no debe cerrar tras términos dejando hueco: debe retener cola intro o preguntas',
+        );
+    }
+
+    public function test_question_title_and_answer_stay_together_on_same_page(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'SI'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'SI'],
+            ],
+        ]);
+
+        foreach ($pages as $pageIndex => $page) {
+            foreach ($page['questions'] as $item) {
+                if (! ($item['showTitle'] ?? false)) {
+                    continue;
+                }
+
+                $this->assertNotSame(
+                    '',
+                    trim((string) ($item['answer'] ?? '')),
+                    'La pregunta '.($item['number'] ?? '?').' no debe quedar sin su R: en la hoja '.($pageIndex + 1),
+                );
+            }
+        }
+
+        $this->assertTrue(
+            $pages[0]['showIntroQuizLead'] || $pages[0]['questions'] !== [],
+            'La p.1 debe incluir cola del cuestionario o preguntas completas',
+        );
+    }
+
+    public function test_short_questions_can_share_first_page(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Incumplimiento breve del puesto.',
+            'questions' => [
+                ['question' => '¿PRIMERA?', 'answer' => 'SI'],
+                ['question' => '¿SEGUNDA?', 'answer' => 'SI'],
+            ],
+        ]);
+
+        $firstPageNumbers = array_map(
+            static fn (array $item): int => (int) $item['number'],
+            array_filter(
+                $pages[0]['questions'],
+                static fn (array $item): bool => (bool) ($item['showTitle'] ?? false),
+            ),
+        );
+
+        $this->assertContains(1, $firstPageNumbers);
+    }
+
+    public function test_closing_text_flows_before_atomic_signatures(): void
+    {
+        $pages = $this->planner->plan([
+            'chargesDescription' => 'Falta leve.',
+            'questions' => [
+                ['question' => '¿Una?', 'answer' => 'Una respuesta.'],
+                ['question' => '¿Dos?', 'answer' => 'Dos respuestas.'],
+            ],
+        ]);
+
+        $closingTextPages = array_values(array_filter(
+            $pages,
+            fn (array $page): bool => $page['showClosingText'],
+        ));
+        $this->assertNotEmpty($closingTextPages);
 
         foreach ($pages as $index => $page) {
             $isLast = $index === count($pages) - 1;

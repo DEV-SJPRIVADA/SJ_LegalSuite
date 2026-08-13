@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FO-GJ-54 · Reprogramación diligencia (en blanco)</title>
     <style>
-        @page { size: Letter; margin: 0.45in; }
         html, body { margin: 0; padding: 0; background: #fff; }
     </style>
 </head>

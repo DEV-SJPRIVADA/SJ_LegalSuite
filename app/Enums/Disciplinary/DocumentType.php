@@ -27,7 +27,7 @@ enum DocumentType: string
             self::ACTA_DILIGENCIA => 'Acta de diligencia disciplinaria (FO-GJ-04)',
             self::CONSTANCIA_INASISTENCIA => 'Constancia de inasistencia a diligencia (FO-GJ-44)',
             self::ACTA_COMITE => 'Acta de comité disciplinario',
-            self::DECISION => 'Comunicado de decisión de sanción o cierre del proceso',
+            self::DECISION => 'Comunicado de decisión / FO-GJ-45·46·47',
             self::APELACION => 'Recurso de apelación contra la decisión disciplinaria',
             self::SEGUNDA_INSTANCIA => 'Decisión de segunda instancia',
             self::EVIDENCIA => 'Evidencia',

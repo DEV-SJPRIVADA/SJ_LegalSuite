@@ -20,10 +20,14 @@
     'lawyerRole' => 'Analista de relaciones laborales y cumplimiento SJ Seguridad Privada Ltda.',
     'signatureDataUri' => null,
     'workerSignatureDataUri' => null,
+    'legalPhrasing' => null,
 ])
 
 @php
     use App\Support\Disciplinary\FoGj04PagePlanner;
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
 
     $guide = static fn (string $size = 'md') => match ($size) {
         'sm' => '_ _ _ _ _',
@@ -56,7 +60,11 @@
         ];
     })->filter()->values()->all();
 
-    $pages = $questionPages ?? app(FoGj04PagePlanner::class)->plan($questionItems, (bool) $blankForDownload);
+    $pages = $questionPages ?? app(FoGj04PagePlanner::class)->plan([
+        'questions' => $questionItems,
+        'chargesDescription' => (string) $chargesDescription,
+        'blankForDownload' => (bool) $blankForDownload,
+    ]);
 
     $sharedIntroProps = compact(
         'blankForDownload',
@@ -73,6 +81,7 @@
         'breachYear',
         'chargesDescription',
         'workerManifestation',
+        'legalPhrasing',
     ) + ['guide' => $guide, 'blank' => $blank];
 
     $sharedClosingProps = compact(
@@ -84,6 +93,7 @@
         'workerDocument',
         'signatureDataUri',
         'workerSignatureDataUri',
+        'legalPhrasing',
     ) + ['blank' => $blank];
 @endphp
 
@@ -95,11 +105,29 @@
                 'pageLine' => $page['pageLine'],
             ])
 
-            @if ($page['showIntro'])
-                @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps)
+            @if (
+                ($page['showIntroLead'] ?? false)
+                || ($page['showCharges'] ?? false)
+                || ($page['showTermsLead'] ?? false)
+                || (($page['termChunks'] ?? []) !== [])
+                || ($page['showIntroManifestation'] ?? false)
+                || ($page['showIntroQuizLead'] ?? false)
+            )
+                @include('disciplinary.forms.partials.fo-gj-04-intro', $sharedIntroProps + [
+                    'showIntroLead' => (bool) ($page['showIntroLead'] ?? false),
+                    'showCharges' => (bool) ($page['showCharges'] ?? false),
+                    'chargesShowLead' => (bool) ($page['chargesShowLead'] ?? false),
+                    'chargesIsContinuation' => (bool) ($page['chargesIsContinuation'] ?? false),
+                    'chargesChunk' => (string) ($page['chargesChunk'] ?? ''),
+                    'chargesShowTail' => (bool) ($page['chargesShowTail'] ?? false),
+                    'showTermsLead' => (bool) ($page['showTermsLead'] ?? false),
+                    'termChunks' => $page['termChunks'] ?? [],
+                    'showIntroManifestation' => (bool) ($page['showIntroManifestation'] ?? false),
+                    'showIntroQuizLead' => (bool) ($page['showIntroQuizLead'] ?? false),
+                ])
             @endif
 
-            @if ($blankForDownload && $page['showIntro'] && ($page['questions'] ?? []) === [])
+            @if ($blankForDownload && ($page['showIntroLead'] ?? false) && ($page['questions'] ?? []) === [])
                 <p>(…)</p>
             @endif
 
@@ -107,14 +135,19 @@
                 @include('disciplinary.forms.partials.fo-gj-04-question-item', [
                     'blankForDownload' => $blankForDownload,
                     'number' => $item['number'],
-                    'questionText' => $item['question'],
-                    'answerText' => $item['answer'],
+                    'questionText' => $item['question'] ?? '',
+                    'answerText' => $item['answer'] ?? '',
+                    'showTitle' => (bool) ($item['showTitle'] ?? true),
+                    'isAnswerContinuation' => (bool) ($item['isAnswerContinuation'] ?? false),
                     'guide' => $guide,
                 ])
             @endforeach
 
-            @if ($page['showClosing'])
-                @include('disciplinary.forms.partials.fo-gj-04-closing-signatures', $sharedClosingProps)
+            @if (($page['showClosingText'] ?? false) || ($page['showClosing'] ?? false))
+                @include('disciplinary.forms.partials.fo-gj-04-closing-signatures', $sharedClosingProps + [
+                    'showClosingText' => (bool) ($page['showClosingText'] ?? false),
+                    'showClosing' => (bool) ($page['showClosing'] ?? false),
+                ])
             @endif
         </div>
     @endforeach

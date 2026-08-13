@@ -1,20 +1,27 @@
 {{-- Estilos compartidos para plantillas FO-GJ en PDF (Letter, Browsershot). --}}
+{{-- Tipografías Liberation embebidas (SjPdfSans): no dependen de Arial del SO / Hostinger. --}}
 <style>
+{!! \App\Support\Pdf\EmbeddedPdfFont::sansFontFaceCss() !!}
     :root {
         --ogj-font-body: 12px;
         --ogj-font-meta: 11px;
         --ogj-font-title: 13px;
         --ogj-font-micro: 10px;
+        --ogj-font-family: '{{ \App\Support\Pdf\EmbeddedPdfFont::FAMILY_SANS }}', Arial, Helvetica, sans-serif;
     }
-    @page { size: Letter; margin: 0.45in; }
-    html, body { margin: 0; padding: 0; background: #fff; }
+    /*
+     * Dompdf-safe Letter (8.5in): no usar width:100% + padding (ignora border-box → corta la derecha).
+     * Caja útil 7.5in + margen 0.5in; @page margin 0 para no doblar.
+     */
+    @page { size: Letter; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #fff; font-family: var(--ogj-font-family); }
     .ogj-wrap {
-        width: 100%;
-        max-width: 100%;
+        width: auto;
+        max-width: none;
         min-width: 0;
-        box-sizing: border-box;
-        margin: 0 auto;
-        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        font-family: var(--ogj-font-family);
         font-size: var(--ogj-font-body);
         line-height: 1.25;
         color: #000;
@@ -23,9 +30,9 @@
         print-color-adjust: exact;
     }
     .ogj-page {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.38in 0.44in 0.34in;
+        width: 7.5in;
+        margin: 0.5in;
+        padding: 0;
         background: #fff;
         min-height: 0;
     }
@@ -46,6 +53,19 @@
         width: 8.5in;
         min-height: 11in;
         box-sizing: border-box;
+        padding: 0.5in;
+    }
+    .ogj-letter-screen-sheet .ogj-page {
+        /* Solo pantalla: hoja 8.5×11 con inset 0.5in (sin margin extra de PDF). */
+        width: 100%;
+        margin: 0;
+        min-height: 10in;
+        padding: 0.5in;
+        box-sizing: border-box;
+    }
+    .ogj-letter-screen-sheet .ogj-wrap {
+        width: 100%;
+        background: transparent;
     }
     .ogj-block {
         border: 1px solid #000;
@@ -93,7 +113,7 @@
         font-size: var(--ogj-font-title);
     }
     .ogj-head-grid {
-        margin-bottom: 10px;
+        margin-bottom: 4px;
     }
     .ogj-head-grid > tbody > tr > td {
         vertical-align: middle;
@@ -106,9 +126,11 @@
         vertical-align: middle;
         padding: 10px 8px !important;
         text-transform: uppercase;
+        width: 50%;
     }
     .ogj-meta {
-        width: 114px;
+        width: 25%;
+        max-width: 25%;
         padding: 0 !important;
         vertical-align: top;
     }
@@ -141,8 +163,8 @@
         background: #fafafa;
     }
     .ogj-logo-cell {
-        width: 102px;
-        max-width: 102px;
+        width: 25%;
+        max-width: 25%;
         text-align: center;
         vertical-align: middle;
         padding: 6px !important;
@@ -170,14 +192,14 @@
         margin-top: 12px;
     }
     .ogj-03-body p {
-        margin: 0 0 8px;
+        margin: 0 0 4px;
         text-align: justify;
     }
     .ogj-03-ref {
-        margin-bottom: 10px;
+        margin-bottom: 4px;
     }
     .ogj-03-ref p {
-        margin: 0 0 4px;
+        margin: 0 0 3px;
         text-align: left;
     }
     .ogj-03-guide {
@@ -230,32 +252,32 @@
         margin-bottom: 6px !important;
     }
     .ogj-03-recipient {
-        margin: 8px 0 12px;
+        margin: 4px 0 6px;
     }
     .ogj-03-recipient p {
-        margin: 0 0 3px;
+        margin: 0 0 2px;
         text-align: left;
         font-weight: bold;
     }
     .ogj-03-section-title {
         text-align: center;
         font-weight: bold;
-        margin: 10px 0 8px !important;
+        margin: 6px 0 4px;
     }
     .ogj-03-justify {
         text-align: justify;
-        margin: 0 0 8px;
+        margin: 0 0 4px;
     }
     .ogj-03-underline {
         font-weight: bold;
         text-decoration: underline;
     }
     .ogj-03-list {
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         padding-left: 18px;
     }
     .ogj-03-list li {
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         text-align: justify;
     }
     .ogj-03-signatures {
@@ -263,6 +285,11 @@
         border-collapse: collapse;
         margin-top: 18px;
         table-layout: fixed;
+    }
+    /* Cierre junto: planner FO-GJ-03 mueve firmas de página; CSS refuerza. */
+    .ogj-03-closing-block {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     .ogj-03-signatures td {
         width: 50%;
@@ -280,35 +307,43 @@
     .ogj-03-signatures-capture-row td {
         vertical-align: bottom;
     }
-    .ogj-03-signature-block {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        min-height: 52px;
+    /* Tablas (no flex): Dompdf calcula altura de forma fiable. */
+    .ogj-03-signature-slot-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
     }
-    .ogj-03-signature-slot-area {
-        flex: 1 1 auto;
-        min-height: 44px;
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-    }
-    .ogj-03-signature-block .ogj-03-sign-line {
-        flex-shrink: 0;
-        border-bottom: 1px solid #000;
-        margin: 0 0 6px;
+    .ogj-03-signature-slot {
+        height: 44px;
+        vertical-align: bottom;
+        padding: 0;
     }
     .ogj-03-signature-img {
         display: block;
         max-height: 44px;
         max-width: 180px;
         margin: 0;
-        object-fit: contain;
-        object-position: left bottom;
     }
     .ogj-03-sign-line {
         border-bottom: 1px solid #000;
-        margin: 28px 0 6px;
+        height: 1px;
+        padding: 0;
+        margin: 0 0 6px;
+        line-height: 1px;
+    }
+    /* FO-GJ-45: hueco para firma manuscrita / imagen entre rótulo y la raya */
+    .ogj-45-body .ogj-03-sign-line {
+        height: auto;
+        min-height: 3.35rem;
+        line-height: normal;
+        padding: 0.15rem 0 0.2rem;
+        margin: 0.45rem 0 0.55rem;
+        box-sizing: border-box;
+        display: flex;
+        align-items: flex-end;
+    }
+    .ogj-45-body .ogj-03-signature-img {
+        max-height: 52px;
     }
     .ogj-03-refusal-text {
         margin: 0 0 1px;

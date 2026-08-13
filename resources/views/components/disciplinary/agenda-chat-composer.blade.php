@@ -7,18 +7,25 @@
     'placeholder' => 'Escriba un mensaje…',
     'inputId' => 'agenda-composer-body',
     'errorField' => 'agendaLawyerBody',
+    /** default = panel clásico; drawer = barra embebida sin doble borde */
+    'variant' => 'default',
 ])
 
 @php
     use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+    $isDrawer = $variant === 'drawer';
 @endphp
 
-<div {{ $attributes->merge(['class' => 'border-t border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/10 dark:bg-indigo-950/40']) }}
+<div {{ $attributes->merge([
+        'class' => $isDrawer
+            ? ''
+            : 'border-t border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/10 dark:bg-indigo-950/40',
+    ]) }}
     x-data="window.sjDisciplinaryAgendaComposer({ uploadsProperty: @js($uploadsProperty) })"
     x-on:dragover.prevent="dragOver = true"
     x-on:dragleave.prevent="dragOver = false"
     x-on:drop.prevent="dropFiles($event)"
-    :class="dragOver ? 'ring-2 ring-inset ring-indigo-400/60 dark:ring-indigo-400/40' : ''">
+    :class="dragOver ? 'ring-2 ring-inset ring-indigo-400/60 dark:ring-indigo-400/40 rounded-xl' : ''">
 
     @if (is_array($uploads) && count(array_filter($uploads)) > 0)
         <div class="mb-2 flex flex-wrap gap-2">
@@ -61,16 +68,17 @@
         </div>
     @endif
 
-    <div class="flex items-end gap-2 rounded-lg border border-slate-200/90 bg-white/95 py-1.5 pl-1.5 pr-1 dark:border-white/15 dark:bg-dash-lift/90">
+    <div class="flex items-end gap-2 rounded-xl border border-slate-200/90 bg-slate-50 py-1.5 pl-1.5 pr-1.5 dark:border-white/15 dark:bg-dash-lift/90">
         <button type="button"
             x-on:click="openPicker()"
-            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/60"
+            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/60"
             title="Adjuntar imagen o PDF"
             aria-label="Adjuntar archivo">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.5L8.25 18.75l-3.75-3.75" />
             </svg>
         </button>
+        <span class="my-1.5 hidden h-5 w-px shrink-0 bg-slate-200 dark:bg-white/15 sm:block" aria-hidden="true"></span>
         <input type="file"
             x-ref="agendaFiles"
             multiple
@@ -90,7 +98,7 @@
             wire:click="{{ $sendAction }}"
             wire:loading.attr="disabled"
             wire:target="{{ $sendAction }}"
-            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+            class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
             title="Enviar mensaje"
             aria-label="Enviar mensaje">
             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

@@ -46,7 +46,7 @@ class DisciplinaryInformeSubmissionService
         array $evidenceImages = [],
     ): InformeSubmission {
         $reviewer = User::query()->whereKey($assignedReviewerId)->where('is_active', true)->first();
-        if (! $reviewer || ! $reviewer->hasRole('operaciones')) {
+        if (! $reviewer || ! $reviewer->hasRole('nivel2')) {
             throw new \InvalidArgumentException('Seleccione un revisor de operaciones válido.');
         }
 
@@ -301,7 +301,7 @@ class DisciplinaryInformeSubmissionService
         return User::query()
             ->where('is_active', true)
             ->where(function (Builder $q): void {
-                $q->whereHas('roles', fn (Builder $r) => $r->where('name', 'admin'))
+                $q->whereHas('roles', fn (Builder $r) => $r->where('name', 'nivel1'))
                     ->orWhereHas('roles.permissions', fn (Builder $p) => $p
                         ->where('name', 'disciplinary.review-inform-all')
                         ->where('guard_name', 'web'))

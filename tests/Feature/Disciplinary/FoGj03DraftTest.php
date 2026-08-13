@@ -109,9 +109,11 @@ class FoGj03DraftTest extends TestCase
                 'virtual_meeting_link' => '',
                 'breach_date' => now()->subWeek()->toDateString(),
                 'charges_description' => '   ',
-                'article_66_numerals' => '1, 3, 4',
-                'article_68_numerals' => '10, 34',
-                'article_76_numerals' => '3, 12, 15',
+                'statute_articles' => [
+                    ['article_number' => '74', 'numerals' => '1, 3, 4'],
+                    ['article_number' => '76', 'numerals' => '10, 34'],
+                    ['article_number' => '79', 'numerals' => '3, 12, 15'],
+                ],
             ]);
             $this->fail('Expected ValidationException for empty charges_description.');
         } catch (ValidationException $e) {
@@ -136,6 +138,42 @@ class FoGj03DraftTest extends TestCase
         $this->assertSame('No diligenció la minuta de rondas asignadas.', $data['chargesDescription']);
     }
 
+    public function test_fo_gj_03_persists_and_renders_additional_evidence_items(): void
+    {
+        ['case' => $case, 'lawyer' => $lawyer] = $this->makeReadyCaseWithoutDraft();
+        $this->completeDraft($case, $lawyer, [
+            'evidence_items' => [
+                ['text' => 'Video de cámara del puesto Norte'],
+                '  ',
+                ['text' => 'Testimonio del supervisor de zona'],
+            ],
+        ]);
+
+        $payload = $case->fresh()->fo_gj_03_payload;
+        $this->assertSame([
+            'Video de cámara del puesto Norte',
+            'Testimonio del supervisor de zona',
+        ], $payload['evidence_items'] ?? null);
+
+        $data = app(FoGj03CitationService::class)->buildViewData($case->fresh());
+        $this->assertSame([
+            'Video de cámara del puesto Norte',
+            'Testimonio del supervisor de zona',
+        ], $data['additionalEvidenceItems']);
+
+        $html = view('disciplinary.forms.partials.fo-gj-03-evidence', [
+            'blankForDownload' => false,
+            'informeReportDate' => '01/05/2026',
+            'additionalEvidenceItems' => $data['additionalEvidenceItems'],
+            'evidenceShowLead' => true,
+            'evidenceChunk' => 'Traslado de pruebas.',
+        ])->render();
+
+        $this->assertStringContainsString('Informes Disciplinarios', $html);
+        $this->assertStringContainsString('Video de cámara del puesto Norte', $html);
+        $this->assertStringContainsString('Testimonio del supervisor de zona', $html);
+    }
+
     /** @return array{case: DisciplinaryCase, lawyer: User} */
     private function makeReadyCaseWithoutDraft(): array
     {
@@ -144,6 +182,7 @@ class FoGj03DraftTest extends TestCase
             'first_name' => 'Worker',
             'last_name' => 'Test',
             'document_number' => '9100'.random_int(100000, 999999),
+            'gender' => 'masculino',
         ]);
 
         $case = DisciplinaryCase::query()->create([
@@ -199,9 +238,11 @@ class FoGj03DraftTest extends TestCase
             'virtual_meeting_link' => '',
             'breach_date' => now()->subWeek()->toDateString(),
             'charges_description' => 'Incumplimiento de consignas operativas en ronda asignada.',
-            'article_66_numerals' => '1, 3, 4',
-            'article_68_numerals' => '10, 34',
-            'article_76_numerals' => '3, 12, 15',
+            'statute_articles' => [
+                ['article_number' => '74', 'numerals' => '1, 3, 4'],
+                ['article_number' => '76', 'numerals' => '10, 34'],
+                ['article_number' => '79', 'numerals' => '3, 12, 15'],
+            ],
         ], $overrides));
     }
 
@@ -213,7 +254,7 @@ class FoGj03DraftTest extends TestCase
             'must_change_password' => false,
             'is_active' => true,
         ]);
-        $user->assignRole('abogado');
+        $user->assignRole('nivel6');
 
         return $user;
     }

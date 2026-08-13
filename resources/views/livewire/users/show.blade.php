@@ -99,19 +99,22 @@
                     </dl>
                 </div>
 
-                {{-- Roles y permisos --}}
+                {{-- Niveles y permisos --}}
                 <div class="bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-6 dark:bg-white/[0.04] dark:ring-white/10 dark:shadow-dash-card">
-                    <h3 class="text-sm font-semibold text-slate-700 mb-4 dark:text-slate-200">Roles y permisos</h3>
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4 dark:text-slate-200">Nivel y permisos</h3>
 
                     <div>
-                        <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted mb-2">Roles asignados</p>
+                        <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold dark:text-dash-muted mb-2">Nivel asignado</p>
                         <div class="flex flex-wrap gap-2">
                             @forelse ($user->roles as $r)
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-100 dark:ring-indigo-400/45">
-                                    {{ ucfirst($r->name) }}
+                                <span class="inline-flex flex-col items-start px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-900 ring-1 ring-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-100 dark:ring-indigo-400/45">
+                                    <span class="font-semibold">{{ $r->displayTitle() }}</span>
+                                    @if ($r->displaySubtitle())
+                                        <span class="text-[10px] font-normal opacity-80">{{ $r->displaySubtitle() }}</span>
+                                    @endif
                                 </span>
                             @empty
-                                <span class="text-xs text-slate-400">Sin roles asignados</span>
+                                <span class="text-xs text-slate-400">Sin nivel asignado</span>
                             @endforelse
                         </div>
                     </div>

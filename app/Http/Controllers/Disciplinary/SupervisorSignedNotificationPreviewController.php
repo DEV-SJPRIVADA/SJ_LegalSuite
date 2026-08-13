@@ -15,7 +15,7 @@ class SupervisorSignedNotificationPreviewController extends Controller
         string $token,
         SupervisorSignedNotificationPreviewStore $store,
     ): StreamedResponse {
-        abort_unless(auth()->check() && auth()->user()->hasRole('supervisor'), 403);
+        abort_unless(auth()->check() && auth()->user()->hasRole('nivel7'), 403);
 
         $meta = $store->resolve($token, (int) auth()->id());
         abort_if($meta === null, 404);

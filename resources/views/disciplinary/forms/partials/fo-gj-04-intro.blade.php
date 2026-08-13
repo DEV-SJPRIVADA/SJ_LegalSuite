@@ -1,4 +1,8 @@
 @php
+    use App\Support\Disciplinary\WorkerLegalPhrasing;
+
+    $legalPhrasing = $legalPhrasing ?? WorkerLegalPhrasing::masculine();
+
     $guide = $guide ?? static fn (string $size = 'md') => match ($size) {
         'sm' => '_ _ _ _ _',
         'lg' => '_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _',
@@ -17,66 +21,95 @@
         'no' => 'NO DESEA RESPONDER.',
         default => '',
     };
+
+    $showIntroLead = (bool) ($showIntroLead ?? true);
+    $showCharges = (bool) ($showCharges ?? true);
+    $chargesShowLead = (bool) ($chargesShowLead ?? true);
+    $chargesIsContinuation = (bool) ($chargesIsContinuation ?? false);
+    $chargesChunk = (string) ($chargesChunk ?? ($chargesDescription ?? ''));
+    $chargesShowTail = (bool) ($chargesShowTail ?? true);
+    $showTermsLead = (bool) ($showTermsLead ?? true);
+    $termChunks = is_array($termChunks ?? null) ? $termChunks : [];
+    $showIntroManifestation = (bool) ($showIntroManifestation ?? true);
+    $showIntroQuizLead = (bool) ($showIntroQuizLead ?? true);
 @endphp
 
-<div class="ogj-04-id">
-    <p>NOMBRE. {!! $blank($workerName, 'lg') !!}</p>
-    <p>CÉDULA. {!! $blank($workerDocument, 'md') !!}</p>
-    <p class="ogj-04-id-last">CARGO. {!! $blank($workerPosition, 'md') !!}</p>
-</div>
+@if ($showIntroLead)
+    <div class="ogj-04-id">
+        <p>NOMBRE. {!! $blank($workerName, 'lg') !!}</p>
+        <p>CÉDULA. {!! $blank($workerDocument, 'md') !!}</p>
+        <p class="ogj-04-id-last">CARGO. {!! $blank($workerPosition, 'md') !!}</p>
+    </div>
 
-<p class="ogj-04-opening">
-    En Santiago de Cali, a los {!! $blank($openingDay, 'sm') !!} días del mes de {!! $blank($openingMonth, 'md') !!}
-    de {!! $blank($openingYear, 'sm') !!} en las instalaciones de la compañía SJ Seguridad Privada Ltda., siendo las
-    {!! $blank($openingTime, 'sm') !!} horas:
-</p>
+    <p class="ogj-04-opening">
+        En Santiago de Cali, a los {!! $blank($openingDay, 'sm') !!} días del mes de {!! $blank($openingMonth, 'md') !!}
+        de {!! $blank($openingYear, 'sm') !!} en las instalaciones de la compañía SJ Seguridad Privada Ltda., siendo las
+        {!! $blank($openingTime, 'sm') !!} horas:
+    </p>
 
-<p class="ogj-04-party-indent ogj-04-party-indent--break-after"><strong>EN REPRESENTACIÓN EL EMPLEADOR:</strong> {!! $blank($lawyerName, 'lg') !!}</p>
+    <p class="ogj-04-party-indent ogj-04-party-indent--break-after"><strong>EN REPRESENTACIÓN EL EMPLEADOR:</strong> {!! $blank($lawyerName, 'lg') !!}</p>
 
-<p>
-    De otra parte, en cumplimiento de la citación previa a esta diligencia, enviada mediante comunicación escrita,
-    con los respectivos soportes del proceso disciplinario y garantizando su derecho a la defensa y al debido proceso:
-</p>
+    <p>
+        De otra parte, en cumplimiento de la citación previa a esta diligencia, enviada mediante comunicación escrita,
+        con los respectivos soportes del proceso disciplinario y garantizando su derecho a la defensa y al debido proceso:
+    </p>
 
-<p class="ogj-04-party-indent"><strong>EL TRABAJADOR:</strong> {!! $blank($workerName, 'lg') !!}</p>
+    <p class="ogj-04-party-indent"><strong>{{ $legalPhrasing->foGj04PartyLabel() }}</strong> {!! $blank($workerName, 'lg') !!}</p>
+@endif
 
-<p>
-    Con el fin de ser escuchado en diligencia disciplinaria sobre la presunta falta cometida el día
-    {!! $blank($breachDay, 'sm') !!} de {!! $blank($breachMonth, 'md') !!} del {!! $blank($breachYear, 'sm') !!},
-    fecha en la cual, usted:
-    @if ($blankForDownload)
-        <span class="ogj-04-guide ogj-04-guide-lg" aria-hidden="true">{{ $guide('xl') }}</span>
-    @elseif (filled($chargesDescription))
-        {{ $chargesDescription }}
-    @else
-        —
+@if ($showCharges)
+    <p @class(['ogj-04-charges' => true, 'ogj-04-charges--continuation' => $chargesIsContinuation && ! $chargesShowLead])>
+        @if ($chargesShowLead)
+            Con el fin de ser escuchado en diligencia disciplinaria sobre la presunta falta cometida el día
+            {!! $blank($breachDay, 'sm') !!} de {!! $blank($breachMonth, 'md') !!} del {!! $blank($breachYear, 'sm') !!},
+            fecha en la cual, usted:
+        @endif
+        @if ($blankForDownload && $chargesShowLead)
+            <span class="ogj-04-guide ogj-04-guide-lg" aria-hidden="true">{{ $guide('xl') }}</span>
+        @elseif (filled($chargesChunk))
+            {{ $chargesChunk }}
+        @elseif ($chargesShowLead)
+            —
+        @endif
+        @if ($chargesShowTail)
+            comprendido como incumplimiento en el Reglamento Interno de Trabajo.
+        @endif
+    </p>
+@endif
+
+@if ($showTermsLead)
+    <p>
+        Con base a lo anterior se requiere de sus explicaciones y para ello, esta acta se desarrolla en los siguientes términos:
+    </p>
+@endif
+
+@foreach ($termChunks as $termChunk)
+    @php
+        $termText = trim((string) ($termChunk['text'] ?? ''));
+        $isCont = (bool) ($termChunk['isContinuation'] ?? false);
+    @endphp
+    @if ($termText !== '')
+        <p @class(['ogj-04-list-num', 'ogj-04-list-num--continuation' => $isCont])>{{ $termText }}</p>
     @endif
-    comprendido como incumplimiento en el Reglamento Interno de Trabajo.
-</p>
+@endforeach
 
-<p>
-    Con base a lo anterior se requiere de sus explicaciones y para ello, esta acta se desarrolla en los siguientes términos:
-</p>
+@if ($showIntroManifestation)
+    <p>
+        {{ $legalPhrasing->foGj04ManifestationIntro() }}
+        @if ($blankForDownload)
+            <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
+        @elseif (filled($manifestationText))
+            <strong>{{ $manifestationText }}</strong>
+        @else
+            <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
+        @endif
+    </p>
+@endif
 
-<p class="ogj-04-list-num">1. Su asistencia a esta diligencia es de carácter meramente administrativo laboral y de manera voluntaria.</p>
-<p class="ogj-04-list-num">2. En garantía de su Derecho de Defensa y Debido Proceso tiene derecho a no declarar contra sí mismo, por lo que está en libertad de responder o no responder a los cargos que se le imputarán y hechos que se le expondrán.</p>
-<p class="ogj-04-list-num">3. Si decide responder, se le pide que lo haga de manera espontánea, concreta y fiel con la realidad de los hechos tal como a su forma de ser sucedieron, aceptando o no aceptando los cargos que se le imputarán, o, dando las explicaciones que considere, pudiendo solicitar las pruebas que tiendan a justificar, atenuar, o demostrar su no participación en los hechos que se le expondrán como soporte de dichos cargos.</p>
-<p class="ogj-04-list-num">4. Una vez iniciada esta diligencia, en cualquier momento podrá darla por terminada manifestado que no continuará respondiendo, por lo que esta quedará en el estado en que se encuentre, sin que pueda retirar, aclarar o adicionar lo que hasta ese instante hubiese manifestado.</p>
-<p class="ogj-04-list-num">5. Si por cualquier motivo se negare a firmar el acta de esta diligencia, EL EMPLEADOR recurrirá a dos (2) trabajadores testigos que darán fe con su firma de la veracidad de tal situación.</p>
-
-<p>
-    Una vez enterado y entiendo perfectamente sus derechos, EL TRABAJADOR, manifestó:
-    @if ($blankForDownload)
-        <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
-    @elseif (filled($manifestationText))
-        <strong>{{ $manifestationText }}</strong>
-    @else
-        <span class="ogj-04-guide" aria-hidden="true">{{ $guide('md') }}</span>
-    @endif
-</p>
-
-<p>
-    De esta forma, obedeciendo los lineamientos establecidos en el contrato de trabajo, el reglamento interno de
-    trabajo y el Código Sustantivo del Trabajo, se procederá a escuchar la versión libre del trabajador y a efectuar
-    el cuestionario relacionado con los hechos que generaron la realización del presente proceso disciplinario:
-</p>
+@if ($showIntroQuizLead)
+    <p>
+        De esta forma, obedeciendo los lineamientos establecidos en el contrato de trabajo, el reglamento interno de
+        trabajo y el Código Sustantivo del Trabajo, se procederá a escuchar la versión libre {{ $legalPhrasing->foGj04FreeVersionPhrase() }} y a efectuar
+        el cuestionario relacionado con los hechos que generaron la realización del presente proceso disciplinario:
+    </p>
+@endif
