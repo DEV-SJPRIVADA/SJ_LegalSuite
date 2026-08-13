@@ -7,6 +7,7 @@
     $canTerritory = auth()->user()?->can('settings.manage-territory') ?? false;
     $canArticles = auth()->user()?->can('settings.manage-citation-articles') ?? false;
     $canQuestions = auth()->user()?->can('settings.manage-diligence-questions') ?? false;
+    $canZones = auth()->user()?->can('settings.manage-supervision-zones') ?? false;
 
     $tabs = [];
     if ($canTerritory) {
@@ -25,6 +26,12 @@
         $tabs['questions'] = [
             'label' => 'Preguntas',
             'route' => route('settings.diligence-questions'),
+        ];
+    }
+    if ($canZones) {
+        $tabs['zones'] = [
+            'label' => 'Zonas',
+            'route' => route('settings.supervision-zones'),
         ];
     }
 

@@ -15,10 +15,12 @@ use App\Support\Disciplinary\DecisionBranch;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class DecisionStageFlowTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -69,7 +71,7 @@ class DecisionStageFlowTest extends TestCase
             'decision' => Decision::AMONESTACION_ESCRITA,
             'decision_coordination_started_at' => now(),
             'decision_notification_completed_at' => now(),
-            'decision_notification_supervisor_user_id' => User::factory()->create(['is_active' => true])->id,
+            'decision_notification_supervision_zone_id' => $this->seedSupervisionZone()->id,
             'decision_notification_shift' => 'Mañana',
             'decision_notification_zone' => 'Norte',
         ])->save();

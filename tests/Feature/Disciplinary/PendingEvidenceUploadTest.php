@@ -156,7 +156,7 @@ class PendingEvidenceUploadTest extends TestCase
                 'notification_date' => now()->addDay()->toDateString(),
                 'notification_shift' => 'Tarde',
                 'notification_zone' => 'Centro',
-                'notification_supervisor_user_id' => $supervisor->id,
+                'notification_supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]);
 
         app(DisciplinaryAgendaThreadService::class)->postPlanningMessage(

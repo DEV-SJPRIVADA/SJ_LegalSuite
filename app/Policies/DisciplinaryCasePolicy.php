@@ -704,7 +704,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ((int) $case->notification_supervisor_user_id !== (int) $user->id) {
+        if (! $case->userBelongsToCitationSupervisionZone($user)) {
             return false;
         }
 
@@ -727,7 +727,7 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ((int) $case->decision_notification_supervisor_user_id !== (int) $user->id) {
+        if (! $case->userBelongsToDecisionSupervisionZone($user)) {
             return false;
         }
 

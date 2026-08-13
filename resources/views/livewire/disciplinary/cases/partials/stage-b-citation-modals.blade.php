@@ -1,19 +1,19 @@
 @if ($showReassignSupervisorModal ?? false)
     <div class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-slate-900/50" wire:key="reassign-supervisor-modal">
         <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true">
-            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Reasignar supervisor de notificación</h2>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Reasignar zona de supervisión</h2>
             <div class="mt-4 space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Supervisor nuevo</label>
-                    <select wire:model="reassignSupervisorUserId" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Zona de supervisión nueva</label>
+                    <select wire:model="reassignSupervisionZoneId" class="mt-1 w-full rounded-md border-slate-300 text-sm dark:bg-dash-lift dark:border-white/15 dark:text-white">
                         <option value="">— Seleccione —</option>
-                        @foreach ($supervisorCandidates ?? [] as $supervisor)
-                            @if ((int) $supervisor->id !== (int) $case->notification_supervisor_user_id)
-                                <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                        @foreach ($supervisionZones ?? [] as $supervisionZone)
+                            @if ((int) $supervisionZone->id !== (int) $case->notification_supervision_zone_id)
+                                <option value="{{ $supervisionZone->id }}">{{ $supervisionZone->displayLabel() }}</option>
                             @endif
                         @endforeach
                     </select>
-                    @error('reassignSupervisorUserId')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    @error('reassignSupervisionZoneId')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Motivo (obligatorio)</label>

@@ -4,12 +4,11 @@ namespace App\Livewire\Disciplinary\Coordinations;
 
 use App\Enums\Disciplinary\CaseStatus;
 use App\Models\Disciplinary\DisciplinaryAgendaThread;
-use App\Models\User;
 use App\Services\Disciplinary\DisciplinaryAgendaThreadService;
 use App\Services\Disciplinary\DisciplinaryCitationNotificationService;
 use App\Services\Disciplinary\DisciplinaryDecisionNotificationService;
+use App\Services\Disciplinary\SupervisionZoneService;
 use App\Support\Disciplinary\DecisionBranch;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -37,9 +36,9 @@ class Index extends Component
         ['date' => '', 'time' => '', 'notes' => ''],
     ];
 
-    /** @var array<int, array{date: string, time: string, notes: string, zone: string, supervisor_user_id: int|string|null}> */
+    /** @var array<int, array{date: string, time: string, notes: string, zone: string, supervision_zone_id: int|string|null}> */
     public array $decisionNotificationSlots = [
-        ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+        ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervision_zone_id' => null],
     ];
 
     /** @var array<int, mixed> */
@@ -51,7 +50,7 @@ class Index extends Component
 
     public string $notificationZone = '';
 
-    public ?int $notificationSupervisorUserId = null;
+    public ?int $notificationSupervisionZoneId = null;
 
     public string $notificationNotes = '';
 
@@ -108,7 +107,7 @@ class Index extends Component
         $this->showDiligenceModal = false;
         $this->showNotificationModal = false;
         $this->decisionNotificationSlots = [
-            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervision_zone_id' => null],
         ];
     }
 
@@ -117,7 +116,7 @@ class Index extends Component
         $this->showDecisionPlanningModal = false;
         $this->reset('decisionSuspensionStart', 'decisionSuspensionEnd', 'decisionReliefNotes');
         $this->decisionNotificationSlots = [
-            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervisor_user_id' => null],
+            ['date' => '', 'time' => '', 'notes' => '', 'zone' => '', 'supervision_zone_id' => null],
         ];
     }
 
@@ -140,15 +139,15 @@ class Index extends Component
             'decisionNotificationSlots.*.time' => ['nullable', 'date_format:H:i'],
             'decisionNotificationSlots.*.notes' => ['required', 'string', 'max:80'],
             'decisionNotificationSlots.*.zone' => ['required', 'string', 'max:120'],
-            'decisionNotificationSlots.*.supervisor_user_id' => ['required', 'integer', 'exists:users,id'],
+            'decisionNotificationSlots.*.supervision_zone_id' => ['required', 'integer', 'exists:supervision_zones,id'],
             'decisionSuspensionStart' => ['nullable', 'date'],
             'decisionSuspensionEnd' => ['nullable', 'date', 'after_or_equal:decisionSuspensionStart'],
             'decisionReliefNotes' => ['nullable', 'string', 'max:2000'],
         ], [], [
             'decisionNotificationSlots.*.date' => 'fecha de notificación',
             'decisionNotificationSlots.*.notes' => 'turno',
-            'decisionNotificationSlots.*.zone' => 'zona',
-            'decisionNotificationSlots.*.supervisor_user_id' => 'supervisor de turno',
+            'decisionNotificationSlots.*.zone' => 'lugar',
+            'decisionNotificationSlots.*.supervision_zone_id' => 'zona de supervisión',
         ]);
 
         $branch = DecisionBranch::forDecision($case->decision);
@@ -199,7 +198,7 @@ class Index extends Component
             'notificationDate' => ['required', 'date'],
             'notificationShift' => ['required', 'string', 'max:80'],
             'notificationZone' => ['required', 'string', 'max:120'],
-            'notificationSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'notificationSupervisionZoneId' => ['required', 'integer', 'exists:supervision_zones,id'],
             'notificationNotes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -208,7 +207,7 @@ class Index extends Component
                 'notification_date' => $this->notificationDate,
                 'notification_shift' => $this->notificationShift,
                 'notification_zone' => $this->notificationZone,
-                'notification_supervisor_user_id' => (int) $this->notificationSupervisorUserId,
+                'notification_supervision_zone_id' => (int) $this->notificationSupervisionZoneId,
                 'notification_notes' => $this->notificationNotes !== '' ? $this->notificationNotes : null,
             ]);
         } catch (\Throwable $e) {
@@ -242,7 +241,7 @@ class Index extends Component
                 $this->notificationDate = $case->notification_date?->format('Y-m-d') ?? '';
                 $this->notificationShift = (string) ($case->notification_shift ?? '');
                 $this->notificationZone = (string) ($case->notification_zone ?? '');
-                $this->notificationSupervisorUserId = $case->notification_supervisor_user_id;
+                $this->notificationSupervisionZoneId = $case->notification_supervision_zone_id;
                 $this->notificationNotes = (string) ($case->notification_notes ?? '');
             } else {
                 $this->resetNotificationForm();
@@ -276,7 +275,7 @@ class Index extends Component
             'time' => '',
             'notes' => '',
             'zone' => '',
-            'supervisor_user_id' => null,
+            'supervision_zone_id' => null,
         ];
     }
 
@@ -409,7 +408,7 @@ class Index extends Component
             'notificationDate' => ['required', 'date'],
             'notificationShift' => ['required', 'string', 'max:80'],
             'notificationZone' => ['required', 'string', 'max:120'],
-            'notificationSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'notificationSupervisionZoneId' => ['required', 'integer', 'exists:supervision_zones,id'],
             'notificationNotes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -418,7 +417,7 @@ class Index extends Component
                 'notification_date' => $this->notificationDate,
                 'notification_shift' => $this->notificationShift,
                 'notification_zone' => $this->notificationZone,
-                'notification_supervisor_user_id' => (int) $this->notificationSupervisorUserId,
+                'notification_supervision_zone_id' => (int) $this->notificationSupervisionZoneId,
                 'notification_notes' => $this->notificationNotes !== '' ? $this->notificationNotes : null,
             ]);
         } catch (\Throwable $e) {
@@ -484,12 +483,7 @@ class Index extends Component
             : null;
         $liveCaseId = $pendingNotificationCase?->getKey();
 
-        $scope = app(FieldDisciplinaryScopeService::class);
-        $municipalityCode = $pendingNotificationCase?->employee?->municipality_code;
-        $supervisorCandidates = $scope->applySupervisorCandidatesForMunicipality(
-            User::query(),
-            $municipalityCode,
-        )->orderBy('name')->get(['id', 'name']);
+        $supervisionZones = app(SupervisionZoneService::class)->activeZonesOrdered();
 
         return view('livewire.disciplinary.coordinations.index', [
             'threads' => $threads,
@@ -511,7 +505,7 @@ class Index extends Component
             'isDecisionCase' => $isDecisionCase,
             'decisionBranch' => $decisionBranch,
             'liveCaseId' => $liveCaseId,
-            'supervisorCandidates' => $supervisorCandidates,
+            'supervisionZones' => $supervisionZones,
         ]);
     }
 
@@ -527,7 +521,7 @@ class Index extends Component
             'notificationDate',
             'notificationShift',
             'notificationZone',
-            'notificationSupervisorUserId',
+            'notificationSupervisionZoneId',
             'notificationNotes',
         );
     }

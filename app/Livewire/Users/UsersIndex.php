@@ -4,6 +4,7 @@ namespace App\Livewire\Users;
 
 use App\Enums\PlatformLevel;
 use App\Models\ColombianMunicipality;
+use App\Models\Disciplinary\SupervisionZone;
 use App\Models\JobPosition;
 use App\Models\OrganizationalArea;
 use App\Models\Role;
@@ -75,6 +76,8 @@ class UsersIndex extends Component
     public ?int $organizationalAreaId = null;
 
     public ?int $jobPositionId = null;
+
+    public ?int $supervisionZoneId = null;
 
     public bool $isActive = true;
 
@@ -247,7 +250,9 @@ class UsersIndex extends Component
             return null;
         }
 
-        $level = PlatformLevel::tryFrom((string) $roleName);
+        $legacy = PlatformLevel::legacyMap();
+        $normalized = $legacy[(string) $roleName] ?? (string) $roleName;
+        $level = PlatformLevel::tryFrom($normalized);
 
         return $level ? $level->title().' — '.$level->subtitle() : (string) $roleName;
     }
@@ -306,6 +311,38 @@ class UsersIndex extends Component
     }
 
     #[Computed]
+    public function requiresSupervisionZone(): bool
+    {
+        if ($this->assignPlatformAdmin) {
+            return false;
+        }
+
+        if (($this->resolvedSpatieRolesForSave()[0] ?? null) === PlatformLevel::Nivel7->value) {
+            return true;
+        }
+
+        // Edición: si el usuario ya es nivel7/supervisor, mostrar zona aunque el cargo tenga slug legado.
+        if ($this->editingId !== null) {
+            $user = User::query()->find($this->editingId);
+            if ($user?->hasRole(PlatformLevel::Nivel7->value) || $user?->hasRole('supervisor')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    #[Computed]
+    public function supervisionZonesOptions()
+    {
+        return SupervisionZone::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+    }
+
+    #[Computed]
     public function rolesListForFilter()
     {
         return PlatformLevel::options();
@@ -322,7 +359,7 @@ class UsersIndex extends Component
 
     public function openEdit(int $id): void
     {
-        $user = User::findOrFail($id);
+        $user = User::query()->with('supervisionZones')->findOrFail($id);
         Gate::authorize('update', $user);
 
         $this->editingId = $user->id;
@@ -333,6 +370,7 @@ class UsersIndex extends Component
         $this->assignPlatformAdmin = $user->hasRole(PlatformLevel::Nivel1->value);
         $this->organizationalAreaId = $this->assignPlatformAdmin ? null : $user->organizational_area_id;
         $this->jobPositionId = $this->assignPlatformAdmin ? null : $user->job_position_id;
+        $this->supervisionZoneId = $user->currentSupervisionZone()?->id;
         $this->authorizedMunicipalityCodes = $user->authorizedMunicipalities()
             ->pluck('colombian_municipalities.municipality_code')
             ->all();
@@ -383,6 +421,12 @@ class UsersIndex extends Component
                         $q->whereRaw('1 = 0');
                     }
                 }),
+            ],
+            'supervisionZoneId' => [
+                Rule::requiredIf(fn () => $this->requiresSupervisionZone),
+                'nullable',
+                'integer',
+                'exists:supervision_zones,id',
             ],
             'isActive' => ['boolean'],
             'allowChanges' => ['boolean'],
@@ -447,7 +491,13 @@ class UsersIndex extends Component
 
         if ($this->editingId === null) {
             Gate::authorize('create', User::class);
-            $result = $service->create($payload, $rolesToSync, $directSnapshotCreate, $municipalityCodes);
+            $result = $service->create(
+                $payload,
+                $rolesToSync,
+                $directSnapshotCreate,
+                $municipalityCodes,
+                $this->supervisionZoneId,
+            );
             $this->showForm = false;
             $this->resetUserFormFields();
             $this->generatedPlainPassword = $result['plain_password'];
@@ -459,7 +509,14 @@ class UsersIndex extends Component
         } else {
             $user = User::findOrFail($this->editingId);
             Gate::authorize('update', $user);
-            $service->update($user, $payload, $rolesToSync, $directSnapshotUpdate, $municipalityCodes);
+            $service->update(
+                $user,
+                $payload,
+                $rolesToSync,
+                $directSnapshotUpdate,
+                $municipalityCodes,
+                $this->supervisionZoneId,
+            );
             session()->flash('success', 'Usuario actualizado correctamente.');
             $this->showForm = false;
             $this->resetFormState();
@@ -488,7 +545,8 @@ class UsersIndex extends Component
     {
         $this->reset([
             'editingId', 'name', 'email', 'documentNumber', 'phone',
-            'organizationalAreaId', 'jobPositionId', 'authorizedMunicipalityCodes', 'citySearch',
+            'organizationalAreaId', 'jobPositionId', 'supervisionZoneId',
+            'authorizedMunicipalityCodes', 'citySearch',
         ]);
         $this->assignPlatformAdmin = false;
         $this->isActive = true;
@@ -534,9 +592,15 @@ class UsersIndex extends Component
         }
 
         $job = JobPosition::find($this->jobPositionId);
-        $roleName = $job?->permission_level_name;
+        $raw = trim((string) ($job?->permission_level_name ?? ''));
+        if ($raw === '') {
+            return [];
+        }
 
-        if (! $roleName || ! Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
+        $legacy = PlatformLevel::legacyMap();
+        $roleName = $legacy[$raw] ?? $raw;
+
+        if (! Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
             return [];
         }
 

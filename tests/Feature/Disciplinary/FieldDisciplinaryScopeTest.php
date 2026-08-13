@@ -4,9 +4,7 @@ namespace Tests\Feature\Disciplinary;
 
 use App\Models\Employee;
 use App\Models\EmployeeJobPosition;
-use App\Models\User;
 use App\Services\Employees\EmployeeResolver;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FieldDisciplinaryTestHelpers;
@@ -86,18 +84,4 @@ class FieldDisciplinaryScopeTest extends TestCase
         app(EmployeeResolver::class)->resolveForDisciplinaryActor($supervisor, $employee->id, $employee->document_number);
     }
 
-    public function test_supervisor_candidates_filtered_by_case_municipality(): void
-    {
-        $this->seedMunicipality('76001', 'Cali');
-        $this->seedMunicipality('05001', 'Medellín');
-
-        $caliSupervisor = $this->seedFieldUserWithCities('nivel7', ['76001']);
-        $medellinSupervisor = $this->seedFieldUserWithCities('nivel7', ['05001']);
-
-        $scope = app(FieldDisciplinaryScopeService::class);
-        $candidates = $scope->applySupervisorCandidatesForMunicipality(User::query(), '76001')->pluck('id')->all();
-
-        $this->assertContains($caliSupervisor->id, $candidates);
-        $this->assertNotContains($medellinSupervisor->id, $candidates);
-    }
 }

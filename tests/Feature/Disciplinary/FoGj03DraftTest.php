@@ -15,10 +15,12 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\FieldDisciplinaryTestHelpers;
 use Tests\TestCase;
 
 class FoGj03DraftTest extends TestCase
 {
+    use FieldDisciplinaryTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -198,7 +200,7 @@ class FoGj03DraftTest extends TestCase
             'notification_date' => now()->addDay()->toDateString(),
             'notification_shift' => 'Mañana',
             'notification_zone' => 'Norte',
-            'notification_supervisor_user_id' => $lawyer->id,
+            'notification_supervision_zone_id' => $this->seedSupervisionZone()->id,
         ]);
 
         InformeSubmission::query()->create([

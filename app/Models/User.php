@@ -77,6 +77,29 @@ class User extends Authenticatable
         );
     }
 
+    /**
+     * Zona de supervisión (bandeja compartida). Un supervisor pertenece a una sola zona.
+     */
+    public function supervisionZones(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Disciplinary\SupervisionZone::class,
+            'supervision_zone_user',
+        )->withTimestamps();
+    }
+
+    public function currentSupervisionZone(): ?Disciplinary\SupervisionZone
+    {
+        $this->loadMissing('supervisionZones');
+
+        return $this->supervisionZones->first();
+    }
+
+    public function belongsToSupervisionZone(int $zoneId): bool
+    {
+        return $this->supervisionZones()->where('supervision_zones.id', $zoneId)->exists();
+    }
+
     public function requiresFieldDisciplinaryScope(): bool
     {
         return app(\App\Support\Disciplinary\FieldDisciplinaryScopeService::class)
@@ -168,7 +191,7 @@ class User extends Authenticatable
     public function minimalDisciplinarySidebarLabel(): string
     {
         if ($this->hasRole('nivel7')) {
-            return 'Evidencias';
+            return 'Supervisión';
         }
 
         if ($this->hasAnyRole(['director', 'nivel2'])) {

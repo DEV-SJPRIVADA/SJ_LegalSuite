@@ -44,7 +44,8 @@
             'icon' => 'adjustments',
             'available' => $u->can('settings.manage-territory')
                 || $u->can('settings.manage-citation-articles')
-                || $u->can('settings.manage-diligence-questions'),
+                || $u->can('settings.manage-diligence-questions')
+                || $u->can('settings.manage-supervision-zones'),
         ];
 
         $modules[] = [

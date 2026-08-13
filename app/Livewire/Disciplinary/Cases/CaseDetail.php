@@ -39,12 +39,12 @@ use App\Services\Disciplinary\FoGj44ConstanciaService;
 use App\Services\Disciplinary\FoGj44DraftService;
 use App\Services\Disciplinary\FoGj54DraftService;
 use App\Services\Disciplinary\FoGj54ReprogramacionService;
+use App\Services\Disciplinary\SupervisionZoneService;
 use App\Enums\Disciplinary\Decision;
 use App\Support\Disciplinary\DecisionBranch;
 use App\Support\Disciplinary\DecisionStageProgress;
 use App\Support\Disciplinary\CaseOverviewStageStack;
 use App\Support\Disciplinary\CaseStageCardState;
-use App\Support\Disciplinary\FieldDisciplinaryScopeService;
 use App\Support\Disciplinary\WorkflowStageBuckets;
 use App\Support\Disciplinary\CitationStageProgress;
 use App\Support\Disciplinary\DiligenceStageProgress;
@@ -152,7 +152,7 @@ class CaseDetail extends Component
 
     public bool $showReassignSupervisorModal = false;
 
-    public ?int $reassignSupervisorUserId = null;
+    public ?int $reassignSupervisionZoneId = null;
 
     public string $reassignSupervisorReason = '';
 
@@ -902,7 +902,7 @@ class CaseDetail extends Component
     public function openReassignSupervisorModal(): void
     {
         Gate::authorize('reassignNotificationSupervisor', $this->case);
-        $this->reassignSupervisorUserId = null;
+        $this->reassignSupervisionZoneId = null;
         $this->reassignSupervisorReason = '';
         $this->showReassignSupervisorModal = true;
     }
@@ -917,15 +917,15 @@ class CaseDetail extends Component
         Gate::authorize('reassignNotificationSupervisor', $this->case);
 
         $this->validate([
-            'reassignSupervisorUserId' => ['required', 'integer', 'exists:users,id'],
+            'reassignSupervisionZoneId' => ['required', 'integer', 'exists:supervision_zones,id'],
             'reassignSupervisorReason' => ['required', 'string', 'max:2000'],
         ]);
 
         try {
-            $this->case = $notification->reassignNotificationSupervisor(
+            $this->case = $notification->reassignNotificationSupervisionZone(
                 $this->case->fresh(),
                 auth()->user(),
-                (int) $this->reassignSupervisorUserId,
+                (int) $this->reassignSupervisionZoneId,
                 $this->reassignSupervisorReason,
             );
         } catch (\Throwable $e) {
@@ -935,9 +935,9 @@ class CaseDetail extends Component
         }
 
         $this->showReassignSupervisorModal = false;
-        $this->reset('reassignSupervisorUserId', 'reassignSupervisorReason');
+        $this->reset('reassignSupervisionZoneId', 'reassignSupervisorReason');
         $this->syncCaseFromDb();
-        session()->flash('success', 'Supervisor de notificación reasignado correctamente.');
+        session()->flash('success', 'Zona de supervisión reasignada correctamente.');
     }
 
     public function requestAdvanceFromCitacion(DisciplinaryCitationWorkflowService $citation): void
@@ -2298,7 +2298,7 @@ class CaseDetail extends Component
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
             'agendaThread.messages.attachments',
-            'notificationSupervisor:id,name',
+            'notificationSupervisionZone:id,name,code',
         ]) ?? $this->case;
 
         $this->assignedLawyerId = $this->case->assigned_lawyer_id;
@@ -2342,7 +2342,7 @@ class CaseDetail extends Component
             'agendaThread.organizationalArea:id,name,slug',
             'agendaThread.messages.author:id,name',
             'agendaThread.messages.attachments',
-            'notificationSupervisor:id,name',
+            'notificationSupervisionZone:id,name,code',
         ]);
 
         $agendaAreas = OrganizationalArea::query()
@@ -2398,13 +2398,7 @@ class CaseDetail extends Component
             'lawyerCandidates' => Gate::allows('assign', $this->case)
                 ? User::query()->role('nivel6')->active()->orderBy('name')->get(['id', 'name'])
                 : collect(),
-            'supervisorCandidates' => app(FieldDisciplinaryScopeService::class)
-                ->applySupervisorCandidatesForMunicipality(
-                    User::query(),
-                    $this->case->employee?->municipality_code,
-                )
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'supervisionZones' => app(SupervisionZoneService::class)->activeZonesOrdered(),
             'organizationalAreasForAgenda' => $agendaAreas,
             'citationReadiness' => $citationWorkflow->readinessChecklist($this->case),
             'citationMissing' => $citationWorkflow->missingRequirements($this->case),
@@ -2503,7 +2497,7 @@ class CaseDetail extends Component
     /**
      * Notificación física en la barra de Etapa B (registrada por Planeación).
      *
-     * @return array{date: string, shift: string, zone: string, supervisor: string, completed: bool}
+     * @return array{date: string, shift: string, zone: string, supervision_zone: string, completed: bool}
      */
     public function resolveNotificationSlotDisplay(): array
     {
@@ -2511,7 +2505,7 @@ class CaseDetail extends Component
             'date' => '—',
             'shift' => '—',
             'zone' => '—',
-            'nivel7' => '—',
+            'supervision_zone' => '—',
             'completed' => false,
         ];
 
@@ -2523,8 +2517,8 @@ class CaseDetail extends Component
             'date' => $this->case->notification_date?->format('d/m/Y') ?? '—',
             'shift' => filled($this->case->notification_shift) ? (string) $this->case->notification_shift : '—',
             'zone' => filled($this->case->notification_zone) ? (string) $this->case->notification_zone : '—',
-            'nivel7' => filled($this->case->notification_supervisor_name)
-                ? (string) $this->case->notification_supervisor_name
+            'supervision_zone' => filled($this->case->notification_supervision_zone_name)
+                ? (string) $this->case->notification_supervision_zone_name
                 : '—',
             'completed' => true,
         ];

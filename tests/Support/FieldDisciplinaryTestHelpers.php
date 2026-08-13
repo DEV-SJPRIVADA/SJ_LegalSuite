@@ -5,12 +5,27 @@ namespace Tests\Support;
 use App\Enums\EmployeeContractType;
 use App\Enums\EmployeeScope;
 use App\Models\ColombianMunicipality;
+use App\Models\Disciplinary\SupervisionZone;
 use App\Models\Employee;
 use App\Models\EmployeeJobPosition;
 use App\Models\User;
+use App\Services\Disciplinary\SupervisionZoneService;
 
 trait FieldDisciplinaryTestHelpers
 {
+    protected function seedSupervisionZone(string $name = 'Zona Prueba'): SupervisionZone
+    {
+        return SupervisionZone::query()->firstOrCreate(
+            ['name' => $name],
+            ['is_active' => true],
+        );
+    }
+
+    protected function assignUserToZone(User $user, SupervisionZone $zone): void
+    {
+        app(SupervisionZoneService::class)->assignUser($user, $zone);
+    }
+
     protected function seedMunicipality(string $code = '76001', string $name = 'Cali'): void
     {
         ColombianMunicipality::query()->firstOrCreate(
@@ -40,6 +55,7 @@ trait FieldDisciplinaryTestHelpers
             'last_name' => 'Prueba',
             'document_number' => $documentNumber,
             'document_type' => 'CC',
+            'gender' => 'masculino',
             'residence_municipality_code' => $municipalityCode,
             'residence_department_code' => substr($municipalityCode, 0, 2),
             'municipality_code' => $municipalityCode,
@@ -64,6 +80,10 @@ trait FieldDisciplinaryTestHelpers
         $user->assignRole($role);
         $user->authorizedMunicipalities()->sync($municipalityCodes);
 
-        return $user->fresh(['authorizedMunicipalities']);
+        if ($role === 'nivel7') {
+            $this->assignUserToZone($user, $this->seedSupervisionZone());
+        }
+
+        return $user->fresh(['authorizedMunicipalities', 'supervisionZones']);
     }
 }

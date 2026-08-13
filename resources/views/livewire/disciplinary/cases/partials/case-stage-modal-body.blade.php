@@ -12,7 +12,7 @@
         'foGj03GenerationLabels' => $foGj03GenerationLabels,
         'notificationPending' => $notificationPending,
         'notificationCompleted' => $notificationCompleted,
-        'supervisorCandidates' => $supervisorCandidates,
+        'supervisionZones' => $supervisionZones,
         'citationStageSteps' => $citationStageSteps,
         'citationCurrentStep' => $citationCurrentStep,
         'citationCurrentStepNumber' => $citationCurrentStepNumber,

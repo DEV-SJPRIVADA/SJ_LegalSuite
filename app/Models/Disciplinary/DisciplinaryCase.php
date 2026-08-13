@@ -108,8 +108,8 @@ class DisciplinaryCase extends Model
         'decision_notification_date',
         'decision_notification_shift',
         'decision_notification_zone',
-        'decision_notification_supervisor_user_id',
-        'decision_notification_supervisor_name',
+        'decision_notification_supervision_zone_id',
+        'decision_notification_supervision_zone_name',
         'decision_notification_notes',
         'decision_notification_supervisor_assigned_at',
         'decision_notification_supervisor_assigned_by',
@@ -126,8 +126,8 @@ class DisciplinaryCase extends Model
         'notification_date',
         'notification_shift',
         'notification_zone',
-        'notification_supervisor_user_id',
-        'notification_supervisor_name',
+        'notification_supervision_zone_id',
+        'notification_supervision_zone_name',
         'notification_notes',
         'notification_supervisor_assigned_at',
         'notification_supervisor_assigned_by',
@@ -209,14 +209,14 @@ class DisciplinaryCase extends Model
         return $this->belongsTo(User::class, 'assigned_planner_id');
     }
 
-    public function notificationSupervisor(): BelongsTo
+    public function notificationSupervisionZone(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'notification_supervisor_user_id');
+        return $this->belongsTo(SupervisionZone::class, 'notification_supervision_zone_id');
     }
 
-    public function decisionNotificationSupervisor(): BelongsTo
+    public function decisionNotificationSupervisionZone(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'decision_notification_supervisor_user_id');
+        return $this->belongsTo(SupervisionZone::class, 'decision_notification_supervision_zone_id');
     }
 
     public function notificationRequestedBy(): BelongsTo
@@ -530,7 +530,21 @@ class DisciplinaryCase extends Model
     public function hasCitationNotificationInformationCompleted(): bool
     {
         return $this->notification_information_completed_at !== null
-            && $this->notification_supervisor_user_id !== null;
+            && $this->notification_supervision_zone_id !== null;
+    }
+
+    public function userBelongsToCitationSupervisionZone(User $user): bool
+    {
+        $zoneId = (int) ($this->notification_supervision_zone_id ?? 0);
+
+        return $zoneId > 0 && $user->belongsToSupervisionZone($zoneId);
+    }
+
+    public function userBelongsToDecisionSupervisionZone(User $user): bool
+    {
+        $zoneId = (int) ($this->decision_notification_supervision_zone_id ?? 0);
+
+        return $zoneId > 0 && $user->belongsToSupervisionZone($zoneId);
     }
 
     /** Planeación publicó opciones de notificación de decisión en el hilo. */
@@ -1056,7 +1070,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ((int) $this->decision_notification_supervisor_user_id === (int) $user->id) {
+        if ($this->userBelongsToDecisionSupervisionZone($user)) {
             return true;
         }
 
@@ -1132,7 +1146,7 @@ class DisciplinaryCase extends Model
             return true;
         }
 
-        if ((int) $this->notification_supervisor_user_id === (int) $user->id) {
+        if ($this->userBelongsToCitationSupervisionZone($user)) {
             return true;
         }
 

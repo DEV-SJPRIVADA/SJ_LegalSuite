@@ -41,7 +41,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '09:00',
                 'notes' => 'Mañana',
                 'zone' => 'Norte',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]],
         );
 
@@ -56,7 +56,10 @@ class DecisionCoordinationTest extends TestCase
 
         $this->assertTrue(app(DecisionCoordinationService::class)->hasConfirmedNotification($confirmed));
         $this->assertSame('Mañana', $confirmed->decision_notification_shift);
-        $this->assertSame((int) $supervisor->id, (int) $confirmed->decision_notification_supervisor_user_id);
+        $this->assertSame(
+            (int) $supervisor->currentSupervisionZone()->id,
+            (int) $confirmed->decision_notification_supervision_zone_id,
+        );
         $this->assertTrue($lawyer->can('editDecisionDraft', $confirmed));
     }
 
@@ -70,7 +73,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '10:00',
                 'notes' => 'Tarde',
                 'zone' => 'Centro',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]];
             $extras = $decision === Decision::SUSPENSION
                 ? ['suspension_start' => '2026-08-25']
@@ -111,7 +114,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '08:00',
                 'notes' => 'Mañana',
                 'zone' => 'Sur',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]],
             ['suspension_start' => '2026-08-28'],
         );
@@ -140,7 +143,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '14:00',
                 'notes' => 'Tarde',
                 'zone' => 'Norte',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]],
             ['suspension_start' => '2026-08-30'],
         );
@@ -162,7 +165,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '11:00',
                 'notes' => 'Mañana',
                 'zone' => 'Este',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]],
         );
 
@@ -188,7 +191,7 @@ class DecisionCoordinationTest extends TestCase
                 'time' => '09:30',
                 'notes' => 'Mañana',
                 'zone' => 'Oeste',
-                'supervisor_user_id' => $supervisor->id,
+                'supervision_zone_id' => $supervisor->currentSupervisionZone()->id,
             ]],
         );
 
