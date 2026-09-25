@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
             CitationFaultTemplatesSeeder::class,
             DiligenceActaQuestionsSeeder::class,
             DemoUsersSeeder::class,
+            DirectoryUsersSeeder::class,
+            LegalDocumentsMatrixSeeder::class,
         ]);
     }
 }

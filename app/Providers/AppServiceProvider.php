@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\LegalDocuments\LegalDocumentFolder;
 use App\Models\Licitaciones\Licitacion;
 use App\Models\Licitaciones\LicitacionSolicitud;
 use App\Models\Disciplinary\DisciplinaryCase;
 use App\Models\Disciplinary\InformeSubmission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Policies\LegalDocumentFolderPolicy;
 use App\Policies\LicitacionPolicy;
 use App\Policies\LicitacionSolicitudPolicy;
 use App\Policies\DisciplinaryCasePolicy;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     protected array $policies = [
         Licitacion::class => LicitacionPolicy::class,
         LicitacionSolicitud::class => LicitacionSolicitudPolicy::class,
+        LegalDocumentFolder::class => LegalDocumentFolderPolicy::class,
         DisciplinaryCase::class => DisciplinaryCasePolicy::class,
         InformeSubmission::class => InformeSubmissionPolicy::class,
         Employee::class => EmployeePolicy::class,

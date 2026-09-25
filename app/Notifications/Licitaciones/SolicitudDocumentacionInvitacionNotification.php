@@ -50,8 +50,11 @@ class SolicitudDocumentacionInvitacionNotification extends Notification
             $mail->line('**Indicaciones:** '.$this->invitado->mensaje);
         }
 
-        if ($solicitud?->fecha_limite) {
-            $mail->line('**Fecha límite:** '.$solicitud->fecha_limite->format('d/m/Y'));
+        $deadline = $solicitud?->aportacionDeadline();
+        if ($deadline) {
+            $mail->line(
+                '**Fecha y hora de límite de entrega:** '.$deadline->timezone(config('app.timezone'))->format('d/m/Y H:i')
+            );
         }
 
         return $mail

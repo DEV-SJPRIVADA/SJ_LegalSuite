@@ -2,12 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --sj-blue: #1e2743;
+    --sj-orange: #f7a823;
+    --sj-white: #ffffff;
+    --font-sj: "neue-haas-grotesk-display", ui-sans-serif, system-ui, sans-serif;
+}
+
 [x-cloak] {
     display: none !important;
 }
 
 /* Modo oscuro: listas nativas de <select> (p. ej. Chrome) usan colores del control; sin esto options pueden quedar texto claro sobre fondo claro. */
 @layer base {
+    html {
+        font-family: var(--font-sj);
+    }
+
     .dark select {
         color-scheme: dark;
     }
@@ -62,11 +73,15 @@
     }
 
     .sj-btn--primary {
-        @apply bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400;
+        @apply bg-sj-blue text-white hover:bg-[#2a3354] dark:bg-sj-orange dark:text-sj-blue dark:hover:bg-[#ffb84a];
+    }
+
+    .sj-btn--accent {
+        @apply bg-sj-orange text-sj-blue hover:bg-[#ffb84a];
     }
 
     .sj-btn--secondary {
-        @apply bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/15;
+        @apply bg-white text-sj-blue ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-200 dark:ring-white/20 dark:hover:bg-white/15;
     }
 
     .sj-btn--teal {
@@ -90,15 +105,15 @@
     }
 
     .sj-btn--ghost {
-        @apply border border-slate-300 bg-white text-slate-800 hover:bg-white dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:bg-white/10;
+        @apply border border-slate-300 bg-white text-sj-blue hover:bg-white dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:bg-white/10;
     }
 
     .sj-btn--dark {
-        @apply bg-slate-900 text-white hover:bg-slate-800 dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90;
+        @apply bg-sj-blue text-white hover:bg-[#2a3354] dark:bg-dash-lift dark:ring-1 dark:ring-white/15 dark:hover:bg-dash-lift/90;
     }
 
     .sj-btn--indigo-soft {
-        @apply bg-white text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 dark:bg-white/10 dark:text-cyan-200 dark:ring-cyan-400/35 dark:hover:bg-white/15;
+        @apply bg-white text-sj-blue ring-1 ring-sj-blue/20 hover:bg-slate-50 dark:bg-white/10 dark:text-sj-orange dark:ring-sj-orange/35 dark:hover:bg-white/15;
     }
 
     .sj-btn--emerald-soft {
@@ -110,7 +125,7 @@
     }
 
     .sj-btn--warning {
-        @apply bg-amber-700 text-white hover:bg-amber-800;
+        @apply bg-sj-orange text-sj-blue hover:bg-[#e0961a];
     }
 
     .sj-status-md {

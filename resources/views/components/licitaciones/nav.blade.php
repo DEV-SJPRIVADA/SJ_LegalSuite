@@ -13,6 +13,9 @@
     if (auth()->user()->can('viewDashboard', $model)) {
         $links[] = ['label' => 'Informes', 'route' => route('licitaciones.informes.index'), 'active' => request()->routeIs('licitaciones.informes.*')];
     }
+    if (auth()->user()->can('viewAny', \App\Models\LegalDocuments\LegalDocumentFolder::class)) {
+        $links[] = ['label' => 'Documentos Legales', 'route' => route('licitaciones.documentos-legales.index'), 'active' => request()->routeIs('licitaciones.documentos-legales.*')];
+    }
 @endphp
 <header class="{{ $isDark ? 'border-b border-white/10 bg-dash-ink/85 backdrop-blur-md sticky top-0 z-20' : 'bg-white border-b border-slate-200 sticky top-0 z-20' }}">
     <div class="flex items-center justify-between gap-2 px-4 lg:px-6 flex-wrap">
@@ -21,7 +24,7 @@
                 @foreach ($links as $link)
                     <li>
                         <a href="{{ $link['route'] }}" wire:navigate
-                           class="inline-flex px-4 py-3 border-b-2 font-medium whitespace-nowrap {{ $link['active'] ? ($isDark ? 'border-cyan-400 text-white' : 'border-indigo-600 text-indigo-700') : ($isDark ? 'border-transparent text-slate-400' : 'border-transparent text-slate-600') }}">
+                           class="inline-flex px-4 py-3 border-b-2 font-medium whitespace-nowrap {{ $link['active'] ? ($isDark ? 'border-sj-orange text-sj-orange' : 'border-sj-orange text-sj-blue') : ($isDark ? 'border-transparent text-slate-400' : 'border-transparent text-slate-600') }}">
                             {{ $link['label'] }}
                         </a>
                     </li>

@@ -11,8 +11,7 @@
 
         <title>{{ config('app.name', 'SJ LegalSuite') }}</title>
 
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
+        <x-corporate-fonts />
 
         @vite(['resources/js/app.js'])
 
@@ -31,7 +30,7 @@
             }
         </style>
     </head>
-    <body class="font-sans antialiased text-slate-900">
+    <body class="font-sans antialiased text-sj-blue">
         @php
             $shell = 'mx-auto w-full max-w-[100rem] px-5 sm:px-8 md:px-10 lg:px-12 xl:px-16 2xl:px-20';
         @endphp
@@ -78,7 +77,7 @@
                         </span>
                         <h1 class="guest-anim guest-anim-delay-1 mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl xl:text-[3.25rem]">
                             Ingresa a
-                            <span class="mt-1 block bg-gradient-to-r from-indigo-300 via-sky-200 to-emerald-300 bg-clip-text text-transparent">
+                            <span class="mt-1 block bg-gradient-to-r from-sj-orange via-[#ffc857] to-white bg-clip-text text-transparent">
                                 SJ LegalSuite
                             </span>
                         </h1>

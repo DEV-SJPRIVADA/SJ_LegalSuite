@@ -14,7 +14,7 @@
                 <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Solicitudes</h1>
             </div>
             @can('create', \App\Models\Licitaciones\LicitacionSolicitud::class)
-                <button type="button" wire:click="openCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Nueva solicitud</button>
+                <button type="button" wire:click="openCreate" class="rounded-lg bg-sj-blue px-4 py-2 text-sm font-semibold text-white">Nueva solicitud</button>
             @endcan
         </div>
     </div>
@@ -39,7 +39,7 @@
                             <td class="px-4 py-3">{{ $row->licitacion?->numero_proceso ?? '—' }}</td>
                             <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full {{ $row->estado?->badgeClass() }}">{{ $row->estado?->label() }}</span></td>
                             <td class="px-4 py-3">{{ $row->fecha_limite?->format('d/m/Y') }}</td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('licitaciones.solicitudes.show', $row) }}" wire:navigate class="text-indigo-600 font-semibold">Ver</a></td>
+                            <td class="px-4 py-3 text-right"><a href="{{ route('licitaciones.solicitudes.show', $row) }}" wire:navigate class="text-sj-blue font-semibold">Ver</a></td>
                         </tr>
                     @empty
                         <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Sin solicitudes.</td></tr>
@@ -79,7 +79,7 @@
                     <div><label class="{{ $label }}">Fecha límite</label><input type="date" wire:model="fecha_limite" class="{{ $field }}"></div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" wire:click="closeForm">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Crear</button>
+                        <button type="submit" class="px-4 py-2 bg-sj-blue text-white rounded-lg text-sm">Crear</button>
                     </div>
                 </form>
             </div>

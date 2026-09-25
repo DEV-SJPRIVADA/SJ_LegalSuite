@@ -29,8 +29,11 @@ use App\Http\Controllers\Disciplinary\SupervisorSignedNotificationPreviewControl
 use App\Http\Controllers\Employees\EmployeeSearchController;
 use App\Http\Controllers\Employees\EmployeeTemplateDownloadController;
 use App\Livewire\Auth\ForcePasswordChange;
+use App\Http\Controllers\LegalDocuments\LegalDocumentFileController;
 use App\Livewire\Licitaciones\Informes\InformesIndex as LicitacionesInformesIndex;
 use App\Livewire\Licitaciones\Dashboard as LicitacionesDashboard;
+use App\Livewire\Licitaciones\DocumentosLegales\DocumentosLegalesFolderShow;
+use App\Livewire\Licitaciones\DocumentosLegales\DocumentosLegalesIndex;
 use App\Livewire\Licitaciones\Procesos\ProcesoShow;
 use App\Livewire\Licitaciones\Procesos\ProcesosIndex;
 use App\Livewire\Licitaciones\Solicitudes\SolicitudesIndex;
@@ -182,6 +185,9 @@ Route::middleware(['auth', 'must-change-password', 'verified'])->group(function 
         Route::get('informes', LicitacionesInformesIndex::class)->name('informes.index');
         Route::get('informes/export', LicitacionInformesExportController::class)->name('informes.export');
         Route::get('adjuntos/{adjunto}/file', LicitacionAdjuntoInlineController::class)->name('adjuntos.file');
+        Route::get('documentos-legales', DocumentosLegalesIndex::class)->name('documentos-legales.index');
+        Route::get('documentos-legales/carpetas/{folder}', DocumentosLegalesFolderShow::class)->name('documentos-legales.folder');
+        Route::get('documentos-legales/archivos/{file}', LegalDocumentFileController::class)->name('documentos-legales.file');
     });
 
     Route::get('employees', EmployeesIndex::class)->name('employees.index');

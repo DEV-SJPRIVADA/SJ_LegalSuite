@@ -32,12 +32,15 @@ class Dashboard extends Component
     {
         $dashboard = app(LicitacionDashboardService::class);
         $actor = auth()->user();
+        $charts = $dashboard->charts($actor);
 
         return view('livewire.licitaciones.dashboard', [
             'stats' => $dashboard->stats($actor),
             'recentLicitaciones' => $dashboard->recentLicitaciones(),
             'recentSolicitudes' => $dashboard->recentSolicitudes($actor),
             'upcomingExpiries' => $dashboard->upcomingExpiries($actor),
+            'charts' => $charts,
+            'aportacionesUrgentes' => $charts['aportacionesUrgentes'],
         ]);
     }
 }

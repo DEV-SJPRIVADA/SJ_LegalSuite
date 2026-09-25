@@ -1,6 +1,6 @@
             <div class="rounded-xl bg-white ring-1 ring-slate-200 p-5 dark:bg-white/[0.04] dark:ring-white/10 space-y-2 text-sm">
                 <p><span class="font-semibold">Objeto:</span> {{ $licitacion->objeto ?: '—' }}</p>
-                <p><span class="font-semibold">Modalidad:</span> {{ $licitacion->modalidad_contratacion ?: '—' }}</p>
+                <p><span class="font-semibold">Modalidad de selección:</span> {{ $licitacion->modalidad_contratacion ?: '—' }}</p>
                 <p><span class="font-semibold">Cuantía:</span> {{ $licitacion->cuantia ?: '—' }}</p>
                 <p><span class="font-semibold">Plazo ejecución:</span> {{ $licitacion->plazo_ejecucion ?: '—' }}</p>
                 <p><span class="font-semibold">Lugar ejecución:</span> {{ $licitacion->lugar_ejecucion ?: '—' }}</p>
@@ -21,6 +21,6 @@
                 @endif
                 <p><span class="font-semibold">Responsable:</span> {{ $licitacion->responsablePrincipal?->name }}</p>
                 @if ($licitacion->enlace_proceso)
-                    <p><a href="{{ $licitacion->enlace_proceso }}" target="_blank" rel="noopener" class="text-indigo-600 underline">Abrir enlace del proceso</a></p>
+                    <p><a href="{{ $licitacion->enlace_proceso }}" target="_blank" rel="noopener" class="text-sj-blue underline">Abrir enlace del proceso</a></p>
                 @endif
             </div>

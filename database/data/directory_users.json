@@ -1,0 +1,702 @@
+[
+    {
+        "name": "Alejandra Mora",
+        "email": "analista.programacionunp@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 2
+    },
+    {
+        "name": "Alejandra Lopez Restrepo",
+        "email": "alejandra.lopez@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 3
+    },
+    {
+        "name": "Andrea Sanchez",
+        "email": "regionalejecafetero@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 4
+    },
+    {
+        "name": "Andres Sanmiguel",
+        "email": "andres.sanmiguel@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 5
+    },
+    {
+        "name": "Angelica Muñoz",
+        "email": "auditor.interno@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 6
+    },
+    {
+        "name": "Anna Maria Caripe Muñoz",
+        "email": "formacion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 7
+    },
+    {
+        "name": "Anyela Anacona",
+        "email": "tesoreria@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 8
+    },
+    {
+        "name": "Aprendiz De Gestio Humana",
+        "email": "aprendizgh@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 9
+    },
+    {
+        "name": "archivo comercial",
+        "email": "documento.comercial@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 10
+    },
+    {
+        "name": "Camila carrillo",
+        "email": "asistente.tic@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 11
+    },
+    {
+        "name": "Carlos Fernando campo",
+        "email": "jefedeseguridadnarino@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 12
+    },
+    {
+        "name": "Carlos Fortich Maza",
+        "email": "analistacaribe@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 13
+    },
+    {
+        "name": "Carlos Gutierrez",
+        "email": "carlos.gutierrez@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 14
+    },
+    {
+        "name": "Carlos Hernán Salazar",
+        "email": "analistaprogramacion3@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 15
+    },
+    {
+        "name": "Central SJ Emcali",
+        "email": "central.emcali@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 16
+    },
+    {
+        "name": "centralbuga",
+        "email": "centralbuga@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 17
+    },
+    {
+        "name": "Charlie Álvarez",
+        "email": "marketing@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 18
+    },
+    {
+        "name": "Cindy Paola Quiñones",
+        "email": "analista.impuestos@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 19
+    },
+    {
+        "name": "Claudia Jimena Escobar Muñoz",
+        "email": "comercial4@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 20
+    },
+    {
+        "name": "Comite de Convivencia Laboral",
+        "email": "ccl@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 21
+    },
+    {
+        "name": "Coordinador Pasto",
+        "email": "coordinadorpasto@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 22
+    },
+    {
+        "name": "Daniel Toro",
+        "email": "omtlider@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 23
+    },
+    {
+        "name": "Deysi Ortega",
+        "email": "nomina@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 24
+    },
+    {
+        "name": "Diana Ausenon",
+        "email": "analistacontable@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 25
+    },
+    {
+        "name": "Diana Isabel Martínez Collazos",
+        "email": "cfiscaliacauca@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 26
+    },
+    {
+        "name": "Diana Ramirez",
+        "email": "analista.seleccion2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 27
+    },
+    {
+        "name": "Eduardo Orozco",
+        "email": "jefe.operaciones2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 28
+    },
+    {
+        "name": "Equidad SJ",
+        "email": "sjequidad@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 29
+    },
+    {
+        "name": "Facturacion Proveedores",
+        "email": "proveedores@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 30
+    },
+    {
+        "name": "Gerencia General SJ Seguridad Privada LTDA",
+        "email": "gerencia@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 31
+    },
+    {
+        "name": "Gine Ximena Ortiz",
+        "email": "asistenteseleccion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 32
+    },
+    {
+        "name": "Harold Flor",
+        "email": "analistacontable2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 33
+    },
+    {
+        "name": "Harold Mellizo",
+        "email": "coordinador.tecnologia@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 34
+    },
+    {
+        "name": "Impresora",
+        "email": "backup@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 35
+    },
+    {
+        "name": "Incapacidades Cali",
+        "email": "incapacidades@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 36
+    },
+    {
+        "name": "Ivonne Jimenez",
+        "email": "asisadmon@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 37
+    },
+    {
+        "name": "Jessica Hernández Gómez",
+        "email": "analistadecumplimiento@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 38
+    },
+    {
+        "name": "Jesus Hernan Vidal Londoño",
+        "email": "ejecutivocomercial5@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 39
+    },
+    {
+        "name": "Jhon Eiver Aldana Poveda",
+        "email": "programacion2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 40
+    },
+    {
+        "name": "Johan Alexander Valencia",
+        "email": "sst@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 41
+    },
+    {
+        "name": "John Arango",
+        "email": "compras@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 42
+    },
+    {
+        "name": "Jorge Fernando",
+        "email": "programacion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 43
+    },
+    {
+        "name": "Jose Guerrero",
+        "email": "jefe.operaciones@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 44
+    },
+    {
+        "name": "Jose Arley Ramirez Henao",
+        "email": "central.valle@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 45
+    },
+    {
+        "name": "Juan David Muñoz",
+        "email": "asistentecontable3@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 46
+    },
+    {
+        "name": "Juan Gabriel Prieto",
+        "email": "oficialdecumplimiento@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 47
+    },
+    {
+        "name": "Julian David Tovar",
+        "email": "contratacion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 48
+    },
+    {
+        "name": "Karol Dayana Diaz",
+        "email": "asistente.nomina@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 49
+    },
+    {
+        "name": "Kelly Johana Castro Oviedo",
+        "email": "kelly.castro@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 50
+    },
+    {
+        "name": "Kevin Andres Taborda R",
+        "email": "relacioneslaborales@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 51
+    },
+    {
+        "name": "Lady Johanna Rincon Ortiz",
+        "email": "facturacion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 52
+    },
+    {
+        "name": "Leonardo Guerra",
+        "email": "jefeseguridad@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 53
+    },
+    {
+        "name": "Ligia Alvarez",
+        "email": "ligia.alvarez@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 54
+    },
+    {
+        "name": "Lina Aristizabal",
+        "email": "coordinacion.ut@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 55
+    },
+    {
+        "name": "Lina Mendoza",
+        "email": "licitaciones@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 56
+    },
+    {
+        "name": "Liseth Tatiana Preciado A",
+        "email": "jefe.operaciones1@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 57
+    },
+    {
+        "name": "Luis Carlos Jimenez",
+        "email": "oficinamanizales@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 58
+    },
+    {
+        "name": "Luis Felipe Betancurt",
+        "email": "asistente.contable@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 59
+    },
+    {
+        "name": "Luis Hernesto Garay",
+        "email": "supervisorz13utnas@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 60
+    },
+    {
+        "name": "Luis Mario Lopez",
+        "email": "cfiscalianarino@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 61
+    },
+    {
+        "name": "Luisa Fernanda Ferrerosa",
+        "email": "luisa.ferrerosa@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 62
+    },
+    {
+        "name": "Manuel Espinosa",
+        "email": "desarrollo.tic@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 63
+    },
+    {
+        "name": "Maria Meneses",
+        "email": "maria.meneses@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 64
+    },
+    {
+        "name": "Maribel Arias Sotelo",
+        "email": "contacto@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 65
+    },
+    {
+        "name": "Maritza Florez",
+        "email": "formacionydesarrollo@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 66
+    },
+    {
+        "name": "Mauricio Arenas",
+        "email": "analista.operaciones2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 67
+    },
+    {
+        "name": "Mauricio Ramirez Chala",
+        "email": "asistentesst@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 68
+    },
+    {
+        "name": "Mauricio Sandoval",
+        "email": "jefe.operaciones3@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 69
+    },
+    {
+        "name": "Monica Solarte",
+        "email": "analistanomina@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 70
+    },
+    {
+        "name": "Monitoreo",
+        "email": "monitoreo@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 71
+    },
+    {
+        "name": "Nataly Alzate",
+        "email": "asistentecomercial@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 72
+    },
+    {
+        "name": "Nixon Franco",
+        "email": "nixon.franco@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 73
+    },
+    {
+        "name": "no-reply SJ",
+        "email": "no-reply@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 74
+    },
+    {
+        "name": "operacionescartagena",
+        "email": "operacionescartagena@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 75
+    },
+    {
+        "name": "Oscar Alzate",
+        "email": "coordinadorchoco@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 76
+    },
+    {
+        "name": "Oscar Zambrano",
+        "email": "oscar.zambrano@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 77
+    },
+    {
+        "name": "Pedro Del Toro",
+        "email": "supervisormonteria@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 78
+    },
+    {
+        "name": "Recepcion",
+        "email": "recepcion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 79
+    },
+    {
+        "name": "Sandra Bermudez",
+        "email": "enlace.unp@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 80
+    },
+    {
+        "name": "Sebastian Cepeda",
+        "email": "ejecutivocomercial6@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 81
+    },
+    {
+        "name": "Sindy Mar Pineda Gongora",
+        "email": "asistentenomina2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 82
+    },
+    {
+        "name": "Supervisor Centro Comercial la Estacion",
+        "email": "super-estacion@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 83
+    },
+    {
+        "name": "supervisor palmira",
+        "email": "supervisorpalmira@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 84
+    },
+    {
+        "name": "Supervisor Bogota",
+        "email": "supervisorbogota@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 85
+    },
+    {
+        "name": "Supervisor Buga",
+        "email": "supervisorbuga@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 86
+    },
+    {
+        "name": "Supervisor Manizales",
+        "email": "supervisormanizales@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 87
+    },
+    {
+        "name": "Supervisor NORTE",
+        "email": "supervisornorte@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 88
+    },
+    {
+        "name": "Supervisor P Industrial",
+        "email": "supervisor.pindustrial@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 89
+    },
+    {
+        "name": "Supervisor SUR",
+        "email": "supervisorsur@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 90
+    },
+    {
+        "name": "Tatiana Montes",
+        "email": "comercialvip@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 91
+    },
+    {
+        "name": "Tatiana Paola Coral Ossa",
+        "email": "admonpersonal@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 92
+    },
+    {
+        "name": "Tecnicos De Soporte Electrónico",
+        "email": "soporte@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 93
+    },
+    {
+        "name": "Valentina Obando",
+        "email": "supervisorsfo@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 94
+    },
+    {
+        "name": "Victor Ortiz",
+        "email": "auxiliargh@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 95
+    },
+    {
+        "name": "Viviana Cardenas",
+        "email": "coordinador.comercial@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 96
+    },
+    {
+        "name": "Wilder Rivera",
+        "email": "auxiliar.operaciones@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 97
+    },
+    {
+        "name": "Yeison Fernaey Alvarado",
+        "email": "coordinadorbuga@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 98
+    },
+    {
+        "name": "Yennyfer Echavarria Lozano",
+        "email": "contabilidad2@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 99
+    },
+    {
+        "name": "Yesmith Salgado Madera",
+        "email": "oficinacartagena@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 100
+    },
+    {
+        "name": "Yhun Sebastian Hernandez Granada",
+        "email": "jefeseguridadarmenia@sjsp.com.co",
+        "is_active": true,
+        "source": "agendamiento",
+        "external_id": 101
+    }
+]

@@ -20,6 +20,7 @@ class LicitacionSolicitudInvitado extends Model
         'mensaje',
         'invitado_at',
         'notificado_at',
+        'ultimo_recordatorio_at',
         'ultimo_acceso_at',
         'invitado_por_id',
     ];
@@ -29,8 +30,63 @@ class LicitacionSolicitudInvitado extends Model
         return [
             'invitado_at' => 'datetime',
             'notificado_at' => 'datetime',
+            'ultimo_recordatorio_at' => 'datetime',
             'ultimo_acceso_at' => 'datetime',
         ];
+    }
+
+    public function hasUploadedDocuments(): bool
+    {
+        return $this->adjuntos()->exists();
+    }
+
+    /**
+     * Ventana crítica: última hora antes del límite (y después, mientras no suban archivos).
+     */
+    public function isInFinalHourWindow(): bool
+    {
+        $deadline = $this->solicitud?->aportacionDeadline();
+        if ($deadline === null) {
+            return false;
+        }
+
+        return now()->gte($deadline->copy()->subHour());
+    }
+
+    public function needsAportacionReminder(): bool
+    {
+        if ($this->hasUploadedDocuments()) {
+            return false;
+        }
+
+        if ($this->notificado_at === null) {
+            return false;
+        }
+
+        $deadline = $this->solicitud?->aportacionDeadline();
+        if ($deadline === null) {
+            return false;
+        }
+
+        // Última hora (o ya vencido): recordatorio cada 10 minutos hasta que suban archivos.
+        if ($this->isInFinalHourWindow()) {
+            if ($this->ultimo_recordatorio_at === null) {
+                return true;
+            }
+
+            return $this->ultimo_recordatorio_at->lte(now()->subMinutes(10));
+        }
+
+        // Antes de la última hora: desde 48 h antes, como máximo un recordatorio al día.
+        if (now()->lt($deadline->copy()->subHours(48))) {
+            return false;
+        }
+
+        if ($this->ultimo_recordatorio_at === null) {
+            return true;
+        }
+
+        return $this->ultimo_recordatorio_at->lte(now()->subDay());
     }
 
     public static function generateToken(): string

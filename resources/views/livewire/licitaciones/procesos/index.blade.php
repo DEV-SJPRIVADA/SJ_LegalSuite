@@ -14,7 +14,7 @@
                 <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Licitaciones</h1>
             </div>
             @can('create', \App\Models\Licitaciones\Licitacion::class)
-                <button type="button" wire:click="openCreate" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Nueva licitación</button>
+                <button type="button" wire:click="openCreate" class="rounded-lg bg-sj-blue px-4 py-2 text-sm font-semibold text-white hover:bg-[#2a3354]">Nueva licitación</button>
             @endcan
         </div>
     </div>
@@ -52,7 +52,7 @@
                             <td class="px-4 py-3">{{ $row->responsablePrincipal?->name ?? '—' }}</td>
                             <td class="px-4 py-3">{{ $row->fecha_cierre_oferta?->format('d/m/Y') ?? '—' }}</td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <a href="{{ route('licitaciones.procesos.show', $row) }}" wire:navigate class="text-indigo-600 font-semibold dark:text-cyan-400">Ver</a>
+                                <a href="{{ route('licitaciones.procesos.show', $row) }}" wire:navigate class="text-sj-blue font-semibold dark:text-sj-orange">Ver</a>
                                 @can('update', $row)
                                     <button type="button" wire:click="openEdit({{ $row->id }})" class="text-slate-600 font-semibold dark:text-slate-300">Editar</button>
                                 @endcan
@@ -79,7 +79,7 @@
                         <select wire:model="responsable_principal_id" class="{{ $field }}">@foreach($abogados as $u)<option value="{{ $u->id }}">{{ $u->name }}</option>@endforeach</select></div>
                     <div><label class="{{ $label }}">Número proceso</label><input wire:model="numero_proceso" class="{{ $field }}"></div>
                     <div><label class="{{ $label }}">Entidad contratante</label><input wire:model="entidad_contratante" class="{{ $field }}"></div>
-                    <div><label class="{{ $label }}">Modalidad</label><input wire:model="modalidad_contratacion" class="{{ $field }}"></div>
+                    <div><label class="{{ $label }}">Modalidad de selección</label><input wire:model="modalidad_contratacion" class="{{ $field }}"></div>
                     <div><label class="{{ $label }}">Estado proceso</label><input wire:model="estado_proceso" class="{{ $field }}"></div>
                     <div class="md:col-span-2"><label class="{{ $label }}">Objeto</label><textarea wire:model="objeto" rows="3" class="{{ $field }}"></textarea></div>
                     <div><label class="{{ $label }}">Cuantía</label><input wire:model="cuantia" class="{{ $field }}"></div>
@@ -121,7 +121,7 @@
                     @endif
                     <div class="md:col-span-2 flex justify-end gap-2 pt-2">
                         <button type="button" wire:click="closeForm" class="px-4 py-2 text-sm rounded-lg border">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white">Guardar</button>
+                        <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-sj-blue text-white">Guardar</button>
                     </div>
                 </form>
             </div>

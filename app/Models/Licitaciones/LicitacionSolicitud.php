@@ -28,6 +28,7 @@ class LicitacionSolicitud extends Model
         'periodicidad',
         'tipo_peticion',
         'fecha_limite',
+        'aportacion_limite_at',
         'estado',
         'created_by_id',
         'email_notificacion',
@@ -39,11 +40,32 @@ class LicitacionSolicitud extends Model
         return [
             'fecha_creacion' => 'date',
             'fecha_limite' => 'date',
+            'aportacion_limite_at' => 'datetime',
             'tipo_solicitud' => RequestType::class,
             'periodicidad' => Periodicity::class,
             'tipo_peticion' => PetitionType::class,
             'estado' => RequestStatus::class,
         ];
+    }
+
+    /**
+     * Límite de entrega de documentos por aportantes (fecha+hora).
+     * Si no hay aportacion_limite_at, usa fecha_limite al final del día.
+     */
+    public function aportacionDeadline(): ?\Illuminate\Support\Carbon
+    {
+        if ($this->aportacion_limite_at) {
+            return $this->aportacion_limite_at;
+        }
+
+        return $this->fecha_limite?->copy()->endOfDay();
+    }
+
+    public function aportacionDeadlineLabel(): string
+    {
+        $deadline = $this->aportacionDeadline();
+
+        return $deadline ? $deadline->timezone(config('app.timezone'))->format('d/m/Y H:i') : '—';
     }
 
     public function licitacion(): BelongsTo

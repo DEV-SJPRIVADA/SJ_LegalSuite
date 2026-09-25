@@ -7,11 +7,14 @@ use App\Models\Licitaciones\LicitacionAdjunto;
 use App\Models\Licitaciones\LicitacionComentario;
 use App\Models\Licitaciones\LicitacionSolicitud;
 use App\Models\Licitaciones\LicitacionSolicitudInvitado;
+use App\Services\Directory\CompanyDirectorySearchService;
 use App\Services\Licitaciones\LicitacionDocumentService;
 use App\Services\Licitaciones\LicitacionInvitadoService;
 use App\Services\Licitaciones\LicitacionSolicitudService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -36,7 +39,16 @@ class SolicitudShow extends Component
 
     public string $invitadosTexto = '';
 
+    /** @var list<array{email: string, name: string|null}> */
+    public array $aportantesSeleccionados = [];
+
+    public string $aportanteBusqueda = '';
+
+    public string $aportanteExterno = '';
+
     public string $mensajeInvitacion = '';
+
+    public string $aportacionLimiteAt = '';
 
     public string $revisionComentario = '';
 
@@ -50,6 +62,9 @@ class SolicitudShow extends Component
         $this->refreshSolicitud($solicitud);
         $this->nuevoEstado = $solicitud->estado?->value ?? RequestStatus::Recibido->value;
         $this->emailNotificacionEdit = (string) ($solicitud->email_notificacion ?: $solicitud->creador?->email ?: '');
+        $this->aportacionLimiteAt = $this->formatAportacionLimiteInput(
+            $solicitud->aportacionDeadline()
+        );
     }
 
     public function guardarComentario(): void
@@ -129,27 +144,42 @@ class SolicitudShow extends Component
         Gate::authorize('manageInvitados', $this->solicitud);
 
         $this->validate([
-            'invitadosTexto' => ['required', 'string', 'max:5000'],
+            'aportantesSeleccionados' => ['required', 'array', 'min:1'],
+            'aportantesSeleccionados.*.email' => ['required', 'email', 'max:255'],
+            'aportantesSeleccionados.*.name' => ['nullable', 'string', 'max:255'],
             'mensajeInvitacion' => ['nullable', 'string', 'max:5000'],
+            'aportacionLimiteAt' => ['required', 'date', 'after:now'],
+        ], [
+            'aportantesSeleccionados.required' => 'Seleccione al menos un aportante del directorio o agregue un correo.',
+            'aportantesSeleccionados.min' => 'Seleccione al menos un aportante del directorio o agregue un correo.',
+            'aportacionLimiteAt.required' => 'Indique la fecha y hora límite de entrega.',
+            'aportacionLimiteAt.after' => 'El límite de entrega debe ser una fecha y hora futuras.',
+        ], [
+            'aportantesSeleccionados' => 'aportantes',
+            'aportacionLimiteAt' => 'fecha y hora de límite de entrega',
         ]);
 
-        $destinatarios = collect(preg_split('/[\s,;]+/', $this->invitadosTexto) ?: [])
-            ->map(fn (string $email) => trim($email))
-            ->filter()
-            ->unique()
-            ->map(function (string $email) {
-                if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $destinatarios = collect($this->aportantesSeleccionados)
+            ->map(function (array $row) {
+                $email = strtolower(trim((string) ($row['email'] ?? '')));
+                if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     return null;
                 }
 
-                return ['email' => $email];
+                $name = trim((string) ($row['name'] ?? ''));
+
+                return [
+                    'email' => $email,
+                    'nombre' => $name !== '' ? $name : null,
+                ];
             })
             ->filter()
+            ->unique('email')
             ->values()
             ->all();
 
         if ($destinatarios === []) {
-            $this->addError('invitadosTexto', 'Indique al menos un correo válido.');
+            $this->addError('aportantesSeleccionados', 'Indique al menos un correo válido.');
 
             return;
         }
@@ -159,11 +189,87 @@ class SolicitudShow extends Component
             $destinatarios,
             auth()->user(),
             $this->mensajeInvitacion ?: null,
+            \Illuminate\Support\Carbon::parse($this->aportacionLimiteAt),
         );
 
-        $this->reset('invitadosTexto', 'mensajeInvitacion');
+        $this->reset('aportantesSeleccionados', 'aportanteBusqueda', 'aportanteExterno', 'mensajeInvitacion', 'invitadosTexto');
         $this->refreshSolicitud();
+        $this->aportacionLimiteAt = $this->formatAportacionLimiteInput(
+            $this->solicitud->aportacionDeadline()
+        );
         session()->flash('success', 'Aportantes registrados. El correo de invitación se está enviando.');
+    }
+
+    public function agregarAportanteUsuario(string $email, string $name = ''): void
+    {
+        Gate::authorize('manageInvitados', $this->solicitud);
+
+        $email = strtolower(trim($email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->addError('aportanteBusqueda', 'Correo no válido.');
+
+            return;
+        }
+
+        $this->pushAportante($email, trim($name) !== '' ? trim($name) : null);
+        $this->reset('aportanteBusqueda');
+        $this->resetErrorBag('aportanteBusqueda', 'aportantesSeleccionados');
+    }
+
+    public function agregarAportanteExterno(): void
+    {
+        Gate::authorize('manageInvitados', $this->solicitud);
+
+        $email = strtolower(trim($this->aportanteExterno));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->addError('aportanteExterno', 'Indique un correo válido.');
+
+            return;
+        }
+
+        $this->pushAportante($email, null);
+        $this->reset('aportanteExterno');
+        $this->resetErrorBag('aportanteExterno', 'aportantesSeleccionados');
+    }
+
+    public function quitarAportante(string $email): void
+    {
+        Gate::authorize('manageInvitados', $this->solicitud);
+        $email = strtolower(trim($email));
+        $this->aportantesSeleccionados = collect($this->aportantesSeleccionados)
+            ->reject(fn (array $row) => strtolower((string) ($row['email'] ?? '')) === $email)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return Collection<int, array{id: string, name: string, email: string, source: string}>
+     */
+    #[Computed]
+    public function aportanteResultados(): Collection
+    {
+        $selected = collect($this->aportantesSeleccionados)
+            ->map(fn (array $row) => strtolower((string) ($row['email'] ?? '')))
+            ->filter()
+            ->all();
+
+        return app(CompanyDirectorySearchService::class)
+            ->search($this->aportanteBusqueda, $selected, 15);
+    }
+
+    private function pushAportante(string $email, ?string $name): void
+    {
+        $exists = collect($this->aportantesSeleccionados)
+            ->contains(fn (array $row) => strtolower((string) ($row['email'] ?? '')) === $email);
+
+        if ($exists) {
+            return;
+        }
+
+        $this->aportantesSeleccionados[] = [
+            'email' => $email,
+            'name' => $name,
+        ];
     }
 
     public function reenviarInvitacion(int $invitadoId, LicitacionInvitadoService $service): void
@@ -288,5 +394,14 @@ class SolicitudShow extends Component
             ->where('solicitud_id', $this->solicitud->id)
             ->whereKey($id)
             ->firstOrFail();
+    }
+
+    private function formatAportacionLimiteInput(?\Illuminate\Support\Carbon $deadline): string
+    {
+        if ($deadline === null) {
+            return now()->addDays(3)->setTime(17, 0)->format('Y-m-d\TH:i');
+        }
+
+        return $deadline->timezone(config('app.timezone'))->format('Y-m-d\TH:i');
     }
 }

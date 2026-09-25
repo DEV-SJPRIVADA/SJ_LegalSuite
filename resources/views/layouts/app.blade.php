@@ -11,8 +11,7 @@
 
         <title>{{ config('app.name', 'SJ LegalSuite') }}</title>
 
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <x-corporate-fonts />
 
         @auth
             @if (\App\Support\Broadcasting\PusherBroadcasting::isEnabled())
@@ -33,7 +32,7 @@
         $sidebarVariant = ($uiTheme ?? 'light') === 'dark' ? 'neon' : 'light';
         $logoutVariant = ($uiTheme ?? 'light') === 'dark' ? 'dark' : 'light';
     @endphp
-    <body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-dash-void dark:text-slate-100">
+    <body class="font-sans antialiased bg-slate-50 text-sj-blue dark:bg-dash-void dark:text-slate-100">
         <div x-data="{ sidebarOpen: false }"
              x-on:sidebar-toggle.window="sidebarOpen = !sidebarOpen"
              class="min-h-screen flex">

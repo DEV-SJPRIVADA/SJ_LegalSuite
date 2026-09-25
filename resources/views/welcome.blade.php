@@ -11,8 +11,7 @@
 
         <title>{{ config('app.name', 'SJ LegalSuite') }}</title>
 
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
+        <x-corporate-fonts />
 
         @vite(['resources/js/app.js'])
 
@@ -35,7 +34,7 @@
             }
         </style>
     </head>
-    <body class="antialiased font-sans">
+    <body class="antialiased font-sans text-sj-blue">
         @php
             // Ancho útil casi full-bleed: sin max-w-7xl. Tope solo en pantallas extremas.
             $shell = 'mx-auto w-full max-w-[100rem] px-5 sm:px-8 md:px-10 lg:px-12 xl:px-16 2xl:px-20';
@@ -94,7 +93,7 @@
 
                             <h1 class="welcome-anim welcome-anim-delay-1 mt-4 text-[2.125rem] font-extrabold leading-[1.08] tracking-tight text-white sm:mt-5 sm:text-5xl md:text-5xl lg:text-6xl xl:text-[4rem] 2xl:text-[4.25rem]">
                                 Gestión jurídica
-                                <span class="mt-1 block bg-gradient-to-r from-indigo-300 via-sky-200 to-emerald-300 bg-clip-text text-transparent">
+                                <span class="mt-1 block bg-gradient-to-r from-sj-orange via-[#ffc857] to-white bg-clip-text text-transparent">
                                     disciplinaria
                                 </span>
                             </h1>
@@ -107,7 +106,7 @@
                             <div class="welcome-anim welcome-anim-delay-3 mt-7 sm:mt-9">
                                 @auth
                                     <a href="{{ route('disciplinary.dashboard') }}"
-                                       class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-7 py-3.5 text-base font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100 sm:w-auto sm:px-8 sm:py-4">
+                                       class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sj-orange px-7 py-3.5 text-base font-semibold text-sj-blue shadow-lg shadow-sj-glow transition hover:bg-[#ffb84a] sm:w-auto sm:px-8 sm:py-4">
                                         Ir al dashboard
                                         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
@@ -115,7 +114,7 @@
                                     </a>
                                 @else
                                     <a href="{{ route('login') }}"
-                                       class="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-7 py-3.5 text-base font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100 sm:w-auto sm:px-8 sm:py-4">
+                                       class="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sj-orange px-7 py-3.5 text-base font-semibold text-sj-blue shadow-lg shadow-sj-glow transition hover:bg-[#ffb84a] sm:w-auto sm:px-8 sm:py-4">
                                         Ingresar
                                         <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clip-rule="evenodd" />
@@ -132,7 +131,7 @@
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 md:gap-5 xl:gap-6">
                         <div class="welcome-anim welcome-anim-delay-4 rounded-xl bg-white/[0.08] p-4 ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/[0.12] sm:p-5 xl:p-6">
                             <div class="flex items-start gap-3 sm:flex-col sm:gap-3.5 lg:flex-row lg:items-start xl:gap-4">
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-500/25 text-indigo-200 xl:h-11 xl:w-11">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sj-orange/25 text-sj-orange xl:h-11 xl:w-11">
                                     <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
                                     </svg>

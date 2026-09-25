@@ -18,11 +18,11 @@
     <div class="py-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div class="flex gap-2 border-b border-slate-200 dark:border-white/10">
             <button type="button" wire:click="$set('tab', 'licitaciones')"
-                class="px-4 py-2 text-sm font-semibold border-b-2 {{ $tab === 'licitaciones' ? 'border-indigo-600 text-indigo-700 dark:border-cyan-400 dark:text-cyan-300' : 'border-transparent text-slate-500' }}">
+                class="px-4 py-2 text-sm font-semibold border-b-2 {{ $tab === 'licitaciones' ? 'border-sj-orange text-sj-blue dark:border-sj-orange dark:text-sj-orange' : 'border-transparent text-slate-500' }}">
                 Reportes de licitaciones
             </button>
             <button type="button" wire:click="$set('tab', 'documentos')"
-                class="px-4 py-2 text-sm font-semibold border-b-2 {{ $tab === 'documentos' ? 'border-indigo-600 text-indigo-700 dark:border-cyan-400 dark:text-cyan-300' : 'border-transparent text-slate-500' }}">
+                class="px-4 py-2 text-sm font-semibold border-b-2 {{ $tab === 'documentos' ? 'border-sj-orange text-sj-blue dark:border-sj-orange dark:text-sj-orange' : 'border-transparent text-slate-500' }}">
                 Documentos adjuntos
             </button>
         </div>
@@ -125,7 +125,7 @@
                                 <td class="px-4 py-3">{{ $doc->usuario?->name ?? '—' }}</td>
                                 <td class="px-4 py-3">{{ $doc->created_at?->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('licitaciones.adjuntos.file', $doc) }}" target="_blank" class="text-indigo-600 font-semibold dark:text-cyan-400">Abrir</a>
+                                    <a href="{{ route('licitaciones.adjuntos.file', $doc) }}" target="_blank" class="text-sj-blue font-semibold dark:text-sj-orange">Abrir</a>
                                 </td>
                             </tr>
                         @empty

@@ -6,30 +6,44 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Aportar documentación · {{ config('app.name') }}</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin>
+    <link rel="stylesheet" href="https://use.typekit.net/mdj0ygg.css">
     <style>
-        :root { color-scheme: light; }
+        :root {
+            color-scheme: light;
+            --sj-blue: #1e2743;
+            --sj-orange: #f7a823;
+            --sj-white: #ffffff;
+        }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: Figtree, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: linear-gradient(135deg,#f8fafc,#e2e8f0); color: #0f172a; min-height: 100vh; }
+        body {
+            margin: 0;
+            font-family: "neue-haas-grotesk-display", ui-sans-serif, system-ui, sans-serif;
+            background: linear-gradient(135deg, #ffffff, #f1f5f9 55%, #e8ecf4);
+            color: var(--sj-blue);
+            min-height: 100vh;
+        }
         .wrap { max-width: 48rem; margin: 0 auto; padding: 2.5rem 1rem; }
         .brand { text-align: center; margin-bottom: 1.5rem; }
         .brand img { height: 4rem; width: auto; }
-        .brand .name { margin: .5rem 0 0; font-weight: 600; font-size: .9rem; color: #334155; }
+        .brand .name { margin: .5rem 0 0; font-weight: 700; font-size: .9rem; color: var(--sj-blue); }
         .brand .sub { margin: .15rem 0 0; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
-        .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 25px rgba(15,23,42,.06); margin-bottom: 1.25rem; }
-        h1 { font-size: 1.25rem; margin: 0 0 .75rem; }
-        h2 { font-size: 1rem; margin: 0 0 .75rem; }
+        .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 10px 25px rgba(30,39,67,.08); margin-bottom: 1.25rem; }
+        h1 { font-size: 1.25rem; margin: 0 0 .75rem; color: var(--sj-blue); }
+        h2 { font-size: 1rem; margin: 0 0 .75rem; color: var(--sj-blue); }
         p { margin: .35rem 0; font-size: .9rem; color: #475569; line-height: 1.45; }
-        .hint { background: #eef2ff; color: #312e81; border-radius: .6rem; padding: .65rem .8rem; font-size: .875rem; }
+        .hint { background: rgba(247,168,35,.12); color: var(--sj-blue); border-radius: .6rem; padding: .65rem .8rem; font-size: .875rem; }
         .muted { font-size: .75rem; color: #64748b; }
         .err { color: #dc2626; font-size: .8rem; margin-top: .35rem; }
         .ok { color: #047857; font-size: .8rem; font-weight: 600; }
         label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin-bottom: .4rem; }
         input[type=file] { width: 100%; border: 1px solid #cbd5e1; border-radius: .6rem; padding: .55rem .7rem; background: #fff; font-size: .875rem; }
         .btn { display: inline-block; border: 0; border-radius: .6rem; padding: .65rem 1rem; font-size: .875rem; font-weight: 600; cursor: pointer; text-decoration: none; }
-        .btn-primary { background: #4f46e5; color: #fff; }
+        .btn-primary { background: var(--sj-blue); color: #fff; }
+        .btn-primary:hover { background: #2a3354; }
         .btn-primary:disabled { opacity: .55; cursor: wait; }
-        .btn-dark { background: #1e293b; color: #fff; }
-        .btn-ghost { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+        .btn-dark { background: var(--sj-blue); color: #fff; }
+        .btn-ghost { background: #fff; color: var(--sj-blue); border: 1px solid #cbd5e1; }
         .actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin-top: 1rem; }
         .center { text-align: center; }
         .check { width: 3.5rem; height: 3.5rem; border-radius: 999px; background: #d1fae5; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin: 0 auto 1rem; }
@@ -37,14 +51,13 @@
         .list li { padding: .75rem 0; border-top: 1px solid #f1f5f9; }
         .list li:first-child { border-top: 0; }
         .badge { display: inline-block; margin-top: .3rem; font-size: .7rem; padding: .15rem .5rem; border-radius: 999px; }
-        .badge-pendiente { background: #fef3c7; color: #92400e; }
+        .badge-pendiente { background: rgba(247,168,35,.2); color: #92400e; }
         .badge-aprobado { background: #d1fae5; color: #065f46; }
         .badge-rechazado { background: #ffe4e6; color: #9f1239; }
         .badge-reemplazado { background: #f1f5f9; color: #475569; }
         .warn { background: #fffbeb; color: #92400e; border-radius: .6rem; padding: .65rem .8rem; font-size: .875rem; }
-        a.link { color: #4f46e5; font-weight: 600; font-size: .75rem; }
+        a.link { color: var(--sj-blue); font-weight: 600; font-size: .75rem; }
     </style>
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 </head>
 <body>
 <div class="wrap">
@@ -88,7 +101,7 @@
             @if ($invitado->mensaje)
                 <p class="hint"><strong>Indicaciones:</strong> {{ $invitado->mensaje }}</p>
             @endif
-            <p class="muted">Fecha límite: {{ $solicitud->fecha_limite?->format('d/m/Y') ?? '—' }}</p>
+            <p class="muted">Fecha y hora de límite de entrega: {{ $solicitud->aportacionDeadlineLabel() }}</p>
         </div>
 
         <div class="card">

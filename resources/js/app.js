@@ -18,6 +18,7 @@ import './informe-pdf-preview-lightbox';
 import './worker-signature-pad';
 import './home-command-center';
 import './disciplinary-dashboard';
+import './licitaciones-dashboard';
 import { registerApexChartsLivewireHooks } from './apex-charts-lifecycle';
 
 registerApexChartsLivewireHooks();

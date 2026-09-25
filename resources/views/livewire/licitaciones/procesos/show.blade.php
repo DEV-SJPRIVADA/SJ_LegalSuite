@@ -12,7 +12,7 @@
                 <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ $licitacion->numero_proceso ?: 'Sin número de proceso' }}</h1>
                 <p class="text-slate-600 dark:text-slate-300">{{ $licitacion->entidad_contratante }}</p>
             </div>
-            <a href="{{ route('licitaciones.procesos.index') }}" wire:navigate class="text-sm font-semibold text-indigo-600 dark:text-cyan-400">← Volver al listado</a>
+            <a href="{{ route('licitaciones.procesos.index') }}" wire:navigate class="text-sm font-semibold text-sj-blue dark:text-sj-orange">← Volver al listado</a>
         </div>
 
         <div class="grid lg:grid-cols-2 gap-6">
@@ -22,7 +22,7 @@
                 <h2 class="font-semibold mb-3 dark:text-white">Documentos</h2>
                 <ul class="space-y-2 text-sm mb-4">
                     @forelse ($licitacion->adjuntos as $adj)
-                        <li><a href="{{ route('licitaciones.adjuntos.file', $adj) }}" target="_blank" class="text-indigo-600 dark:text-cyan-400">{{ $adj->nombre_archivo }}</a></li>
+                        <li><a href="{{ route('licitaciones.adjuntos.file', $adj) }}" target="_blank" class="text-sj-blue dark:text-sj-orange">{{ $adj->nombre_archivo }}</a></li>
                     @empty
                         <li class="text-slate-500">Sin documentos.</li>
                     @endforelse
@@ -30,7 +30,7 @@
                 @can('uploadDocument', $licitacion)
                     <form wire:submit="uploadAdjunto" class="flex flex-wrap gap-2 items-end">
                         <input type="file" wire:model="nuevoAdjunto" class="text-sm">
-                        <button type="submit" class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white">Subir</button>
+                        <button type="submit" class="px-3 py-1.5 text-sm rounded-lg bg-sj-blue text-white">Subir</button>
                     </form>
                 @endcan
             </div>
@@ -48,7 +48,7 @@
                             <td class="px-4 py-2">{{ $sol->numero_radicado }}</td>
                             <td class="px-4 py-2">{{ $sol->nombre }}</td>
                             <td class="px-4 py-2"><span class="text-xs px-2 py-0.5 rounded-full {{ $sol->estado?->badgeClass() }}">{{ $sol->estado?->label() }}</span></td>
-                            <td class="px-4 py-2 text-right"><a href="{{ route('licitaciones.solicitudes.show', $sol) }}" wire:navigate class="text-indigo-600 font-semibold">Detalle</a></td>
+                            <td class="px-4 py-2 text-right"><a href="{{ route('licitaciones.solicitudes.show', $sol) }}" wire:navigate class="text-sj-blue font-semibold">Detalle</a></td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Sin solicitudes.</td></tr>

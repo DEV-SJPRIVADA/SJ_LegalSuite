@@ -7,6 +7,7 @@
 @php
     $variantClass = match ($variant) {
         'secondary' => 'sj-btn--secondary',
+        'accent' => 'sj-btn--accent',
         'teal' => 'sj-btn--teal',
         'teal-light' => 'sj-btn--teal-light',
         'success' => 'sj-btn--success',

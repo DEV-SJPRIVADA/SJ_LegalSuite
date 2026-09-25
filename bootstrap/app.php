@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('licitaciones:reset-fixed-solicitudes')->hourly();
+        $schedule->command('licitaciones:enviar-recordatorios-aportacion')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->name('licitaciones-recordatorios-aportacion');
+        $schedule->command('legal-documents:enviar-recordatorios')
+            ->hourly()
+            ->withoutOverlapping()
+            ->name('legal-documents-recordatorios');
 
         if (config('services.pdf.use_queue')) {
             $schedule->command('queue:work database --stop-when-empty --max-time=55')

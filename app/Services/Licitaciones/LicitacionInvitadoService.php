@@ -24,10 +24,17 @@ class LicitacionInvitadoService
         array $destinatarios,
         User $actor,
         ?string $mensaje = null,
+        ?\Illuminate\Support\Carbon $aportacionLimiteAt = null,
     ): array {
         $created = [];
 
-        DB::transaction(function () use ($solicitud, $destinatarios, $actor, $mensaje, &$created) {
+        DB::transaction(function () use ($solicitud, $destinatarios, $actor, $mensaje, $aportacionLimiteAt, &$created) {
+            if ($aportacionLimiteAt !== null) {
+                $solicitud->forceFill([
+                    'aportacion_limite_at' => $aportacionLimiteAt,
+                ])->save();
+            }
+
             foreach ($destinatarios as $row) {
                 $email = strtolower(trim((string) ($row['email'] ?? '')));
                 if ($email === '') {
@@ -70,6 +77,7 @@ class LicitacionInvitadoService
 
             $this->historial->log($solicitud, $actor, 'invitados_agregados', [
                 'emails' => array_map(fn (array $row) => $row['invitado']->email, $created),
+                'aportacion_limite_at' => $solicitud->fresh()?->aportacion_limite_at?->toIso8601String(),
             ]);
         });
 
