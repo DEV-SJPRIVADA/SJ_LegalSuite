@@ -185,23 +185,33 @@ class LicitacionDashboardService
      */
     private function licitacionesPorEstado(): array
     {
-        $raw = Licitacion::query()
-            ->selectRaw("COALESCE(NULLIF(TRIM(estado_proceso), ''), 'Sin estado') as estado_label, COUNT(*) as total")
-            ->groupByRaw("COALESCE(NULLIF(TRIM(estado_proceso), ''), 'Sin estado')")
-            ->orderByDesc('total')
+        // Compatible con MySQL ONLY_FULL_GROUP_BY (Hostinger): agrupar por la columna,
+        // normalizar etiqueta en PHP.
+        $rows = Licitacion::query()
+            ->selectRaw('estado_proceso, COUNT(*) as total')
+            ->groupBy('estado_proceso')
+            ->orderByRaw('COUNT(*) DESC')
             ->limit(8)
-            ->pluck('total', 'estado_label');
+            ->get();
 
-        if ($raw->isEmpty()) {
+        if ($rows->isEmpty()) {
             return [
                 'labels' => ['Sin procesos'],
                 'series' => [0],
             ];
         }
 
+        $labels = [];
+        $series = [];
+        foreach ($rows as $row) {
+            $label = trim((string) ($row->estado_proceso ?? ''));
+            $labels[] = $label !== '' ? $label : 'Sin estado';
+            $series[] = (int) $row->total;
+        }
+
         return [
-            'labels' => $raw->keys()->values()->all(),
-            'series' => $raw->values()->map(fn ($n) => (int) $n)->all(),
+            'labels' => $labels,
+            'series' => $series,
         ];
     }
 
