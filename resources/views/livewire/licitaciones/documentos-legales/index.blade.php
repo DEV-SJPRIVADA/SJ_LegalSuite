@@ -20,6 +20,10 @@
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach ($folders as $folder)
+                @php
+                    $assignedEmail = strtolower((string) ($folder->responsible_email ?: $folder->responsible?->email ?: ''));
+                    $assignedPerson = $assignedEmail !== '' ? ($directoryByEmail[$assignedEmail] ?? null) : null;
+                @endphp
                 <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 flex flex-col gap-3" wire:key="folder-{{ $folder->id }}">
                     <div class="flex items-start justify-between gap-2">
                         <div>
@@ -48,10 +52,11 @@
 
                     <p class="text-xs text-slate-500">
                         Director:
-                        @if ($folder->responsible)
-                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $folder->responsible->name }}</span>
-                        @elseif ($folder->responsible_email)
-                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $folder->responsible_email }}</span>
+                        @if ($assignedPerson)
+                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $assignedPerson->name }}</span>
+                            <span class="block truncate">{{ $assignedPerson->email }}</span>
+                        @elseif ($assignedEmail !== '')
+                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $assignedEmail }}</span>
                         @else
                             <span class="text-amber-700 dark:text-amber-300">sin asignar</span>
                         @endif
@@ -59,13 +64,16 @@
 
                     @if ($canAssign)
                         <div class="space-y-2 border-t border-slate-100 pt-3 dark:border-white/10">
-                            <select wire:model="assign.{{ $folder->id }}.user_id" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
-                                <option value="">— Usuario director —</option>
-                                @foreach ($directors as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                            <label class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Correo del directorio</label>
+                            <select wire:model="assign.{{ $folder->id }}.email" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                                <option value="">— Seleccione correo —</option>
+                                @foreach ($directoryPeople as $person)
+                                    <option value="{{ strtolower($person->email) }}">{{ $person->name }} — {{ $person->email }}</option>
                                 @endforeach
                             </select>
-                            <input type="email" wire:model="assign.{{ $folder->id }}.email" placeholder="Correo de recordatorios" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                            @error('assign.'.$folder->id.'.email')
+                                <p class="text-xs text-red-600">{{ $message }}</p>
+                            @enderror
                             <button type="button" wire:click="saveResponsible({{ $folder->id }})" class="sj-btn sj-btn--secondary w-full">Guardar responsable</button>
                         </div>
                     @endif
