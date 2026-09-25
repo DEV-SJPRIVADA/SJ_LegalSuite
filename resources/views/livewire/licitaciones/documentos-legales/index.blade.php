@@ -21,8 +21,10 @@
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach ($folders as $folder)
                 @php
-                    $assignedEmail = strtolower((string) ($folder->responsible_email ?: $folder->responsible?->email ?: ''));
-                    $assignedPerson = $assignedEmail !== '' ? ($directoryByEmail[$assignedEmail] ?? null) : null;
+                    $selectedEmail = strtolower((string) ($assign[$folder->id]['email'] ?? ''));
+                    $selectedName = (string) ($assign[$folder->id]['name'] ?? '');
+                    $busqueda = (string) ($directorBusqueda[$folder->id] ?? '');
+                    $resultados = $resultadosPorCarpeta[$folder->id] ?? collect();
                 @endphp
                 <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 flex flex-col gap-3" wire:key="folder-{{ $folder->id }}">
                     <div class="flex items-start justify-between gap-2">
@@ -52,11 +54,11 @@
 
                     <p class="text-xs text-slate-500">
                         Director:
-                        @if ($assignedPerson)
-                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $assignedPerson->name }}</span>
-                            <span class="block truncate">{{ $assignedPerson->email }}</span>
-                        @elseif ($assignedEmail !== '')
-                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $assignedEmail }}</span>
+                        @if ($selectedEmail !== '')
+                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $selectedName !== '' ? $selectedName : $selectedEmail }}</span>
+                            @if ($selectedName !== '')
+                                <span class="block truncate">{{ $selectedEmail }}</span>
+                            @endif
                         @else
                             <span class="text-amber-700 dark:text-amber-300">sin asignar</span>
                         @endif
@@ -64,16 +66,49 @@
 
                     @if ($canAssign)
                         <div class="space-y-2 border-t border-slate-100 pt-3 dark:border-white/10">
-                            <label class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Correo del directorio</label>
-                            <select wire:model="assign.{{ $folder->id }}.email" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
-                                <option value="">— Seleccione correo —</option>
-                                @foreach ($directoryPeople as $person)
-                                    <option value="{{ strtolower($person->email) }}">{{ $person->name }} — {{ $person->email }}</option>
-                                @endforeach
-                            </select>
+                            <label class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buscar director</label>
+                            <div class="relative">
+                                <input
+                                    type="search"
+                                    wire:model.live.debounce.250ms="directorBusqueda.{{ $folder->id }}"
+                                    class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink"
+                                    placeholder="Escriba nombre o correo…"
+                                    autocomplete="off"
+                                >
+                                @if (mb_strlen(trim($busqueda)) >= 2)
+                                    <ul class="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-white/15 dark:bg-dash-ink">
+                                        @forelse ($resultados as $person)
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    wire:click="seleccionarDirector({{ $folder->id }}, @js($person['email']), @js($person['name']))"
+                                                    class="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-sj-orange/10"
+                                                >
+                                                    <span class="font-medium text-sj-blue dark:text-white">{{ $person['name'] }}</span>
+                                                    <span class="text-xs text-slate-500">{{ $person['email'] }}</span>
+                                                </button>
+                                            </li>
+                                        @empty
+                                            <li class="px-3 py-2 text-xs text-slate-500">Sin coincidencias en el directorio.</li>
+                                        @endforelse
+                                    </ul>
+                                @endif
+                            </div>
+
+                            @if ($selectedEmail !== '')
+                                <div class="flex items-center justify-between gap-2 rounded-lg bg-sj-orange/10 px-3 py-2 text-xs">
+                                    <div class="min-w-0">
+                                        <p class="truncate font-semibold text-sj-blue dark:text-sj-orange">{{ $selectedName !== '' ? $selectedName : $selectedEmail }}</p>
+                                        <p class="truncate text-slate-500">{{ $selectedEmail }}</p>
+                                    </div>
+                                    <button type="button" wire:click="quitarDirector({{ $folder->id }})" class="shrink-0 font-semibold text-slate-500 hover:text-red-600">Quitar</button>
+                                </div>
+                            @endif
+
                             @error('assign.'.$folder->id.'.email')
                                 <p class="text-xs text-red-600">{{ $message }}</p>
                             @enderror
+
                             <button type="button" wire:click="saveResponsible({{ $folder->id }})" class="sj-btn sj-btn--secondary w-full">Guardar responsable</button>
                         </div>
                     @endif
