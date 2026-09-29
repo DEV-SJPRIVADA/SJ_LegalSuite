@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->name('licitaciones-recordatorios-aportacion');
         $schedule->command('legal-documents:enviar-recordatorios')
-            ->hourly()
+            ->everyTenMinutes()
             ->withoutOverlapping()
             ->name('legal-documents-recordatorios');
 

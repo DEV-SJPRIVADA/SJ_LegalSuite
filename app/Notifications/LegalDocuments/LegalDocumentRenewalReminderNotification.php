@@ -31,20 +31,23 @@ class LegalDocumentRenewalReminderNotification extends Notification
             ->subject('Recordatorio · Documentos legales por actualizar · '.$this->folderName)
             ->greeting('Hola,')
             ->line('Hay documentos legales de su área (**'.$this->folderName.'**) que requieren actualización según la matriz MT-GJ-06.')
-            ->line('Documentos pendientes:');
+            ->line('**Documentos pendientes:**');
 
+        $lines = [];
         foreach (array_slice($this->items, 0, 15) as $item) {
             $due = $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—');
-            $mail->line('• '.$item->displayTitle().' · renovar: '.$due);
+            $lines[] = '• '.$item->displayTitle().' · renovar: **'.$due.'**';
         }
 
         if (count($this->items) > 15) {
-            $mail->line('… y '.(count($this->items) - 15).' más.');
+            $lines[] = '… y '.(count($this->items) - 15).' más.';
         }
+
+        $mail->line(implode("\n", $lines));
 
         return $mail
             ->action('Abrir Documentos Legales', route('licitaciones.documentos-legales.index'))
-            ->line('Este aviso se reenvía cada hora hasta que se cargue la versión actualizada (el archivo anterior se descarta al reemplazar).')
+            ->line('Mientras no se cargue la versión actualizada, recibirá un aviso diario y, entre las **16:00** y las **17:00**, un recordatorio cada 10 minutos. Al reemplazar el archivo las alertas se detienen.')
             ->salutation('SJ LegalSuite');
     }
 }

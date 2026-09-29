@@ -33,10 +33,7 @@ class DocumentosLegalesIndex extends Component
                     $email = (string) (User::query()->whereKey($folder->responsible_user_id)->value('email') ?? '');
                 }
                 $email = strtolower($email);
-                $name = '';
-                if ($email !== '') {
-                    $name = (string) (DirectoryUser::query()->where('email', $email)->value('name') ?? '');
-                }
+                $name = $email !== '' ? $this->resolvePersonName($email) : '';
 
                 $this->assign[$folder->id] = [
                     'email' => $email,
@@ -81,14 +78,13 @@ class DocumentosLegalesIndex extends Component
         $email = strtolower(trim((string) ($this->assign[$folderId]['email'] ?? '')));
 
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->addError('assign.'.$folderId.'.email', 'Busque y seleccione una persona del directorio.');
+            $this->addError('assign.'.$folderId.'.email', 'Busque y seleccione una persona del directorio o un usuario del sistema.');
 
             return;
         }
 
-        $inDirectory = DirectoryUser::query()->active()->where('email', $email)->exists();
-        if (! $inDirectory) {
-            $this->addError('assign.'.$folderId.'.email', 'El correo no está en el directorio corporativo.');
+        if (! $this->emailIsAssignable($email)) {
+            $this->addError('assign.'.$folderId.'.email', 'El correo no está en el directorio corporativo ni entre usuarios activos del sistema.');
 
             return;
         }
@@ -100,7 +96,7 @@ class DocumentosLegalesIndex extends Component
             'responsible_email' => $email,
         ]);
 
-        $name = (string) (DirectoryUser::query()->where('email', $email)->value('name') ?? '');
+        $name = $this->resolvePersonName($email);
         $this->assign[$folderId]['name'] = $name;
         $this->directorBusqueda[$folderId] = '';
         $this->resetErrorBag('assign.'.$folderId.'.email');
@@ -119,7 +115,7 @@ class DocumentosLegalesIndex extends Component
 
         $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
 
-        return DirectoryUser::query()
+        $fromDirectory = DirectoryUser::query()
             ->active()
             ->where(function ($q) use ($like) {
                 $q->where('name', 'like', $like)
@@ -132,6 +128,46 @@ class DocumentosLegalesIndex extends Component
                 'name' => (string) $u->name,
                 'email' => strtolower((string) $u->email),
             ]);
+
+        $fromUsers = User::query()
+            ->active()
+            ->where(function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('email', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(12)
+            ->get(['name', 'email'])
+            ->map(fn (User $u) => [
+                'name' => (string) $u->name,
+                'email' => strtolower((string) $u->email),
+            ]);
+
+        return $fromDirectory
+            ->concat($fromUsers)
+            ->unique('email')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->take(12);
+    }
+
+    private function emailIsAssignable(string $email): bool
+    {
+        if (DirectoryUser::query()->active()->where('email', $email)->exists()) {
+            return true;
+        }
+
+        return User::query()->active()->where('email', $email)->exists();
+    }
+
+    private function resolvePersonName(string $email): string
+    {
+        $name = (string) (DirectoryUser::query()->where('email', $email)->value('name') ?? '');
+        if ($name !== '') {
+            return $name;
+        }
+
+        return (string) (User::query()->where('email', $email)->value('name') ?? '');
     }
 
     public function render()

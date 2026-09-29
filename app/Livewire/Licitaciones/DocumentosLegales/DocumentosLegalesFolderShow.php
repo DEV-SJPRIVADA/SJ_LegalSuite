@@ -31,6 +31,10 @@ class DocumentosLegalesFolderShow extends Component
 
     public $uploadFile = null;
 
+    public ?int $editingRenewItemId = null;
+
+    public string $editingRenewDate = '';
+
     public function mount(LegalDocumentFolder $folder): void
     {
         Gate::authorize('view', $folder);
@@ -40,6 +44,7 @@ class DocumentosLegalesFolderShow extends Component
     public function startUpload(int $itemId): void
     {
         Gate::authorize('upload', $this->folder);
+        $this->cancelEditRenew();
         $this->uploadItemId = $itemId;
         $this->reset('uploadFile');
         $this->resetErrorBag('uploadFile');
@@ -49,6 +54,55 @@ class DocumentosLegalesFolderShow extends Component
     {
         $this->reset('uploadItemId', 'uploadFile');
         $this->resetErrorBag('uploadFile');
+    }
+
+    public function startEditRenew(int $itemId): void
+    {
+        Gate::authorize('upload', $this->folder);
+
+        $item = LegalDocumentItem::query()
+            ->where('folder_id', $this->folder->id)
+            ->whereKey($itemId)
+            ->firstOrFail();
+
+        $this->cancelUpload();
+        $this->editingRenewItemId = $item->id;
+        $this->editingRenewDate = $item->renew_on?->format('Y-m-d') ?? '';
+        $this->resetErrorBag('editingRenewDate');
+    }
+
+    public function cancelEditRenew(): void
+    {
+        $this->reset('editingRenewItemId', 'editingRenewDate');
+        $this->resetErrorBag('editingRenewDate');
+    }
+
+    public function saveRenewDate(): void
+    {
+        Gate::authorize('upload', $this->folder);
+
+        $data = $this->validate([
+            'editingRenewItemId' => ['required', 'integer'],
+            'editingRenewDate' => ['nullable', 'date'],
+        ], [], [
+            'editingRenewDate' => 'fecha de renovación',
+        ]);
+
+        $item = LegalDocumentItem::query()
+            ->where('folder_id', $this->folder->id)
+            ->whereKey($data['editingRenewItemId'])
+            ->firstOrFail();
+
+        $item->update([
+            'renew_on' => $data['editingRenewDate'] !== '' && $data['editingRenewDate'] !== null
+                ? $data['editingRenewDate']
+                : null,
+            'renew_label' => null,
+            'last_reminder_at' => null,
+        ]);
+
+        $this->cancelEditRenew();
+        session()->flash('success', 'Fecha de renovación actualizada. Los recordatorios usarán esa fecha.');
     }
 
     public function confirmUpload(LegalDocumentService $service): void
@@ -68,9 +122,13 @@ class DocumentosLegalesFolderShow extends Component
             ->firstOrFail();
 
         $service->replaceFile($item, $this->uploadFile, auth()->user());
+
+        // Al renovar el archivo se detienen las alertas de este ciclo.
+        $item->update(['last_reminder_at' => null]);
+
         $this->reset('uploadItemId', 'uploadFile');
 
-        session()->flash('success', 'Documento actualizado. La versión anterior fue descartada.');
+        session()->flash('success', 'Documento actualizado. La versión anterior fue descartada y las alertas se detienen.');
     }
 
     public function agregarSolicitud(LegalDocumentService $service): void

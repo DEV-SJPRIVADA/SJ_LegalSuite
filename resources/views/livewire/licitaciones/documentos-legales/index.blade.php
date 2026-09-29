@@ -8,7 +8,7 @@
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Licitaciones · Documentos legales</p>
             <h1 class="mt-1 text-xl font-bold text-sj-blue dark:text-white">Carpetas por área (MT-GJ-06)</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Cada director actualiza los documentos de su carpeta. Los recordatorios horarios usan la fecha de renovación de la matriz (área Jurídica excluida: lo gestiona la abogada).
+                Cada director actualiza los documentos de su carpeta. El día de renovación se avisa por correo; si no se actualiza, entre 16:00 y 17:00 se reenvía cada 10 minutos. Al subir el archivo nuevo se detienen las alertas.
             </p>
         </div>
 
@@ -72,7 +72,7 @@
                                     type="search"
                                     wire:model.live.debounce.250ms="directorBusqueda.{{ $folder->id }}"
                                     class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink"
-                                    placeholder="Escriba nombre o correo…"
+                                    placeholder="Nombre o correo (directorio o usuario del sistema)…"
                                     autocomplete="off"
                                 >
                                 @if (mb_strlen(trim($busqueda)) >= 2)
@@ -89,7 +89,7 @@
                                                 </button>
                                             </li>
                                         @empty
-                                            <li class="px-3 py-2 text-xs text-slate-500">Sin coincidencias en el directorio.</li>
+                                            <li class="px-3 py-2 text-xs text-slate-500">Sin coincidencias en directorio ni usuarios del sistema.</li>
                                         @endforelse
                                     </ul>
                                 @endif

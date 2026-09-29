@@ -12,7 +12,7 @@
                     @if ($folder->exclude_reminders)
                         Área Jurídica: sin recordatorios automáticos (gestión de la abogada).
                     @else
-                        Recordatorio cada hora por correo cuando la fecha de renovación esté vencida y no haya archivo actualizado.
+                        El día de renovación se avisa al director por correo. Si no actualiza el archivo, entre 16:00 y 17:00 se reenvía cada 10 minutos; al subir/reemplazar se detienen las alertas. Puede editar la fecha en la columna Renovar.
                     @endif
                 </p>
             </div>
@@ -69,7 +69,7 @@
                         @forelse ($items as $item)
                             @php
                                 $due = $item->isDueForRenewal();
-                                $fresh = $item->currentFile && $item->renew_on && $item->currentFile->created_at?->gte($item->renew_on->startOfDay());
+                                $fresh = $item->hasFreshFileForCurrentRenewal();
                             @endphp
                             <tr class="align-top" wire:key="item-{{ $item->id }}">
                                 <td class="px-4 py-3 tabular-nums text-slate-500">{{ $item->code ?: '—' }}</td>
@@ -87,14 +87,40 @@
                                 </td>
                                 <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ $item->frequency ?: '—' }}</td>
                                 <td class="px-4 py-3">
-                                    <span @class([
-                                        'font-semibold tabular-nums',
-                                        'text-red-600 dark:text-red-400' => $due && ! $fresh,
-                                        'text-emerald-700 dark:text-emerald-300' => $fresh,
-                                        'text-slate-600 dark:text-slate-300' => ! $due && ! $fresh,
-                                    ])>
-                                        {{ $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—') }}
-                                    </span>
+                                    @if ($canUpload && $editingRenewItemId === $item->id)
+                                        <div class="flex flex-col gap-2 min-w-[11rem]">
+                                            <input
+                                                type="date"
+                                                wire:model="editingRenewDate"
+                                                class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink"
+                                            >
+                                            @error('editingRenewDate')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                            <div class="flex flex-wrap gap-2">
+                                                <button type="button" wire:click="saveRenewDate" class="sj-btn sj-btn--primary text-xs">Guardar</button>
+                                                <button type="button" wire:click="cancelEditRenew" class="sj-btn sj-btn--ghost text-xs">Cancelar</button>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="flex flex-col gap-1">
+                                            <span @class([
+                                                'font-semibold tabular-nums',
+                                                'text-red-600 dark:text-red-400' => $due && ! $fresh,
+                                                'text-emerald-700 dark:text-emerald-300' => $fresh,
+                                                'text-slate-600 dark:text-slate-300' => ! $due && ! $fresh,
+                                            ])>
+                                                {{ $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—') }}
+                                            </span>
+                                            @if ($canUpload)
+                                                <button
+                                                    type="button"
+                                                    wire:click="startEditRenew({{ $item->id }})"
+                                                    class="self-start text-[11px] font-semibold text-sj-blue underline dark:text-sj-orange"
+                                                >
+                                                    Cambiar fecha
+                                                </button>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($item->currentFile)

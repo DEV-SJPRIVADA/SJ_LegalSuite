@@ -12,7 +12,7 @@ class EnviarRecordatoriosDocumentosLegalesCommand extends Command
     protected $signature = 'legal-documents:enviar-recordatorios
                             {--dry-run : Lista sin enviar}';
 
-    protected $description = 'Recordatorios horarios de documentos legales vencidos/por renovar (excluye área Jurídica).';
+    protected $description = 'Recordatorios de documentos legales vencidos/por renovar: 1/día y cada 10 min entre 16:00–17:00 (excluye área Jurídica).';
 
     public function handle(): int
     {

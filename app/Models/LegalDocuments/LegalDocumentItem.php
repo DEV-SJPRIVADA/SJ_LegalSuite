@@ -73,9 +73,24 @@ class LegalDocumentItem extends Model
             return false;
         }
 
-        return $this->renew_on->startOfDay()->lte(now()->startOfDay());
+        return $this->renew_on->copy()->startOfDay()->lte(now()->startOfDay());
     }
 
+    public function hasFreshFileForCurrentRenewal(): bool
+    {
+        $file = $this->currentFile;
+        if (! $file || ! $file->created_at || ! $this->renew_on) {
+            return false;
+        }
+
+        return $file->created_at->gte($this->renew_on->copy()->startOfDay());
+    }
+
+    /**
+     * Recordatorios mientras esté vencido y sin archivo renovado:
+     * - Fuera de 16:00–17:00: como máximo un correo al día (incluye el aviso del día de vencimiento).
+     * - Entre 16:00 y 17:00: un correo cada 10 minutos hasta que se renueve.
+     */
     public function needsReminder(): bool
     {
         if (! $this->isDueForRenewal()) {
@@ -87,9 +102,7 @@ class LegalDocumentItem extends Model
             return false;
         }
 
-        // Si ya hay archivo vigente subido después de la fecha de renovación, no recordar.
-        $file = $this->currentFile;
-        if ($file && $file->created_at && $this->renew_on && $file->created_at->gte($this->renew_on->startOfDay())) {
+        if ($this->hasFreshFileForCurrentRenewal()) {
             return false;
         }
 
@@ -97,7 +110,14 @@ class LegalDocumentItem extends Model
             return true;
         }
 
-        return $this->last_reminder_at->lte(now()->subHour());
+        $now = now();
+
+        // Ventana urgente del día de vencimiento / vencidos: 16:00 inclusive → 17:00 exclusive.
+        if ($now->hour === 16) {
+            return $this->last_reminder_at->lte($now->copy()->subMinutes(10));
+        }
+
+        return $this->last_reminder_at->lt($now->copy()->startOfDay());
     }
 
     public function scopeActive(Builder $query): Builder

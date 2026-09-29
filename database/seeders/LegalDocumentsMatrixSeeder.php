@@ -27,11 +27,13 @@ class LegalDocumentsMatrixSeeder extends Seeder
 
         $sort = 0;
         $folderIds = [];
+        $activeFolderSlugs = [];
         foreach ($payload['folders'] ?? [] as $folder) {
             $slug = (string) ($folder['slug'] ?? '');
             if ($slug === '') {
                 continue;
             }
+            $activeFolderSlugs[] = $slug;
             $model = LegalDocumentFolder::query()->updateOrCreate(
                 ['slug' => $slug],
                 [
@@ -44,6 +46,7 @@ class LegalDocumentsMatrixSeeder extends Seeder
             $folderIds[$slug] = $model->id;
         }
 
+        $keptItemIds = [];
         $count = 0;
         foreach ($payload['items'] ?? [] as $row) {
             $slug = (string) ($row['folder_slug'] ?? '');
@@ -64,7 +67,7 @@ class LegalDocumentsMatrixSeeder extends Seeder
                 'code' => $code,
             ];
 
-            LegalDocumentItem::query()->updateOrCreate($match, [
+            $item = LegalDocumentItem::query()->updateOrCreate($match, [
                 'group_title' => $row['group_title'] ?? null,
                 'issued_by' => $row['issued_by'] ?? null,
                 'issued_on' => $row['issued_on'] ?? null,
@@ -75,9 +78,22 @@ class LegalDocumentsMatrixSeeder extends Seeder
                 'source' => 'matrix',
                 'is_active' => true,
             ]);
+            $keptItemIds[] = $item->id;
             $count++;
         }
 
-        $this->command?->info("Documentos legales: {$count} requisitos en ".count($folderIds).' carpetas.');
+        // Solo quedan los de la matriz oficial: desactivar el resto.
+        $deactivated = LegalDocumentItem::query()
+            ->when($keptItemIds !== [], fn ($q) => $q->whereNotIn('id', $keptItemIds))
+            ->when($keptItemIds === [], fn ($q) => $q)
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
+
+        LegalDocumentFolder::query()
+            ->whereNotIn('slug', $activeFolderSlugs)
+            ->update(['is_active' => false]);
+
+        $this->command?->info("Documentos legales: {$count} requisitos activos en ".count($folderIds).' carpetas.');
+        $this->command?->info("Requisitos desactivados (fuera de matriz): {$deactivated}.");
     }
 }
