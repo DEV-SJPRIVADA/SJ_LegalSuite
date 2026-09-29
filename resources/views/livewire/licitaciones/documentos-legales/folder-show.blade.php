@@ -12,7 +12,7 @@
                     @if ($folder->exclude_reminders)
                         Área Jurídica: sin recordatorios automáticos (gestión de la abogada).
                     @else
-                        El día de renovación se avisa al director por correo. Si no actualiza el archivo, entre 16:00 y 17:00 se reenvía cada 10 minutos; al subir/reemplazar se detienen las alertas. Puede editar la fecha en la columna Renovar.
+                        El día de renovación se avisa al director por correo y **sigue avisando hasta que suba el archivo** (cada hora; entre 16:00 y 17:00 cada 10 minutos). Puede editar la fecha en la columna Renovar.
                     @endif
                 </p>
             </div>

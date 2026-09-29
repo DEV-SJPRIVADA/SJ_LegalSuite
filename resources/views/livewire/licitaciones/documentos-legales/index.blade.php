@@ -8,7 +8,7 @@
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Licitaciones · Documentos legales</p>
             <h1 class="mt-1 text-xl font-bold text-sj-blue dark:text-white">Carpetas por área (MT-GJ-06)</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Cada director actualiza los documentos de su carpeta. El día de renovación se avisa por correo; si no se actualiza, entre 16:00 y 17:00 se reenvía cada 10 minutos. Al subir el archivo nuevo se detienen las alertas.
+                Cada director actualiza los documentos de su carpeta. Si la fecha de renovación vence y no hay archivo nuevo, **se siguen enviando correos** (cada hora; entre 16:00 y 17:00 cada 10 minutos) hasta que se suba/reemplace el documento.
             </p>
         </div>
 

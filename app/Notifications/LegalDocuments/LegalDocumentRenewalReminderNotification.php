@@ -47,7 +47,7 @@ class LegalDocumentRenewalReminderNotification extends Notification
 
         return $mail
             ->action('Abrir Documentos Legales', route('licitaciones.documentos-legales.index'))
-            ->line('Mientras no se cargue la versión actualizada, recibirá un aviso diario y, entre las **16:00** y las **17:00**, un recordatorio cada 10 minutos. Al reemplazar el archivo las alertas se detienen.')
+            ->line('Mientras no suba o reemplace el archivo, **seguirá recibiendo correos** (cada hora; entre las **16:00** y las **17:00**, cada 10 minutos). Al cargar la versión actualizada las alertas se detienen.')
             ->salutation('SJ LegalSuite');
     }
 }
