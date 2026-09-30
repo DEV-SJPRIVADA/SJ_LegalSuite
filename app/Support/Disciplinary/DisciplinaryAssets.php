@@ -14,4 +14,14 @@ final class DisciplinaryAssets
     {
         return asset(self::LOGO_RELATIVE_PATH);
     }
+
+    public static function logoAbsolutePath(): string
+    {
+        return public_path(self::LOGO_RELATIVE_PATH);
+    }
+
+    public static function logoExists(): bool
+    {
+        return is_file(self::logoAbsolutePath());
+    }
 }

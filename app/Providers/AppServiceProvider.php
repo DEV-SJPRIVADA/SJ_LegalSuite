@@ -16,6 +16,9 @@ use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\InformeSubmissionPolicy;
 use App\Policies\UserPolicy;
+use App\Support\Disciplinary\DisciplinaryAssets;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -89,5 +92,22 @@ class AppServiceProvider extends ServiceProvider
         foreach ($this->policies as $model => $policy) {
             Gate::policy($model, $policy);
         }
+
+        // Incrusta el logo corporativo en todos los correos (CID) para que no salga roto en Outlook.
+        Event::listen(MessageSending::class, function (MessageSending $event): void {
+            $path = DisciplinaryAssets::logoAbsolutePath();
+            if (! is_file($path)) {
+                return;
+            }
+
+            foreach ($event->message->getAttachments() as $attachment) {
+                $contentId = $attachment->getHeaders()->get('Content-ID');
+                if ($contentId && str_contains($contentId->getBodyAsString(), 'sj-logo')) {
+                    return;
+                }
+            }
+
+            $event->message->embedFromPath($path, 'sj-logo', 'image/png');
+        });
     }
 }
