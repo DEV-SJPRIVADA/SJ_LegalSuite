@@ -12,7 +12,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/js/app.js": {
-    "file": "assets/app-BnrgUuto.js",
+    "file": "assets/app-BHv4KlZt.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -21,11 +21,11 @@
       "resources/js/disciplinary-colombia-map.js"
     ],
     "css": [
-      "assets/app-CLs-EypN.css"
+      "assets/app-BGbjl0CR.css"
     ]
   },
   "resources/js/disciplinary-colombia-map.js": {
-    "file": "assets/disciplinary-colombia-map-DzTzveNM.js",
+    "file": "assets/disciplinary-colombia-map-tQ5KBv8G.js",
     "name": "disciplinary-colombia-map",
     "src": "resources/js/disciplinary-colombia-map.js",
     "isDynamicEntry": true,

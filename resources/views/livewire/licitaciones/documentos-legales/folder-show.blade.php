@@ -68,8 +68,9 @@
                         <input type="text" wire:model="nuevaFrecuencia" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink" placeholder="MENSUAL, ANUAL…">
                     </div>
                     <div>
-                        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha renovación</label>
-                        <input type="date" wire:model="nuevaRenovacion" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha de expedición</label>
+                        <input type="date" wire:model="nuevaExpedicion" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                        <p class="mt-1 text-[10px] text-slate-500">Con frecuencia, se calcula sola la fecha de renovación.</p>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Observaciones</label>
@@ -89,8 +90,9 @@
                         <tr>
                             <th class="px-4 py-3">Código</th>
                             <th class="px-4 py-3">Documento</th>
-                            <th class="px-4 py-3">Frecuencia</th>
-                            <th class="px-4 py-3">Renovar</th>
+                            <th class="px-4 py-3 text-center">Frecuencia</th>
+                            <th class="px-4 py-3 text-center">Expedición</th>
+                            <th class="px-4 py-3">Renueva / restante</th>
                             <th class="px-4 py-3">Archivo vigente</th>
                             <th class="px-4 py-3"></th>
                         </tr>
@@ -100,6 +102,7 @@
                             @php
                                 $due = $item->isDueForRenewal();
                                 $fresh = $item->hasFreshFileForCurrentRenewal();
+                                $daysLeft = $item->daysUntilRenewal();
                             @endphp
                             <tr class="align-top" wire:key="item-{{ $item->id }}">
                                 <td class="px-4 py-3 tabular-nums text-slate-500">{{ $item->code ?: '—' }}</td>
@@ -115,42 +118,64 @@
                                         <p class="mt-1 text-xs text-slate-500">{{ $item->observations }}</p>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ $item->frequency ?: '—' }}</td>
-                                <td class="px-4 py-3">
-                                    @if ($canEditRules && $editingRenewItemId === $item->id)
-                                        <div class="flex flex-col gap-2 min-w-[11rem]">
-                                            <input
-                                                type="date"
-                                                wire:model="editingRenewDate"
-                                                class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink"
-                                            >
-                                            @error('editingRenewDate')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                <td class="px-4 py-3 text-center">
+                                    @if ($canEditRules && $editingFrequencyItemId === $item->id)
+                                        <div class="mx-auto flex flex-col gap-2 min-w-[9rem] max-w-[12rem] text-left">
+                                            <input type="text" wire:model="editingFrequency" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink" placeholder="MENSUAL, ANUAL…">
+                                            @error('editingFrequency')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                             <div class="flex flex-wrap gap-2">
-                                                <button type="button" wire:click="saveRenewDate" class="sj-btn sj-btn--primary text-xs">Guardar</button>
-                                                <button type="button" wire:click="cancelEditRenew" class="sj-btn sj-btn--ghost text-xs">Cancelar</button>
+                                                <button type="button" wire:click="saveFrequency" class="sj-btn sj-btn--primary text-xs">Guardar</button>
+                                                <button type="button" wire:click="cancelEditFrequency" class="sj-btn sj-btn--ghost text-xs">Cancelar</button>
                                             </div>
                                         </div>
                                     @else
-                                        <div class="flex flex-col gap-1">
-                                            <span @class([
-                                                'font-semibold tabular-nums',
-                                                'text-red-600 dark:text-red-400' => $due && ! $fresh,
-                                                'text-emerald-700 dark:text-emerald-300' => $fresh,
-                                                'text-slate-600 dark:text-slate-300' => ! $due && ! $fresh,
-                                            ])>
-                                                {{ $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—') }}
-                                            </span>
+                                        <div class="flex flex-col items-center gap-1 text-center">
+                                            <span class="text-slate-600 dark:text-slate-300">{{ $item->frequency ?: '—' }}</span>
                                             @if ($canEditRules)
-                                                <button
-                                                    type="button"
-                                                    wire:click="startEditRenew({{ $item->id }})"
-                                                    class="self-start text-[11px] font-semibold text-sj-blue underline dark:text-sj-orange"
-                                                >
-                                                    Cambiar fecha
-                                                </button>
+                                                <button type="button" wire:click="startEditFrequency({{ $item->id }})" class="whitespace-nowrap text-[11px] font-semibold text-sj-blue underline dark:text-sj-orange">Cambiar frecuencia</button>
                                             @endif
                                         </div>
                                     @endif
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if ($canEditRules && $editingIssuedItemId === $item->id)
+                                        <div class="mx-auto flex flex-col gap-2 min-w-[11rem] max-w-[14rem] text-left">
+                                            <input type="date" wire:model="editingIssuedDate" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                                            @error('editingIssuedDate')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                                            <div class="flex flex-wrap gap-2">
+                                                <button type="button" wire:click="saveIssuedDate" class="sj-btn sj-btn--primary text-xs">Guardar</button>
+                                                <button type="button" wire:click="cancelEditIssued" class="sj-btn sj-btn--ghost text-xs">Cancelar</button>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="flex flex-col items-center gap-1 text-center">
+                                            <span class="tabular-nums text-slate-600 dark:text-slate-300">{{ $item->issued_on?->format('d/m/Y') ?: '—' }}</span>
+                                            @if ($canEditRules)
+                                                <button type="button" wire:click="startEditIssued({{ $item->id }})" class="whitespace-nowrap text-[11px] font-semibold text-sj-blue underline dark:text-sj-orange">Cambiar expedición</button>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col gap-0.5">
+                                        <span @class([
+                                            'font-semibold tabular-nums',
+                                            'text-red-600 dark:text-red-400' => $due && ! $fresh,
+                                            'text-emerald-700 dark:text-emerald-300' => $fresh || ($daysLeft !== null && $daysLeft > 7),
+                                            'text-amber-600 dark:text-amber-300' => ! $due && $daysLeft !== null && $daysLeft >= 0 && $daysLeft <= 7,
+                                            'text-slate-600 dark:text-slate-300' => $daysLeft === null,
+                                        ])>
+                                            {{ $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—') }}
+                                        </span>
+                                        <span @class([
+                                            'text-[11px]',
+                                            'text-red-600 dark:text-red-400' => $due && ! $fresh,
+                                            'text-amber-600 dark:text-amber-300' => ! $due && $daysLeft !== null && $daysLeft <= 7,
+                                            'text-slate-500' => ! $due && ($daysLeft === null || $daysLeft > 7),
+                                        ])>
+                                            {{ $item->renewalCountdownLabel() }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($item->currentFile)
@@ -189,7 +214,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-500">Sin documentos en esta carpeta.</td>
+                                <td colspan="7" class="px-4 py-8 text-center text-slate-500">Sin documentos en esta carpeta.</td>
                             </tr>
                         @endforelse
                     </tbody>

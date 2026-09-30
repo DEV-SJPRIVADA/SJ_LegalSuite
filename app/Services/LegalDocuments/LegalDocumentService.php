@@ -44,19 +44,63 @@ class LegalDocumentService
                 'uploaded_by_id' => $actor->id,
             ]);
 
+            $renewAdvancedTo = $this->advanceRenewOnAfterUpload($item, $actor);
+
             if ($item->folder) {
                 $this->activityLogger->log(
                     $item->folder,
                     $wasReplace ? 'file_replaced' : 'file_uploaded',
-                    ($wasReplace ? 'Reemplazó' : 'Subió').' archivo de «'.$item->displayTitle().'»: '.$file->original_name,
+                    ($wasReplace ? 'Reemplazó' : 'Subió').' archivo de «'.$item->displayTitle().'»: '.$file->original_name
+                    .($renewAdvancedTo ? ' · próxima renovación '.$renewAdvancedTo->format('d/m/Y') : ''),
                     $actor,
                     $item,
-                    ['file' => $file->original_name],
+                    [
+                        'file' => $file->original_name,
+                        'renew_on' => $renewAdvancedTo?->toDateString(),
+                    ],
                 );
             }
 
-            return $file;
+            return $file->fresh() ?? $file;
         });
+    }
+
+    /**
+     * Tras subir el archivo vigente: la carga cuenta como nueva expedición
+     * y se programa la próxima renovación (expedición + frecuencia).
+     */
+    private function advanceRenewOnAfterUpload(LegalDocumentItem $item, User $actor): ?\Illuminate\Support\Carbon
+    {
+        $issued = now()->startOfDay();
+        $beforeRenew = $item->renew_on?->format('d/m/Y') ?: '—';
+        $beforeIssued = $item->issued_on?->format('d/m/Y') ?: '—';
+
+        $next = $item->syncRenewalFromIssued(
+            $issued->toDateString(),
+            $item->frequency,
+        );
+
+        if ($item->folder) {
+            $this->activityLogger->log(
+                $item->folder,
+                'renew_cycle_advanced',
+                'Al cargar archivo, registró expedición '.$issued->format('d/m/Y')
+                .' y programó renovación de «'.$item->displayTitle().'»'
+                .($item->frequency ? ' ('.$item->frequency.')' : '')
+                .': '.$beforeRenew.' → '.($next?->format('d/m/Y') ?: '—'),
+                $actor,
+                $item,
+                [
+                    'frequency' => $item->frequency,
+                    'issued_before' => $beforeIssued,
+                    'issued_after' => $issued->format('d/m/Y'),
+                    'renew_before' => $beforeRenew,
+                    'renew_after' => $next?->format('d/m/Y'),
+                ],
+            );
+        }
+
+        return $next;
     }
 
     public function addExtraRequest(
@@ -64,24 +108,21 @@ class LegalDocumentService
         User $actor,
         string $title,
         ?string $frequency = null,
-        ?string $renewOn = null,
+        ?string $issuedOn = null,
         ?string $observations = null,
     ): LegalDocumentItem {
-        $item = LegalDocumentItem::query()->create([
+        $item = new LegalDocumentItem([
             'folder_id' => $folder->id,
             'code' => null,
             'group_title' => 'Solicitud adicional',
             'title' => trim($title),
             'issued_by' => null,
-            'issued_on' => null,
-            'frequency' => $frequency,
-            'renew_on' => $renewOn,
-            'renew_label' => null,
             'observations' => $observations,
             'source' => 'manual',
             'is_active' => true,
             'created_by_id' => $actor->id,
         ]);
+        $item->syncRenewalFromIssued($issuedOn, $frequency);
 
         $this->activityLogger->log(
             $folder,
@@ -90,8 +131,9 @@ class LegalDocumentService
             $actor,
             $item,
             [
-                'frequency' => $frequency,
-                'renew_on' => $renewOn,
+                'frequency' => $item->frequency,
+                'issued_on' => $item->issued_on?->toDateString(),
+                'renew_on' => $item->renew_on?->toDateString(),
             ],
         );
 

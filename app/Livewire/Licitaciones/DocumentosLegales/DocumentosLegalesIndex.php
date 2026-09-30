@@ -89,7 +89,10 @@ class DocumentosLegalesIndex extends Component
             return;
         }
 
-        $localUserId = User::query()->active()->where('email', $email)->value('id');
+        $localUserId = User::query()
+            ->active()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->value('id');
         $before = (string) ($folder->responsible_email ?: 'sin asignar');
 
         $folder->update([
@@ -198,7 +201,8 @@ class DocumentosLegalesIndex extends Component
             ->where('is_active', true);
 
         // Gestores / abogados ven todas; el director de área solo las de su correo.
-        if ($user && ! $this->userSeesAllFolders($user)) {
+        $seesAll = $user && $this->userSeesAllFolders($user);
+        if ($user && ! $seesAll) {
             $foldersQuery->visibleTo($user);
         }
 
@@ -216,6 +220,7 @@ class DocumentosLegalesIndex extends Component
             'folders' => $folders,
             'resultadosPorCarpeta' => $resultadosPorCarpeta,
             'canAssign' => $canAssign,
+            'seesAllFolders' => (bool) $seesAll,
         ]);
     }
 

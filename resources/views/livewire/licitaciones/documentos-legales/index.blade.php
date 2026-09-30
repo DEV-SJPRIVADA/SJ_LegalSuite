@@ -19,7 +19,7 @@
         @endif
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            @foreach ($folders as $folder)
+            @forelse ($folders as $folder)
                 @php
                     $selectedEmail = strtolower((string) ($assign[$folder->id]['email'] ?? ''));
                     $selectedName = (string) ($assign[$folder->id]['name'] ?? '');
@@ -119,7 +119,18 @@
                     <a href="{{ route('licitaciones.documentos-legales.folder', $folder) }}" wire:navigate
                        class="sj-btn sj-btn--primary mt-auto w-full">Abrir carpeta</a>
                 </div>
-            @endforeach
+            @empty
+                <div class="sm:col-span-2 xl:col-span-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 px-6 py-10 text-center dark:border-white/15 dark:bg-white/[0.03]">
+                    <p class="text-sm font-semibold text-sj-blue dark:text-white">No hay carpetas asignadas a su usuario</p>
+                    <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                        Solo verá la carpeta cuyo <strong>director</strong> coincida con su correo
+                        (<span class="font-mono text-xs">{{ auth()->user()?->email }}</span>).
+                    </p>
+                    <p class="mt-2 text-xs text-slate-500">
+                        Pida a un administrador que, en Documentos Legales, asigne su correo como responsable de la carpeta (ej. SST → sst@…).
+                    </p>
+                </div>
+            @endforelse
         </div>
     </div>
 </div>

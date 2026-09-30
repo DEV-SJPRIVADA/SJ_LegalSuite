@@ -1,19 +1,34 @@
 @php
     $isDark = ($uiTheme ?? 'light') === 'dark';
+    $user = auth()->user();
     $model = \App\Models\Licitaciones\Licitacion::class;
+    $isStaff = $user->managesLicitacionesStaff();
+    $isInvited = ! $isStaff && $user->hasActiveLicitacionInvitation();
     $links = [];
-    if (auth()->user()->canSeeFullAppSidebar()) {
+
+    if ($user->canSeeFullAppSidebar()) {
         $links[] = ['label' => 'Inicio', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')];
     }
-    if (auth()->user()->can('viewDashboard', $model)) {
+
+    if ($isStaff && $user->can('viewDashboard', $model)) {
         $links[] = ['label' => 'Dashboard', 'route' => route('licitaciones.dashboard'), 'active' => request()->routeIs('licitaciones.dashboard')];
     }
-    $links[] = ['label' => 'Licitaciones', 'route' => route('licitaciones.procesos.index'), 'active' => request()->routeIs('licitaciones.procesos.*')];
-    $links[] = ['label' => 'Solicitudes', 'route' => route('licitaciones.solicitudes.index'), 'active' => request()->routeIs('licitaciones.solicitudes.*')];
-    if (auth()->user()->can('viewDashboard', $model)) {
+
+    if ($isStaff && $user->can('viewAny', $model)) {
+        $links[] = ['label' => 'Licitaciones', 'route' => route('licitaciones.procesos.index'), 'active' => request()->routeIs('licitaciones.procesos.*')];
+    }
+
+    if ($isStaff || $isInvited) {
+        if ($user->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class)) {
+            $links[] = ['label' => 'Solicitudes', 'route' => route('licitaciones.solicitudes.index'), 'active' => request()->routeIs('licitaciones.solicitudes.*')];
+        }
+    }
+
+    if ($isStaff && $user->can('viewDashboard', $model)) {
         $links[] = ['label' => 'Informes', 'route' => route('licitaciones.informes.index'), 'active' => request()->routeIs('licitaciones.informes.*')];
     }
-    if (auth()->user()->can('viewAny', \App\Models\LegalDocuments\LegalDocumentFolder::class)) {
+
+    if ($user->can('viewAny', \App\Models\LegalDocuments\LegalDocumentFolder::class)) {
         $links[] = ['label' => 'Documentos Legales', 'route' => route('licitaciones.documentos-legales.index'), 'active' => request()->routeIs('licitaciones.documentos-legales.*')];
     }
 @endphp

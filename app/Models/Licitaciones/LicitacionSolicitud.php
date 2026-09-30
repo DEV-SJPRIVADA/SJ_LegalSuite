@@ -109,9 +109,17 @@ class LicitacionSolicitud extends Model
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($user) {
+        $email = strtolower(trim((string) $user->email));
+
+        return $query->where(function (Builder $q) use ($user, $email) {
             $q->where('usuario_responsable_id', $user->id)
                 ->orWhere('created_by_id', $user->id);
+
+            if ($email !== '') {
+                $q->orWhereHas('invitados', function (Builder $inv) use ($email) {
+                    $inv->whereRaw('LOWER(email) = ?', [$email]);
+                });
+            }
         });
     }
 

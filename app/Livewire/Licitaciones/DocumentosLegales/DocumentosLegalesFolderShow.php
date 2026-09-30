@@ -25,7 +25,7 @@ class DocumentosLegalesFolderShow extends Component
 
     public string $nuevaFrecuencia = '';
 
-    public string $nuevaRenovacion = '';
+    public string $nuevaExpedicion = '';
 
     public string $nuevasObservaciones = '';
 
@@ -33,9 +33,13 @@ class DocumentosLegalesFolderShow extends Component
 
     public $uploadFile = null;
 
-    public ?int $editingRenewItemId = null;
+    public ?int $editingIssuedItemId = null;
 
-    public string $editingRenewDate = '';
+    public string $editingIssuedDate = '';
+
+    public ?int $editingFrequencyItemId = null;
+
+    public string $editingFrequency = '';
 
     public int $reminderEveryMinutes = 60;
 
@@ -49,7 +53,8 @@ class DocumentosLegalesFolderShow extends Component
     public function startUpload(int $itemId): void
     {
         Gate::authorize('upload', $this->folder);
-        $this->cancelEditRenew();
+        $this->cancelEditIssued();
+        $this->cancelEditFrequency();
         $this->uploadItemId = $itemId;
         $this->reset('uploadFile');
         $this->resetErrorBag('uploadFile');
@@ -61,7 +66,7 @@ class DocumentosLegalesFolderShow extends Component
         $this->resetErrorBag('uploadFile');
     }
 
-    public function startEditRenew(int $itemId): void
+    public function startEditIssued(int $itemId): void
     {
         Gate::authorize('editRules', $this->folder);
 
@@ -71,57 +76,136 @@ class DocumentosLegalesFolderShow extends Component
             ->firstOrFail();
 
         $this->cancelUpload();
-        $this->editingRenewItemId = $item->id;
-        $this->editingRenewDate = $item->renew_on?->format('Y-m-d') ?? '';
-        $this->resetErrorBag('editingRenewDate');
+        $this->cancelEditFrequency();
+        $this->editingIssuedItemId = $item->id;
+        $this->editingIssuedDate = $item->issued_on?->format('Y-m-d') ?? '';
+        $this->resetErrorBag('editingIssuedDate');
     }
 
-    public function cancelEditRenew(): void
+    public function cancelEditIssued(): void
     {
-        $this->reset('editingRenewItemId', 'editingRenewDate');
-        $this->resetErrorBag('editingRenewDate');
+        $this->reset('editingIssuedItemId', 'editingIssuedDate');
+        $this->resetErrorBag('editingIssuedDate');
     }
 
-    public function saveRenewDate(LegalDocumentActivityLogger $logger): void
+    public function startEditFrequency(int $itemId): void
+    {
+        Gate::authorize('editRules', $this->folder);
+
+        $item = LegalDocumentItem::query()
+            ->where('folder_id', $this->folder->id)
+            ->whereKey($itemId)
+            ->firstOrFail();
+
+        $this->cancelUpload();
+        $this->cancelEditIssued();
+        $this->editingFrequencyItemId = $item->id;
+        $this->editingFrequency = (string) ($item->frequency ?? '');
+        $this->resetErrorBag('editingFrequency');
+    }
+
+    public function cancelEditFrequency(): void
+    {
+        $this->reset('editingFrequencyItemId', 'editingFrequency');
+        $this->resetErrorBag('editingFrequency');
+    }
+
+    public function saveFrequency(LegalDocumentActivityLogger $logger): void
     {
         Gate::authorize('editRules', $this->folder);
 
         $data = $this->validate([
-            'editingRenewItemId' => ['required', 'integer'],
-            'editingRenewDate' => ['nullable', 'date'],
+            'editingFrequencyItemId' => ['required', 'integer'],
+            'editingFrequency' => ['nullable', 'string', 'max:80'],
         ], [], [
-            'editingRenewDate' => 'fecha de renovación',
+            'editingFrequency' => 'frecuencia',
         ]);
 
         $item = LegalDocumentItem::query()
             ->where('folder_id', $this->folder->id)
-            ->whereKey($data['editingRenewItemId'])
+            ->whereKey($data['editingFrequencyItemId'])
             ->firstOrFail();
 
-        $before = $item->renew_on?->format('d/m/Y') ?: '—';
-        $newDate = $data['editingRenewDate'] !== '' && $data['editingRenewDate'] !== null
-            ? $data['editingRenewDate']
-            : null;
+        $beforeFreq = $item->frequency ?: '—';
+        $beforeRenew = $item->renew_on?->format('d/m/Y') ?: '—';
+        $newFrequency = trim((string) ($data['editingFrequency'] ?? ''));
+        $newFrequency = $newFrequency !== '' ? $newFrequency : null;
 
-        $item->update([
-            'renew_on' => $newDate,
-            'renew_label' => null,
-            'last_reminder_at' => null,
-        ]);
-
-        $after = $newDate ? \Illuminate\Support\Carbon::parse($newDate)->format('d/m/Y') : '—';
+        $next = $item->syncRenewalFromIssued(
+            $item->issued_on?->toDateString(),
+            $newFrequency,
+        );
 
         $logger->log(
             $this->folder,
-            'renew_date_changed',
-            'Cambió fecha de renovación de «'.$item->displayTitle().'»: '.$before.' → '.$after,
+            'frequency_changed',
+            'Cambió frecuencia de «'.$item->displayTitle().'»: '.$beforeFreq.' → '.($newFrequency ?: '—')
+            .' · renueva '.$beforeRenew.' → '.($next?->format('d/m/Y') ?: '—'),
             auth()->user(),
             $item,
-            ['before' => $before, 'after' => $after],
+            [
+                'frequency_before' => $beforeFreq,
+                'frequency_after' => $newFrequency,
+                'renew_on' => $next?->toDateString(),
+            ],
         );
 
-        $this->cancelEditRenew();
-        session()->flash('success', 'Fecha de renovación actualizada. Los recordatorios usarán esa fecha.');
+        $this->cancelEditFrequency();
+        $msg = 'Frecuencia actualizada.';
+        if ($next) {
+            $msg .= ' Debe renovarse el '.$next->format('d/m/Y').'.';
+        } elseif (! $item->issued_on) {
+            $msg .= ' Indique también la fecha de expedición para calcular la renovación.';
+        }
+        session()->flash('success', $msg);
+    }
+
+    public function saveIssuedDate(LegalDocumentActivityLogger $logger): void
+    {
+        Gate::authorize('editRules', $this->folder);
+
+        $data = $this->validate([
+            'editingIssuedItemId' => ['required', 'integer'],
+            'editingIssuedDate' => ['nullable', 'date'],
+        ], [], [
+            'editingIssuedDate' => 'fecha de expedición',
+        ]);
+
+        $item = LegalDocumentItem::query()
+            ->where('folder_id', $this->folder->id)
+            ->whereKey($data['editingIssuedItemId'])
+            ->firstOrFail();
+
+        $beforeIssued = $item->issued_on?->format('d/m/Y') ?: '—';
+        $beforeRenew = $item->renew_on?->format('d/m/Y') ?: '—';
+        $newIssued = $data['editingIssuedDate'] !== '' && $data['editingIssuedDate'] !== null
+            ? $data['editingIssuedDate']
+            : null;
+
+        $next = $item->syncRenewalFromIssued($newIssued, $item->frequency);
+
+        $logger->log(
+            $this->folder,
+            'issued_date_changed',
+            'Cambió expedición de «'.$item->displayTitle().'»: '.$beforeIssued.' → '.($newIssued ? \Illuminate\Support\Carbon::parse($newIssued)->format('d/m/Y') : '—')
+            .' · renueva '.$beforeRenew.' → '.($next?->format('d/m/Y') ?: '—'),
+            auth()->user(),
+            $item,
+            [
+                'issued_before' => $beforeIssued,
+                'issued_after' => $newIssued,
+                'renew_on' => $next?->toDateString(),
+            ],
+        );
+
+        $this->cancelEditIssued();
+        $msg = 'Fecha de expedición guardada.';
+        if ($next) {
+            $msg .= ' Renovación calculada: '.$next->format('d/m/Y').'. Los avisos inician ese día si no hay archivo nuevo.';
+        } elseif (! $item->frequency) {
+            $msg .= ' Defina la frecuencia (MENSUAL, ANUAL…) para calcular cuándo renovar.';
+        }
+        session()->flash('success', $msg);
     }
 
     public function saveReminderInterval(LegalDocumentActivityLogger $logger): void
@@ -202,11 +286,20 @@ class DocumentosLegalesFolderShow extends Component
 
         $service->replaceFile($item, $this->uploadFile, auth()->user());
 
-        $item->update(['last_reminder_at' => null]);
-
+        $item->refresh();
         $this->reset('uploadItemId', 'uploadFile');
 
-        session()->flash('success', 'Documento actualizado. La versión anterior fue descartada y las alertas se detienen.');
+        $next = $item->renew_on?->format('d/m/Y');
+        $issued = $item->issued_on?->format('d/m/Y');
+        $message = 'Documento actualizado. La versión anterior fue descartada y las alertas se detienen.';
+        if ($issued && $next) {
+            $message .= ' Expedición: '.$issued.' · Renueva el '.$next
+                .($item->frequency ? ' ('.$item->frequency.')' : '').'.';
+        } elseif (! $item->frequency) {
+            $message .= ' Defina una frecuencia (MENSUAL, 6 MESES…) para programar la próxima renovación.';
+        }
+
+        session()->flash('success', $message);
     }
 
     public function agregarSolicitud(LegalDocumentService $service): void
@@ -216,11 +309,11 @@ class DocumentosLegalesFolderShow extends Component
         $data = $this->validate([
             'nuevoTitulo' => ['required', 'string', 'max:255'],
             'nuevaFrecuencia' => ['nullable', 'string', 'max:80'],
-            'nuevaRenovacion' => ['nullable', 'date'],
+            'nuevaExpedicion' => ['nullable', 'date'],
             'nuevasObservaciones' => ['nullable', 'string', 'max:2000'],
         ], [], [
             'nuevoTitulo' => 'nombre del documento',
-            'nuevaRenovacion' => 'fecha de renovación',
+            'nuevaExpedicion' => 'fecha de expedición',
         ]);
 
         $service->addExtraRequest(
@@ -228,12 +321,12 @@ class DocumentosLegalesFolderShow extends Component
             auth()->user(),
             $data['nuevoTitulo'],
             $data['nuevaFrecuencia'] !== '' ? $data['nuevaFrecuencia'] : null,
-            $data['nuevaRenovacion'] !== '' ? $data['nuevaRenovacion'] : null,
+            $data['nuevaExpedicion'] !== '' ? $data['nuevaExpedicion'] : null,
             $data['nuevasObservaciones'] !== '' ? $data['nuevasObservaciones'] : null,
         );
 
-        $this->reset('nuevoTitulo', 'nuevaFrecuencia', 'nuevaRenovacion', 'nuevasObservaciones');
-        session()->flash('success', 'Solicitud de documento agregada a la carpeta.');
+        $this->reset('nuevoTitulo', 'nuevaFrecuencia', 'nuevaExpedicion', 'nuevasObservaciones');
+        session()->flash('success', 'Solicitud de documento agregada. La renovación se calcula con expedición + frecuencia.');
     }
 
     public function render()

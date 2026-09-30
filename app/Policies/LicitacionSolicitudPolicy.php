@@ -20,8 +20,13 @@ class LicitacionSolicitudPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('viewAny', Licitacion::class)
-            || $user->can('manageSolicitudes', Licitacion::class);
+        if ($user->managesLicitacionesStaff()) {
+            return $user->can('viewAny', Licitacion::class)
+                || $user->can('manageSolicitudes', Licitacion::class);
+        }
+
+        // Director / aportante: solo si fue convocado a alguna solicitud.
+        return $user->hasActiveLicitacionInvitation();
     }
 
     public function view(User $user, LicitacionSolicitud $solicitud): bool
@@ -30,23 +35,29 @@ class LicitacionSolicitudPolicy
             return true;
         }
 
-        return $solicitud->usuario_responsable_id === $user->id
-            || $solicitud->created_by_id === $user->id;
+        if ($solicitud->usuario_responsable_id === $user->id
+            || $solicitud->created_by_id === $user->id) {
+            return true;
+        }
+
+        return $user->isInvitedToSolicitud($solicitud);
     }
 
     public function create(User $user): bool
     {
-        return $user->can('manageSolicitudes', Licitacion::class);
+        return $user->managesLicitacionesStaff()
+            && $user->can('manageSolicitudes', Licitacion::class);
     }
 
     public function update(User $user, LicitacionSolicitud $solicitud): bool
     {
-        return $user->can('manageSolicitudes', Licitacion::class);
+        return $user->managesLicitacionesStaff()
+            && $user->can('manageSolicitudes', Licitacion::class);
     }
 
     public function delete(User $user, LicitacionSolicitud $solicitud): bool
     {
-        return $user->can('manageSolicitudes', Licitacion::class);
+        return $this->update($user, $solicitud);
     }
 
     public function comment(User $user, LicitacionSolicitud $solicitud): bool
@@ -56,15 +67,20 @@ class LicitacionSolicitudPolicy
 
     public function uploadDocument(User $user, LicitacionSolicitud $solicitud): bool
     {
-        if ($user->can('uploadDocument', Licitacion::class)) {
+        if ($user->managesLicitacionesStaff() && $user->can('uploadDocument', Licitacion::class)) {
             return true;
         }
 
-        return $this->view($user, $solicitud);
+        // Convocado: puede aportar en esa solicitud (además del portal por token).
+        return $user->isInvitedToSolicitud($solicitud);
     }
 
     public function manageInvitados(User $user, LicitacionSolicitud $solicitud): bool
     {
+        if (! $user->managesLicitacionesStaff()) {
+            return false;
+        }
+
         return $this->update($user, $solicitud)
             || $solicitud->created_by_id === $user->id
             || $solicitud->usuario_responsable_id === $user->id;

@@ -63,6 +63,75 @@ class LegalDocumentItem extends Model
         return $this->title;
     }
 
+    /**
+     * Calcula renew_on = issued_on + frecuencia.
+     */
+    public function computeRenewOnFromIssued(): ?\Illuminate\Support\Carbon
+    {
+        if ($this->issued_on === null) {
+            return null;
+        }
+
+        return \App\Support\LegalDocuments\LegalDocumentFrequencyParser::nextRenewOn(
+            $this->frequency,
+            $this->issued_on,
+        );
+    }
+
+    /**
+     * Persiste issued_on / frequency y recalcula renew_on.
+     *
+     * @return \Illuminate\Support\Carbon|null nueva fecha de renovación
+     */
+    public function syncRenewalFromIssued(?string $issuedOn, ?string $frequency): ?\Illuminate\Support\Carbon
+    {
+        $this->issued_on = $issuedOn ?: null;
+        $this->frequency = $frequency !== null && trim($frequency) !== '' ? trim($frequency) : null;
+        $next = $this->computeRenewOnFromIssued();
+        $this->renew_on = $next?->toDateString();
+        $this->renew_label = null;
+        $this->last_reminder_at = null;
+        $this->save();
+
+        return $next;
+    }
+
+    /**
+     * Días hasta renovar (negativo = vencido).
+     */
+    public function daysUntilRenewal(): ?int
+    {
+        if ($this->renew_on === null) {
+            return null;
+        }
+
+        $today = now()->startOfDay();
+        $renew = $this->renew_on->copy()->startOfDay();
+
+        return (int) $today->diffInDays($renew, false);
+    }
+
+    public function renewalCountdownLabel(): string
+    {
+        $days = $this->daysUntilRenewal();
+        if ($days === null) {
+            return 'Sin ciclo (defina expedición + frecuencia)';
+        }
+        if ($days < 0) {
+            $n = abs($days);
+
+            return $n === 1 ? 'Vencido hace 1 día' : 'Vencido hace '.$n.' días';
+        }
+        if ($days === 0) {
+            return 'Vence hoy — inician avisos';
+        }
+        if ($days === 1) {
+            return 'Falta 1 día';
+        }
+
+        return 'Faltan '.$days.' días';
+    }
+
     public function isDueForRenewal(): bool
     {
         if (! $this->is_active) {

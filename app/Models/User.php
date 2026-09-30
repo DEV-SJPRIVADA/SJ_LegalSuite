@@ -299,6 +299,11 @@ class User extends Authenticatable
             return route('licitaciones.dashboard');
         }
 
+        if ($this->can('viewAny', \App\Models\LegalDocuments\LegalDocumentFolder::class)
+            && ! $this->managesLicitacionesStaff()) {
+            return route('licitaciones.documentos-legales.index');
+        }
+
         if ($this->can('viewAny', Licitacion::class)) {
             return route('licitaciones.procesos.index');
         }
@@ -320,9 +325,72 @@ class User extends Authenticatable
             return true;
         }
 
+        if ($this->can('viewAny', \App\Models\LegalDocuments\LegalDocumentFolder::class)) {
+            return true;
+        }
+
         return $this->can('viewDashboard', Licitacion::class)
             || $this->can('viewAny', Licitacion::class)
             || $this->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class);
+    }
+
+    /**
+     * Personal jurídico/admin que gestiona procesos y solicitudes (no solo director de carpeta).
+     */
+    public function managesLicitacionesStaff(): bool
+    {
+        if ($this->hasPlatformLevel(
+            PlatformLevel::Nivel1,
+            PlatformLevel::Nivel5,
+            PlatformLevel::Nivel6,
+        )) {
+            return true;
+        }
+
+        foreach ([
+            'licitaciones.view-dashboard',
+            'licitaciones.create',
+            'licitaciones.update',
+            'licitaciones.manage-solicitudes',
+        ] as $permission) {
+            try {
+                if ($this->hasPermissionTo($permission)) {
+                    return true;
+                }
+            } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+                continue;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Fue convocado (invitado) a aportar documentos en alguna solicitud de licitación.
+     */
+    public function hasActiveLicitacionInvitation(): bool
+    {
+        $email = strtolower(trim((string) $this->email));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        return \App\Models\Licitaciones\LicitacionSolicitudInvitado::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->exists();
+    }
+
+    public function isInvitedToSolicitud(\App\Models\Licitaciones\LicitacionSolicitud $solicitud): bool
+    {
+        $email = strtolower(trim((string) $this->email));
+        if ($email === '') {
+            return false;
+        }
+
+        return \App\Models\Licitaciones\LicitacionSolicitudInvitado::query()
+            ->where('solicitud_id', $solicitud->id)
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->exists();
     }
 
     /**
