@@ -486,11 +486,11 @@ class UsersIndex extends Component
             ],
             'isActive' => ['boolean'],
             'allowChanges' => ['boolean'],
-            'authorizedMunicipalityCodes' => [
+            'authorizedMunicipalityCodes' => array_values(array_filter([
                 Rule::requiredIf(fn () => $this->requiresAuthorizedCities),
                 'array',
-                'min:1',
-            ],
+                $this->requiresAuthorizedCities ? 'min:1' : null,
+            ])),
             'authorizedMunicipalityCodes.*' => [
                 'string',
                 'size:5',
