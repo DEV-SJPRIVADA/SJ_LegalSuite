@@ -206,17 +206,29 @@
             </section>
         </div>
 
-        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur-sm dark:border-white/10 dark:bg-dash-ink/95 sm:px-6">
-            <button type="button" wire:click="closeForm"
-                class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/5">
-                Cancelar
-            </button>
-            <button type="submit" wire:loading.attr="disabled" wire:target="save"
-                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60">
-                <svg wire:loading wire:target="save" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                <span wire:loading.remove wire:target="save">{{ $editingId ? 'Guardar cambios' : 'Crear usuario' }}</span>
-                <span wire:loading wire:target="save">Guardando…</span>
-            </button>
+        <div class="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur-sm dark:border-white/10 dark:bg-dash-ink/95 sm:px-6">
+            @if ($errors->any())
+                <div class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-200 dark:ring-red-500/30">
+                    <p class="font-semibold">No se pudo guardar. Revise:</p>
+                    <ul class="mt-1 list-disc pl-4">
+                        @foreach ($errors->all() as $message)
+                            <li>{{ $message }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                <button type="button" wire:click="closeForm"
+                    class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/5">
+                    Cancelar
+                </button>
+                <button type="submit" wire:loading.attr="disabled" wire:target="save"
+                    class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60">
+                    <svg wire:loading wire:target="save" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    <span wire:loading.remove wire:target="save">{{ $editingId ? 'Guardar cambios' : 'Crear usuario' }}</span>
+                    <span wire:loading wire:target="save">Guardando…</span>
+                </button>
+            </div>
         </div>
     </form>
 </div>

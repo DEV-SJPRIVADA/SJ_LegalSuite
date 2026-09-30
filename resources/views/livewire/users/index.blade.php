@@ -269,13 +269,19 @@
              x-data="{ copied: false }" wire:keydown.escape="closeCredentialModal">
             <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 dark:bg-dash-ink dark:ring-white/15">
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-white/10">
-                    <h3 class="font-bold text-slate-900 dark:text-white">Contraseña provisional</h3>
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Listo</p>
+                        <h3 class="font-bold text-slate-900 dark:text-white">Usuario creado correctamente</h3>
+                    </div>
                     <button type="button" wire:click="closeCredentialModal" class="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 <div class="space-y-4 p-6">
-                    <p class="text-sm text-slate-600 dark:text-slate-400">Esta contraseña solo se muestra una vez. Cópiala y envíala por un canal seguro.</p>
+                    <div class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30">
+                        El usuario ya puede iniciar sesión. Copie la contraseña provisional y compártala por un canal seguro; en el primer ingreso deberá cambiarla.
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">Esta contraseña solo se muestra una vez.</p>
                     <div>
-                        <label class="{{ $usersLabel }}">Contraseña generada</label>
+                        <label class="{{ $usersLabel }}">Contraseña provisional</label>
                         <input type="text" readonly id="provision-password-field" value="{{ $generatedPlainPassword }}" onclick="this.select()" class="{{ $usersReadonlyField }}">
                     </div>
                     <div class="flex flex-wrap gap-2">

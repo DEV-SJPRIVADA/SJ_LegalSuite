@@ -504,7 +504,7 @@ class UsersIndex extends Component
             $this->showCredentialModal = true;
             session()->flash(
                 'success',
-                'Usuario creado. Copie la contraseña provisional y compártala por un canal seguro. En el primer ingreso deberá cambiarla.'
+                'Usuario creado correctamente. Copie la contraseña provisional y compártala por un canal seguro.'
             );
         } else {
             $user = User::findOrFail($this->editingId);
