@@ -50,7 +50,7 @@ class LegalDocumentRenewalReminderNotification extends Notification
                 'Abrir Documentos Legales',
                 rtrim((string) config('app.mail_url', config('app.url')), '/').'/licitaciones/documentos-legales'
             )
-            ->line('Mientras no suba o reemplace el archivo, **seguirá recibiendo correos** (cada hora; entre las **16:00** y las **17:00**, cada 10 minutos). Al cargar la versión actualizada las alertas se detienen.')
+            ->line('Mientras no suba o reemplace el archivo, **seguirá recibiendo correos** según la frecuencia configurada en la carpeta. Al cargar la versión actualizada las alertas se detienen.')
             ->salutation('SJ LegalSuite');
     }
 }

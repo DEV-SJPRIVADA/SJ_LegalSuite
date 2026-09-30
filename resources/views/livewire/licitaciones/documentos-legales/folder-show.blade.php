@@ -11,8 +11,16 @@
                 <p class="text-sm text-slate-500">
                     @if ($folder->exclude_reminders)
                         Área Jurídica: sin recordatorios automáticos (gestión de la abogada).
+                    @elseif ($canEditRules)
+                        Como administrador puede crear solicitudes, definir fechas de renovación y la frecuencia de correos.
+                        Recordatorios actuales:
+                        <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span>.
                     @else
-                        El día de renovación se avisa al director por correo y **sigue avisando hasta que suba el archivo** (cada hora; entre 16:00 y 17:00 cada 10 minutos). Puede editar la fecha en la columna Renovar.
+                        Suba o reemplace el archivo vigente de cada documento. Las fechas y los recordatorios los define el administrador.
+                        @unless ($folder->exclude_reminders)
+                            Aviso actual:
+                            <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span>.
+                        @endunless
                     @endif
                 </p>
             </div>
@@ -24,7 +32,29 @@
             </div>
         @endif
 
-        @if ($canUpload)
+        @if ($canManageReminders && ! $folder->exclude_reminders)
+            <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+                <h2 class="font-semibold text-sj-blue dark:text-white mb-1">Frecuencia de recordatorios por correo</h2>
+                <p class="text-xs text-slate-500 mb-3">
+                    Al guardar, se aplica de inmediato y se envía un aviso si hay documentos por renovar.
+                    Luego el sistema respeta este intervalo (programador cada minuto).
+                </p>
+                <form wire:submit="saveReminderInterval" class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-[16rem] flex-1">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Enviar cada</label>
+                        <select wire:model="reminderEveryMinutes" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
+                            @foreach ($reminderOptions as $minutes => $label)
+                                <option value="{{ $minutes }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('reminderEveryMinutes')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <button type="submit" class="sj-btn sj-btn--secondary">Guardar frecuencia</button>
+                </form>
+            </div>
+        @endif
+
+        @if ($canAddRequest)
             <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
                 <h2 class="font-semibold text-sj-blue dark:text-white mb-3">Agregar solicitud de documento</h2>
                 <form wire:submit="agregarSolicitud" class="grid gap-3 sm:grid-cols-2">
@@ -87,7 +117,7 @@
                                 </td>
                                 <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ $item->frequency ?: '—' }}</td>
                                 <td class="px-4 py-3">
-                                    @if ($canUpload && $editingRenewItemId === $item->id)
+                                    @if ($canEditRules && $editingRenewItemId === $item->id)
                                         <div class="flex flex-col gap-2 min-w-[11rem]">
                                             <input
                                                 type="date"
@@ -110,7 +140,7 @@
                                             ])>
                                                 {{ $item->renew_on?->format('d/m/Y') ?? ($item->renew_label ?: '—') }}
                                             </span>
-                                            @if ($canUpload)
+                                            @if ($canEditRules)
                                                 <button
                                                     type="button"
                                                     wire:click="startEditRenew({{ $item->id }})"
@@ -165,6 +195,28 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="rounded-xl bg-white ring-1 ring-slate-200 overflow-hidden dark:bg-white/[0.04] dark:ring-white/10">
+            <div class="border-b border-slate-100 px-4 py-3 dark:border-white/10">
+                <h2 class="font-semibold text-sj-blue dark:text-white">Historial de cambios</h2>
+                <p class="text-xs text-slate-500">Últimos movimientos en esta carpeta (fechas, archivos, frecuencia, director).</p>
+            </div>
+            <ul class="divide-y divide-slate-100 dark:divide-white/10 max-h-96 overflow-y-auto">
+                @forelse ($activities as $activity)
+                    <li class="px-4 py-3 text-sm" wire:key="act-{{ $activity->id }}">
+                        <p class="text-sj-blue dark:text-slate-100">{{ $activity->summary }}</p>
+                        <p class="mt-0.5 text-[11px] text-slate-500">
+                            {{ $activity->created_at?->format('d/m/Y H:i') }}
+                            @if ($activity->user)
+                                · {{ $activity->user->name }}
+                            @endif
+                        </p>
+                    </li>
+                @empty
+                    <li class="px-4 py-6 text-center text-sm text-slate-500">Aún no hay cambios registrados en esta carpeta.</li>
+                @endforelse
+            </ul>
         </div>
     </div>
 </div>

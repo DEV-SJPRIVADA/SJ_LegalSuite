@@ -10,22 +10,45 @@ use Illuminate\Support\Facades\Notification;
 class EnviarRecordatoriosDocumentosLegalesCommand extends Command
 {
     protected $signature = 'legal-documents:enviar-recordatorios
-                            {--dry-run : Lista sin enviar}';
+                            {--folder= : Slug o ID de carpeta (opcional)}
+                            {--dry-run : Lista sin enviar}
+                            {--force : Ignora el intervalo y reenvía si sigue vencido sin archivo}';
 
-    protected $description = 'Recordatorios de documentos legales vencidos: cada hora (y cada 10 min entre 16:00–17:00) hasta que se suba el archivo; excluye área Jurídica.';
+    protected $description = 'Recordatorios de documentos legales vencidos según la frecuencia configurada en cada carpeta.';
 
     public function handle(): int
     {
+        $folderFilter = trim((string) $this->option('folder'));
+        $force = (bool) $this->option('force');
+
         $items = LegalDocumentItem::query()
             ->active()
             ->with(['folder.responsible', 'currentFile'])
-            ->whereHas('folder', fn ($q) => $q->where('exclude_reminders', false)->where('is_active', true))
+            ->whereHas('folder', function ($q) use ($folderFilter) {
+                $q->where('exclude_reminders', false)->where('is_active', true);
+                if ($folderFilter !== '') {
+                    if (ctype_digit($folderFilter)) {
+                        $q->whereKey((int) $folderFilter);
+                    } else {
+                        $q->where('slug', $folderFilter);
+                    }
+                }
+            })
             ->whereNotNull('renew_on')
             ->whereDate('renew_on', '<=', now()->toDateString())
             ->orderBy('folder_id')
             ->orderBy('renew_on')
             ->get()
-            ->filter(fn (LegalDocumentItem $item) => $item->needsReminder());
+            ->filter(function (LegalDocumentItem $item) use ($force) {
+                if ($force) {
+                    return $item->isDueForRenewal()
+                        && $item->folder
+                        && ! $item->folder->exclude_reminders
+                        && ! $item->hasFreshFileForCurrentRenewal();
+                }
+
+                return $item->needsReminder();
+            });
 
         if ($items->isEmpty()) {
             $this->info('Sin recordatorios de documentos legales.');
@@ -49,7 +72,8 @@ class EnviarRecordatoriosDocumentosLegalesCommand extends Command
                 continue;
             }
 
-            $this->line("- {$folder->name}: ".$folderItems->count().' docs → '.implode(', ', $emails));
+            $this->line("- {$folder->name}: ".$folderItems->count().' docs → '.implode(', ', $emails)
+                .' (cada '.$folder->reminderIntervalMinutes().' min)');
 
             if ($this->option('dry-run')) {
                 continue;

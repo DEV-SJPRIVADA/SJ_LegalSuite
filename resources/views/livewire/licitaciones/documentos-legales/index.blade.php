@@ -8,7 +8,7 @@
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Licitaciones · Documentos legales</p>
             <h1 class="mt-1 text-xl font-bold text-sj-blue dark:text-white">Carpetas por área (MT-GJ-06)</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Cada director actualiza los documentos de su carpeta. Si la fecha de renovación vence y no hay archivo nuevo, **se siguen enviando correos** (cada hora; entre 16:00 y 17:00 cada 10 minutos) hasta que se suba/reemplace el documento.
+                Cada director solo ve su carpeta y puede subir/reemplazar archivos. El administrador crea solicitudes, define fechas y la frecuencia de los correos.
             </p>
         </div>
 
@@ -63,6 +63,9 @@
                             <span class="text-amber-700 dark:text-amber-300">sin asignar</span>
                         @endif
                     </p>
+                    @unless ($folder->exclude_reminders)
+                        <p class="text-[11px] text-slate-500">Recordatorio: <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span></p>
+                    @endunless
 
                     @if ($canAssign)
                         <div class="space-y-2 border-t border-slate-100 pt-3 dark:border-white/10">

@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Licitaciones\DocumentosLegales;
 
+use App\Models\LegalDocuments\LegalDocumentActivity;
 use App\Models\LegalDocuments\LegalDocumentFolder;
 use App\Models\LegalDocuments\LegalDocumentItem;
+use App\Services\LegalDocuments\LegalDocumentActivityLogger;
 use App\Services\LegalDocuments\LegalDocumentService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -35,10 +37,13 @@ class DocumentosLegalesFolderShow extends Component
 
     public string $editingRenewDate = '';
 
+    public int $reminderEveryMinutes = 60;
+
     public function mount(LegalDocumentFolder $folder): void
     {
         Gate::authorize('view', $folder);
         $this->folder = $folder;
+        $this->reminderEveryMinutes = $folder->reminderIntervalMinutes();
     }
 
     public function startUpload(int $itemId): void
@@ -58,7 +63,7 @@ class DocumentosLegalesFolderShow extends Component
 
     public function startEditRenew(int $itemId): void
     {
-        Gate::authorize('upload', $this->folder);
+        Gate::authorize('editRules', $this->folder);
 
         $item = LegalDocumentItem::query()
             ->where('folder_id', $this->folder->id)
@@ -77,9 +82,9 @@ class DocumentosLegalesFolderShow extends Component
         $this->resetErrorBag('editingRenewDate');
     }
 
-    public function saveRenewDate(): void
+    public function saveRenewDate(LegalDocumentActivityLogger $logger): void
     {
-        Gate::authorize('upload', $this->folder);
+        Gate::authorize('editRules', $this->folder);
 
         $data = $this->validate([
             'editingRenewItemId' => ['required', 'integer'],
@@ -93,16 +98,90 @@ class DocumentosLegalesFolderShow extends Component
             ->whereKey($data['editingRenewItemId'])
             ->firstOrFail();
 
+        $before = $item->renew_on?->format('d/m/Y') ?: '—';
+        $newDate = $data['editingRenewDate'] !== '' && $data['editingRenewDate'] !== null
+            ? $data['editingRenewDate']
+            : null;
+
         $item->update([
-            'renew_on' => $data['editingRenewDate'] !== '' && $data['editingRenewDate'] !== null
-                ? $data['editingRenewDate']
-                : null,
+            'renew_on' => $newDate,
             'renew_label' => null,
             'last_reminder_at' => null,
         ]);
 
+        $after = $newDate ? \Illuminate\Support\Carbon::parse($newDate)->format('d/m/Y') : '—';
+
+        $logger->log(
+            $this->folder,
+            'renew_date_changed',
+            'Cambió fecha de renovación de «'.$item->displayTitle().'»: '.$before.' → '.$after,
+            auth()->user(),
+            $item,
+            ['before' => $before, 'after' => $after],
+        );
+
         $this->cancelEditRenew();
         session()->flash('success', 'Fecha de renovación actualizada. Los recordatorios usarán esa fecha.');
+    }
+
+    public function saveReminderInterval(LegalDocumentActivityLogger $logger): void
+    {
+        Gate::authorize('manageReminders', $this->folder);
+
+        $allowed = array_keys(LegalDocumentFolder::REMINDER_INTERVAL_OPTIONS);
+        $data = $this->validate([
+            'reminderEveryMinutes' => ['required', 'integer', 'in:'.implode(',', $allowed)],
+        ], [], [
+            'reminderEveryMinutes' => 'frecuencia de recordatorio',
+        ]);
+
+        $before = $this->folder->reminderIntervalLabel();
+        $this->folder->update([
+            'reminder_every_minutes' => (int) $data['reminderEveryMinutes'],
+        ]);
+        $this->folder->refresh();
+        $this->reminderEveryMinutes = $this->folder->reminderIntervalMinutes();
+
+        // La nueva frecuencia aplica de inmediato: reinicia el ciclo de los docs pendientes.
+        LegalDocumentItem::query()
+            ->where('folder_id', $this->folder->id)
+            ->active()
+            ->whereNotNull('renew_on')
+            ->whereDate('renew_on', '<=', now()->toDateString())
+            ->update(['last_reminder_at' => null]);
+
+        $logger->log(
+            $this->folder,
+            'reminder_interval_changed',
+            'Cambió frecuencia de recordatorios: '.$before.' → '.$this->folder->reminderIntervalLabel(),
+            auth()->user(),
+            null,
+            [
+                'minutes' => $this->reminderEveryMinutes,
+            ],
+        );
+
+        $sentNote = '';
+        if ($this->folder->reminderRecipients() !== []) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('legal-documents:enviar-recordatorios', [
+                    '--folder' => (string) $this->folder->id,
+                    '--force' => true,
+                ]);
+                $sentNote = ' Se envió un aviso ahora con la nueva frecuencia.';
+            } catch (\Throwable $e) {
+                report($e);
+                $sentNote = ' No se pudo enviar el aviso inmediato: revise la configuración de correo.';
+            }
+        } else {
+            $sentNote = ' Asigne un director para que salgan los correos.';
+        }
+
+        session()->flash(
+            'success',
+            'Frecuencia actualizada: '.$this->folder->reminderIntervalLabel().'.'
+            .' Los próximos avisos usarán ese intervalo.'.$sentNote
+        );
     }
 
     public function confirmUpload(LegalDocumentService $service): void
@@ -123,7 +202,6 @@ class DocumentosLegalesFolderShow extends Component
 
         $service->replaceFile($item, $this->uploadFile, auth()->user());
 
-        // Al renovar el archivo se detienen las alertas de este ciclo.
         $item->update(['last_reminder_at' => null]);
 
         $this->reset('uploadItemId', 'uploadFile');
@@ -160,6 +238,8 @@ class DocumentosLegalesFolderShow extends Component
 
     public function render()
     {
+        $this->folder->refresh();
+
         $items = LegalDocumentItem::query()
             ->where('folder_id', $this->folder->id)
             ->active()
@@ -170,9 +250,21 @@ class DocumentosLegalesFolderShow extends Component
             ->orderBy('title')
             ->get();
 
+        $activities = LegalDocumentActivity::query()
+            ->where('folder_id', $this->folder->id)
+            ->with(['user:id,name', 'item:id,title,group_title,code'])
+            ->latest('id')
+            ->limit(40)
+            ->get();
+
         return view('livewire.licitaciones.documentos-legales.folder-show', [
             'items' => $items,
+            'activities' => $activities,
             'canUpload' => Gate::allows('upload', $this->folder),
+            'canAddRequest' => Gate::allows('addRequest', $this->folder),
+            'canManageReminders' => Gate::allows('manageReminders', $this->folder),
+            'canEditRules' => Gate::allows('editRules', $this->folder),
+            'reminderOptions' => LegalDocumentFolder::REMINDER_INTERVAL_OPTIONS,
         ]);
     }
 }

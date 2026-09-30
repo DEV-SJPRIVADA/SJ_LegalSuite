@@ -87,9 +87,9 @@ class LegalDocumentItem extends Model
     }
 
     /**
-     * Recordatorios mientras esté vencido y sin archivo renovado (no paran hasta subir/reemplazar):
-     * - Fuera de 16:00–17:00: un correo cada hora.
-     * - Entre 16:00 y 17:00: un correo cada 10 minutos.
+     * Recordatorios mientras esté vencido y sin archivo renovado.
+     * Intervalo configurable por carpeta (reminder_every_minutes).
+     * Si el intervalo es ≥ 60 min, entre 16:00 y 17:00 se acelera a cada 10 minutos.
      */
     public function needsReminder(): bool
     {
@@ -102,7 +102,6 @@ class LegalDocumentItem extends Model
             return false;
         }
 
-        // Solo se detiene cuando hay archivo cargado en/después de la fecha de renovación.
         if ($this->hasFreshFileForCurrentRenewal()) {
             return false;
         }
@@ -112,14 +111,14 @@ class LegalDocumentItem extends Model
         }
 
         $now = now();
+        $interval = $folder->reminderIntervalMinutes();
 
-        // Ventana urgente: 16:00 inclusive → 17:00 exclusive → cada 10 minutos.
-        if ($now->hour === 16) {
-            return $this->last_reminder_at->lte($now->copy()->subMinutes(10));
+        // Ventana urgente solo cuando el intervalo normal es horario o mayor.
+        if ($interval >= 60 && $now->hour === 16) {
+            $interval = 10;
         }
 
-        // Resto del día (y días siguientes si sigue sin renovar): cada hora.
-        return $this->last_reminder_at->lte($now->copy()->subHour());
+        return $this->last_reminder_at->lte($now->copy()->subMinutes($interval));
     }
 
     public function scopeActive(Builder $query): Builder

@@ -90,6 +90,7 @@ class DocumentosLegalesIndex extends Component
         }
 
         $localUserId = User::query()->active()->where('email', $email)->value('id');
+        $before = (string) ($folder->responsible_email ?: 'sin asignar');
 
         $folder->update([
             'responsible_user_id' => $localUserId ?: null,
@@ -100,6 +101,16 @@ class DocumentosLegalesIndex extends Component
         $this->assign[$folderId]['name'] = $name;
         $this->directorBusqueda[$folderId] = '';
         $this->resetErrorBag('assign.'.$folderId.'.email');
+
+        app(\App\Services\LegalDocuments\LegalDocumentActivityLogger::class)->log(
+            $folder,
+            'responsible_changed',
+            'Asignó director: '.$before.' → '.$email.($name !== '' ? ' ('.$name.')' : ''),
+            auth()->user(),
+            null,
+            ['email' => $email, 'name' => $name],
+        );
+
         session()->flash('success', 'Responsable de «'.$folder->name.'» actualizado.');
     }
 
@@ -172,7 +183,10 @@ class DocumentosLegalesIndex extends Component
 
     public function render()
     {
-        $folders = LegalDocumentFolder::query()
+        $user = auth()->user();
+        $canAssign = Gate::allows('assignResponsible', LegalDocumentFolder::class);
+
+        $foldersQuery = LegalDocumentFolder::query()
             ->with('responsible:id,name,email')
             ->withCount([
                 'items as items_total' => fn ($q) => $q->where('is_active', true),
@@ -181,7 +195,14 @@ class DocumentosLegalesIndex extends Component
                     ->whereDate('renew_on', '<=', now()->toDateString()),
                 'items as items_with_file' => fn ($q) => $q->where('is_active', true)->whereHas('currentFile'),
             ])
-            ->where('is_active', true)
+            ->where('is_active', true);
+
+        // Gestores / abogados ven todas; el director de área solo las de su correo.
+        if ($user && ! $this->userSeesAllFolders($user)) {
+            $foldersQuery->visibleTo($user);
+        }
+
+        $folders = $foldersQuery
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -194,7 +215,25 @@ class DocumentosLegalesIndex extends Component
         return view('livewire.licitaciones.documentos-legales.index', [
             'folders' => $folders,
             'resultadosPorCarpeta' => $resultadosPorCarpeta,
-            'canAssign' => Gate::allows('assignResponsible', LegalDocumentFolder::class),
+            'canAssign' => $canAssign,
         ]);
+    }
+
+    private function userSeesAllFolders(User $user): bool
+    {
+        if ($user->hasPlatformLevel(
+            \App\Enums\PlatformLevel::Nivel1,
+            \App\Enums\PlatformLevel::Nivel5,
+            \App\Enums\PlatformLevel::Nivel6,
+        )) {
+            return true;
+        }
+
+        try {
+            return $user->hasPermissionTo('legal-documents.manage')
+                || $user->hasPermissionTo('legal-documents.view');
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
     }
 }

@@ -13,6 +13,10 @@ use Illuminate\Support\Str;
 
 class LegalDocumentService
 {
+    public function __construct(
+        private LegalDocumentActivityLogger $activityLogger,
+    ) {}
+
     public function replaceFile(LegalDocumentItem $item, UploadedFile $upload, User $actor): LegalDocumentFile
     {
         return DB::transaction(function () use ($item, $upload, $actor) {
@@ -24,12 +28,13 @@ class LegalDocumentService
             $path = $upload->storeAs($dir, $filename, $disk);
 
             $previous = $item->currentFile;
+            $wasReplace = $previous !== null;
             if ($previous) {
                 $previous->deleteFromDisk();
                 $previous->delete();
             }
 
-            return LegalDocumentFile::query()->create([
+            $file = LegalDocumentFile::query()->create([
                 'item_id' => $item->id,
                 'disk' => $disk,
                 'path' => $path,
@@ -38,6 +43,19 @@ class LegalDocumentService
                 'size' => $upload->getSize() ?: 0,
                 'uploaded_by_id' => $actor->id,
             ]);
+
+            if ($item->folder) {
+                $this->activityLogger->log(
+                    $item->folder,
+                    $wasReplace ? 'file_replaced' : 'file_uploaded',
+                    ($wasReplace ? 'Reemplazó' : 'Subió').' archivo de «'.$item->displayTitle().'»: '.$file->original_name,
+                    $actor,
+                    $item,
+                    ['file' => $file->original_name],
+                );
+            }
+
+            return $file;
         });
     }
 
@@ -49,7 +67,7 @@ class LegalDocumentService
         ?string $renewOn = null,
         ?string $observations = null,
     ): LegalDocumentItem {
-        return LegalDocumentItem::query()->create([
+        $item = LegalDocumentItem::query()->create([
             'folder_id' => $folder->id,
             'code' => null,
             'group_title' => 'Solicitud adicional',
@@ -64,6 +82,20 @@ class LegalDocumentService
             'is_active' => true,
             'created_by_id' => $actor->id,
         ]);
+
+        $this->activityLogger->log(
+            $folder,
+            'item_created',
+            'Agregó documento «'.$item->displayTitle().'»',
+            $actor,
+            $item,
+            [
+                'frequency' => $frequency,
+                'renew_on' => $renewOn,
+            ],
+        );
+
+        return $item;
     }
 
     public function discardCurrentFile(LegalDocumentItem $item): void
