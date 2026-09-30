@@ -201,6 +201,7 @@ class UserService
     public function syncModulePermissions(User $user, array $desired): void
     {
         foreach (self::MODULE_PERMISSIONS as $perm) {
+            \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
             $on = (bool) ($desired[$perm] ?? false);
             if ($on) {
                 if (! $user->hasDirectPermission($perm)) {
@@ -214,6 +215,7 @@ class UserService
         // Acceso operativo mínimo a licitaciones cuando se habilita el módulo.
         if (! empty($desired['module.licitaciones'])) {
             foreach (['licitaciones.view', 'licitaciones.upload-document'] as $perm) {
+                \Spatie\Permission\Models\Permission::findOrCreate($perm, 'web');
                 if (! $user->hasPermissionTo($perm)) {
                     $user->givePermissionTo($perm);
                 }

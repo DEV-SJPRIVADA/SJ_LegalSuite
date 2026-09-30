@@ -407,15 +407,24 @@ class UsersIndex extends Component
         $this->allowChanges = ! $user->read_only;
 
         foreach (self::OPERATIONS_TOGGLE_KEYS as $key => $perm) {
-            $this->directPermissionToggles[$key] = $user->hasDirectPermission($perm);
+            $this->directPermissionToggles[$key] = $this->userHasDirectPermissionSafe($user, $perm);
         }
 
         foreach (self::MODULE_TOGGLE_KEYS as $key => $perm) {
-            $this->moduleAccessToggles[$key] = $user->hasDirectPermission($perm);
+            $this->moduleAccessToggles[$key] = $this->userHasDirectPermissionSafe($user, $perm);
         }
 
         $this->resetErrorBag();
         $this->showForm = true;
+    }
+
+    private function userHasDirectPermissionSafe(User $user, string $permission): bool
+    {
+        try {
+            return $user->hasDirectPermission($permission);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
     }
 
     public function closeForm(): void
