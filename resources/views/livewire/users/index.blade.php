@@ -260,6 +260,8 @@
                 'sectionTitle' => $sectionTitle,
                 'showOperationsToggles' => $showOperationsToggles,
                 'operationsPermissionLabels' => $operationsPermissionLabels,
+                'showModuleAccessToggles' => $showModuleAccessToggles,
+                'moduleAccessLabels' => $moduleAccessLabels,
             ])
         </div>
     @endif

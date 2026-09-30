@@ -52,6 +52,8 @@
                     $hasModuleNav = ! empty(trim($__env->yieldPushContent('module-nav')));
                     $informesOnlyNav = auth()->check()
                         && ! auth()->user()->canSeeFullAppSidebar()
+                        && auth()->user()->hasDisciplinaryPortalAccess()
+                        && ! auth()->user()->hasLicitacionesPortalAccess()
                         && ! request()->routeIs('password.force-change');
                 @endphp
 

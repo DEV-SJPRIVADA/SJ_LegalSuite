@@ -35,7 +35,7 @@
             'route' => route('employees.index'),
             'active' => request()->routeIs('employees.*'),
             'icon' => 'user-group',
-            'available' => $u->can('viewAny', \App\Models\Employee::class),
+            'available' => $u->canAccessModule('employees') && $u->can('viewAny', \App\Models\Employee::class),
         ];
 
         $modules[] = [
@@ -44,10 +44,12 @@
             'route' => route('settings.territory-import'),
             'active' => request()->routeIs('settings.*'),
             'icon' => 'adjustments',
-            'available' => $u->can('settings.manage-territory')
+            'available' => $u->canAccessModule('settings') && (
+                $u->can('settings.manage-territory')
                 || $u->can('settings.manage-citation-articles')
                 || $u->can('settings.manage-diligence-questions')
-                || $u->can('settings.manage-supervision-zones'),
+                || $u->can('settings.manage-supervision-zones')
+            ),
         ];
 
         $modules[] = [
@@ -56,7 +58,7 @@
             'route' => $disciplinaryRoute,
             'active' => request()->routeIs('disciplinary.*'),
             'icon' => 'scale',
-            'available' => $disciplinaryAvailable,
+            'available' => $u->canAccessModule('disciplinary') && $disciplinaryAvailable,
         ];
 
         $modules = array_merge($modules, [
@@ -66,7 +68,7 @@
                 'route' => $licitacionesRoute,
                 'active' => request()->routeIs('licitaciones.*'),
                 'icon' => 'briefcase',
-                'available' => $licitacionesAvailable,
+                'available' => $u->canAccessModule('licitaciones') && $licitacionesAvailable,
             ],
             ['key' => 'tutelas', 'label' => 'Acciones de tutela', 'icon' => 'shield-check', 'available' => false],
             ['key' => 'demandas', 'label' => 'Demandas', 'icon' => 'document-text', 'available' => false],
@@ -83,20 +85,55 @@
                 'route' => route('users.index'),
                 'active' => request()->routeIs('users.*'),
                 'icon' => 'user-cog',
-                'available' => $u->can('viewAny', \App\Models\User::class),
+                'available' => $u->canAccessModule('users') && $u->can('viewAny', \App\Models\User::class),
             ],
         ]);
     } else {
-        $modules = [
-            [
-                'key' => 'informes',
+        $modules = [];
+
+        if ($u->canAccessModule('disciplinary') && $disciplinaryAvailable) {
+            $modules[] = [
+                'key' => 'disciplinary',
                 'label' => $u->minimalDisciplinarySidebarLabel(),
                 'route' => $disciplinaryRoute,
                 'active' => request()->routeIs('disciplinary.*'),
                 'icon' => 'document-text',
                 'available' => true,
-            ],
-        ];
+            ];
+        }
+
+        if ($u->canAccessModule('licitaciones') && $licitacionesAvailable) {
+            $modules[] = [
+                'key' => 'licitaciones',
+                'label' => 'Licitaciones',
+                'route' => $licitacionesRoute,
+                'active' => request()->routeIs('licitaciones.*'),
+                'icon' => 'briefcase',
+                'available' => true,
+            ];
+        }
+
+        if ($u->canAccessModule('employees') && $u->can('viewAny', \App\Models\Employee::class)) {
+            $modules[] = [
+                'key' => 'employees',
+                'label' => 'Empleados',
+                'route' => route('employees.index'),
+                'active' => request()->routeIs('employees.*'),
+                'icon' => 'user-group',
+                'available' => true,
+            ];
+        }
+
+        if ($modules === []) {
+            $modules[] = [
+                'key' => 'profile',
+                'label' => 'Mi perfil',
+                'route' => route('profile'),
+                'active' => request()->routeIs('profile'),
+                'icon' => 'user-cog',
+                'available' => true,
+            ];
+        }
     }
 @endphp
 

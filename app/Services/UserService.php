@@ -30,6 +30,15 @@ class UserService
         'disciplinary.download-pdf',
     ];
 
+    /** Módulos del panel lateral (visibilidad). */
+    public const MODULE_PERMISSIONS = [
+        'module.disciplinary',
+        'module.licitaciones',
+        'module.employees',
+        'module.users',
+        'module.settings',
+    ];
+
     /**
      * @param  array<string,mixed>  $attributes
      * @param  list<string>  $roles
@@ -43,8 +52,9 @@ class UserService
         array $directOperationalPermissions = [],
         array $authorizedMunicipalityCodes = [],
         ?int $supervisionZoneId = null,
+        array $modulePermissions = [],
     ): array {
-        return DB::transaction(function () use ($attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes, $supervisionZoneId) {
+        return DB::transaction(function () use ($attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes, $supervisionZoneId, $modulePermissions) {
             $plainPassword = Str::password(14, true, true, true, false);
 
             $user = new User;
@@ -68,6 +78,7 @@ class UserService
 
             $this->syncSupervisionZone($user, $supervisionZoneId);
             $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
+            $this->syncModulePermissions($user, $modulePermissions);
             $this->syncAuthorizedMunicipalities($user, $authorizedMunicipalityCodes);
 
             return [
@@ -81,6 +92,7 @@ class UserService
      * @param  array<string,mixed>  $attributes
      * @param  list<string>|null  $roles  null = no tocar roles
      * @param  array<string,bool>|null  $directOperationalPermissions  null = no tocar permisos directos de esta lista
+     * @param  array<string,bool>|null  $modulePermissions  null = no tocar módulos
      */
     public function update(
         User $user,
@@ -89,9 +101,10 @@ class UserService
         ?array $directOperationalPermissions = null,
         ?array $authorizedMunicipalityCodes = null,
         ?int $supervisionZoneId = null,
+        ?array $modulePermissions = null,
     ): User
     {
-        return DB::transaction(function () use ($user, $attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes, $supervisionZoneId) {
+        return DB::transaction(function () use ($user, $attributes, $roles, $directOperationalPermissions, $authorizedMunicipalityCodes, $supervisionZoneId, $modulePermissions) {
             $user->fill([
                 'name' => $attributes['name'] ?? $user->name,
                 'email' => $attributes['email'] ?? $user->email,
@@ -120,6 +133,10 @@ class UserService
 
             if ($directOperationalPermissions !== null) {
                 $this->syncOperationalDirectExtras($user, $directOperationalPermissions);
+            }
+
+            if ($modulePermissions !== null) {
+                $this->syncModulePermissions($user, $modulePermissions);
             }
 
             if ($authorizedMunicipalityCodes !== null) {
@@ -172,6 +189,34 @@ class UserService
                 }
             } elseif ($user->hasDirectPermission($perm)) {
                 $user->revokePermissionTo($perm);
+            }
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * @param  array<string,bool>  $desired  module.* => activo
+     */
+    public function syncModulePermissions(User $user, array $desired): void
+    {
+        foreach (self::MODULE_PERMISSIONS as $perm) {
+            $on = (bool) ($desired[$perm] ?? false);
+            if ($on) {
+                if (! $user->hasDirectPermission($perm)) {
+                    $user->givePermissionTo($perm);
+                }
+            } elseif ($user->hasDirectPermission($perm)) {
+                $user->revokePermissionTo($perm);
+            }
+        }
+
+        // Acceso operativo mínimo a licitaciones cuando se habilita el módulo.
+        if (! empty($desired['module.licitaciones'])) {
+            foreach (['licitaciones.view', 'licitaciones.upload-document'] as $perm) {
+                if (! $user->hasPermissionTo($perm)) {
+                    $user->givePermissionTo($perm);
+                }
             }
         }
 

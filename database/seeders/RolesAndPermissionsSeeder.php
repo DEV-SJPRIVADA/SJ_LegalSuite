@@ -50,6 +50,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'licitaciones.delete',
             'licitaciones.manage-solicitudes',
             'licitaciones.upload-document',
+
+            'module.disciplinary',
+            'module.licitaciones',
+            'module.employees',
+            'module.users',
+            'module.settings',
         ];
 
         foreach ($permissions as $perm) {
@@ -149,6 +155,68 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach (array_keys(PlatformLevel::legacyMap()) as $legacy) {
             Role::where('guard_name', 'web')->where('name', $legacy)->delete();
         }
+
+        $this->backfillUserModuleAccess();
+    }
+
+    /**
+     * Asigna module.* según permisos ya concedidos, para usuarios que aún no tienen módulos explícitos.
+     */
+    private function backfillUserModuleAccess(): void
+    {
+        $users = \App\Models\User::query()->with('permissions', 'roles.permissions')->get();
+
+        foreach ($users as $user) {
+            if ($user->hasPlatformLevel(
+                PlatformLevel::Nivel1,
+                PlatformLevel::Nivel5,
+                PlatformLevel::Nivel6,
+            )) {
+                continue;
+            }
+
+            $alreadyHasModule = $user->getDirectPermissions()
+                ->contains(fn ($p) => str_starts_with($p->name, 'module.'));
+
+            if ($alreadyHasModule) {
+                continue;
+            }
+
+            $grants = [];
+
+            if ($user->can('viewDashboard', \App\Models\Disciplinary\DisciplinaryCase::class)
+                || $user->can('viewAny', \App\Models\Disciplinary\DisciplinaryCase::class)
+                || $user->hasPlatformLevel(PlatformLevel::Nivel3, PlatformLevel::Nivel7)) {
+                $grants[] = 'module.disciplinary';
+            }
+
+            if ($user->can('viewDashboard', \App\Models\Licitaciones\Licitacion::class)
+                || $user->can('viewAny', \App\Models\Licitaciones\Licitacion::class)
+                || $user->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class)) {
+                $grants[] = 'module.licitaciones';
+            }
+
+            if ($user->can('viewAny', \App\Models\Employee::class)) {
+                $grants[] = 'module.employees';
+            }
+
+            if ($user->can('viewAny', \App\Models\User::class)) {
+                $grants[] = 'module.users';
+            }
+
+            if ($user->can('settings.manage-territory')
+                || $user->can('settings.manage-citation-articles')
+                || $user->can('settings.manage-diligence-questions')
+                || $user->can('settings.manage-supervision-zones')) {
+                $grants[] = 'module.settings';
+            }
+
+            if ($grants !== []) {
+                $user->givePermissionTo($grants);
+            }
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     private function upsertLevel(PlatformLevel $level): Role

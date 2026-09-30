@@ -242,8 +242,16 @@ class User extends Authenticatable
             return route('dashboard');
         }
 
+        if ($this->hasLicitacionesPortalAccess() && ! $this->hasDisciplinaryPortalAccess()) {
+            return $this->licitacionesPortalUrl();
+        }
+
         if ($this->hasDisciplinaryPortalAccess()) {
             return $this->disciplinaryPortalUrl();
+        }
+
+        if ($this->hasLicitacionesPortalAccess()) {
+            return $this->licitacionesPortalUrl();
         }
 
         if ($this->can('viewAny', \App\Models\Employee::class)) {
@@ -315,6 +323,29 @@ class User extends Authenticatable
         return $this->can('viewDashboard', Licitacion::class)
             || $this->can('viewAny', Licitacion::class)
             || $this->can('viewAny', \App\Models\Licitaciones\LicitacionSolicitud::class);
+    }
+
+    /**
+     * Módulo visible en el panel lateral.
+     * Gerencia / dirección jurídica / auditoría ven todos; el resto solo los module.* asignados al usuario.
+     */
+    public function canAccessModule(string $module): bool
+    {
+        if ($this->hasPlatformLevel(
+            PlatformLevel::Nivel1,
+            PlatformLevel::Nivel5,
+            PlatformLevel::Nivel6,
+        )) {
+            return true;
+        }
+
+        $permission = 'module.'.$module;
+
+        try {
+            return $this->hasDirectPermission($permission);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
     }
 
     /**

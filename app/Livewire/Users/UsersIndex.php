@@ -39,6 +39,15 @@ class UsersIndex extends Component
         'download_pdf' => 'disciplinary.download-pdf',
     ];
 
+    /** Claves Livewire => permiso module.* (visibilidad en el panel). */
+    private const MODULE_TOGGLE_KEYS = [
+        'disciplinary' => 'module.disciplinary',
+        'licitaciones' => 'module.licitaciones',
+        'employees' => 'module.employees',
+        'users' => 'module.users',
+        'settings' => 'module.settings',
+    ];
+
     /* ---------- Filtros (sincronizados con URL) ---------- */
     #[Url(as: 'q')]
     public string $search = '';
@@ -89,6 +98,9 @@ class UsersIndex extends Component
 
     /** Permisos directos adicionales (solo UI para área Operaciones). */
     public array $directPermissionToggles = [];
+
+    /** Módulos del panel visibles para este usuario (excepto administrador de plataforma). */
+    public array $moduleAccessToggles = [];
 
     /** @var list<string> */
     public array $authorizedMunicipalityCodes = [];
@@ -169,6 +181,7 @@ class UsersIndex extends Component
             $this->organizationalAreaId = null;
             $this->jobPositionId = null;
             $this->resetOperationsPermissionToggles();
+            $this->resetModuleAccessToggles();
         }
     }
 
@@ -293,6 +306,18 @@ class UsersIndex extends Component
     }
 
     #[Computed]
+    public function moduleAccessLabels(): array
+    {
+        return [
+            'disciplinary' => 'Disciplinarios',
+            'licitaciones' => 'Licitaciones',
+            'employees' => 'Empleados',
+            'users' => 'Usuarios',
+            'settings' => 'Ajustes',
+        ];
+    }
+
+    #[Computed]
     public function municipalitiesGrouped()
     {
         return ColombianMunicipality::groupedByDepartmentForSelect();
@@ -354,6 +379,7 @@ class UsersIndex extends Component
         $this->resetFormState();
         $this->editingId = null;
         $this->primeOperationsPermissionDefaults();
+        $this->primeModuleAccessDefaults();
         $this->showForm = true;
     }
 
@@ -379,6 +405,10 @@ class UsersIndex extends Component
 
         foreach (self::OPERATIONS_TOGGLE_KEYS as $key => $perm) {
             $this->directPermissionToggles[$key] = $user->hasDirectPermission($perm);
+        }
+
+        foreach (self::MODULE_TOGGLE_KEYS as $key => $perm) {
+            $this->moduleAccessToggles[$key] = $user->hasDirectPermission($perm);
         }
 
         $this->resetErrorBag();
@@ -485,6 +515,13 @@ class UsersIndex extends Component
             }
         }
 
+        $moduleSnapshot = [];
+        if (! $this->assignPlatformAdmin) {
+            foreach (self::MODULE_TOGGLE_KEYS as $key => $perm) {
+                $moduleSnapshot[$perm] = (bool) ($this->moduleAccessToggles[$key] ?? false);
+            }
+        }
+
         $municipalityCodes = $this->requiresAuthorizedCities
             ? array_values($this->authorizedMunicipalityCodes)
             : [];
@@ -497,6 +534,7 @@ class UsersIndex extends Component
                 $directSnapshotCreate,
                 $municipalityCodes,
                 $this->supervisionZoneId,
+                $moduleSnapshot,
             );
             $this->showForm = false;
             $this->resetUserFormFields();
@@ -516,6 +554,7 @@ class UsersIndex extends Component
                 $directSnapshotUpdate,
                 $municipalityCodes,
                 $this->supervisionZoneId,
+                $this->assignPlatformAdmin ? [] : $moduleSnapshot,
             );
             session()->flash('success', 'Usuario actualizado correctamente.');
             $this->showForm = false;
@@ -534,10 +573,22 @@ class UsersIndex extends Component
         $this->resetOperationsPermissionToggles();
     }
 
+    private function primeModuleAccessDefaults(): void
+    {
+        $this->resetModuleAccessToggles();
+    }
+
     private function resetOperationsPermissionToggles(): void
     {
         foreach (array_keys(self::OPERATIONS_TOGGLE_KEYS) as $key) {
             $this->directPermissionToggles[$key] = false;
+        }
+    }
+
+    private function resetModuleAccessToggles(): void
+    {
+        foreach (array_keys(self::MODULE_TOGGLE_KEYS) as $key) {
+            $this->moduleAccessToggles[$key] = false;
         }
     }
 
@@ -552,6 +603,7 @@ class UsersIndex extends Component
         $this->isActive = true;
         $this->allowChanges = true;
         $this->primeOperationsPermissionDefaults();
+        $this->primeModuleAccessDefaults();
         $this->resetErrorBag();
     }
 
@@ -697,6 +749,8 @@ class UsersIndex extends Component
             'users' => $users,
             'showOperationsToggles' => $this->shouldShowOperationsPermissionToggles(),
             'operationsPermissionLabels' => $this->operationsPermissionLabels,
+            'showModuleAccessToggles' => ! $this->assignPlatformAdmin,
+            'moduleAccessLabels' => $this->moduleAccessLabels,
             'kpiTotal' => $this->kpiTotal,
             'kpiActive' => $this->kpiActive,
             'kpiInactive' => $this->kpiInactive,

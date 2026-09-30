@@ -18,7 +18,7 @@
                     {{ $editingId ? 'Editar usuario' : 'Nuevo usuario' }}
                 </h2>
                 <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Área organizacional + cargo definen el perfil de permisos (nivel1–nivel9).
+                    Área + cargo definen el perfil de permisos. Los módulos del panel se eligen abajo.
                 </p>
             </div>
             <button type="button" wire:click="closeForm"
@@ -163,10 +163,31 @@
                 </section>
             @endif
 
+            @if ($showModuleAccessToggles)
+                <section class="{{ $section }}">
+                    <h3 class="{{ $sectionTitle }}">
+                        <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">{{ $requiresCities || $requiresZone ? '4' : '3' }}</span>
+                        Módulos del panel
+                    </h3>
+                    <p class="-mt-2 mb-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        Elija qué módulos verá este usuario en el menú lateral. El administrador de plataforma ve todos automáticamente.
+                    </p>
+                    <div class="space-y-2">
+                        @foreach ($moduleAccessLabels as $toggleKey => $label)
+                            <label class="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-dash-lift">
+                                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ $label }}</span>
+                                <input type="checkbox" wire:key="mod-{{ $toggleKey }}" wire:model.live="moduleAccessToggles.{{ $toggleKey }}"
+                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-white/25 dark:bg-transparent">
+                            </label>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
             @if ($showOperationsToggles)
                 <section class="{{ $section }}">
                     <h3 class="{{ $sectionTitle }}">
-                        <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">{{ $requiresCities ? '4' : '3' }}</span>
+                        <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">{{ ($requiresCities || $requiresZone ? 4 : 3) + ($showModuleAccessToggles ? 1 : 0) }}</span>
                         Permisos directos (Operaciones)
                     </h3>
                     <p class="-mt-2 mb-3 text-[11px] text-slate-500 dark:text-slate-400">Solo permisos concedidos directamente al usuario (no los del rol).</p>
@@ -184,7 +205,19 @@
 
             <section class="{{ $section }}">
                 <h3 class="{{ $sectionTitle }}">
-                    <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">{{ $requiresCities ? ($showOperationsToggles ? '5' : '4') : ($showOperationsToggles ? '4' : '3') }}</span>
+                    @php
+                        $accessStep = 3;
+                        if ($requiresCities || $requiresZone) {
+                            $accessStep++;
+                        }
+                        if ($showModuleAccessToggles) {
+                            $accessStep++;
+                        }
+                        if ($showOperationsToggles) {
+                            $accessStep++;
+                        }
+                    @endphp
+                    <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-[11px] font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">{{ $accessStep }}</span>
                     Acceso
                 </h3>
                 @if (! $editingId)
