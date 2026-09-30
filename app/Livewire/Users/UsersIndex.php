@@ -110,6 +110,9 @@ class UsersIndex extends Component
 
     public string $generatedPlainPassword = '';
 
+    /** Mensaje de éxito visible en el listado (Livewire; no depende solo del flash de sesión). */
+    public string $statusMessage = '';
+
     /* ---------- Modal de password ---------- */
     public bool $showPasswordModal = false;
 
@@ -421,8 +424,31 @@ class UsersIndex extends Component
         $this->resetFormState();
     }
 
+    /** Usuario solo con módulos del panel (sin área/cargo), p. ej. directorio corporativo. */
+    private function isModuleOnlyAccess(): bool
+    {
+        if ($this->assignPlatformAdmin) {
+            return false;
+        }
+
+        foreach (self::MODULE_TOGGLE_KEYS as $key => $_perm) {
+            if (! empty($this->moduleAccessToggles[$key])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function requiresOrganizationAssignment(): bool
+    {
+        return ! $this->assignPlatformAdmin && ! $this->isModuleOnlyAccess();
+    }
+
     public function save(UserService $service): void
     {
+        $this->statusMessage = '';
+
         $rules = [
             'name' => ['required', 'string', 'max:120'],
             'email' => [
@@ -435,13 +461,13 @@ class UsersIndex extends Component
             'phone' => ['nullable', 'string', 'max:32'],
             'assignPlatformAdmin' => ['boolean'],
             'organizationalAreaId' => [
-                Rule::requiredIf(fn () => ! $this->assignPlatformAdmin),
+                Rule::requiredIf(fn () => $this->requiresOrganizationAssignment()),
                 'nullable',
                 'integer',
                 'exists:organizational_areas,id',
             ],
             'jobPositionId' => [
-                Rule::requiredIf(fn () => ! $this->assignPlatformAdmin),
+                Rule::requiredIf(fn () => $this->requiresOrganizationAssignment()),
                 'nullable',
                 'integer',
                 Rule::exists('job_positions', 'id')->where(function ($q) {
@@ -475,8 +501,9 @@ class UsersIndex extends Component
         $this->validate($rules);
 
         $rolesToSync = $this->resolvedSpatieRolesForSave();
+        $moduleOnly = $this->isModuleOnlyAccess();
 
-        if (! $this->assignPlatformAdmin) {
+        if (! $this->assignPlatformAdmin && ! $moduleOnly) {
             if ($this->jobPositionId && ! $this->organizationalAreaId) {
                 $this->addError('jobPositionId', 'Seleccione un área antes de asignar un cargo.');
 
@@ -493,12 +520,16 @@ class UsersIndex extends Component
             }
         }
 
+        if ($moduleOnly && $rolesToSync === []) {
+            $rolesToSync = [];
+        }
+
         $payload = [
             'name' => $this->name,
             'email' => $this->email,
             'document_number' => $this->documentNumber ?: null,
             'phone' => $this->phone ?: null,
-            'organizational_area_id' => $this->organizationalAreaId,
+            'organizational_area_id' => $this->assignPlatformAdmin ? null : $this->organizationalAreaId,
             'job_position_id' => $this->assignPlatformAdmin ? null : $this->jobPositionId,
             'is_active' => $this->isActive,
             'read_only' => ! $this->allowChanges,
@@ -520,6 +551,12 @@ class UsersIndex extends Component
             foreach (self::MODULE_TOGGLE_KEYS as $key => $perm) {
                 $moduleSnapshot[$perm] = (bool) ($this->moduleAccessToggles[$key] ?? false);
             }
+
+            if ($moduleOnly && ! in_array(true, $moduleSnapshot, true)) {
+                $this->addError('moduleAccessToggles', 'Marque al menos un módulo del panel, o asigne área y cargo.');
+
+                return;
+            }
         }
 
         $municipalityCodes = $this->requiresAuthorizedCities
@@ -540,10 +577,8 @@ class UsersIndex extends Component
             $this->resetUserFormFields();
             $this->generatedPlainPassword = $result['plain_password'];
             $this->showCredentialModal = true;
-            session()->flash(
-                'success',
-                'Usuario creado correctamente. Copie la contraseña provisional y compártala por un canal seguro.'
-            );
+            $this->statusMessage = 'Usuario creado correctamente. Copie la contraseña provisional y compártala por un canal seguro.';
+            session()->flash('success', $this->statusMessage);
         } else {
             $user = User::findOrFail($this->editingId);
             Gate::authorize('update', $user);
@@ -556,7 +591,8 @@ class UsersIndex extends Component
                 $this->supervisionZoneId,
                 $this->assignPlatformAdmin ? [] : $moduleSnapshot,
             );
-            session()->flash('success', 'Usuario actualizado correctamente.');
+            $this->statusMessage = 'Usuario actualizado correctamente.';
+            session()->flash('success', $this->statusMessage);
             $this->showForm = false;
             $this->resetFormState();
         }
@@ -690,6 +726,7 @@ class UsersIndex extends Component
     {
         $user = User::findOrFail($id);
         Gate::authorize('changePassword', $user);
+        $this->showForm = false;
         $this->passwordTargetId = $id;
         $this->provisionalResetPassword = Str::password(14, true, true, true, false);
         $this->passwordResetApplied = false;
@@ -717,11 +754,9 @@ class UsersIndex extends Component
         $service->resetToProvisionalPassword($user, $this->provisionalResetPassword);
 
         $this->passwordResetApplied = true;
+        $this->statusMessage = "Contraseña restablecida para {$user->name}. Copie la provisional y compártala por un canal seguro; en el primer ingreso deberá cambiarla.";
 
-        session()->flash(
-            'success',
-            "Contraseña restablecida para {$user->name}. Copie la contraseña provisional y compártala por un canal seguro; en el primer ingreso deberá cambiarla."
-        );
+        session()->flash('success', $this->statusMessage);
     }
 
     public function render()

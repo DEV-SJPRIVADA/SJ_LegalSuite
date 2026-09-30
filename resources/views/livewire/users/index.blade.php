@@ -39,8 +39,11 @@
         @endcan
     </header>
 
-    @if (session('success'))
-        <div class="mb-2 shrink-0 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30">{{ session('success') }}</div>
+    @if ($statusMessage !== '' || session('success'))
+        <div class="mb-2 shrink-0 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-500/30"
+             role="status">
+            {{ $statusMessage !== '' ? $statusMessage : session('success') }}
+        </div>
     @endif
 
     <section aria-label="Indicadores de usuarios" class="mb-2 grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -169,13 +172,22 @@
                                 </div>
                             </td>
                             <td class="px-3 py-1.5 text-right">
-                                @can('update', $row)
-                                    <button type="button" wire:click="openEdit({{ $row->id }})"
-                                        class="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400"
-                                        title="Editar">
-                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                    </button>
-                                @endcan
+                                <div class="inline-flex items-center gap-0.5">
+                                    @can('update', $row)
+                                        <button type="button" wire:click="openEdit({{ $row->id }})"
+                                            class="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
+                                            title="Editar">
+                                            Editar
+                                        </button>
+                                    @endcan
+                                    @can('changePassword', $row)
+                                        <button type="button" wire:click="openPasswordModal({{ $row->id }})"
+                                            class="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                                            title="Reiniciar contraseña">
+                                            Contraseña
+                                        </button>
+                                    @endcan
+                                </div>
                             </td>
                         </tr>
                         <tr wire:key="usr-{{ $row->id }}-detail" x-show="expandedId === {{ $row->id }}" x-cloak class="bg-slate-50/80 dark:bg-white/[0.02]">

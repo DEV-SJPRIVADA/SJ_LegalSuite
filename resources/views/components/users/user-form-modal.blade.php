@@ -224,6 +224,16 @@
                     <div class="mb-4 rounded-lg bg-indigo-50 px-3 py-2.5 text-xs text-indigo-900 ring-1 ring-indigo-100 dark:bg-indigo-950/35 dark:text-indigo-200 dark:ring-indigo-500/25">
                         Se generará una <strong>contraseña provisional</strong> automáticamente al crear el usuario.
                     </div>
+                @else
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-dash-lift">
+                        <p class="text-xs text-slate-600 dark:text-slate-400">
+                            La contraseña no se edita aquí. Use el botón para generar una provisional.
+                        </p>
+                        <button type="button" wire:click="openPasswordModal({{ $editingId }})"
+                            class="shrink-0 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-white/15 dark:hover:bg-white/25">
+                            Reiniciar contraseña
+                        </button>
+                    </div>
                 @endif
                 <div class="space-y-3">
                     <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-dash-lift">
