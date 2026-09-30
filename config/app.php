@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | URL pública para enlaces en correos
+    |--------------------------------------------------------------------------
+    |
+    | En local APP_URL suele ser una IP LAN; los correos deben apuntar al hosting.
+    | Si APP_MAIL_URL está vacío, se usa APP_URL.
+    |
+    */
+
+    'mail_url' => env('APP_MAIL_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | URL desde la petición (LAN con IP o hostname variable)
     |--------------------------------------------------------------------------
     |
