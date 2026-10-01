@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureMustChangePassword;
+use App\Http\Middleware\EnsureSessionIdleTimeout;
 use App\Http\Middleware\ForceRequestRootUrl;
 use App\Http\Middleware\ShareUiTheme;
 use Illuminate\Console\Scheduling\Schedule;
@@ -51,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            EnsureSessionIdleTimeout::class,
             ShareUiTheme::class,
         ]);
 

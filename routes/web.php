@@ -73,6 +73,13 @@ Route::post('licitaciones/aportacion/{token}', [LicitacionAportacionController::
 
 Route::middleware(['auth'])->group(function () {
     Route::get('password/first-login', ForcePasswordChange::class)->name('password.force-change');
+
+    Route::get('session/ping', [\App\Http\Controllers\Auth\SessionIdleController::class, 'ping'])
+        ->middleware('throttle:60,1')
+        ->name('session.ping');
+    Route::post('session/expire', [\App\Http\Controllers\Auth\SessionIdleController::class, 'expire'])
+        ->middleware('throttle:30,1')
+        ->name('session.expire');
 });
 
 Route::middleware(['auth', 'must-change-password'])->group(function () {

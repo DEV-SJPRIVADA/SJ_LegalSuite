@@ -102,5 +102,9 @@
                 </div>
             </footer>
         </div>
+
+        @auth
+            <x-session-idle-guard />
+        @endauth
     </body>
 </html>

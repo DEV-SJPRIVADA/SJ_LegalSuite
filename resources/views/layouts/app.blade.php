@@ -97,6 +97,10 @@
             </div>
         </div>
 
+        @auth
+            <x-session-idle-guard />
+        @endauth
+
         @stack('scripts')
     </body>
 </html>
