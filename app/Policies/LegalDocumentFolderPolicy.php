@@ -81,11 +81,27 @@ class LegalDocumentFolderPolicy
     }
 
     /**
-     * Solo admin/gestor: cambiar fecha de renovación / reglas del documento.
+     * Solo admin/gestor: frecuencia del documento, solicitudes y reglas amplias.
      */
     public function editRules(User $user, LegalDocumentFolder $folder): bool
     {
         return $this->configuresFolder($user);
+    }
+
+    /**
+     * Admin/gestor o director de la carpeta: fecha de expedición (recalcula renovación).
+     */
+    public function editIssuedDate(User $user, LegalDocumentFolder $folder): bool
+    {
+        if ($user->read_only) {
+            return false;
+        }
+
+        if ($this->configuresFolder($user)) {
+            return true;
+        }
+
+        return $folder->isAssignedTo($user);
     }
 
     public function assignResponsible(User $user): bool

@@ -16,7 +16,8 @@
                         Recordatorios actuales:
                         <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span>.
                     @else
-                        Suba o reemplace el archivo vigente de cada documento. Las fechas y los recordatorios los define el administrador.
+                        Suba o reemplace el archivo vigente y, si aplica, actualice la fecha de expedición.
+                        La frecuencia y los recordatorios los define el administrador.
                         @unless ($folder->exclude_reminders)
                             Aviso actual:
                             <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span>.
@@ -138,7 +139,7 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if ($canEditRules && $editingIssuedItemId === $item->id)
+                                    @if ($canEditIssued && $editingIssuedItemId === $item->id)
                                         <div class="mx-auto flex flex-col gap-2 min-w-[11rem] max-w-[14rem] text-left">
                                             <input type="date" wire:model="editingIssuedDate" class="w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink">
                                             @error('editingIssuedDate')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
@@ -150,7 +151,7 @@
                                     @else
                                         <div class="flex flex-col items-center gap-1 text-center">
                                             <span class="tabular-nums text-slate-600 dark:text-slate-300">{{ $item->issued_on?->format('d/m/Y') ?: '—' }}</span>
-                                            @if ($canEditRules)
+                                            @if ($canEditIssued)
                                                 <button type="button" wire:click="startEditIssued({{ $item->id }})" class="whitespace-nowrap text-[11px] font-semibold text-sj-blue underline dark:text-sj-orange">Cambiar expedición</button>
                                             @endif
                                         </div>

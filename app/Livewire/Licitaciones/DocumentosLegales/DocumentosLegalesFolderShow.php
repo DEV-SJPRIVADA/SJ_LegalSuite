@@ -68,7 +68,7 @@ class DocumentosLegalesFolderShow extends Component
 
     public function startEditIssued(int $itemId): void
     {
-        Gate::authorize('editRules', $this->folder);
+        Gate::authorize('editIssuedDate', $this->folder);
 
         $item = LegalDocumentItem::query()
             ->where('folder_id', $this->folder->id)
@@ -162,7 +162,7 @@ class DocumentosLegalesFolderShow extends Component
 
     public function saveIssuedDate(LegalDocumentActivityLogger $logger): void
     {
-        Gate::authorize('editRules', $this->folder);
+        Gate::authorize('editIssuedDate', $this->folder);
 
         $data = $this->validate([
             'editingIssuedItemId' => ['required', 'integer'],
@@ -357,6 +357,7 @@ class DocumentosLegalesFolderShow extends Component
             'canAddRequest' => Gate::allows('addRequest', $this->folder),
             'canManageReminders' => Gate::allows('manageReminders', $this->folder),
             'canEditRules' => Gate::allows('editRules', $this->folder),
+            'canEditIssued' => Gate::allows('editIssuedDate', $this->folder),
             'reminderOptions' => LegalDocumentFolder::REMINDER_INTERVAL_OPTIONS,
         ]);
     }
