@@ -24,7 +24,7 @@
     @click.window="bump()"
     @scroll.window="bump()"
     @touchstart.window="bump()"
-    @livewire:navigating.window="bump()"
+    x-on:livewire:navigating.window="bump()"
     class="contents"
 >
     <div
