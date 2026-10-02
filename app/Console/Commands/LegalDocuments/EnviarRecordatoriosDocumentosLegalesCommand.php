@@ -23,7 +23,7 @@ class EnviarRecordatoriosDocumentosLegalesCommand extends Command
 
         $items = LegalDocumentItem::query()
             ->active()
-            ->with(['folder.responsible', 'currentFile'])
+            ->with(['folder.responsible', 'folder.responsibles.user', 'currentFile'])
             ->whereHas('folder', function ($q) use ($folderFilter) {
                 $q->where('exclude_reminders', false)->where('is_active', true);
                 if ($folderFilter !== '') {

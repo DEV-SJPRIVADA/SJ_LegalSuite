@@ -52,10 +52,11 @@
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @forelse ($folders as $folder)
                 @php
-                    $selectedEmail = strtolower((string) ($assign[$folder->id]['email'] ?? ''));
-                    $selectedName = (string) ($assign[$folder->id]['name'] ?? '');
                     $busqueda = (string) ($directorBusqueda[$folder->id] ?? '');
                     $resultados = $resultadosPorCarpeta[$folder->id] ?? collect();
+                    $people = collect($assign[$folder->id] ?? []);
+                    $director = $people->firstWhere('is_primary', true) ?? $people->first();
+                    $extras = $people->reject(fn ($p) => ($p['email'] ?? '') === ($director['email'] ?? null))->values();
                 @endphp
                 <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10 flex flex-col gap-3" wire:key="folder-{{ $folder->id }}">
                     <div class="flex items-start justify-between gap-2">
@@ -63,9 +64,21 @@
                             <h2 class="font-semibold text-sj-blue dark:text-white">{{ $folder->name }}</h2>
                             <p class="text-xs text-slate-500">{{ $folder->slug }}</p>
                         </div>
-                        @if ($folder->exclude_reminders)
-                            <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:bg-white/10 dark:text-slate-300">Sin recordatorio</span>
-                        @endif
+                        <div class="flex shrink-0 flex-col items-end gap-1">
+                            @if ($folder->exclude_reminders)
+                                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:bg-white/10 dark:text-slate-300">Sin recordatorio</span>
+                            @endif
+                            @if ($canDeleteFolder)
+                                <button
+                                    type="button"
+                                    wire:click="deleteFolder({{ $folder->id }})"
+                                    wire:confirm="¿Eliminar la carpeta «{{ $folder->name }}»? Dejará de mostrarse en el listado."
+                                    class="text-[11px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                    Eliminar
+                                </button>
+                            @endif
+                        </div>
                     </div>
 
                     <dl class="grid grid-cols-3 gap-2 text-center text-xs">
@@ -83,24 +96,32 @@
                         </div>
                     </dl>
 
-                    <p class="text-xs text-slate-500">
-                        Director:
-                        @if ($selectedEmail !== '')
-                            <span class="font-medium text-slate-700 dark:text-slate-200">{{ $selectedName !== '' ? $selectedName : $selectedEmail }}</span>
-                            @if ($selectedName !== '')
-                                <span class="block truncate">{{ $selectedEmail }}</span>
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <p>
+                            Director:
+                            @if ($director)
+                                <span class="font-medium text-slate-700 dark:text-slate-200">{{ ($director['name'] ?? '') !== '' ? $director['name'] : $director['email'] }}</span>
+                                <span class="block truncate">{{ $director['email'] }}</span>
+                            @else
+                                <span class="text-amber-700 dark:text-amber-300">sin asignar</span>
                             @endif
-                        @else
-                            <span class="text-amber-700 dark:text-amber-300">sin asignar</span>
+                        </p>
+                        @if ($extras->isNotEmpty())
+                            <p>
+                                Otros responsables:
+                                <span class="font-medium text-slate-700 dark:text-slate-200">
+                                    {{ $extras->map(fn ($p) => ($p['name'] ?? '') !== '' ? $p['name'] : $p['email'])->implode(', ') }}
+                                </span>
+                            </p>
                         @endif
-                    </p>
+                    </div>
                     @unless ($folder->exclude_reminders)
                         <p class="text-[11px] text-slate-500">Recordatorio: <span class="font-semibold text-sj-blue dark:text-sj-orange">{{ $folder->reminderIntervalLabel() }}</span></p>
                     @endunless
 
                     @if ($canAssign)
                         <div class="space-y-2 border-t border-slate-100 pt-3 dark:border-white/10">
-                            <label class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buscar director</label>
+                            <label class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buscar y agregar responsables</label>
                             <div class="relative">
                                 <input
                                     type="search"
@@ -129,21 +150,33 @@
                                 @endif
                             </div>
 
-                            @if ($selectedEmail !== '')
-                                <div class="flex items-center justify-between gap-2 rounded-lg bg-sj-orange/10 px-3 py-2 text-xs">
+                            @forelse ($people as $person)
+                                <div class="flex items-center justify-between gap-2 rounded-lg bg-sj-orange/10 px-3 py-2 text-xs" wire:key="resp-{{ $folder->id }}-{{ $person['email'] }}">
                                     <div class="min-w-0">
-                                        <p class="truncate font-semibold text-sj-blue dark:text-sj-orange">{{ $selectedName !== '' ? $selectedName : $selectedEmail }}</p>
-                                        <p class="truncate text-slate-500">{{ $selectedEmail }}</p>
+                                        <p class="truncate font-semibold text-sj-blue dark:text-sj-orange">
+                                            {{ ($person['name'] ?? '') !== '' ? $person['name'] : $person['email'] }}
+                                            @if (! empty($person['is_primary']))
+                                                <span class="ml-1 rounded bg-sj-blue/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sj-blue dark:bg-sj-orange/20 dark:text-sj-orange">Director</span>
+                                            @endif
+                                        </p>
+                                        <p class="truncate text-slate-500">{{ $person['email'] }}</p>
                                     </div>
-                                    <button type="button" wire:click="quitarDirector({{ $folder->id }})" class="shrink-0 font-semibold text-slate-500 hover:text-red-600">Quitar</button>
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        @if (empty($person['is_primary']))
+                                            <button type="button" wire:click="marcarDirector({{ $folder->id }}, @js($person['email']))" class="font-semibold text-sj-blue hover:underline dark:text-sj-orange">Director</button>
+                                        @endif
+                                        <button type="button" wire:click="quitarDirector({{ $folder->id }}, @js($person['email']))" class="font-semibold text-slate-500 hover:text-red-600">Quitar</button>
+                                    </div>
                                 </div>
-                            @endif
+                            @empty
+                                <p class="text-xs text-amber-700 dark:text-amber-300">Sin responsables seleccionados.</p>
+                            @endforelse
 
-                            @error('assign.'.$folder->id.'.email')
+                            @error('assign.'.$folder->id)
                                 <p class="text-xs text-red-600">{{ $message }}</p>
                             @enderror
 
-                            <button type="button" wire:click="saveResponsible({{ $folder->id }})" class="sj-btn sj-btn--secondary w-full">Guardar responsable</button>
+                            <button type="button" wire:click="saveResponsible({{ $folder->id }})" class="sj-btn sj-btn--secondary w-full">Guardar responsables</button>
                         </div>
                     @endif
 

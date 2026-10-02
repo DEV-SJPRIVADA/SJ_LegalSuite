@@ -32,8 +32,6 @@ class SolicitudesIndex extends Component
 
     public ?int $licitacion_id = null;
 
-    public string $numero_radicado = '';
-
     public string $nombre = '';
 
     public string $descripcion = '';
@@ -81,7 +79,6 @@ class SolicitudesIndex extends Component
                 'nullable',
                 'exists:licitaciones,id',
             ],
-            'numero_radicado' => ['required', 'string', 'max:100', Rule::unique('licitacion_solicitudes', 'numero_radicado')],
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string'],
             'area_responsable' => ['required', 'string', 'max:255'],
@@ -129,7 +126,7 @@ class SolicitudesIndex extends Component
     private function resetForm(): void
     {
         $this->reset([
-            'editingId', 'licitacion_id', 'numero_radicado', 'nombre', 'descripcion',
+            'editingId', 'licitacion_id', 'nombre', 'descripcion',
             'area_responsable', 'usuario_responsable_id', 'email_notificacion', 'tipo_solicitud', 'periodicidad',
             'tipo_peticion', 'fecha_limite',
         ]);

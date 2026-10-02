@@ -3,11 +3,15 @@
 namespace App\Services\Licitaciones;
 
 use App\Enums\Licitaciones\RequestStatus;
+use App\Enums\PlatformLevel;
+use App\Models\LegalDocuments\LegalDocumentFolder;
+use App\Models\LegalDocuments\LegalDocumentItem;
 use App\Models\Licitaciones\Licitacion;
 use App\Models\Licitaciones\LicitacionSolicitud;
 use App\Models\Licitaciones\LicitacionSolicitudInvitado;
 use App\Models\User;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class LicitacionDashboardService
 {
@@ -253,5 +257,163 @@ class LicitacionDashboardService
                     : null,
             ];
         })->all();
+    }
+
+    /**
+     * KPIs de Documentos Legales (MT-GJ-06).
+     *
+     * @return array{
+     *     docs_total: int,
+     *     docs_vencidos: int,
+     *     docs_proximos: int,
+     *     carpetas_sin_responsable: int
+     * }|null
+     */
+    public function legalDocumentsStats(?User $actor = null): ?array
+    {
+        if (! $this->canSeeLegalDocuments($actor)) {
+            return null;
+        }
+
+        $folderIds = $this->scopedLegalFolderIds($actor);
+        if ($folderIds === []) {
+            return [
+                'docs_total' => 0,
+                'docs_vencidos' => 0,
+                'docs_proximos' => 0,
+                'carpetas_sin_responsable' => 0,
+            ];
+        }
+
+        $today = now()->toDateString();
+        $until = now()->copy()->addDays(14)->toDateString();
+
+        $items = LegalDocumentItem::query()
+            ->whereIn('folder_id', $folderIds)
+            ->where('is_active', true);
+
+        return [
+            'docs_total' => (clone $items)->count(),
+            'docs_vencidos' => (clone $items)
+                ->whereNotNull('renew_on')
+                ->whereDate('renew_on', '<=', $today)
+                ->count(),
+            'docs_proximos' => (clone $items)
+                ->whereNotNull('renew_on')
+                ->whereDate('renew_on', '>', $today)
+                ->whereDate('renew_on', '<=', $until)
+                ->count(),
+            'carpetas_sin_responsable' => LegalDocumentFolder::query()
+                ->whereIn('id', $folderIds)
+                ->where('is_active', true)
+                ->where(function (Builder $q) {
+                    $q->where(function (Builder $inner) {
+                        $inner->whereNull('responsible_email')
+                            ->orWhere('responsible_email', '');
+                    })->whereDoesntHave('responsibles');
+                })
+                ->count(),
+        ];
+    }
+
+    /**
+     * Próximas renovaciones / vencidos con fecha y responsables.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function legalDocumentsUpcoming(?User $actor = null, int $limit = 10): array
+    {
+        if (! $this->canSeeLegalDocuments($actor)) {
+            return [];
+        }
+
+        $folderIds = $this->scopedLegalFolderIds($actor);
+        if ($folderIds === []) {
+            return [];
+        }
+
+        $today = now()->startOfDay();
+        $until = now()->copy()->addDays(14)->endOfDay();
+
+        $items = LegalDocumentItem::query()
+            ->with(['folder.responsibles'])
+            ->whereIn('folder_id', $folderIds)
+            ->where('is_active', true)
+            ->whereNotNull('renew_on')
+            ->whereDate('renew_on', '<=', $until->toDateString())
+            ->orderBy('renew_on')
+            ->limit($limit)
+            ->get();
+
+        return $items->map(function (LegalDocumentItem $item) use ($today) {
+            $renewOn = $item->renew_on?->copy()->startOfDay();
+            $badge = 'Sin fecha';
+            $vencido = false;
+            if ($renewOn) {
+                if ($renewOn->lt($today)) {
+                    $badge = 'Vencido';
+                    $vencido = true;
+                } elseif ($renewOn->equalTo($today)) {
+                    $badge = 'Hoy';
+                } else {
+                    $badge = 'En '.$today->diffInDays($renewOn).' días';
+                }
+            }
+
+            return [
+                'id' => $item->id,
+                'title' => $item->displayTitle(),
+                'folder' => $item->folder?->name,
+                'folder_id' => $item->folder_id,
+                'renew_on' => $item->renew_on?->format('d/m/Y'),
+                'badge' => $badge,
+                'vencido' => $vencido,
+                'responsables' => $item->folder?->responsiblesLabel() ?? 'sin asignar',
+                'url' => $item->folder
+                    ? route('licitaciones.documentos-legales.folder', $item->folder)
+                    : null,
+            ];
+        })->all();
+    }
+
+    private function canSeeLegalDocuments(?User $actor): bool
+    {
+        if (! $actor) {
+            return false;
+        }
+
+        try {
+            return $actor->can('viewAny', LegalDocumentFolder::class);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function scopedLegalFolderIds(?User $actor): array
+    {
+        $query = LegalDocumentFolder::query()->where('is_active', true);
+
+        if ($actor && ! $this->userSeesAllLegalFolders($actor)) {
+            $query->visibleTo($actor);
+        }
+
+        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    private function userSeesAllLegalFolders(User $user): bool
+    {
+        if ($user->hasPlatformLevel(PlatformLevel::Nivel1, PlatformLevel::Nivel5, PlatformLevel::Nivel6)) {
+            return true;
+        }
+
+        try {
+            return $user->hasPermissionTo('legal-documents.manage')
+                || $user->hasPermissionTo('legal-documents.view');
+        } catch (PermissionDoesNotExist) {
+            return false;
+        }
     }
 }

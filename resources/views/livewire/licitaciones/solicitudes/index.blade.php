@@ -55,8 +55,7 @@
             <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-dash-ink p-6 ring-1 dark:ring-white/15">
                 <h2 class="text-lg font-bold mb-4 dark:text-white">Nueva solicitud</h2>
                 <form wire:submit="save" class="space-y-3">
-                    <div><label class="{{ $label }}">Radicado</label><input wire:model="numero_radicado" class="{{ $field }}">@error('numero_radicado')<p class="text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                    <div><label class="{{ $label }}">Nombre</label><input wire:model="nombre" class="{{ $field }}"></div>
+                    <div><label class="{{ $label }}">Nombre</label><input wire:model="nombre" class="{{ $field }}">@error('nombre')<p class="text-xs text-red-600">{{ $message }}</p>@enderror</div>
                     <div><label class="{{ $label }}">Descripción / docs requeridos</label><textarea wire:model="descripcion" rows="2" class="{{ $field }}" placeholder="Qué documentación deben aportar…"></textarea></div>
                     <div><label class="{{ $label }}">Tipo</label>
                         <select wire:model.live="tipo_solicitud" class="{{ $field }}">

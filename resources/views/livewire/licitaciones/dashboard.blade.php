@@ -143,5 +143,62 @@
                 </ul>
             </div>
         </div>
+
+        @if ($legalDocsStats)
+            <div class="space-y-4">
+                <div class="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Documentos legales · MT-GJ-06</p>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Renovaciones, fechas y responsables por área.</p>
+                    </div>
+                    <a href="{{ route('licitaciones.documentos-legales.index') }}" wire:navigate class="text-sm font-semibold text-sj-blue underline dark:text-sj-orange">Ver carpetas</a>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    @foreach ([
+                        ['Documentos', $legalDocsStats['docs_total'], 'text-sj-blue dark:text-white'],
+                        ['Por renovar', $legalDocsStats['docs_vencidos'], 'text-sj-orange'],
+                        ['Próximos 14 días', $legalDocsStats['docs_proximos'], 'text-sj-blue dark:text-white'],
+                        ['Sin responsable', $legalDocsStats['carpetas_sin_responsable'], 'text-red-600 dark:text-red-400'],
+                    ] as [$label, $value, $valueClass])
+                        <div class="rounded-xl bg-white ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/10">
+                            <p class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $label }}</p>
+                            <p class="mt-1 text-2xl font-bold tabular-nums {{ $valueClass }}">{{ $value }}</p>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="rounded-xl bg-white ring-1 ring-slate-200 p-5 dark:bg-white/[0.04] dark:ring-white/10">
+                    <h2 class="font-semibold text-sj-blue dark:text-white mb-3">Renovaciones y responsables</h2>
+                    <ul class="divide-y divide-slate-100 dark:divide-white/10">
+                        @forelse ($legalDocsUpcoming as $row)
+                            <li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                                <div class="min-w-0">
+                                    <p class="font-medium text-slate-900 dark:text-white truncate">
+                                        {{ $row['title'] }}
+                                        <span class="font-normal text-slate-500">· {{ $row['folder'] }}</span>
+                                    </p>
+                                    <p class="text-xs text-slate-500 truncate">Responsables: {{ $row['responsables'] }}</p>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span @class([
+                                        'rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 tabular-nums',
+                                        'bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/15 dark:text-red-200 dark:ring-red-500/30' => $row['vencido'],
+                                        'bg-sj-orange/15 text-sj-blue ring-sj-orange/40 dark:text-sj-orange' => ! $row['vencido'],
+                                    ])>
+                                        {{ $row['badge'] }} · {{ $row['renew_on'] }}
+                                    </span>
+                                    @if ($row['url'])
+                                        <a href="{{ $row['url'] }}" wire:navigate class="text-xs font-semibold text-sj-blue underline dark:text-sj-orange">Abrir</a>
+                                    @endif
+                                </div>
+                            </li>
+                        @empty
+                            <li class="py-6 text-sm text-slate-500 text-center">Sin renovaciones vencidas ni próximas en 14 días.</li>
+                        @endforelse
+                    </ul>
+                </div>
+            </div>
+        @endif
     </div>
 </div>

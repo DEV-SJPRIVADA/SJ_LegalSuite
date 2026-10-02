@@ -11,6 +11,11 @@ class LegalDocumentFolderPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
+        // Eliminar carpetas: solo administrador de plataforma (Nivel1).
+        if ($ability === 'delete') {
+            return null;
+        }
+
         if ($user->hasPlatformLevel(PlatformLevel::Nivel1) && ! $user->read_only) {
             return true;
         }
@@ -117,6 +122,18 @@ class LegalDocumentFolderPolicy
     {
         return $user->hasPlatformLevel(PlatformLevel::Nivel1, PlatformLevel::Nivel5, PlatformLevel::Nivel6)
             || $this->has($user, 'legal-documents.manage');
+    }
+
+    /**
+     * Eliminar carpeta: solo administrador de plataforma.
+     */
+    public function delete(User $user, LegalDocumentFolder $folder): bool
+    {
+        if ($user->read_only) {
+            return false;
+        }
+
+        return $user->hasPlatformLevel(PlatformLevel::Nivel1);
     }
 
     /** Admin / gestor: configura carpetas, fechas, solicitudes y recordatorios. */

@@ -36,6 +36,8 @@ class Dashboard extends Component
 
         return view('livewire.licitaciones.dashboard', [
             'stats' => $dashboard->stats($actor),
+            'legalDocsStats' => $dashboard->legalDocumentsStats($actor),
+            'legalDocsUpcoming' => $dashboard->legalDocumentsUpcoming($actor),
             'recentLicitaciones' => $dashboard->recentLicitaciones(),
             'recentSolicitudes' => $dashboard->recentSolicitudes($actor),
             'upcomingExpiries' => $dashboard->upcomingExpiries($actor),

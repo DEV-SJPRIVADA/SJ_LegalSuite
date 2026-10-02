@@ -15,7 +15,8 @@ use Livewire\Component;
 #[Title('Documentos Legales')]
 class DocumentosLegalesIndex extends Component
 {
-    /** @var array<int, array{email: string, name: string}> */
+    /** Personas seleccionadas por carpeta (primera marcada como director). */
+    /** @var array<int, list<array{email: string, name: string, is_primary: bool}>> */
     public array $assign = [];
 
     /** Búsqueda por carpeta: folderId => texto */
@@ -37,19 +38,36 @@ class DocumentosLegalesIndex extends Component
 
     private function hydrateAssignState(): void
     {
-        LegalDocumentFolder::query()->where('is_active', true)->get(['id', 'responsible_user_id', 'responsible_email'])
+        LegalDocumentFolder::query()
+            ->where('is_active', true)
+            ->with('responsibles')
+            ->get()
             ->each(function (LegalDocumentFolder $folder) {
-                $email = (string) ($folder->responsible_email ?? '');
-                if ($email === '' && $folder->responsible_user_id) {
-                    $email = (string) (User::query()->whereKey($folder->responsible_user_id)->value('email') ?? '');
-                }
-                $email = strtolower($email);
-                $name = $email !== '' ? $this->resolvePersonName($email) : '';
+                $people = $folder->responsibles->map(fn ($r) => [
+                    'email' => strtolower((string) $r->email),
+                    'name' => (string) ($r->name ?: $this->resolvePersonName((string) $r->email)),
+                    'is_primary' => (bool) $r->is_primary,
+                ])->values()->all();
 
-                $this->assign[$folder->id] = [
-                    'email' => $email,
-                    'name' => $name,
-                ];
+                if ($people === []) {
+                    $email = strtolower(trim((string) ($folder->responsible_email ?? '')));
+                    if ($email === '' && $folder->responsible_user_id) {
+                        $email = strtolower((string) (User::query()->whereKey($folder->responsible_user_id)->value('email') ?? ''));
+                    }
+                    if ($email !== '') {
+                        $people[] = [
+                            'email' => $email,
+                            'name' => $this->resolvePersonName($email),
+                            'is_primary' => true,
+                        ];
+                    }
+                }
+
+                if ($people !== [] && ! collect($people)->contains(fn ($p) => $p['is_primary'])) {
+                    $people[0]['is_primary'] = true;
+                }
+
+                $this->assign[$folder->id] = $people;
                 if (! array_key_exists($folder->id, $this->directorBusqueda)) {
                     $this->directorBusqueda[$folder->id] = '';
                 }
@@ -106,11 +124,11 @@ class DocumentosLegalesIndex extends Component
             ['slug' => $folder->slug],
         );
 
-        $this->assign[$folder->id] = ['email' => '', 'name' => ''];
+        $this->assign[$folder->id] = [];
         $this->directorBusqueda[$folder->id] = '';
         $this->cancelCreateFolder();
 
-        session()->flash('success', 'Carpeta «'.$folder->name.'» creada. Asigne un director y abra la carpeta para agregar documentos.');
+        session()->flash('success', 'Carpeta «'.$folder->name.'» creada. Asigne responsables y abra la carpeta para agregar documentos.');
     }
 
     private function uniqueFolderSlug(string $name): string
@@ -130,6 +148,29 @@ class DocumentosLegalesIndex extends Component
         return $slug;
     }
 
+    public function deleteFolder(int $folderId): void
+    {
+        $folder = LegalDocumentFolder::query()->findOrFail($folderId);
+        Gate::authorize('delete', $folder);
+
+        $name = $folder->name;
+
+        app(\App\Services\LegalDocuments\LegalDocumentActivityLogger::class)->log(
+            $folder,
+            'folder_deleted',
+            'Eliminó carpeta «'.$name.'»',
+            auth()->user(),
+            null,
+            ['slug' => $folder->slug],
+        );
+
+        $folder->update(['is_active' => false]);
+
+        unset($this->assign[$folderId], $this->directorBusqueda[$folderId]);
+
+        session()->flash('success', 'Carpeta «'.$name.'» eliminada.');
+    }
+
     public function seleccionarDirector(int $folderId, string $email, string $name = ''): void
     {
         Gate::authorize('assignResponsible', LegalDocumentFolder::class);
@@ -139,22 +180,52 @@ class DocumentosLegalesIndex extends Component
             return;
         }
 
-        $this->assign[$folderId] = [
+        $list = array_values($this->assign[$folderId] ?? []);
+        foreach ($list as $person) {
+            if (($person['email'] ?? '') === $email) {
+                $this->directorBusqueda[$folderId] = '';
+
+                return;
+            }
+        }
+
+        $list[] = [
             'email' => $email,
-            'name' => trim($name),
+            'name' => trim($name) !== '' ? trim($name) : $this->resolvePersonName($email),
+            'is_primary' => $list === [],
         ];
+        $this->assign[$folderId] = $list;
         $this->directorBusqueda[$folderId] = '';
-        $this->resetErrorBag('assign.'.$folderId.'.email');
+        $this->resetErrorBag('assign.'.$folderId);
     }
 
-    public function quitarDirector(int $folderId): void
+    public function quitarDirector(int $folderId, string $email = ''): void
     {
         Gate::authorize('assignResponsible', LegalDocumentFolder::class);
 
-        $this->assign[$folderId] = [
-            'email' => '',
-            'name' => '',
-        ];
+        $email = strtolower(trim($email));
+        $list = array_values(array_filter(
+            $this->assign[$folderId] ?? [],
+            fn ($p) => ($p['email'] ?? '') !== $email,
+        ));
+
+        if ($list !== [] && ! collect($list)->contains(fn ($p) => ! empty($p['is_primary']))) {
+            $list[0]['is_primary'] = true;
+        }
+
+        $this->assign[$folderId] = $list;
+    }
+
+    public function marcarDirector(int $folderId, string $email): void
+    {
+        Gate::authorize('assignResponsible', LegalDocumentFolder::class);
+
+        $email = strtolower(trim($email));
+        $list = array_values($this->assign[$folderId] ?? []);
+        foreach ($list as $i => $person) {
+            $list[$i]['is_primary'] = ($person['email'] ?? '') === $email;
+        }
+        $this->assign[$folderId] = $list;
     }
 
     public function saveResponsible(int $folderId): void
@@ -162,46 +233,63 @@ class DocumentosLegalesIndex extends Component
         Gate::authorize('assignResponsible', LegalDocumentFolder::class);
 
         $folder = LegalDocumentFolder::query()->findOrFail($folderId);
-        $email = strtolower(trim((string) ($this->assign[$folderId]['email'] ?? '')));
+        $list = array_values($this->assign[$folderId] ?? []);
 
-        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->addError('assign.'.$folderId.'.email', 'Busque y seleccione una persona del directorio o un usuario del sistema.');
-
-            return;
-        }
-
-        if (! $this->emailIsAssignable($email)) {
-            $this->addError('assign.'.$folderId.'.email', 'El correo no está en el directorio corporativo ni entre usuarios activos del sistema.');
+        if ($list === []) {
+            $this->addError('assign.'.$folderId, 'Agregue al menos un director o responsable.');
 
             return;
         }
 
-        $localUserId = User::query()
-            ->active()
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->value('id');
-        $before = (string) ($folder->responsible_email ?: 'sin asignar');
+        $people = [];
+        foreach ($list as $person) {
+            $email = strtolower(trim((string) ($person['email'] ?? '')));
+            if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            if (! $this->emailIsAssignable($email)) {
+                $this->addError('assign.'.$folderId, 'El correo '.$email.' no está en el directorio ni entre usuarios activos.');
 
-        $folder->update([
-            'responsible_user_id' => $localUserId ?: null,
-            'responsible_email' => $email,
-        ]);
+                return;
+            }
 
-        $name = $this->resolvePersonName($email);
-        $this->assign[$folderId]['name'] = $name;
+            $people[] = [
+                'email' => $email,
+                'name' => trim((string) ($person['name'] ?? '')) ?: $this->resolvePersonName($email),
+                'user_id' => User::query()->active()->whereRaw('LOWER(email) = ?', [$email])->value('id'),
+                'is_primary' => (bool) ($person['is_primary'] ?? false),
+            ];
+        }
+
+        if ($people === []) {
+            $this->addError('assign.'.$folderId, 'Agregue al menos un director o responsable válido.');
+
+            return;
+        }
+
+        $before = $folder->responsiblesLabel();
+        $folder->syncResponsibles($people);
+        $folder->load('responsibles');
+
+        $this->assign[$folderId] = $folder->responsibles->map(fn ($r) => [
+            'email' => strtolower((string) $r->email),
+            'name' => (string) ($r->name ?: $this->resolvePersonName((string) $r->email)),
+            'is_primary' => (bool) $r->is_primary,
+        ])->values()->all();
+
         $this->directorBusqueda[$folderId] = '';
-        $this->resetErrorBag('assign.'.$folderId.'.email');
+        $this->resetErrorBag('assign.'.$folderId);
 
         app(\App\Services\LegalDocuments\LegalDocumentActivityLogger::class)->log(
             $folder,
             'responsible_changed',
-            'Asignó director: '.$before.' → '.$email.($name !== '' ? ' ('.$name.')' : ''),
+            'Actualizó responsables: '.$before.' → '.$folder->responsiblesLabel(),
             auth()->user(),
             null,
-            ['email' => $email, 'name' => $name],
+            ['people' => $this->assign[$folderId]],
         );
 
-        session()->flash('success', 'Responsable de «'.$folder->name.'» actualizado.');
+        session()->flash('success', 'Responsables de «'.$folder->name.'» actualizados.');
     }
 
     /**
@@ -277,7 +365,7 @@ class DocumentosLegalesIndex extends Component
         $canAssign = Gate::allows('assignResponsible', LegalDocumentFolder::class);
 
         $foldersQuery = LegalDocumentFolder::query()
-            ->with('responsible:id,name,email')
+            ->with(['responsible:id,name,email', 'responsibles'])
             ->withCount([
                 'items as items_total' => fn ($q) => $q->where('is_active', true),
                 'items as items_due' => fn ($q) => $q->where('is_active', true)
@@ -303,11 +391,16 @@ class DocumentosLegalesIndex extends Component
             $resultadosPorCarpeta[$folder->id] = $this->resultadosBusqueda($folder->id);
         }
 
+        $canDeleteFolder = $user
+            && ! $user->read_only
+            && $user->hasPlatformLevel(\App\Enums\PlatformLevel::Nivel1);
+
         return view('livewire.licitaciones.documentos-legales.index', [
             'folders' => $folders,
             'resultadosPorCarpeta' => $resultadosPorCarpeta,
             'canAssign' => $canAssign,
             'canCreateFolder' => Gate::allows('create', LegalDocumentFolder::class),
+            'canDeleteFolder' => $canDeleteFolder,
             'seesAllFolders' => (bool) $seesAll,
         ]);
     }

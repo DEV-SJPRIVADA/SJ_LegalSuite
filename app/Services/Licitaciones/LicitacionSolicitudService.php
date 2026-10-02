@@ -7,6 +7,7 @@ use App\Enums\Licitaciones\RequestType;
 use App\Models\Licitaciones\LicitacionSolicitud;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class LicitacionSolicitudService
 {
@@ -22,6 +23,10 @@ class LicitacionSolicitudService
         return DB::transaction(function () use ($data, $actor) {
             if (($data['tipo_solicitud'] ?? null) === RequestType::Esporadica->value && empty($data['licitacion_id'])) {
                 throw new \InvalidArgumentException('Las solicitudes esporádicas deben estar asociadas a una licitación.');
+            }
+
+            if (empty($data['numero_radicado'])) {
+                $data['numero_radicado'] = $this->generateNumeroRadicado();
             }
 
             $solicitud = LicitacionSolicitud::create([
@@ -72,5 +77,14 @@ class LicitacionSolicitudService
 
             $solicitud->delete();
         });
+    }
+
+    private function generateNumeroRadicado(): string
+    {
+        do {
+            $radicado = 'SOL-'.now()->format('Ymd').'-'.strtoupper(Str::random(5));
+        } while (LicitacionSolicitud::query()->where('numero_radicado', $radicado)->exists());
+
+        return $radicado;
     }
 }
