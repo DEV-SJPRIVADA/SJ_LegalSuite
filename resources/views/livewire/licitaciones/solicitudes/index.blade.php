@@ -39,7 +39,15 @@
                             <td class="px-4 py-3">{{ $row->licitacion?->numero_proceso ?? '—' }}</td>
                             <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full {{ $row->estado?->badgeClass() }}">{{ $row->estado?->label() }}</span></td>
                             <td class="px-4 py-3">{{ $row->fecha_limite?->format('d/m/Y') }}</td>
-                            <td class="px-4 py-3 text-right"><a href="{{ route('licitaciones.solicitudes.show', $row) }}" wire:navigate class="text-sj-blue font-semibold">Ver</a></td>
+                            <td class="px-4 py-3 text-right">
+                                <a
+                                    href="{{ route('licitaciones.solicitudes.show', $row) }}"
+                                    wire:navigate
+                                    class="inline-flex items-center rounded-md px-2.5 py-1 text-sm font-bold text-sj-blue ring-1 ring-sj-blue/25 transition hover:bg-sj-orange/15 hover:ring-sj-orange/50 dark:bg-sj-orange/10 dark:text-sj-orange dark:ring-sj-orange/40 dark:hover:bg-sj-orange/25 dark:hover:ring-sj-orange/70 dark:hover:shadow-[0_0_12px_rgba(249,115,22,0.35)]"
+                                >
+                                    Ver
+                                </a>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Sin solicitudes.</td></tr>
