@@ -57,7 +57,7 @@
 
         @if ($canAddRequest)
             <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
-                <h2 class="font-semibold text-sj-blue dark:text-white mb-3">Agregar solicitud de documento</h2>
+                <h2 class="font-semibold text-sj-blue dark:text-white mb-3">Agregar documento</h2>
                 <form wire:submit="agregarSolicitud" class="grid gap-3 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre del documento</label>
@@ -78,7 +78,7 @@
                         <textarea wire:model="nuevasObservaciones" rows="2" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink"></textarea>
                     </div>
                     <div class="sm:col-span-2">
-                        <button type="submit" class="sj-btn sj-btn--accent">Agregar a esta carpeta</button>
+                        <button type="submit" class="sj-btn sj-btn--accent">Agregar documento</button>
                     </div>
                 </form>
             </div>

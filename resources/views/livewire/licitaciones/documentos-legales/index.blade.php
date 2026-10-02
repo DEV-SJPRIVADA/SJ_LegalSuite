@@ -4,17 +4,48 @@
     @endpush
 
     <div class="py-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div>
-            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Licitaciones · Documentos legales</p>
-            <h1 class="mt-1 text-xl font-bold text-sj-blue dark:text-white">Carpetas por área (MT-GJ-06)</h1>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Cada director solo ve su carpeta y puede subir/reemplazar archivos. El administrador crea solicitudes, define fechas y la frecuencia de los correos.
-            </p>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-sj-orange">Licitaciones · Documentos legales</p>
+                <h1 class="mt-1 text-xl font-bold text-sj-blue dark:text-white">Carpetas por área (MT-GJ-06)</h1>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Cada director solo ve su carpeta y puede subir/reemplazar archivos. El administrador crea carpetas, define fechas y la frecuencia de los correos.
+                </p>
+            </div>
+            @if ($canCreateFolder)
+                <button type="button" wire:click="openCreateFolder" class="sj-btn sj-btn--accent shrink-0">
+                    + Nueva carpeta
+                </button>
+            @endif
         </div>
 
         @if (session('success'))
             <div class="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30">
                 {{ session('success') }}
+            </div>
+        @endif
+
+        @if ($canCreateFolder && $showCreateFolder)
+            <div class="rounded-xl bg-white p-5 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+                <h2 class="font-semibold text-sj-blue dark:text-white">Nueva carpeta / área</h2>
+                <p class="mt-1 text-xs text-slate-500">Crea un espacio para otro departamento. Los documentos se agregan dentro de la carpeta.</p>
+                <form wire:submit="createFolder" class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre del área</label>
+                        <input type="text" wire:model="nuevaCarpetaNombre" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-white/15 dark:bg-dash-ink" placeholder="Ej. Jurídica, Compras, Talento humano…">
+                        @error('nuevaCarpetaNombre')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="flex cursor-pointer items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+                            <input type="checkbox" wire:model="nuevaCarpetaSinRecordatorios" class="mt-0.5 rounded border-slate-300 text-indigo-600">
+                            <span>Sin recordatorios por correo (p. ej. área jurídica gestionada a mano)</span>
+                        </label>
+                    </div>
+                    <div class="sm:col-span-2 flex flex-wrap gap-2">
+                        <button type="submit" class="sj-btn sj-btn--primary">Crear carpeta</button>
+                        <button type="button" wire:click="cancelCreateFolder" class="sj-btn sj-btn--ghost">Cancelar</button>
+                    </div>
+                </form>
             </div>
         @endif
 

@@ -19,6 +19,11 @@ class EnsureSessionIdleTimeout
             return $next($request);
         }
 
+        // No actualizar actividad ni cortar en el propio cierre por inactividad.
+        if ($request->routeIs('session.expire')) {
+            return $next($request);
+        }
+
         $lifetimeMinutes = max(1, (int) config('session.lifetime', 15));
         $idleSeconds = $lifetimeMinutes * 60;
         $now = time();
@@ -30,9 +35,16 @@ class EnsureSessionIdleTimeout
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
+            if ($request->expectsJson() || $request->header('X-Livewire')) {
+                return response()->json([
+                    'message' => 'Sesión expirada por inactividad.',
+                    'redirect' => route('login'),
+                ], 419);
+            }
+
             return redirect()
                 ->route('login')
-                ->with('status', 'Su sesión se cerró por inactividad ('.$lifetimeMinutes.' minutos). Inicie sesión de nuevo.');
+                ->with('status', 'Su sesión se cerró por inactividad ('.$lifetimeMinutes.' minutos sin uso). Inicie sesión de nuevo.');
         }
 
         $request->session()->put('last_activity_at', $now);

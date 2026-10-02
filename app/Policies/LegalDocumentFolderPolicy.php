@@ -110,6 +110,15 @@ class LegalDocumentFolderPolicy
             || $this->has($user, 'legal-documents.manage');
     }
 
+    /**
+     * Crear una nueva carpeta / espacio de área.
+     */
+    public function create(User $user): bool
+    {
+        return $user->hasPlatformLevel(PlatformLevel::Nivel1, PlatformLevel::Nivel5, PlatformLevel::Nivel6)
+            || $this->has($user, 'legal-documents.manage');
+    }
+
     /** Admin / gestor: configura carpetas, fechas, solicitudes y recordatorios. */
     private function configuresFolder(User $user): bool
     {

@@ -22,10 +22,21 @@ class DocumentosLegalesIndex extends Component
     /** @var array<int, string> */
     public array $directorBusqueda = [];
 
+    public bool $showCreateFolder = false;
+
+    public string $nuevaCarpetaNombre = '';
+
+    public bool $nuevaCarpetaSinRecordatorios = false;
+
     public function mount(): void
     {
         Gate::authorize('viewAny', LegalDocumentFolder::class);
 
+        $this->hydrateAssignState();
+    }
+
+    private function hydrateAssignState(): void
+    {
         LegalDocumentFolder::query()->where('is_active', true)->get(['id', 'responsible_user_id', 'responsible_email'])
             ->each(function (LegalDocumentFolder $folder) {
                 $email = (string) ($folder->responsible_email ?? '');
@@ -39,8 +50,84 @@ class DocumentosLegalesIndex extends Component
                     'email' => $email,
                     'name' => $name,
                 ];
-                $this->directorBusqueda[$folder->id] = '';
+                if (! array_key_exists($folder->id, $this->directorBusqueda)) {
+                    $this->directorBusqueda[$folder->id] = '';
+                }
             });
+    }
+
+    public function openCreateFolder(): void
+    {
+        Gate::authorize('create', LegalDocumentFolder::class);
+        $this->showCreateFolder = true;
+        $this->nuevaCarpetaNombre = '';
+        $this->nuevaCarpetaSinRecordatorios = false;
+        $this->resetErrorBag(['nuevaCarpetaNombre']);
+    }
+
+    public function cancelCreateFolder(): void
+    {
+        $this->showCreateFolder = false;
+        $this->nuevaCarpetaNombre = '';
+        $this->nuevaCarpetaSinRecordatorios = false;
+        $this->resetErrorBag(['nuevaCarpetaNombre']);
+    }
+
+    public function createFolder(): void
+    {
+        Gate::authorize('create', LegalDocumentFolder::class);
+
+        $data = $this->validate([
+            'nuevaCarpetaNombre' => ['required', 'string', 'min:2', 'max:120'],
+            'nuevaCarpetaSinRecordatorios' => ['boolean'],
+        ], [], [
+            'nuevaCarpetaNombre' => 'nombre del área / carpeta',
+        ]);
+
+        $name = trim($data['nuevaCarpetaNombre']);
+        $slug = $this->uniqueFolderSlug($name);
+        $sort = (int) LegalDocumentFolder::query()->max('sort_order') + 1;
+
+        $folder = LegalDocumentFolder::query()->create([
+            'name' => $name,
+            'slug' => $slug,
+            'exclude_reminders' => (bool) $data['nuevaCarpetaSinRecordatorios'],
+            'reminder_every_minutes' => 60,
+            'sort_order' => $sort,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\LegalDocuments\LegalDocumentActivityLogger::class)->log(
+            $folder,
+            'folder_created',
+            'Creó carpeta «'.$folder->name.'»',
+            auth()->user(),
+            null,
+            ['slug' => $folder->slug],
+        );
+
+        $this->assign[$folder->id] = ['email' => '', 'name' => ''];
+        $this->directorBusqueda[$folder->id] = '';
+        $this->cancelCreateFolder();
+
+        session()->flash('success', 'Carpeta «'.$folder->name.'» creada. Asigne un director y abra la carpeta para agregar documentos.');
+    }
+
+    private function uniqueFolderSlug(string $name): string
+    {
+        $base = \Illuminate\Support\Str::slug($name);
+        if ($base === '') {
+            $base = 'area';
+        }
+        $base = \Illuminate\Support\Str::limit($base, 70, '');
+        $slug = $base;
+        $i = 2;
+        while (LegalDocumentFolder::query()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i;
+            $i++;
+        }
+
+        return $slug;
     }
 
     public function seleccionarDirector(int $folderId, string $email, string $name = ''): void
@@ -220,6 +307,7 @@ class DocumentosLegalesIndex extends Component
             'folders' => $folders,
             'resultadosPorCarpeta' => $resultadosPorCarpeta,
             'canAssign' => $canAssign,
+            'canCreateFolder' => Gate::allows('create', LegalDocumentFolder::class),
             'seesAllFolders' => (bool) $seesAll,
         ]);
     }
