@@ -171,13 +171,21 @@ if ($git['code'] !== 0) {
 // ---------------------------------------------------------------------------
 $steps = [
     'composer' => 'composer install --no-dev --prefer-dist --no-interaction --quiet',
-    'storage_link' => $php.' artisan storage:link',
     'optimize_clear' => $php.' artisan optimize:clear',
     'migrate' => $php.' artisan migrate --force --no-interaction',
     'config_cache' => $php.' artisan config:cache',
-    'route_cache' => $php.' artisan route:cache',
     'view_cache' => $php.' artisan view:cache',
 ];
+
+/*
+ * Notas de compatibilidad con Hostinger (LiteSpeed + CageFS):
+ *
+ * - NO se ejecuta `storage:link`: symlink() y exec() están deshabilitados en el
+ *   PHP web, y la aplicación no sirve archivos por /storage (usa controladores
+ *   autenticados), así que el enlace no aporta nada.
+ * - NO se ejecuta `route:cache`: routes/web.php usa closures (p. ej. /deploy/{token})
+ *   y el route cache de Laravel rechaza las rutas con Closure.
+ */
 
 $results = [];
 foreach ($steps as $name => $command) {
