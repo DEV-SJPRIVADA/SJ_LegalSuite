@@ -17,6 +17,9 @@
 # public/build SÍ se versiona: el deploy por Git en Hostinger no ejecuta Vite,
 # así que el manifest y los assets compilados deben venir en el commit.
 /public/hot
+# Artefacto del servidor (document root de Hostinger). Nunca debe venir del repo.
+/public_html
+/public_html.*
 /public/storage
 /public/vendor
 /storage/*.key

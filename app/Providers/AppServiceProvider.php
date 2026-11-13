@@ -40,11 +40,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        // Hostinger: el document root puede ser public_html (sin symlink a public/).
-        // Laragon local sigue usando public/ por defecto.
+        // Hostinger: el document root es fijo en public_html y no siempre se puede
+        // cambiar desde hPanel. Si es un enlace a public/, la raíz por defecto ya es
+        // correcta. Solo se sobrescribe cuando es una carpeta real que sirve como tal.
         $hostingerWebRoot = base_path('public_html');
 
-        if ($this->looksLikePublicRoot($hostingerWebRoot)) {
+        if (! is_link($hostingerWebRoot) && $this->looksLikePublicRoot($hostingerWebRoot)) {
             $this->app->usePublicPath($hostingerWebRoot);
         }
     }

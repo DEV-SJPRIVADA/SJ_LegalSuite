@@ -202,4 +202,14 @@ echo json_encode([
     'root' => $root,
     'git' => $output['git'],
     'steps' => $results,
+    'public_root' => [
+        // public_html debe ser un enlace a public/ (document root fijo en Hostinger).
+        'public_html_exists' => file_exists($root.'/public_html'),
+        'is_symlink' => is_link($root.'/public_html'),
+        'target' => is_link($root.'/public_html') ? readlink($root.'/public_html') : null,
+        'manifest_ok' => is_file($root.'/public_html/build/manifest.json'),
+        'hint' => is_link($root.'/public_html')
+            ? null
+            : 'public_html no es un enlace: ejecute ln -sfn public public_html para servir los assets del repo.',
+    ],
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
