@@ -40,12 +40,33 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        // Hostinger: document root = public_html (no carpeta public ni symlink).
+        // Hostinger: el document root puede ser public_html (sin symlink a public/).
         // Laragon local sigue usando public/ por defecto.
         $hostingerWebRoot = base_path('public_html');
-        if (is_dir($hostingerWebRoot)) {
+
+        if ($this->looksLikePublicRoot($hostingerWebRoot)) {
             $this->app->usePublicPath($hostingerWebRoot);
         }
+    }
+
+    /**
+     * ¿La carpeta realmente sirve como raíz pública?
+     *
+     * No basta con que exista: en despliegues por Git es frecuente que
+     * public_html sea un clon completo del repositorio dentro de la raíz del
+     * proyecto. En ese caso tiene artisan/, vendor/ y app/, pero no index.php
+     * ni build/manifest.json, así que usarla como public_path rompe @vite
+     * (manifest ausente) y los helpers asset()/public_path().
+     */
+    private function looksLikePublicRoot(string $dir): bool
+    {
+        if (! is_dir($dir) || ! is_file($dir.DIRECTORY_SEPARATOR.'index.php')) {
+            return false;
+        }
+
+        // Un clon del repositorio se delata por estos archivos junto al index.php.
+        return ! is_file($dir.DIRECTORY_SEPARATOR.'artisan')
+            && ! is_dir($dir.DIRECTORY_SEPARATOR.'vendor');
     }
 
     public function boot(): void
