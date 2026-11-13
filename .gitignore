@@ -14,7 +14,8 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# public/build SÍ se versiona: el deploy por Git en Hostinger no ejecuta Vite,
+# así que el manifest y los assets compilados deben venir en el commit.
 /public/hot
 /public/storage
 /public/vendor

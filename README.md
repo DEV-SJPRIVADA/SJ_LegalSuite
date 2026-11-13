@@ -787,19 +787,46 @@ Por restricciones de seguridad y el entorno LiteSpeed/Hostinger, la solución en
 
 ### Configuración del webhook en GitHub
 
-En el repositorio → **Settings → Webhooks**:
+1. Generar el token y guardarlo **solo** en el `.env` del servidor:
+
+   ```bash
+   php -r "echo bin2hex(random_bytes(32));"
+   ```
+
+   ```env
+   DEPLOY_WEBHOOK_TOKEN=<el-valor-generado>
+   ```
+
+2. En el repositorio → **Settings → Webhooks → Add webhook**:
 
 | Campo | Valor |
 |--------|--------|
-| **Payload URL** | `https://sjlegalsuite.sjregistrycat.com/deploy.php?token=Legalsuite.2026` |
+| **Payload URL** | `https://sjlegalsuite.sjregistrycat.com/deploy.php?token=<el-valor-generado>` |
 | **Content type** | `application/json` |
 | **Events** | Just the push event |
 
 ### Seguridad
 
-`deploy.php` valida el parámetro **`?token=`** en la URL. Sin el token correcto, responde **`HTTP 403 Unauthorized`** y aborta el proceso.
+`deploy.php` **no contiene el token**: lo lee de `DEPLOY_WEBHOOK_TOKEN` en `.env` y compara con `hash_equals()`. Sin token válido responde **`HTTP 403`**. Si la variable no existe, responde **`HTTP 500`** con un mensaje explícito en lugar de aceptar peticiones.
 
-> Cambie el token de producción si el repositorio es público o si el webhook se expuso. No versionar `deploy.php` con credenciales en Git si el repo es abierto.
+Diagnóstico sin modificar nada: `POST /deploy.php?token=...&mode=check` devuelve si existen `.git`, `.env`, `APP_KEY` y el manifest de Vite.
+
+> El token no debe versionarse. En Hostinger se define en **hPanel → Avanzado → Variables de entorno** o directamente en `.env` por SSH.
+
+### Checklist de primera puesta en marcha (Hostinger)
+
+El error **403 Forbidden** en `/` casi siempre significa que el **document root apunta a la raíz del repositorio** en lugar de a `public/`. Con esa configuración la raíz de Laravel queda expuesta: `/artisan`, `/vendor/autoload.php`, `/composer.lock` y `/storage/logs/laravel.log` responden públicamente.
+
+1. **Raíz del documento** — hPanel → Sitios web → `sjlegalsuite.sjregistrycat.com` → **Avanzado → Raíz del documento**: cambiarla a `public_html/public` o `public`. Es la corrección de fondo.
+   - Si no se puede cambiar (deploy Git en la raíz), el `.htaccess` de la raíz bloquea esos directorios y reescribe hacia `public/index.php`; verificar con `curl -o /dev/null -w "%{http_code}" https://dominio/artisan` → debe dar **403**.
+2. **`.env`** — copiar `.env.production.example` a `.env` y ejecutar `php artisan key:generate`.
+   Sin `APP_KEY` la app responde **500** (`No application encryption key has been specified`) y se caen sesión, CSRF y Livewire.
+3. **Assets Vite** — `public/build/` **sí se versiona**. El deploy por Git no ejecuta `npm run build`; el `manifest.json` del commit debe apuntar a archivos que existan en `public/build/assets/`.
+4. **Storage** — `php artisan storage:link` (el `public_html` de Hostinger no hereda el symlink).
+5. **Migraciones** — `php artisan migrate --force`.
+6. **Cachés** — `php artisan config:cache && php artisan route:cache && php artisan view:cache`.
+
+`deploy.php` ejecuta los pasos 2–6 automáticamente en cada despliegue (`config:cache` incluido), salvo `key:generate`, que solo se hace una vez.
 
 ### Ruta Laravel alternativa (respaldo)
 

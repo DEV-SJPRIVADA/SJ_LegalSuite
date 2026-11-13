@@ -1,0 +1,44 @@
+# =============================================================================
+# SJ LegalSuite — .htaccess de la RAÍZ del proyecto
+# =============================================================================
+# ¿Por qué existe este archivo?
+#
+# El despliegue Git de Hostinger deja el repositorio completo como document root,
+# así que la raíz de Laravel (app/, vendor/, storage/, .env, artisan) queda
+# accesible por HTTP. Este archivo hace dos cosas:
+#
+#   1. BLOQUEA el acceso directo a todo lo que no debe ser público.
+#   2. REDIRIGE las peticiones al front controller en public/index.php.
+#
+# Lo ideal sigue siendo mover el document root a la carpeta `public/`
+# (hPanel → Sitios web → Avanzado → Raíz del documento). Cuando eso ocurre,
+# este archivo deja de servirse y no interfiere.
+# =============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # --- 1. Bloqueo de archivos ocultos (.env, .git, etc.) -----------------
+    # Se exceptúa /.well-known/ para no romper la renovación del certificado SSL.
+    RewriteRule ^\.(?!well-known/) - [F,L]
+
+    # --- 2. Bloqueo de directorios internos de Laravel ---------------------
+    RewriteRule ^(app|vendor|storage|bootstrap|config|database|routes|resources|tests|node_modules)(/|$) - [F,L]
+
+    # --- 3. Bloqueo de archivos de proyecto / dependencias -----------------
+    RewriteRule ^(artisan|composer\.(json|lock)|phpunit\.xml|package(-lock)?\.json|vite\.config\.js|tailwind\.config\.js|postcss\.config\.js|README\.md)$ - [F,L]
+
+    # --- 4. Servir assets reales que viven en public/ ----------------------
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # --- 5. Todo lo demás → front controller ------------------------------
+    RewriteRule ^ public/index.php [L]
+</IfModule>
+
+# Si el hosting no permite mod_rewrite, al menos oculta los directorios internos.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</IfModule>
