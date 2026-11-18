@@ -1067,3 +1067,28 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para:
 ## 📄 Licencia
 
 Software interno de **SJ Seguridad**. Uso restringido.
+
+---
+
+## Recepcion de empleados desde SJ StatFlow
+
+SJ LegalSuite recibe los empleados desde **SJ StatFlow** (sistema maestro de Gestion Humana). StatFlow empuja por HTTPS; este repositorio solo recibe, valida la firma y hace upsert por `document_number`.
+
+- `GET /api/integraciones/ping` -> salud.
+- `POST /api/integraciones/empleados` -> lotes de hasta 500 registros, autenticados con `X-Integration-Key` + `X-Signature` (HMAC-SHA256 del body crudo) + `X-Timestamp` (tolerancia 300 s).
+
+Variables de entorno:
+
+```env
+INTEGRATION_STATFLOW_KEY=
+INTEGRATION_STATFLOW_SECRET=
+INTEGRATION_TIMESTAMP_TOLERANCE=300
+```
+
+Estado del ultimo lote recibido:
+
+```bash
+php artisan integracion:estado
+```
+
+El detalle tecnico (contrato, reglas de upsert, mapeo de documentos y cargos, troubleshooting) esta en [`docs/INTEGRACION_STATFLOW.md`](docs/INTEGRACION_STATFLOW.md).
