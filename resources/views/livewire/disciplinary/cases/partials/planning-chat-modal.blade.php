@@ -31,6 +31,20 @@
         ? 'Mensaje a planeación sobre la decisión…'
         : 'Escriba un mensaje para Planeación…';
     $composerDisabled = $coordinationIsClosed && ! $showLegacyInformeHistory;
+
+    // El chat lo usan dos lados: el abogado titular (postAgendaLawyer) y planeación / admin (postAgendaPlanning).
+    $canPostAsLawyer = auth()->user()->can('postAgendaLawyer', $case)
+        && ! $coordinationIsClosed
+        && ! ($showLegacyInformeHistory && $composerDisabled);
+    $canPostAsPlanning = auth()->user()->can('postAgendaPlanning', $case)
+        && ! $coordinationIsClosed
+        && ! $canPostAsLawyer;
+    $canWriteInThread = $canPostAsLawyer || $canPostAsPlanning;
+    $viewerPerspective = $canPostAsPlanning ? 'planning' : 'lawyer';
+    $planningComposerPlaceholder = $isDecisionFlow && ! $isCitacionFlow
+        ? 'Mensaje al abogado sobre la decisión…'
+        : 'Mensaje para el abogado…';
+
     $subtitle = $isDecisionFlow && ! $isCitacionFlow
         ? 'Coordinación de decisión'
         : 'Jurídico ↔ Planeación';
@@ -117,7 +131,7 @@
                                 <x-disciplinary.agenda-message
                                     :message="$msg"
                                     :case="$case"
-                                    perspective="lawyer"
+                                    :perspective="$viewerPerspective"
                                     :selectable-slots="$selectableSlots"
                                     :slot-wire-model="$slotWireModel"
                                     wire:key="planning-chat-msg-{{ $msg->id }}" />
@@ -126,23 +140,25 @@
                     @else
                         <div class="flex h-full min-h-[12rem] flex-col items-center justify-center px-4 text-center">
                             <p class="text-sm text-slate-500 dark:text-slate-400">Sin mensajes aún</p>
-                            <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">Escriba abajo para iniciar el diálogo con planeación.</p>
+                            <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                                {{ $canPostAsPlanning ? 'Escriba abajo para iniciar el diálogo con el abogado.' : 'Escriba abajo para iniciar el diálogo con planeación.' }}
+                            </p>
                         </div>
                     @endif
                 @endunless
             </div>
 
-            @can('postAgendaLawyer', $case)
-                @if (! $coordinationIsClosed && ! ($showLegacyInformeHistory && $composerDisabled))
-                    <div class="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-dash-ink">
-                        @if ($canSelectDecisionSlot && ($selectedDecisionSlotKey ?? '') !== '')
-                            <div class="mb-2 flex justify-end">
-                                <button type="button" wire:click="confirmDecisionSlot"
-                                    class="inline-flex items-center rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700">
-                                    Confirmar opción seleccionada
-                                </button>
-                            </div>
-                        @endif
+            @if ($canWriteInThread)
+                <div class="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-dash-ink">
+                    @if ($canSelectDecisionSlot && ($selectedDecisionSlotKey ?? '') !== '')
+                        <div class="mb-2 flex justify-end">
+                            <button type="button" wire:click="confirmDecisionSlot"
+                                class="inline-flex items-center rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700">
+                                Confirmar opción seleccionada
+                            </button>
+                        </div>
+                    @endif
+                    @if ($canPostAsLawyer)
                         <x-disciplinary.agenda-chat-composer
                             body-model="agendaLawyerBody"
                             uploads-property="agendaLawyerUploads"
@@ -153,9 +169,49 @@
                             :input-id="'planning-chat-lawyer-'.$case->id"
                             error-field="agendaLawyerBody"
                             variant="drawer" />
-                    </div>
-                @endif
-            @endcan
+                    @else
+                        <x-disciplinary.agenda-chat-composer
+                            body-model="agendaPlanningBody"
+                            uploads-property="agendaPlanningUploads"
+                            send-action="postAgendaPlanning"
+                            remove-upload-method="removeAgendaPlanningUploadAt"
+                            :uploads="$agendaPlanningUploads ?? []"
+                            :placeholder="$planningComposerPlaceholder"
+                            :input-id="'planning-chat-planning-'.$case->id"
+                            error-field="agendaPlanningBody"
+                            variant="drawer" />
+                    @endif
+                </div>
+            @elseif ($coordinationIsClosed)
+                <div class="shrink-0 border-t border-slate-200 bg-white px-3 py-3 dark:border-white/10 dark:bg-dash-ink">
+                    <p class="text-center text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        Coordinación cerrada — solo lectura
+                    </p>
+                    <p class="mt-1 text-center text-[11px] text-slate-500 dark:text-slate-400">
+                        @if ($isCitacionFlow || $isDecisionFlow)
+                            La coordinación se cerró al avanzar de etapa y no admite nuevos mensajes.
+                        @else
+                            Para volver a coordinar fechas use <strong>Reprogramar diligencia</strong> (FO-GJ-54),
+                            que reabre el chat con planeación.
+                        @endif
+                    </p>
+                </div>
+            @else
+                {{-- Puede ver el hilo pero no escribir en él: explicar el motivo en vez de dejar el espacio vacío. --}}
+                <div class="shrink-0 border-t border-slate-200 bg-white px-3 py-3 dark:border-white/10 dark:bg-dash-ink">
+                    <p class="text-center text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        Solo lectura
+                    </p>
+                    <p class="mt-1 text-center text-[11px] text-slate-500 dark:text-slate-400">
+                        @if ($agendaThread === null)
+                            Todavía no se ha iniciado una coordinación con planeación para este expediente.
+                        @else
+                            Este hilo lo atienden el abogado titular y planeación.
+                            Su perfil puede consultar la conversación, pero no escribir en ella.
+                        @endif
+                    </p>
+                </div>
+            @endif
 
             <x-disciplinary.agenda-attachment-lightbox-modal />
         </aside>
