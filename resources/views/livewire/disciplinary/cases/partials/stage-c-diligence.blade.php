@@ -24,6 +24,8 @@
     $canUploadFoGj04Signed = auth()->user()->can('uploadFoGj04Signed', $case);
     $canCaptureWorkerSignature = auth()->user()->can('captureFoGj04WorkerSignature', $case);
     $foGj04DraftCompleted = $case->fo_gj_04_draft_completed_at !== null;
+    $foGj04HasPartialDraft = $canEditFoGj04Draft && app(FoGj04DraftService::class)->isPendingDraft($case);
+    $foGj04DraftSavedAt = $canEditFoGj04Draft ? app(FoGj04DraftService::class)->draftSavedAt($case) : null;
     $foGj04HasWorkerSignature = app(FoGj04DraftService::class)->hasWorkerSignature($case);
     $canEditFoGj44Draft = auth()->user()->can('editFoGj44Draft', $case);
     $canPreviewFoGj44 = auth()->user()->can('previewFoGj44', $case);
@@ -122,6 +124,15 @@
                         @endif
                     </p>
                 @endif
+                @if ($foGj04DraftSavedAt && ! $case->fo_gj_04_generated_at)
+                    <p class="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                        Borrador FO-GJ-04 guardado ·
+                        <span class="tabular-nums">{{ $foGj04DraftSavedAt->format('d/m/Y H:i') }}</span>
+                        @if (! $foGj04DraftCompleted)
+                            <span class="font-normal">(pendiente de completar)</span>
+                        @endif
+                    </p>
+                @endif
                 @if ($justificationStage?->deadline_at)
                     <p class="text-sm text-amber-800 dark:text-amber-200">
                         Plazo justificación: <strong>{{ $justificationStage->deadline_at->format('d/m/Y') }}</strong>
@@ -207,6 +218,12 @@
                             class="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
                             No asistió
                         </button>
+                        @if ($canEditFoGj04Draft)
+                            <button type="button" wire:click="openFoGj04DraftModal"
+                                class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40 dark:hover:bg-white/15">
+                                {{ $foGj04HasPartialDraft ? 'Continuar borrador FO-GJ-04' : 'Preparar FO-GJ-04' }}
+                            </button>
+                        @endif
                         @if ($canEditFoGj54Draft)
                             <button type="button" wire:click="openFoGj54DraftModal"
                                 class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-slate-100 dark:ring-white/20 dark:hover:bg-white/15">
@@ -218,7 +235,7 @@
                     @if ($canEditFoGj04Draft)
                         <button type="button" wire:click="openFoGj04DraftModal"
                             class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800 ring-1 ring-teal-300 hover:bg-teal-50 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
-                            {{ $foGj04DraftCompleted ? 'Editar FO-GJ-04' : 'Diligenciar FO-GJ-04' }}
+                            {{ $foGj04DraftCompleted ? 'Editar FO-GJ-04' : ($foGj04HasPartialDraft ? 'Continuar borrador FO-GJ-04' : 'Diligenciar FO-GJ-04') }}
                         </button>
                     @endif
                     @if ($canCaptureWorkerSignature)
@@ -405,6 +422,10 @@
                         <p class="mt-2 text-amber-900/90 dark:text-amber-100/85">
                             Si por fuerza mayor debe aplazarse <strong>antes</strong> de la comparecencia,
                             use <strong>Reprogramar diligencia</strong> (FO-GJ-54). No regenera FO-GJ-03.
+                        </p>
+                        <p class="mt-2 text-amber-900/90 dark:text-amber-100/85">
+                            ¿Necesita preparar la diligencia? Use <strong>{{ $foGj04HasPartialDraft ? 'Continuar borrador FO-GJ-04' : 'Preparar FO-GJ-04' }}</strong>
+                            para diligenciar el acta y guardarla como borrador antes de confirmar la asistencia.
                         </p>
                     </div>
                 @endif

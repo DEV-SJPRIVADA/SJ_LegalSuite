@@ -311,7 +311,8 @@ class DisciplinaryCasePolicy
             return false;
         }
 
-        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+        // Inasistencia registrada: el FO-GJ-04 ya no aplica (se descarta el borrador).
+        if ($case->diligence_attendance === DiligenceAttendance::ABSENT) {
             return false;
         }
 

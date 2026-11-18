@@ -13,6 +13,7 @@ class DiligenceAttendanceService
 {
     public function __construct(
         private readonly DisciplinaryAuditService $audit,
+        private readonly FoGj04DraftService $foGj04Drafts,
     ) {}
 
     public function isRegistered(DisciplinaryCase $case): bool
@@ -63,6 +64,11 @@ class DiligenceAttendanceService
             'diligence_attendance_registered_at' => now(),
             'diligence_attendance_registered_by' => $actor->id,
         ])->save();
+
+        // Inasistencia: el borrador preparado del FO-GJ-04 se descarta (el acta no aplica).
+        if ($attendance === DiligenceAttendance::ABSENT && $this->foGj04Drafts->hasDraft($case)) {
+            $this->foGj04Drafts->discardDraft($case);
+        }
 
         $this->audit->logCase(
             $case->fresh(),

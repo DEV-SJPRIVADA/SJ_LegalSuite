@@ -3,6 +3,10 @@
 @endphp
 
 @if ($showFoGj04DraftModal ?? false)
+    @php
+        $foGj04AttendancePending = $case->diligence_attendance === null;
+        $foGj04PendingDraft = app(FoGj04DraftService::class)->isPendingDraft($case);
+    @endphp
     <div class="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" wire:key="fo-gj-04-draft-modal">
         <div class="flex h-[min(92dvh,calc(100dvh-1.5rem))] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-dash-lift dark:ring-1 dark:ring-white/10" role="dialog" aria-modal="true" aria-labelledby="fo-gj-04-draft-title">
             <div class="shrink-0 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
@@ -10,6 +14,15 @@
                 <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
                     Complete el contexto, la manifestación del trabajador y el cuestionario. Los datos del trabajador y la fecha se toman del expediente.
                 </p>
+                @if ($foGj04AttendancePending)
+                    <p class="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-900 dark:border-indigo-500/30 dark:bg-indigo-950/25 dark:text-indigo-100">
+                        <strong>Modo preparación.</strong> La asistencia del trabajador aún no está registrada: puede diligenciar y guardar el borrador ahora, y completarlo el día de la diligencia.
+                    </p>
+                @elseif ($foGj04PendingDraft)
+                    <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100">
+                        <strong>Borrador en curso.</strong> Complete los campos obligatorios y use «Guardar diligenciamiento» para habilitar el acta.
+                    </p>
+                @endif
             </div>
 
             <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
@@ -143,7 +156,7 @@
 
                 @unless (auth()->user()->hasSignature())
                     <div class="sm:col-span-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
-                        Suba su firma digital en <a href="{{ route('profile') }}" class="font-semibold underline" target="_blank" rel="noopener">Mi perfil</a> antes de guardar.
+                        Suba su firma digital en <a href="{{ route('profile') }}" class="font-semibold underline" target="_blank" rel="noopener">Mi perfil</a> para guardar el diligenciamiento definitivo. El borrador puede guardarse sin firma.
                     </div>
                 @endunless
 
@@ -153,9 +166,18 @@
             </div>
             </div>
 
-            <div class="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
+            <div class="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 sm:px-6 dark:border-white/10">
                 <button type="button" wire:click="closeFoGj04DraftModal" class="px-4 py-2 text-sm font-semibold text-slate-700 rounded-md ring-1 ring-slate-300 dark:text-slate-200 dark:ring-white/20">Cancelar</button>
-                <button type="button" wire:click="saveFoGj04Draft" class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700">Guardar diligenciamiento</button>
+                <button type="button" wire:click="saveFoGj04PartialDraft" wire:loading.attr="disabled" wire:target="saveFoGj04PartialDraft"
+                    class="px-4 py-2 text-sm font-semibold text-teal-800 rounded-md bg-white ring-1 ring-teal-300 hover:bg-teal-50 disabled:opacity-60 dark:bg-white/10 dark:text-teal-100 dark:ring-teal-400/40">
+                    <span wire:loading.remove wire:target="saveFoGj04PartialDraft">Guardar borrador</span>
+                    <span wire:loading wire:target="saveFoGj04PartialDraft">Guardando…</span>
+                </button>
+                <button type="button" wire:click="saveFoGj04Draft" wire:loading.attr="disabled" wire:target="saveFoGj04Draft"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-md hover:bg-teal-700 disabled:opacity-60">
+                    <span wire:loading.remove wire:target="saveFoGj04Draft">Guardar diligenciamiento</span>
+                    <span wire:loading wire:target="saveFoGj04Draft">Guardando…</span>
+                </button>
             </div>
         </div>
     </div>

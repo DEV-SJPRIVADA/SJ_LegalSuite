@@ -15,6 +15,12 @@ class FoGj04DraftService
 
     public const MANIFESTATION_REFUSES_TO_RESPOND = 'no';
 
+    /** Marca el payload guardado como borrador previo (no permite generar el acta). */
+    public const PAYLOAD_IS_DRAFT = 'is_draft';
+
+    /** Fecha/hora ISO del último guardado como borrador. */
+    public const PAYLOAD_DRAFT_SAVED_AT = 'draft_saved_at';
+
     /** @return array<string, string> */
     public static function manifestationOptions(): array
     {
@@ -66,6 +72,44 @@ class FoGj04DraftService
             && $case->fo_gj_04_payload !== [];
     }
 
+    /**
+     * Hay un borrador guardado (aunque esté incompleto y no se pueda generar el acta).
+     */
+    public function hasDraft(DisciplinaryCase $case): bool
+    {
+        return is_array($case->fo_gj_04_payload) && $case->fo_gj_04_payload !== [];
+    }
+
+    /**
+     * Borrador guardado que aún no cumple los requisitos para generar el acta.
+     */
+    public function isPendingDraft(DisciplinaryCase $case): bool
+    {
+        return $this->hasDraft($case) && ! $this->hasDraftCompleted($case);
+    }
+
+    /**
+     * Momento del último guardado del FO-GJ-04 (definitivo o borrador parcial).
+     */
+    public function draftSavedAt(DisciplinaryCase $case): ?Carbon
+    {
+        if ($case->fo_gj_04_draft_completed_at !== null) {
+            return $case->fo_gj_04_draft_completed_at;
+        }
+
+        $savedAt = $case->fo_gj_04_payload[self::PAYLOAD_DRAFT_SAVED_AT] ?? null;
+
+        if (! filled($savedAt)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($savedAt)->timezone('America/Bogota');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     /** @return list<string> */
     public function missingDraftRequirements(DisciplinaryCase $case): array
     {
@@ -100,9 +144,16 @@ class FoGj04DraftService
     }
 
     /**
+     * Guarda el FO-GJ-04.
+     *
+     * - `$asDraft === true`: borrador parcial. No exige manifestación, horas, respuestas ni
+     *   firma del abogado; no marca el diligenciamiento como completo (no habilita el PDF).
+     *   Permite preparar el acta antes de registrar la asistencia del trabajador.
+     * - `$asDraft === false`: guardado definitivo del diligenciamiento (comportamiento previo).
+     *
      * @param  array<string, mixed>  $input
      */
-    public function saveDraft(DisciplinaryCase $case, User $actor, array $input): DisciplinaryCase
+    public function saveDraft(DisciplinaryCase $case, User $actor, array $input, bool $asDraft = false): DisciplinaryCase
     {
         if ((int) $case->assigned_lawyer_id !== (int) $actor->id) {
             throw ValidationException::withMessages([
@@ -122,14 +173,20 @@ class FoGj04DraftService
             ]);
         }
 
-        if ($case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+        if ($case->diligence_attendance === DiligenceAttendance::ABSENT) {
             throw ValidationException::withMessages([
-                'fo_gj_04' => 'El acta FO-GJ-04 solo aplica cuando el trabajador asistió.',
+                'fo_gj_04' => 'El acta FO-GJ-04 no aplica cuando se registró inasistencia del trabajador.',
+            ]);
+        }
+
+        if (! $asDraft && $case->diligence_attendance !== DiligenceAttendance::ATTENDED) {
+            throw ValidationException::withMessages([
+                'fo_gj_04' => 'Registre la asistencia del trabajador antes de guardar el diligenciamiento.',
             ]);
         }
 
         $fo03Missing = $this->missingFo03CitationData($case);
-        if ($fo03Missing !== []) {
+        if ($fo03Missing !== [] && ! $asDraft) {
             throw ValidationException::withMessages([
                 'fo_gj_04' => 'Complete el FO-GJ-03 antes del acta. Falta: '.implode(', ', $fo03Missing).'.',
             ]);
@@ -137,20 +194,24 @@ class FoGj04DraftService
 
         $manifestation = (string) ($input['worker_manifestation'] ?? '');
         if (! array_key_exists($manifestation, self::manifestationOptions())) {
-            throw ValidationException::withMessages([
-                'foGj04WorkerManifestation' => 'Seleccione la manifestación del trabajador.',
-            ]);
+            if (! $asDraft) {
+                throw ValidationException::withMessages([
+                    'foGj04WorkerManifestation' => 'Seleccione la manifestación del trabajador.',
+                ]);
+            }
+
+            $manifestation = '';
         }
 
         $closingTime = trim((string) ($input['closing_time'] ?? ''));
-        if ($closingTime === '') {
+        if ($closingTime === '' && ! $asDraft) {
             throw ValidationException::withMessages([
                 'foGj04ClosingTime' => 'Indique la hora de finalización de la diligencia.',
             ]);
         }
 
         $openingTime = trim((string) ($input['opening_time'] ?? ''));
-        if ($openingTime === '') {
+        if ($openingTime === '' && ! $asDraft) {
             throw ValidationException::withMessages([
                 'foGj04OpeningTime' => 'Indique la hora de inicio de la diligencia.',
             ]);
@@ -161,20 +222,35 @@ class FoGj04DraftService
             $rawQuestions = [];
         }
 
-        $questions = $this->parseAndValidateQuestions($rawQuestions);
+        $questions = $asDraft
+            ? $this->parseDraftQuestions($rawQuestions)
+            : $this->parseAndValidateQuestions($rawQuestions);
 
-        if (! $actor->hasSignature()) {
+        if (! $asDraft && ! $actor->hasSignature()) {
             throw ValidationException::withMessages([
                 'fo_gj_04' => 'Suba su firma digital en Mi perfil antes de guardar el FO-GJ-04.',
             ]);
         }
 
-        $payload = [
-            'worker_manifestation' => $manifestation,
-            'closing_time' => $closingTime,
-            'opening_time' => $openingTime,
-            'questions' => $questions,
-        ];
+        $payload = $case->fo_gj_04_payload ?? [];
+
+        $payload['worker_manifestation'] = $manifestation;
+        $payload['closing_time'] = $closingTime;
+        $payload['opening_time'] = $openingTime;
+        $payload['questions'] = $questions;
+
+        if ($asDraft) {
+            $payload[self::PAYLOAD_IS_DRAFT] = true;
+            $payload[self::PAYLOAD_DRAFT_SAVED_AT] = now()->toIso8601String();
+
+            $case->forceFill([
+                'fo_gj_04_payload' => $payload,
+            ])->save();
+
+            return $case->fresh();
+        }
+
+        unset($payload[self::PAYLOAD_IS_DRAFT], $payload[self::PAYLOAD_DRAFT_SAVED_AT]);
 
         $case->forceFill([
             'fo_gj_04_payload' => $payload,
@@ -183,6 +259,65 @@ class FoGj04DraftService
         ])->save();
 
         return $case->fresh();
+    }
+
+    /**
+     * Descarta el borrador del FO-GJ-04 (p. ej. al registrar inasistencia del trabajador).
+     */
+    public function discardDraft(DisciplinaryCase $case): DisciplinaryCase
+    {
+        $case->forceFill([
+            'fo_gj_04_payload' => null,
+            'fo_gj_04_draft_completed_at' => null,
+            'fo_gj_04_draft_completed_by' => null,
+        ])->save();
+
+        return $case->fresh();
+    }
+
+    /**
+     * Cuestionario tolerante para borrador: conserva lo escrito aunque falte el texto o la respuesta.
+     *
+     * @param  array<int, mixed>  $raw
+     * @return list<array{question: string, answer: string, source: string, catalog_question_id: int|null}>
+     */
+    public function parseDraftQuestions(array $raw): array
+    {
+        $questions = [];
+
+        foreach ($raw as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $source = (string) ($row['source'] ?? 'custom');
+            if (! in_array($source, ['catalog', 'custom'], true)) {
+                $source = 'custom';
+            }
+
+            $catalogId = $row['catalog_question_id'] ?? null;
+            $catalogId = is_numeric($catalogId) ? (int) $catalogId : null;
+            if ($source !== 'catalog') {
+                $catalogId = null;
+            }
+
+            $rawQuestion = trim((string) ($row['question'] ?? $row['text'] ?? ''));
+            $answer = trim((string) ($row['answer'] ?? ''));
+
+            if ($rawQuestion === '' && $answer === '') {
+                continue;
+            }
+
+            // En borrador se conserva el texto tal como se escribió (se normaliza al guardar definitivo).
+            $questions[] = [
+                'question' => $rawQuestion,
+                'answer' => $answer,
+                'source' => $source,
+                'catalog_question_id' => $catalogId,
+            ];
+        }
+
+        return $questions;
     }
 
     public function saveWorkerSignature(DisciplinaryCase $case, User $actor, string $dataUri): DisciplinaryCase

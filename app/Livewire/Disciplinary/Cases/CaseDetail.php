@@ -1433,6 +1433,32 @@ class CaseDetail extends Component
         $this->foGj04Questions = array_values($this->foGj04Questions);
     }
 
+    public function saveFoGj04PartialDraft(FoGj04DraftService $drafts): void
+    {
+        Gate::authorize('editFoGj04Draft', $this->case);
+        $this->resetErrorBag();
+
+        try {
+            $this->case = $drafts->saveDraft($this->case->fresh(), auth()->user(), [
+                'worker_manifestation' => $this->foGj04WorkerManifestation,
+                'opening_time' => $this->foGj04OpeningTime,
+                'closing_time' => $this->foGj04ClosingTime,
+                'questions' => $this->foGj04Questions,
+            ], asDraft: true);
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $this->addError($field, $messages[0] ?? 'Error de validación.');
+            }
+
+            return;
+        }
+
+        $this->showFoGj04DraftModal = false;
+        $this->showFoGj04CatalogPicker = false;
+        $this->syncCaseFromDb();
+        session()->flash('success', 'Borrador del FO-GJ-04 guardado. Puede continuar editándolo cuando lo necesite.');
+    }
+
     public function saveFoGj04Draft(FoGj04DraftService $drafts): void
     {
         Gate::authorize('editFoGj04Draft', $this->case);
